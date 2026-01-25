@@ -126,12 +126,32 @@ const StorageService = {
                     break;
                 case STORAGE_KEYS.BRANDS_RAW:
                     res = await ApiService.createBrand(item);
+                    // Update local item with server ID
+                    if (res && res.success && res.data) {
+                        const localBrands = this.get(key);
+                        // Assuming the item added at the beginning (unshift) matches, or we find by name
+                        // Ideally, we should find the temp item and replace it.
+                        // Since 'add' did unshift(item), the first item is the one we just added locally.
+                        // We update it in place.
+                        if (localBrands.length > 0 && localBrands[0].name === item.name) {
+                            localBrands[0] = res.data;
+                            localStorage.setItem(key, JSON.stringify(localBrands));
+                        }
+                    }
                     break;
                 case STORAGE_KEYS.SHOWROOMS:
                     res = await ApiService.createShowroom({ name: item });
                     break;
                 case STORAGE_KEYS.SHOWROOMS_RAW:
                     res = await ApiService.createShowroom(item);
+                    // Update local with server ID
+                    if (res && res.success && res.data) {
+                        const localRooms = this.get(key);
+                        if (localRooms.length > 0 && localRooms[0].name === item.name) {
+                            localRooms[0] = res.data;
+                            localStorage.setItem(key, JSON.stringify(localRooms));
+                        }
+                    }
                     break;
                 case STORAGE_KEYS.COLORS:
                     res = await ApiService.addAttribute({ category: 'colors', value: item });
