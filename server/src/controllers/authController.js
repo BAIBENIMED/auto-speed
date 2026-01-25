@@ -56,7 +56,7 @@ exports.login = async (req, res) => {
                 clientId: user.clientId
             },
             process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN }
+            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
         );
 
         // Return user info and token
