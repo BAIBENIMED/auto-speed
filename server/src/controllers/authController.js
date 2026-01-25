@@ -55,8 +55,8 @@ exports.login = async (req, res) => {
                 roleId: user.roleId,
                 clientId: user.clientId
             },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+            process.env.JWT_SECRET || 'gtm_auto_cloud_secret_2025',
+            { expiresIn: '24h' }
         );
 
         // Return user info and token
