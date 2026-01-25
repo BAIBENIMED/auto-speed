@@ -10,10 +10,15 @@ const sequelize = new Sequelize(
         port: process.env.DB_PORT || 3306,
         dialect: 'mysql',
         logging: process.env.NODE_ENV === 'development' ? console.log : false,
+        dialectOptions: {
+            ssl: process.env.NODE_ENV === 'production' ? {
+                rejectUnauthorized: false
+            } : false
+        },
         pool: {
             max: 5,
             min: 0,
-            acquire: 30000,
+            acquire: 60000,
             idle: 10000
         }
     }
