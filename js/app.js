@@ -2565,12 +2565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     ${canViewPurchasePrice ? `<td style="font-weight: 500;">${this.formatCurrency(v.purchasePrice || 0, v.purchaseCurrency)}</td>` : ''}
                                     <td style="font-weight: 500; color: var(--text-secondary);">${this.formatCurrency(v.estimatedCustomsDuty || 0, (StorageService.get(STORAGE_KEYS.SETTINGS)?.customsCurrency || 'XAF'))}</td>
                                     <td style="font-weight: 600; color: var(--primary);">${this.formatCurrency(v.sellingPrice || v.price || 0, v.sellingCurrency)}</td>
-                                    <td>
-                                        <div style="display: flex; align-items: center; gap: 10px;">
-                                            ${v.image ? `<img src="${v.image}" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(255,255,255,0.1);" onclick="window.open('${v.image}', '_blank')">` : ''}
-                                            <span class="status-badge ${statusClass}">${statusLabel}</span>
-                                        </div>
-                                    </td>
+                                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                                     <td>
                                         <div class="table-actions">
                                             <button class="btn-action" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails">
@@ -2718,22 +2713,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>Photo du Véhicule</label>
-                                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                                        <div id="vehicle-image-preview" style="width: 80px; height: 80px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                                            <i class="fas fa-camera" style="opacity: 0.3; font-size: 1.5rem;"></i>
-                                        </div>
-                                        <div style="flex: 1;">
-                                            <input type="file" id="vehicle-image-file" accept="image/*" style="display: none;">
-                                            <button type="button" class="btn-secondary" onclick="document.getElementById('vehicle-image-file').click()" style="width: 100%; font-size: 0.8rem;">
-                                                <i class="fas fa-upload"></i> Ajouter une photo
-                                            </button>
-                                            <div id="vehicle-upload-status" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 5px;">Format: JPG, PNG. Max 2MB.</div>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" name="image" id="vehicle-image-url">
-                                </div>
-                                <div class="form-group">
                                     <label>Options du véhicule</label>
                                     <textarea name="options" class="glass-input" rows="3" placeholder="Saisir les options (ex: Toit ouvrant, Cuir, Navigation...)"></textarea>
                                 </div>
@@ -2772,9 +2751,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.preventDefault();
                 this.handleVehicleSubmission(new FormData(e.target));
             });
-
-            // Add vehicle image upload listener
-            this.setupVehiclePhotoUpload();
         },
 
         setupVehiclePhotoUpload() {
@@ -2830,13 +2806,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     condition: formData.get('condition'),
                     purchasePrice: Number(formData.get('purchasePrice')),
                     purchaseCurrency: formData.get('purchaseCurrency'),
-                    sellingPrice: formData.get('sellingPrice') ? Number(formData.get('sellingPrice')) : null,
                     sellingCurrency: formData.get('sellingCurrency'),
                     estimatedCustomsDuty: Number(formData.get('estimatedCustomsDuty')) || 0,
                     remarks: formData.get('remarks'),
                     options: formData.get('options'),
                     category: formData.get('category'),
-                    image: formData.get('image'), // New field
                     orderId: existingVehicle ? existingVehicle.orderId : null,
                     shipmentId: existingVehicle ? existingVehicle.shipmentId : null
                 };
@@ -3168,20 +3142,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label>Photo du Véhicule</label>
-                                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                                                <div id="vehicle-image-preview" style="width: 80px; height: 80px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                                                    ${vehicle.image ? `<img src="${vehicle.image}" style="max-width: 100%; max-height: 100%;">` : '<i class="fas fa-camera" style="opacity: 0.3; font-size: 1.5rem;"></i>'}
-                                                </div>
-                                                <div style="flex: 1;">
-                                                    <input type="file" id="vehicle-image-file" accept="image/*" style="display: none;">
-                                                    <button type="button" class="btn-secondary" onclick="document.getElementById('vehicle-image-file').click()" style="width: 100%; font-size: 0.8rem;">
-                                                        <i class="fas fa-upload"></i> Remplacer la photo
-                                                    </button>
-                                                    <div id="vehicle-upload-status" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 5px;">Format: JPG, PNG. Max 2MB.</div>
-                                                </div>
-                                            </div>
-                                            <input type="hidden" name="image" id="vehicle-image-url" value="${vehicle.image || ''}">
-                                        </div>
+                                    <div class="form-row">
                                         <div class="form-group">
                                             <label>Options du véhicule</label>
                                             <textarea name="options" class="glass-input" rows="3">${vehicle.options || ''}</textarea>
@@ -3230,9 +3191,6 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 e.preventDefault();
                 this.handleVehicleSubmission(new FormData(e.target));
             });
-
-            // Add vehicle image upload listener
-            this.setupVehiclePhotoUpload();
         },
 
         renderSettings() {
@@ -3262,6 +3220,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 const showroomsRaw = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
                 const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
                 const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
+                const carriers = StorageService.get(STORAGE_KEYS.CARRIERS) || [];
 
                 // Helper to render a list config section
                 const renderConfigSection = (title, icon, items, type) => `
@@ -3326,6 +3285,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 ${renderConfigSection('Couleurs', 'fas fa-palette', colors, 'COLORS')}
                                 ${this.renderShowroomSection(showroomsRaw)}
                                 ${renderConfigSection('Devises', 'fas fa-money-bill-wave', currencies, 'CURRENCIES')}
+                                ${renderConfigSection('Compagnies Maritimes', 'fas fa-ship', carriers, 'CARRIERS')}
 
                                 ${this.renderUserManagementSection()}
                                 ${this.renderRoleManagementSection()}
