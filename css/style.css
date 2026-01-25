@@ -1225,9 +1225,9 @@ textarea.glass-input {
     align-items: center;
     justify-content: center;
     background:
-        radial-gradient(circle at 20% 20%, rgba(194, 161, 94, 0.1), transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(194, 161, 94, 0.1), transparent 50%),
-        var(--bg-dark);
+        linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.8)),
+        url('../assets/login-wallpaper.png') no-repeat center center / cover;
+    background-color: #000;
 }
 
 .login-box {
