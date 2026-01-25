@@ -2792,6 +2792,84 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         },
 
+        async handleOrderSubmission(formData) {
+            const submitBtn = document.querySelector('#order-form button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+            }
+
+            try {
+                const orderId = formData.get('orderId');
+                const isUpdate = !!orderId;
+                const existingOrder = isUpdate ? StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === orderId) : null;
+
+                const orderData = {
+                    id: orderId || this.generateOrderId(),
+                    clientId: formData.get('clientId'),
+                    clientName: formData.get('clientName'), // Hidden field populated by JS
+                    vehicleId: formData.get('vehicleId') || null,
+                    vehicleName: formData.get('vehicleName'), // Hidden field populated by JS
+                    date: formData.get('date'),
+                    status: formData.get('status') || 'EN ATTENTE DE VALIDATION',
+                    totalAmount: parseFloat(formData.get('totalAmount')),
+                    currency: formData.get('currency'),
+                    paidAmount: isUpdate ? existingOrder.paidAmount : 0, // Preserve paid amount
+                    details: formData.get('details'),
+                    showroom: formData.get('showroom'),
+                    // Preserve other fields if update
+                    ...(isUpdate ? existingOrder : {}),
+                    // Overwrite with form data (careful not to lose data not in form)
+                    ...Object.fromEntries(formData.entries()),
+                    // Ensure critical fields are set correctly
+                    id: orderId || this.generateOrderId(), // re-ensure ID
+                    amount: parseFloat(formData.get('totalAmount')), // Legacy support
+                    discount: parseFloat(formData.get('discount')) || 0,
+                    isValidated: isUpdate ? existingOrder.isValidated : false
+                };
+
+                if (isUpdate) {
+                    await StorageService.update(STORAGE_KEYS.ORDERS, orderId, orderData);
+
+                    // If vehicle changed, update vehicles status
+                    if (existingOrder.vehicleId && existingOrder.vehicleId !== orderData.vehicleId) {
+                        // Free up old vehicle
+                        const oldV = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === existingOrder.vehicleId);
+                        if (oldV) {
+                            oldV.status = 'Available';
+                            oldV.orderId = null;
+                            await StorageService.update(STORAGE_KEYS.VEHICLES, oldV.id, oldV);
+                        }
+                    }
+                } else {
+                    await StorageService.add(STORAGE_KEYS.ORDERS, orderData);
+                }
+
+                // Reserve new vehicle
+                if (orderData.vehicleId) {
+                    const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === orderData.vehicleId);
+                    if (vehicle) {
+                        vehicle.status = 'Reserved';
+                        vehicle.orderId = orderData.id;
+                        await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
+                    }
+                }
+
+                this.closeModal();
+                this.renderView('orders');
+                this.showToast(isUpdate ? 'Commande mise à jour' : 'Commande créée avec succès', 'success');
+
+            } catch (error) {
+                console.error("Order submission error:", error);
+                this.showToast("Erreur lors de l'enregistrement: " + error.message, "error");
+                // Re-enable button on error
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Enregistrer la commande';
+                }
+            }
+        },
+
         showBatchVehicleModal() {
             const modalHtml = `
                         <div class="modal-overlay">
