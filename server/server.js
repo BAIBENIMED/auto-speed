@@ -124,14 +124,25 @@ app.use((err, req, res, next) => {
     res.status(500).json({ success: false, message: 'Erreur serveur' });
 });
 
-// Database sync and server start
+// Database sync and server start (Optimized for Cloud)
 const startServer = async () => {
-    try {
-        // Enabled 'alter' to add missing columns (like 'status' in vehicles)
-        await sequelize.sync({ alter: true });
-        console.log('✅ Base de données synchronisée');
+    // 1. Start listening IMMEDIATELY (Crucial for Render/Cloud health checks)
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`\n-----------------------------------------`);
+        console.log(`🚀 SERVEUR ACTIF sur le port ${PORT}`);
+        console.log(`📊 Health Check: Ready for Render`);
+        console.log(`-----------------------------------------\n`);
+    });
 
-        // Auto-seed Roles and Admin if empty (Cloud setup helper)
+    // 2. Initialize Database in background (Non-blocking)
+    try {
+        console.log('⏳ Initialisation de la base de données...');
+
+        // Sync models
+        await sequelize.sync({ alter: true });
+        console.log('✅ Base de données synchronisée (MODE: ALTER)');
+
+        // Auto-seed Roles if empty
         const rolesCount = await models.Role.count();
         if (rolesCount === 0) {
             console.log('🌱 Seeding initial roles...');
@@ -140,8 +151,10 @@ const startServer = async () => {
                 { id: 'manager', name: 'Manager', permissions: ['dashboard', 'clients', 'orders', 'vehicles', 'tracking', 'shipments', 'cash', 'verification'] },
                 { id: 'commercial', name: 'Commercial', permissions: ['dashboard', 'clients', 'orders'] }
             ]);
+            console.log('✅ Rôles créés avec succès');
         }
 
+        // Auto-seed Admin if empty
         const adminExists = await models.User.findOne({ where: { username: 'admin' } });
         if (!adminExists) {
             console.log('🌱 Seeding admin user...');
@@ -152,19 +165,16 @@ const startServer = async () => {
                 name: 'Administrateur',
                 roleId: 'admin'
             });
+            console.log('✅ Utilisateur admin créé (Login: admin / admin123)');
         }
-    } catch (err) {
-        console.warn('⚠️ Attention: Problème lors de la synchronisation/seeding');
-        console.error('Erreur:', err);
-    }
 
-    // Start server independently of sync result
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-        console.log(`📍 Accès local: http://localhost:${PORT}`);
-        console.log(`🌐 Accès réseau: http://192.168.1.12:${PORT}`);
-        console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-    });
+        console.log('🏁 Initialisation terminée et prête.');
+
+    } catch (err) {
+        console.error('❌ ERREUR INITIALISATION BACKGROUND:');
+        console.error(err);
+        // Note: We don't kill the process because Render might still serve static files/health
+    }
 };
 
 startServer();
