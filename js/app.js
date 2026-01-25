@@ -2565,7 +2565,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     ${canViewPurchasePrice ? `<td style="font-weight: 500;">${this.formatCurrency(v.purchasePrice || 0, v.purchaseCurrency)}</td>` : ''}
                                     <td style="font-weight: 500; color: var(--text-secondary);">${this.formatCurrency(v.estimatedCustomsDuty || 0, (StorageService.get(STORAGE_KEYS.SETTINGS)?.customsCurrency || 'XAF'))}</td>
                                     <td style="font-weight: 600; color: var(--primary);">${this.formatCurrency(v.sellingPrice || v.price || 0, v.sellingCurrency)}</td>
-                                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            ${v.image ? `<img src="${v.image}" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(255,255,255,0.1);" onclick="window.open('${v.image}', '_blank')">` : ''}
+                                            <span class="status-badge ${statusClass}">${statusLabel}</span>
+                                        </div>
+                                    </td>
                                     <td>
                                         <div class="table-actions">
                                             <button class="btn-action" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails">
@@ -2713,6 +2718,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                             <div class="form-row">
                                 <div class="form-group">
+                                    <label>Photo du Véhicule</label>
+                                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                                        <div id="vehicle-image-preview" style="width: 80px; height: 80px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                                            <i class="fas fa-camera" style="opacity: 0.3; font-size: 1.5rem;"></i>
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <input type="file" id="vehicle-image-file" accept="image/*" style="display: none;">
+                                            <button type="button" class="btn-secondary" onclick="document.getElementById('vehicle-image-file').click()" style="width: 100%; font-size: 0.8rem;">
+                                                <i class="fas fa-upload"></i> Ajouter une photo
+                                            </button>
+                                            <div id="vehicle-upload-status" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 5px;">Format: JPG, PNG. Max 2MB.</div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="image" id="vehicle-image-url">
+                                </div>
+                                <div class="form-group">
                                     <label>Options du véhicule</label>
                                     <textarea name="options" class="glass-input" rows="3" placeholder="Saisir les options (ex: Toit ouvrant, Cuir, Navigation...)"></textarea>
                                 </div>
@@ -2751,6 +2772,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.preventDefault();
                 this.handleVehicleSubmission(new FormData(e.target));
             });
+
+            // Add vehicle image upload listener
+            this.setupVehiclePhotoUpload();
+        },
+
+        setupVehiclePhotoUpload() {
+            const fileInput = document.getElementById('vehicle-image-file');
+            if (!fileInput) return;
+
+            fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const statusEl = document.getElementById('vehicle-upload-status');
+                const previewEl = document.getElementById('vehicle-image-preview');
+                const urlInput = document.getElementById('vehicle-image-url');
+
+                statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Téléchargement...';
+
+                try {
+                    const res = await ApiService.uploadFile(file);
+                    if (res.success) {
+                        urlInput.value = res.data.url;
+                        previewEl.innerHTML = `<img src="${res.data.url}" style="max-width: 100%; max-height: 100%;">`;
+                        statusEl.innerHTML = '<span style="color: var(--success);"><i class="fas fa-check"></i> Téléchargé avec succès</span>';
+                        this.showToast('Photo téléchargée', 'success');
+                    } else {
+                        throw new Error(res.message);
+                    }
+                } catch (err) {
+                    console.error('Upload error:', err);
+                    statusEl.innerHTML = `<span style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> ${err.message || 'Erreur'}</span>`;
+                    this.showToast('Erreur lors du téléchargement', 'error');
+                }
+            });
         },
 
         async handleVehicleSubmission(formData) {
@@ -2780,6 +2836,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     remarks: formData.get('remarks'),
                     options: formData.get('options'),
                     category: formData.get('category'),
+                    image: formData.get('image'), // New field
                     orderId: existingVehicle ? existingVehicle.orderId : null,
                     shipmentId: existingVehicle ? existingVehicle.shipmentId : null
                 };
@@ -3110,6 +3167,22 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
                                     <div class="form-row">
                                         <div class="form-group">
+                                            <label>Photo du Véhicule</label>
+                                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                                                <div id="vehicle-image-preview" style="width: 80px; height: 80px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                                                    ${vehicle.image ? `<img src="${vehicle.image}" style="max-width: 100%; max-height: 100%;">` : '<i class="fas fa-camera" style="opacity: 0.3; font-size: 1.5rem;"></i>'}
+                                                </div>
+                                                <div style="flex: 1;">
+                                                    <input type="file" id="vehicle-image-file" accept="image/*" style="display: none;">
+                                                    <button type="button" class="btn-secondary" onclick="document.getElementById('vehicle-image-file').click()" style="width: 100%; font-size: 0.8rem;">
+                                                        <i class="fas fa-upload"></i> Remplacer la photo
+                                                    </button>
+                                                    <div id="vehicle-upload-status" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 5px;">Format: JPG, PNG. Max 2MB.</div>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" name="image" id="vehicle-image-url" value="${vehicle.image || ''}">
+                                        </div>
+                                        <div class="form-group">
                                             <label>Options du véhicule</label>
                                             <textarea name="options" class="glass-input" rows="3">${vehicle.options || ''}</textarea>
                                         </div>
@@ -3157,6 +3230,9 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 e.preventDefault();
                 this.handleVehicleSubmission(new FormData(e.target));
             });
+
+            // Add vehicle image upload listener
+            this.setupVehiclePhotoUpload();
         },
 
         renderSettings() {
@@ -4052,8 +4128,20 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 <input type="text" name="name" value="${brand.name}" required class="glass-input">
                             </div>
                             <div class="form-group">
-                                <label>Logo (URL)</label>
-                                <input type="text" name="logo" value="${brand.logo || ''}" class="glass-input" placeholder="https://...">
+                                <label>Logo</label>
+                                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                                    <div id="brand-logo-preview" style="width: 60px; height: 60px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                                        ${brand.logo ? `<img src="${brand.logo}" style="max-width: 100%; max-height: 100%;">` : '<i class="fas fa-image" style="opacity: 0.3;"></i>'}
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <input type="file" id="brand-logo-file" accept="image/*" style="display: none;">
+                                        <button type="button" class="btn-secondary" onclick="document.getElementById('brand-logo-file').click()" style="width: 100%; font-size: 0.8rem;">
+                                            <i class="fas fa-upload"></i> Remplacer le logo (PNG/JPG)
+                                        </button>
+                                        <div id="upload-status" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 5px;">Format recommandé: Carré, fond transparent</div>
+                                    </div>
+                                </div>
+                                <input type="text" name="logo" id="brand-logo-url" value="${brand.logo || ''}" class="glass-input" placeholder="Ou URL du logo: https://...">
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
@@ -4064,6 +4152,34 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 </div>
             `;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Handle file upload
+            document.getElementById('brand-logo-file').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const statusEl = document.getElementById('upload-status');
+                const previewEl = document.getElementById('brand-logo-preview');
+                const urlInput = document.getElementById('brand-logo-url');
+
+                statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Téléchargement...';
+
+                try {
+                    const res = await ApiService.uploadFile(file);
+                    if (res.success) {
+                        urlInput.value = res.data.url;
+                        previewEl.innerHTML = `<img src="${res.data.url}" style="max-width: 100%; max-height: 100%;">`;
+                        statusEl.innerHTML = '<span style="color: var(--success);"><i class="fas fa-check"></i> Téléchargé avec succès</span>';
+                        this.showToast('Logo téléchargé', 'success');
+                    } else {
+                        throw new Error(res.message);
+                    }
+                } catch (err) {
+                    console.error('Upload error:', err);
+                    statusEl.innerHTML = `<span style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> ${err.message || 'Erreur'}</span>`;
+                    this.showToast('Erreur lors du téléchargement', 'error');
+                }
+            });
 
             document.getElementById('edit-brand-form').addEventListener('submit', async (e) => {
                 e.preventDefault();

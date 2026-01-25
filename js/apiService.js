@@ -165,5 +165,16 @@ const ApiService = {
     deleteSupplier: (id) => ApiService.request(`/suppliers/${id}`, { method: 'DELETE' }),
 
     // Bulk Sync
-    syncAllBulk: () => ApiService.request('/sync/sync-all')
+    syncAllBulk: () => ApiService.request('/sync/sync-all'),
+
+    // Upload
+    uploadFile: (file) => {
+        const formData = new FormData();
+        formData.append('logo', file);
+        return ApiService.request('/upload', {
+            method: 'POST',
+            body: formData,
+            headers: {} // Fetch will set correct boundary with FormData
+        });
+    }
 };
