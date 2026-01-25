@@ -5,6 +5,8 @@ const API_BASE_URL = (window.location.hostname === 'localhost' || window.locatio
     ? 'http://localhost:5000'
     : window.location.origin;
 
+console.log('📡 API Service initialized using:', API_BASE_URL);
+
 const ApiService = {
     async request(endpoint, options = {}) {
         const url = `${API_BASE_URL}/api${endpoint}`;
