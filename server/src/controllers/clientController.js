@@ -22,6 +22,29 @@ exports.create = async (req, res) => {
         if (req.user && !['admin', 'commercial'].includes(req.user.roleId)) {
             return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
         }
+
+        const { reference, firstName, lastName } = req.body;
+
+        // Check for duplicate Reference
+        if (reference) {
+            const existingRef = await Client.findOne({ where: { reference } });
+            if (existingRef) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Un client avec la référence "${reference}" existe déjà.`
+                });
+            }
+        }
+
+        // Check for duplicate Name + FirstName
+        const existingName = await Client.findOne({ where: { firstName, lastName } });
+        if (existingName) {
+            return res.status(400).json({
+                success: false,
+                message: `Un client nommé "${firstName} ${lastName}" existe déjà dans la base.`
+            });
+        }
+
         const client = await Client.create(req.body);
         res.status(201).json({ success: true, data: client });
     } catch (error) {

@@ -2326,13 +2326,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (clientId) {
                     await StorageService.update(STORAGE_KEYS.CLIENTS, clientId, newClient);
+                    this.showToast('Client mis à jour', 'success');
                 } else {
-                    await StorageService.add(STORAGE_KEYS.CLIENTS, newClient);
+                    // Disable button to prevent double-click
+                    const submitBtn = document.querySelector('#client-form button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+                    }
+
+                    try {
+                        await StorageService.add(STORAGE_KEYS.CLIENTS, newClient);
+                        this.showToast('Client ajouté avec succès', 'success');
+                    } catch (addError) {
+                        // Re-enable button on error
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Ajouter le client';
+                        }
+                        throw addError; // Rethrow to main catch
+                    }
                 }
 
                 this.closeModal();
                 this.renderView(this.currentView);
-                this.showToast(clientId ? 'Client mis à jour' : 'Client ajouté avec succès', 'success');
             } catch (error) {
                 console.error("Error in handleClientSubmission:", error);
                 this.showToast(`Erreur lors de l'enregistrement: ${error.message || 'Serveur injoignable'}`, "error");
