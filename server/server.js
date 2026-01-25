@@ -66,7 +66,7 @@ app.use('/api/suppliers', require('./src/routes/suppliers'));
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.2)' });
+    res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.3 - FIXED)' });
 });
 
 // Diagnostic endpoint for Cloud deployment
