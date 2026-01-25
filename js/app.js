@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } catch (error) {
                 console.error("Login error:", error);
-                this.showToast("Erreur de connexion au serveur", "error");
+                this.showToast(error.message || "Erreur de connexion au serveur", "error");
             }
         },
 
