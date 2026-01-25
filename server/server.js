@@ -78,9 +78,32 @@ const startServer = async () => {
         // Enabled 'alter' to add missing columns (like 'status' in vehicles)
         await sequelize.sync({ alter: true });
         console.log('✅ Base de données synchronisée');
+
+        // Auto-seed Roles and Admin if empty (Cloud setup helper)
+        const rolesCount = await models.Role.count();
+        if (rolesCount === 0) {
+            console.log('🌱 Seeding initial roles...');
+            await models.Role.bulkCreate([
+                { id: 'admin', name: 'Administrateur', permissions: ['dashboard', 'clients', 'orders', 'vehicles', 'tracking', 'shipments', 'cash', 'settings', 'verification', 'audit'] },
+                { id: 'manager', name: 'Manager', permissions: ['dashboard', 'clients', 'orders', 'vehicles', 'tracking', 'shipments', 'cash', 'verification'] },
+                { id: 'commercial', name: 'Commercial', permissions: ['dashboard', 'clients', 'orders'] }
+            ]);
+        }
+
+        const adminExists = await models.User.findOne({ where: { username: 'admin' } });
+        if (!adminExists) {
+            console.log('🌱 Seeding admin user...');
+            await models.User.create({
+                id: 'admin-' + Date.now(),
+                username: 'admin',
+                password: 'admin123',
+                name: 'Administrateur',
+                roleId: 'admin'
+            });
+        }
     } catch (err) {
-        console.warn('⚠️ Attention: Problème lors de la synchronisation (Fonctionnalités limitées)');
-        console.error('Erreur de synchronisation:', err);
+        console.warn('⚠️ Attention: Problème lors de la synchronisation/seeding');
+        console.error('Erreur:', err);
     }
 
     // Start server independently of sync result
