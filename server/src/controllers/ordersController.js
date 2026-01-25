@@ -50,7 +50,11 @@ const ordersController = {
             if (req.user && !['admin', 'commercial'].includes(req.user.roleId) && order.clientId !== req.user.clientId) {
                 return res.status(403).json({ success: false, message: 'Accès non autorisé' });
             }
-            res.json({ success: true, data: order });
+            const orderData = order.toJSON();
+            if (orderData.client) {
+                orderData.clientName = `${orderData.client.firstName} ${orderData.client.lastName}`;
+            }
+            res.json({ success: true, data: orderData });
         } catch (error) {
             res.status(500).json({ success: false, message: 'Erreur lors de la récupération de la commande' });
         }
