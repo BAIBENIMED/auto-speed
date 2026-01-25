@@ -2542,8 +2542,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <tr>
                                     <td><strong>#${v.id}</strong></td>
                                     <td>
-                                        <div style="display: flex; align-items: center; gap: 10px;">
-                                            ${brandLogo ? `<img src="${brandLogo}" style="width: 32px; height: 32px; object-fit: contain; background: rgba(255,255,255,0.05); border-radius: 6px; padding: 2px;">` : ''}
+                                        <div style="display: flex; align-items: center; gap: 15px;">
+                                            ${brandLogo ? `<img src="${brandLogo}" style="width: 50px; height: 50px; object-fit: contain; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 4px;" onerror="this.style.display='none'">` : ''}
                                             <div>
                                                 <div style="font-weight: 600;">${v.brand || 'Sans Marque'}${v.model ? ' ' + v.model : ''}</div>
                                                 <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
