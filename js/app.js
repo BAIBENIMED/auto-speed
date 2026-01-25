@@ -3197,6 +3197,13 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             </div>
                                             <span>Forêt</span>
                                         </label>
+                                        <label class="theme-card ${settings.theme === 'elite' ? 'active' : ''}" style="background: #09090b; border: 1px solid rgba(255,255,255,0.1);">
+                                            <input type="radio" name="theme" value="elite" ${settings.theme === 'elite' ? 'checked' : ''} style="display: none;">
+                                            <div class="theme-preview" style="background: #09090b;">
+                                                <div style="width: 20px; height: 10px; background: #c2a15e; border-radius: 2px;"></div>
+                                            </div>
+                                            <span>Elite (Noir & Or)</span>
+                                        </label>
                                     </div>
                                 </div>
 
