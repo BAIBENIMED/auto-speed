@@ -66,7 +66,7 @@ app.use('/api/suppliers', require('./src/routes/suppliers'));
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', message: 'TIBOU AUTO API is running' });
+    res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.2)' });
 });
 
 // Diagnostic endpoint for Cloud deployment
@@ -74,42 +74,40 @@ app.get('/api/diag', async (req, res) => {
     // Show environment status immediately
     const diag = {
         timestamp: new Date().toISOString(),
-        version: "2.1",
+        version: "2.2",
         request: {
             origin: req.get('origin'),
-            host: req.get('host'),
-            protocol: req.protocol,
-            ip: req.ip
+            host: req.get('host')
         },
         environment: {
             NODE_ENV: process.env.NODE_ENV,
             DB_HOST_SET: !!process.env.DB_HOST,
-            DB_USER_SET: !!process.env.DB_USER,
-            DB_NAME_SET: !!process.env.DB_NAME,
-            DB_PORT_SET: !!process.env.DB_PORT,
             JWT_SECRET_SET: !!process.env.JWT_SECRET,
-            PORT: process.env.PORT
-        },
-        database_config: {
-            host: process.env.DB_HOST,
-            user: process.env.DB_USER,
-            database: process.env.DB_NAME,
-            port: process.env.DB_PORT
+            JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN
         }
     };
 
     try {
+        // Test JWT
+        const jwt = require('jsonwebtoken');
+        const testToken = jwt.sign({ test: true }, process.env.JWT_SECRET || 'test', { expiresIn: '1m' });
+        diag.jwt_test = "OK";
+
+        // Test Bcrypt
+        const bcrypt = require('bcrypt');
+        const hash = await bcrypt.hash('test', 10);
+        diag.bcrypt_test = "OK";
+
         await sequelize.authenticate();
         diag.database_connection = "OK";
         diag.users_count = await models.User.count();
         res.json(diag);
     } catch (error) {
-        diag.database_connection = "FAILED";
+        diag.status = "DIAG_FAILED";
         diag.error = {
             name: error.name,
-            message: error.message || "Unknown error (Empty message)",
-            code: error.original ? error.original.code : error.code,
-            details: error.toString()
+            message: error.message,
+            stack: error.stack
         };
         res.status(500).json(diag);
     }
