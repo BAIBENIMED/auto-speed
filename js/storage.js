@@ -182,6 +182,9 @@ const StorageService = {
                 case STORAGE_KEYS.ROLES:
                     res = await ApiService.createRole(item);
                     break;
+                case STORAGE_KEYS.CATEGORIES:
+                    res = await ApiService.addAttribute({ category: 'categories', value: item });
+                    break;
                 case STORAGE_KEYS.SUPPLIERS:
                     await ApiService.createSupplier(item);
                     break;
@@ -267,7 +270,8 @@ const StorageService = {
         // Dynamic attributes are stored as simple strings, others as objects with id
         const isAttribute = [
             STORAGE_KEYS.BRANDS, STORAGE_KEYS.COLORS, STORAGE_KEYS.MOTORS,
-            STORAGE_KEYS.SHOWROOMS, STORAGE_KEYS.CARRIERS, STORAGE_KEYS.CURRENCIES
+            STORAGE_KEYS.SHOWROOMS, STORAGE_KEYS.CARRIERS, STORAGE_KEYS.CURRENCIES,
+            STORAGE_KEYS.CATEGORIES
         ].includes(key);
 
         if (isAttribute) {
@@ -310,12 +314,14 @@ const StorageService = {
                     if (showObj) await ApiService.deleteShowroom(showObj.id);
                     break;
                 case STORAGE_KEYS.CURRENCIES:
+                case STORAGE_KEYS.CATEGORIES:
                     // Find the actual attribute ID from the cached raw data
                     const categoryMap = {
                         [STORAGE_KEYS.COLORS]: 'colors',
                         [STORAGE_KEYS.MOTORS]: 'motors',
                         [STORAGE_KEYS.CARRIERS]: 'carriers',
-                        [STORAGE_KEYS.CURRENCIES]: 'currencies'
+                        [STORAGE_KEYS.CURRENCIES]: 'currencies',
+                        [STORAGE_KEYS.CATEGORIES]: 'categories'
                     };
                     const category = categoryMap[key];
                     const rawAttrs = JSON.parse(localStorage.getItem('gtm_attributes_raw') || '[]');

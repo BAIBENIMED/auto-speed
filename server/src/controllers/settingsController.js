@@ -12,7 +12,6 @@ const settingsController = {
                     sellingCurrency: 'EUR',
                     customsCurrency: 'XAF',
                     theme: 'dark',
-                    trackingProvider: '17track',
                     useAiExtraction: false,
                     geminiModel: 'gemini-1.5-flash',
                     availableGeminiModels: []

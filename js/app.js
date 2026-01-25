@@ -2534,15 +2534,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                 }
 
-                // Manual override for styling consistency if needed
-                if (statusLabel === 'Expédié') statusClass = 'info'; // Use info/blue for transit if available
+                const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+                const brandObj = brandsRaw.find(b => b.name === v.brand);
+                const brandLogo = brandObj && brandObj.logo ? brandObj.logo : null;
 
                 return `
                                 <tr>
                                     <td><strong>#${v.id}</strong></td>
                                     <td>
-                                        <div style="font-weight: 600;">${v.brand || 'Sans Marque'}${v.model ? ' ' + v.model : ''}</div>
-                                        <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            ${brandLogo ? `<img src="${brandLogo}" style="width: 32px; height: 32px; object-fit: contain; background: rgba(255,255,255,0.05); border-radius: 6px; padding: 2px;">` : ''}
+                                            <div>
+                                                <div style="font-weight: 600;">${v.brand || 'Sans Marque'}${v.model ? ' ' + v.model : ''}</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td><code style="font-size: 0.8rem;">${v.chassisNumber || '-'}</code></td>
                                     <td>
@@ -2675,7 +2681,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         <div class="input-group" style="display: flex; gap: 5px;">
                                             <input type="number" name="purchasePrice" required class="glass-input" placeholder="0.00">
                                             <select name="purchaseCurrency" class="glass-select" style="width: 80px;">
-                                                ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || []).map(c => `<option value="${c}">${c}</option>`).join('')}
+                                                ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || []).map(c => `<option value="${c}" ${c === (StorageService.get(STORAGE_KEYS.SETTINGS)?.purchaseCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </div>
                                     </div>
@@ -2684,7 +2690,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         <div class="input-group" style="display: flex; gap: 5px;">
                                             <input type="number" name="sellingPrice" class="glass-input" placeholder="0.00">
                                             <select name="sellingCurrency" class="glass-select" style="width: 80px;">
-                                                ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || []).map(c => `<option value="${c}">${c}</option>`).join('')}
+                                                ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || []).map(c => `<option value="${c}" ${c === (StorageService.get(STORAGE_KEYS.SETTINGS)?.sellingCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </div>
                                     </div>
@@ -2994,7 +3000,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                 <div class="input-group" style="display: flex; gap: 5px;">
                                                     <input type="number" name="purchasePrice" value="${vehicle.purchasePrice || vehicle.price || 0}" required class="glass-input">
                                                     <select name="purchaseCurrency" class="glass-select" style="width: 80px;">
-                                                        ${StorageService.get(STORAGE_KEYS.CURRENCIES).map(c => `<option value="${c}" ${c === (vehicle.purchaseCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
+                                                        ${StorageService.get(STORAGE_KEYS.CURRENCIES).map(c => `<option value="${c}" ${c === (vehicle.purchaseCurrency || StorageService.get(STORAGE_KEYS.SETTINGS)?.purchaseCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
                                                     </select>
                                                 </div>
                                             </div>
@@ -3003,7 +3009,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                 <div class="input-group" style="display: flex; gap: 5px;">
                                                     <input type="number" name="sellingPrice" value="${vehicle.sellingPrice || ''}" class="glass-input" placeholder="0.00">
                                                     <select name="sellingCurrency" class="glass-select" style="width: 80px;">
-                                                        ${StorageService.get(STORAGE_KEYS.CURRENCIES).map(c => `<option value="${c}" ${c === (vehicle.sellingCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
+                                                        ${StorageService.get(STORAGE_KEYS.CURRENCIES).map(c => `<option value="${c}" ${c === (vehicle.sellingCurrency || StorageService.get(STORAGE_KEYS.SETTINGS)?.sellingCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
                                                     </select>
                                                 </div>
                                             </div>
@@ -3249,43 +3255,9 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </div >
                                 </div >
 
-                                <div class="settings-section">
-                                    <h3><i class="fas fa-shipping-fast"></i> Suivi des Expéditions</h3>
-                                    
-                                    <div class="form-group">
-                                        <label>Provider de Tracking</label>
-                                        <select name="trackingProvider" class="glass-select">
-                                            <option value="17track" ${settings.trackingProvider === '17track' ? 'selected' : ''}>17track</option>
-                                            <option value="shippo" ${settings.trackingProvider === 'shippo' ? 'selected' : ''}>Shippo</option>
-                                        </select>
-                                        <small style="color: var(--text-dim);">Sélectionnez le service de tracking à utiliser</small>
-                                    </div>
 
-                                    <div class="form-group">
-                                        <label>Clé API 17track</label>
-                                        <input type="password" name="trackApiKey" value="${settings.trackApiKey || ''}" class="glass-input" placeholder="Clé API (Token) 17track" autocomplete="new-password">
-                                        <small style="color: var(--text-dim);">Obtenez une clé sur <a href="https://www.17track.net/" target="_blank" style="color: var(--primary);">17track.net</a></small>
-                                    </div>
 
-                                    <div class="form-group">
-                                        <label>Clé API Shippo</label>
-                                        <input type="password" name="shippoApiKey" value="${settings.shippoApiKey || ''}" class="glass-input" placeholder="Clé API Shippo (Test ou Live)" autocomplete="new-password">
-                                        <small style="color: var(--text-dim);">Obtenez une clé sur <a href="https://goshippo.com/" target="_blank" style="color: var(--primary);">goshippo.com</a> (Mode test gratuit disponible)</small>
-                                    </div>
-                                </div>
 
-                                <div class="settings-section" style="border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);">
-                                    <h3 style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> Maintenance & Données</h3>
-                                    <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 15px;">Utilisez ces options si vous constatez des incohérences entre vos données locales et le serveur.</p>
-                                    <div style="display: flex; gap: 15px;">
-                                        <button type="button" class="btn-secondary" onclick="app.syncAllData()" style="flex: 1;">
-                                            <i class="fas fa-sync"></i> Synchroniser tout
-                                        </button>
-                                        <button type="button" class="btn-secondary danger" onclick="app.handleResetData()" style="flex: 1; border-color: var(--danger); color: var(--danger);">
-                                            <i class="fas fa-trash-alt"></i> Réinitialiser le cache local
-                                        </button>
-                                    </div>
-                                </div>
 
                                 <div class="settings-footer">
                                     <button type="submit" class="btn-primary">Enregistrer les modifications</button>
@@ -3315,10 +3287,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         theme: formData.get('theme') || settings.theme,
                         geminiApiKey: formData.get('geminiApiKey'),
                         geminiModel: formData.get('geminiModel'),
-                        useAiExtraction: formData.get('useAiExtraction') === 'on',
-                        trackApiKey: formData.get('trackApiKey'),
-                        shippoApiKey: formData.get('shippoApiKey'),
-                        trackingProvider: formData.get('trackingProvider')
+                        useAiExtraction: formData.get('useAiExtraction') === 'on'
                     };
                     await StorageService.save(STORAGE_KEYS.SETTINGS, newSettings);
                     this.applyTheme(newSettings.theme);
@@ -5807,182 +5776,44 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         },
 
         async trackShipment(shipmentId) {
+            // Manual Tracking Logic Only
             const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-            const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
-            if (shipmentIndex === -1) return;
-            const shipment = shipments[shipmentIndex];
+            const shipment = shipments.find(s => s.id === shipmentId);
 
-            if (!shipment.containerNumber) {
-                this.showToast("Pas de numéro de conteneur pour cette expédition.", "error");
-                return;
-            }
+            if (!shipment) return;
 
-            const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-            const trackingProvider = settings?.trackingProvider || '17track';
+            const newStatus = prompt(`Mettre à jour le statut pour l'expédition ${shipment.containerNumber} ?\n(Actuel: ${shipment.status})`, shipment.status);
 
-            if (trackingProvider === 'shippo') {
-                await this.trackShipmentWithShippo(shipmentId);
-            } else {
-                await this.trackShipmentWith17Track(shipmentId);
-            }
-        },
+            if (newStatus && newStatus !== shipment.status) {
+                shipment.status = newStatus;
+                shipment.lastUpdate = new Date().toISOString();
 
-        async trackShipmentWith17Track(shipmentId) {
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-            const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
-            if (shipmentIndex === -1) return;
-            const shipment = shipments[shipmentIndex];
+                await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, shipment);
+                this.showToast(`Statut mis à jour : ${newStatus}`, "success");
 
-            const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-            const apiKey = settings?.trackApiKey;
+                // Update vehicle statuses linked to this shipment
+                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+                const linkedVehicles = vehicles.filter(v => v.shipmentId === shipment.id);
+                let updatedCount = 0;
 
-            if (!apiKey) {
-                this.showToast("Veuillez configurer votre clé API 17track dans les paramètres.", "error");
-                return;
-            }
+                for (const v of linkedVehicles) {
+                    let vStatus = v.status;
+                    if (newStatus === 'Arrivé') vStatus = 'Arrived';
+                    else if (newStatus === 'Livré') vStatus = 'Sold'; // Or 'Handed Over' depending on logic, keeping simple
+                    else if (newStatus === 'En mer') vStatus = 'In Transit';
 
-            this.showToast("Mise à jour du suivi en cours...", "info");
-
-            try {
-                const carrierMap = {
-                    'MSC': '100001',
-                    'MAERSK': '100000',
-                    'CMA CGM': '100012',
-                    'HAPAG-LLOYD': '100002',
-                    'COSCO': '100013',
-                    'EVERGREEN': '100003',
-                    'ZIM': '100004',
-                    'ONE': '100005',
-                    'YANG MING': '100006'
-                };
-                const carrierCode = carrierMap[shipment.carrier?.toUpperCase()] || '';
-
-                const response = await fetch('http://localhost:5000/api/tracking/track', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        numbers: [{ number: shipment.containerNumber, carrier: carrierCode }],
-                        apiKey: apiKey
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.code === 0 && result.data && result.data.accepted && result.data.accepted.length > 0) {
-                    const trackingInfo = result.data.accepted[0];
-                    const trackData = trackingInfo.track;
-                    if (trackData) {
-                        const statusMap = {
-                            '0': 'Inconnu',
-                            '10': 'En mer',
-                            '20': 'Arrivée',
-                            '30': 'Livré',
-                            '40': 'Exception',
-                            '50': 'Exception'
-                        };
-
-                        const newStatus = statusMap[trackData.state] || shipment.status;
-
-                        const updatedShipment = {
-                            ...shipment,
-                            status: newStatus,
-                            lastTrackedAt: new Date().toISOString()
-                        };
-
-                        await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, updatedShipment);
-                        this.showToast(`Statut mis à jour : ${newStatus}`, "success");
-                        this.renderView('shipments');
+                    if (vStatus !== v.status) {
+                        v.status = vStatus;
+                        await StorageService.update(STORAGE_KEYS.VEHICLES, v.id, v);
+                        updatedCount++;
                     }
-                } else {
-                    const errorMsg = result.message || "Erreur lors de la récupération.";
-                    this.showToast(`Erreur : ${errorMsg}`, "error");
                 }
-            } catch (error) {
-                console.error("Tracking error:", error);
-                this.showToast("Impossible de contacter le serveur de tracking.", "error");
-            }
-        },
 
-        async trackShipmentWithShippo(shipmentId) {
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-            const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
-            if (shipmentIndex === -1) return;
-            const shipment = shipments[shipmentIndex];
-
-            const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-            const apiKey = settings?.shippoApiKey;
-
-            if (!apiKey) {
-                this.showToast("Veuillez configurer votre clé API Shippo dans les paramètres.", "error");
-                return;
-            }
-
-            this.showToast("Mise à jour du suivi en cours (Shippo)...", "info");
-
-            try {
-                // Map carrier names to Shippo carrier codes
-                const carrierMap = {
-                    'MSC': 'msc',
-                    'MAERSK': 'maersk',
-                    'CMA CGM': 'cma_cgm',
-                    'HAPAG-LLOYD': 'hapag_lloyd',
-                    'COSCO': 'cosco',
-                    'EVERGREEN': 'evergreen',
-                    'ZIM': 'zim',
-                    'ONE': 'one',
-                    'YANG MING': 'yang_ming',
-                    'DHL': 'dhl_express',
-                    'FEDEX': 'fedex',
-                    'UPS': 'ups',
-                    'USPS': 'usps'
-                };
-
-                const carrierCode = carrierMap[shipment.carrier?.toUpperCase()] || shipment.carrier?.toLowerCase() || 'usps';
-
-                const response = await fetch(`http://localhost:5000/api/tracking/shippo/${carrierCode}/${shipment.containerNumber}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `ShippoToken ${apiKey}`
-                    }
-                });
-
-                const result = await response.json();
-
-                if (result.success && result.data) {
-                    const data = result.data;
-
-                    // Map Shippo status to our status
-                    const statusMap = {
-                        'UNKNOWN': 'Inconnu',
-                        'PRE_TRANSIT': 'Préparation',
-                        'TRANSIT': 'En mer',
-                        'DELIVERED': 'Livré',
-                        'RETURNED': 'Retourné',
-                        'FAILURE': 'Exception'
-                    };
-
-                    const newStatus = statusMap[data.status] || data.status || shipment.status;
-
-                    const updatedShipment = {
-                        ...shipment,
-                        status: newStatus,
-                        lastTrackedAt: new Date().toISOString(),
-                        trackingUrl: data.trackingUrl,
-                        eta: data.eta
-                    };
-
-                    await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, updatedShipment);
-                    this.showToast(`Statut mis à jour : ${newStatus}`, "success");
-                    this.renderView('shipments');
-                } else {
-                    const errorMsg = result.message || "Erreur lors de la récupération.";
-                    this.showToast(`Erreur Shippo : ${errorMsg}`, "error");
+                if (updatedCount > 0) {
+                    this.showToast(`${updatedCount} véhicules mis à jour.`, "info");
                 }
-            } catch (error) {
-                console.error("Shippo tracking error:", error);
-                this.showToast("Impossible de contacter le serveur Shippo.", "error");
+
+                this.renderView('shipments'); // Refresh view
             }
         },
 

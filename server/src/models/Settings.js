@@ -68,19 +68,6 @@ const Settings = sequelize.define('Settings', {
         field: 'use_ai_extraction',
         defaultValue: false
     },
-    trackApiKey: {
-        type: DataTypes.STRING(200),
-        field: 'track_api_key'
-    },
-    shippoApiKey: {
-        type: DataTypes.STRING(200),
-        field: 'shippo_api_key'
-    },
-    trackingProvider: {
-        type: DataTypes.STRING(50),
-        field: 'tracking_provider',
-        defaultValue: '17track'
-    },
     geminiModel: {
         type: DataTypes.STRING(100),
         field: 'gemini_model',
