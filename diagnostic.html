@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic de Synchronisation - TIBOU AUTO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .status.ok {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .info-value {
+            color: #212529;
+            font-family: 'Courier New', monospace;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        button.danger:hover {
+            background: #c82333;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .log .success {
+            color: #4ec9b0;
+        }
+
+        .log .error {
+            color: #f48771;
+        }
+
+        .log .warning {
+            color: #dcdcaa;
+        }
+
+        .log .info {
+            color: #9cdcfe;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔍 Diagnostic de Synchronisation</h1>
+        <p class="subtitle">Outil de diagnostic pour identifier les problèmes de synchronisation avec la base de données
+        </p>
+
+        <div class="section">
+            <h2>📊 État du Système</h2>
+            <div id="system-status">
+                <div class="info-row">
+                    <span class="info-label">Serveur Backend:</span>
+                    <span id="server-status">Vérification...</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Utilisateur Connecté:</span>
+                    <span id="user-status">Vérification...</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Token d'Authentification:</span>
+                    <span id="token-status">Vérification...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>💾 Données en localStorage</h2>
+            <div id="storage-status"></div>
+        </div>
+
+        <div class="section">
+            <h2>🔧 Actions</h2>
+            <button onclick="testSync()">🔄 Tester la Synchronisation</button>
+            <button onclick="forceSync()" class="secondary">⚡ Forcer la Synchronisation</button>
+            <button onclick="clearLocalStorage()" class="danger">🗑️ Vider localStorage</button>
+            <button onclick="location.reload()" class="secondary">🔃 Rafraîchir la Page</button>
+        </div>
+
+        <div class="section">
+            <h2>📝 Journal de Diagnostic</h2>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script src="js/apiService.js"></script>
+    <script src="js/storage.js"></script>
+    <script>
+        const log = (message, type = 'info') => {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<span class="${type}">[${timestamp}] ${message}</span>\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message);
+        };
+
+        async function checkSystemStatus() {
+            log('🚀 Démarrage du diagnostic...', 'info');
+
+            // Check server
+            try {
+                const response = await fetch('http://localhost:5000/health');
+                const data = await response.json();
+                document.getElementById('server-status').innerHTML = '<span class="status ok">✅ En ligne</span>';
+                log('✅ Serveur backend accessible', 'success');
+            } catch (error) {
+                document.getElementById('server-status').innerHTML = '<span class="status error">❌ Hors ligne</span>';
+                log('❌ Serveur backend inaccessible: ' + error.message, 'error');
+            }
+
+            // Check user session
+            const currentUser = localStorage.getItem('gtm_current_user');
+            if (currentUser) {
+                try {
+                    const user = JSON.parse(currentUser);
+                    document.getElementById('user-status').innerHTML = `<span class="status ok">✅ ${user.name || user.username}</span>`;
+                    log(`✅ Utilisateur connecté: ${user.name || user.username}`, 'success');
+
+                    if (user.token) {
+                        document.getElementById('token-status').innerHTML = '<span class="status ok">✅ Présent</span>';
+                        log('✅ Token d\'authentification trouvé', 'success');
+                    } else {
+                        document.getElementById('token-status').innerHTML = '<span class="status error">❌ Absent</span>';
+                        log('❌ Token d\'authentification manquant', 'error');
+                    }
+                } catch (e) {
+                    document.getElementById('user-status').innerHTML = '<span class="status error">❌ Erreur</span>';
+                    log('❌ Erreur de parsing des données utilisateur: ' + e.message, 'error');
+                }
+            } else {
+                document.getElementById('user-status').innerHTML = '<span class="status error">❌ Non connecté</span>';
+                document.getElementById('token-status').innerHTML = '<span class="status error">❌ Absent</span>';
+                log('❌ Aucun utilisateur connecté', 'error');
+            }
+
+            // Check localStorage data
+            checkLocalStorage();
+        }
+
+        function checkLocalStorage() {
+            const keys = [
+                'gtm_clients',
+                'gtm_orders',
+                'gtm_vehicles',
+                'gtm_shipments',
+                'gtm_users',
+                'gtm_roles',
+                'gtm_brands',
+                'gtm_showrooms'
+            ];
+
+            let html = '';
+            keys.forEach(key => {
+                const data = localStorage.getItem(key);
+                let count = 0;
+                let status = 'error';
+
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        count = Array.isArray(parsed) ? parsed.length : (Object.keys(parsed).length || 1);
+                        status = count > 0 ? 'ok' : 'warning';
+                    } catch (e) {
+                        status = 'error';
+                    }
+                }
+
+                const label = key.replace('gtm_', '').toUpperCase();
+                html += `<div class="info-row">
+                    <span class="info-label">${label}:</span>
+                    <span class="status ${status}">${count} élément(s)</span>
+                </div>`;
+
+                log(`📦 ${label}: ${count} élément(s)`, status === 'ok' ? 'success' : (status === 'warning' ? 'warning' : 'error'));
+            });
+
+            document.getElementById('storage-status').innerHTML = html;
+        }
+
+        async function testSync() {
+            log('🔄 Test de synchronisation...', 'info');
+
+            const currentUser = localStorage.getItem('gtm_current_user');
+            if (!currentUser) {
+                log('❌ Impossible de synchroniser: aucun utilisateur connecté', 'error');
+                alert('Vous devez être connecté pour synchroniser les données.\nAllez sur index.html et connectez-vous d\'abord.');
+                return;
+            }
+
+            try {
+                const user = JSON.parse(currentUser);
+                if (!user.token) {
+                    log('❌ Impossible de synchroniser: token manquant', 'error');
+                    alert('Token d\'authentification manquant.\nReconnectez-vous sur index.html.');
+                    return;
+                }
+
+                log('🔄 Tentative de récupération des clients...', 'info');
+                const clients = await ApiService.getClients();
+                log(`✅ Clients récupérés: ${clients.data.length} élément(s)`, 'success');
+
+                log('🔄 Tentative de récupération des commandes...', 'info');
+                const orders = await ApiService.getOrders();
+                log(`✅ Commandes récupérées: ${orders.data.length} élément(s)`, 'success');
+
+                log('🔄 Tentative de récupération des véhicules...', 'info');
+                const vehicles = await ApiService.getVehicles();
+                log(`✅ Véhicules récupérés: ${vehicles.data.length} élément(s)`, 'success');
+
+                log('✅ Test de synchronisation réussi!', 'success');
+                alert('✅ Test de synchronisation réussi!\nTous les endpoints API fonctionnent correctement.');
+
+            } catch (error) {
+                log(`❌ Erreur lors du test: ${error.message}`, 'error');
+                alert(`❌ Erreur lors du test de synchronisation:\n${error.message}\n\nVérifiez que vous êtes bien connecté sur index.html.`);
+            }
+        }
+
+        async function forceSync() {
+            log('⚡ Synchronisation forcée...', 'info');
+
+            const currentUser = localStorage.getItem('gtm_current_user');
+            if (!currentUser) {
+                log('❌ Impossible de synchroniser: aucun utilisateur connecté', 'error');
+                alert('Vous devez être connecté pour synchroniser les données.\nAllez sur index.html et connectez-vous d\'abord.');
+                return;
+            }
+
+            try {
+                const user = JSON.parse(currentUser);
+                if (!user.token) {
+                    log('❌ Impossible de synchroniser: token manquant', 'error');
+                    alert('Token d\'authentification manquant.\nReconnectez-vous sur index.html.');
+                    return;
+                }
+
+                log('🔄 Démarrage de la synchronisation complète...', 'info');
+                const success = await StorageService.syncAll();
+
+                if (success) {
+                    log('✅ Synchronisation complète réussie!', 'success');
+                    checkLocalStorage();
+                    alert('✅ Synchronisation réussie!\nToutes les données ont été mises à jour.');
+                } else {
+                    log('⚠️ Synchronisation terminée avec des erreurs', 'warning');
+                    alert('⚠️ Synchronisation terminée mais certaines données n\'ont pas pu être récupérées.\nConsultez le journal pour plus de détails.');
+                }
+
+            } catch (error) {
+                log(`❌ Erreur lors de la synchronisation: ${error.message}`, 'error');
+                alert(`❌ Erreur lors de la synchronisation:\n${error.message}`);
+            }
+        }
+
+        function clearLocalStorage() {
+            if (confirm('⚠️ ATTENTION!\n\nCette action va supprimer TOUTES les données en cache.\nVous devrez vous reconnecter.\n\nÊtes-vous sûr?')) {
+                log('🗑️ Nettoyage du localStorage...', 'warning');
+                localStorage.clear();
+                log('✅ localStorage vidé', 'success');
+                alert('✅ localStorage vidé.\nLa page va se recharger.');
+                location.reload();
+            }
+        }
+
+        // Auto-run diagnostic on load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkSystemStatus();
+        });
+    </script>
+</body>
+
+</html>

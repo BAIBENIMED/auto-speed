@@ -1,0 +1,96 @@
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+
+const Vehicle = sequelize.define('Vehicle', {
+    id: {
+        type: DataTypes.STRING(50),
+        primaryKey: true
+    },
+    brand: {
+        type: DataTypes.STRING(100),
+        allowNull: false
+    },
+    model: {
+        type: DataTypes.STRING(100)
+    },
+    year: {
+        type: DataTypes.INTEGER
+    },
+    month: {
+        type: DataTypes.STRING(50)
+    },
+    supplier: {
+        type: DataTypes.STRING(200)
+    },
+    mileage: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
+    },
+    category: {
+        type: DataTypes.STRING(100)
+    },
+    chassisNumber: {
+        type: DataTypes.STRING(100),
+        field: 'chassis_number'
+    },
+    color: {
+        type: DataTypes.STRING(100)
+    },
+    motorization: {
+        type: DataTypes.STRING(200)
+    },
+    trim: {
+        type: DataTypes.STRING(200)
+    },
+    remarks: {
+        type: DataTypes.TEXT
+    },
+    condition: {
+        type: DataTypes.STRING(50)
+    },
+    status: {
+        type: DataTypes.STRING(50),
+        defaultValue: 'Available'
+    },
+    purchasePrice: {
+        type: DataTypes.DECIMAL(10, 2),
+        field: 'purchase_price'
+    },
+    purchaseCurrency: {
+        type: DataTypes.STRING(10),
+        field: 'purchase_currency'
+    },
+    sellingPrice: {
+        type: DataTypes.DECIMAL(10, 2),
+        field: 'selling_price'
+    },
+    sellingCurrency: {
+        type: DataTypes.STRING(10),
+        field: 'selling_currency'
+    },
+    estimatedCustomsDuty: {
+        type: DataTypes.DECIMAL(10, 2),
+        field: 'estimated_customs_duty'
+    },
+    orderId: {
+        type: DataTypes.STRING(50),
+        field: 'order_id'
+    },
+    shipmentId: {
+        type: DataTypes.STRING(50),
+        field: 'shipment_id'
+    },
+    options: {
+        type: DataTypes.TEXT
+    },
+    isArchived: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'is_archived'
+    }
+}, {
+    tableName: 'vehicles',
+    timestamps: true
+});
+
+module.exports = Vehicle;

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synchronisation - TIBOU AUTO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+
+        .status-line {
+            margin: 5px 0;
+        }
+
+        .success {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .error {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .info {
+            color: #3b82f6;
+        }
+
+        .warning {
+            color: #f59e0b;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .summary {
+            background: #e0e7ff;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .summary h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .summary-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .summary-item .number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .summary-item .label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔄 Synchronisation des Données</h1>
+        <p class="subtitle">TIBOU AUTO - Outil de synchronisation directe</p>
+
+        <div id="summary" class="summary" style="display:none;">
+            <h3>📊 Données Disponibles</h3>
+            <div class="summary-grid" id="summaryGrid"></div>
+        </div>
+
+        <div id="status" class="status">
+            <div class="status-line info">✨ Prêt à synchroniser vos données</div>
+            <div class="status-line">Cliquez sur "Démarrer" pour commencer</div>
+        </div>
+
+        <button id="syncBtn" onclick="startSync()">🚀 Démarrer la Synchronisation</button>
+        <button class="btn-secondary" onclick="goToApp()" style="display:none;" id="goBtn">➡️ Aller à
+            l'Application</button>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const syncBtn = document.getElementById('syncBtn');
+        const goBtn = document.getElementById('goBtn');
+        const summaryDiv = document.getElementById('summary');
+        const summaryGrid = document.getElementById('summaryGrid');
+
+        function log(message, type = 'info') {
+            const line = document.createElement('div');
+            line.className = `status-line ${type}`;
+            line.textContent = message;
+            statusDiv.appendChild(line);
+            statusDiv.scrollTop = statusDiv.scrollHeight;
+        }
+
+        function clear() { statusDiv.innerHTML = ''; }
+
+        async function startSync() {
+            clear();
+            syncBtn.disabled = true;
+            summaryDiv.style.display = 'none';
+
+            try {
+                log('🚀 Démarrage de la synchronisation...', 'info');
+                log('');
+
+                // Login
+                log('1️⃣ Connexion...', 'info');
+                const loginRes = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'admin123' })
+                });
+
+                const loginData = await loginRes.json();
+                if (!loginData.success) {
+                    log(`❌ Échec: ${loginData.message}`, 'error');
+                    syncBtn.disabled = false;
+                    return;
+                }
+
+                log(`✅ Connecté: ${loginData.user.name}`, 'success');
+                const token = loginData.token;
+                log('');
+
+                // Sync all data
+                log('2️⃣ Récupération de toutes les données...', 'info');
+                const syncRes = await fetch('/api/sync/sync-all', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const syncData = await syncRes.json();
+                if (!syncData.success) {
+                    log(`❌ Erreur: ${syncData.message}`, 'error');
+                    syncBtn.disabled = false;
+                    return;
+                }
+
+                const data = syncData.data;
+                log('✅ Données récupérées avec succès', 'success');
+                log('');
+
+                // Save to localStorage
+                log('3️⃣ Sauvegarde dans le navigateur...', 'info');
+
+                localStorage.setItem('gtm_roles', JSON.stringify(data.roles));
+                localStorage.setItem('gtm_users', JSON.stringify(data.users));
+                localStorage.setItem('gtm_clients', JSON.stringify(data.clients));
+                localStorage.setItem('gtm_orders', JSON.stringify(data.orders));
+                localStorage.setItem('gtm_vehicles', JSON.stringify(data.vehicles));
+                localStorage.setItem('gtm_shipments', JSON.stringify(data.shipments));
+                localStorage.setItem('gtm_brands_raw', JSON.stringify(data.brands));
+                localStorage.setItem('gtm_showrooms_raw', JSON.stringify(data.showrooms));
+                localStorage.setItem('gtm_settings', JSON.stringify(data.settings));
+                localStorage.setItem('gtm_exchange_rates', JSON.stringify(data.exchangeRates));
+                localStorage.setItem('gtm_cash', JSON.stringify(data.cashTransactions));
+                localStorage.setItem('gtm_attributes_raw', JSON.stringify(data.attributes));
+
+                // Process derived data
+                const brandNames = data.brands.map(b => b.name);
+                localStorage.setItem('gtm_brands', JSON.stringify(brandNames));
+
+                const brandModels = {};
+                data.brands.forEach(b => {
+                    brandModels[b.name] = b.models ? b.models.map(m => m.name) : [];
+                });
+                localStorage.setItem('gtm_brand_models', JSON.stringify(brandModels));
+
+                const showroomNames = data.showrooms.map(s => s.name);
+                localStorage.setItem('gtm_showrooms', JSON.stringify(showroomNames));
+
+                // Process attributes
+                const cats = { 'colors': 'gtm_colors', 'carriers': 'gtm_carriers', 'motors': 'gtm_motors', 'currencies': 'gtm_currencies' };
+                Object.values(cats).forEach(key => localStorage.setItem(key, JSON.stringify([])));
+                data.attributes.forEach(attr => {
+                    const key = cats[attr.category];
+                    if (key) {
+                        const list = JSON.parse(localStorage.getItem(key) || '[]');
+                        list.push(attr.value);
+                        localStorage.setItem(key, JSON.stringify(list));
+                    }
+                });
+
+                // Save session
+                localStorage.setItem('gtm_current_user', JSON.stringify({
+                    id: loginData.user.id,
+                    username: loginData.user.username,
+                    name: loginData.user.name,
+                    role: loginData.user.role,
+                    clientId: loginData.user.clientId,
+                    token: loginData.token
+                }));
+
+                log('✅ Toutes les données sauvegardées', 'success');
+                log('');
+
+                // Show summary
+                const counts = {
+                    'Rôles': data.roles.length,
+                    'Utilisateurs': data.users.length,
+                    'Clients': data.clients.length,
+                    'Commandes': data.orders.length,
+                    'Véhicules': data.vehicles.length,
+                    'Expéditions': data.shipments.length,
+                    'Marques': data.brands.length,
+                    'Showrooms': data.showrooms.length
+                };
+
+                summaryGrid.innerHTML = Object.entries(counts).map(([label, count]) => `
+                    <div class="summary-item">
+                        <div class="number">${count}</div>
+                        <div class="label">${label}</div>
+                    </div>
+                `).join('');
+
+                summaryDiv.style.display = 'block';
+
+                const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+                log('═══════════════════════════════════════', 'success');
+                log('✅ SYNCHRONISATION TERMINÉE !', 'success');
+                log(`📊 Total: ${total} éléments synchronisés`, 'success');
+                log('═══════════════════════════════════════', 'success');
+
+                goBtn.style.display = 'block';
+
+            } catch (error) {
+                log('', '');
+                log(`❌ ERREUR: ${error.message}`, 'error');
+                log('Vérifiez que le serveur fonctionne correctement', 'warning');
+                syncBtn.disabled = false;
+            }
+        }
+
+        function goToApp() {
+            window.location.href = '/index.html';
+        }
+    </script>
+</body>
+
+</html>

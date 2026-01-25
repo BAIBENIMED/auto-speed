@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIBOU AUTO - Migration de Données</title>
+    <!-- Use same CSS as main app for consistency -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .container {
+            width: 800px;
+            max-width: 95%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            color: #3b82f6;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+        }
+
+        .log-area {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            color: #cbd5e1;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+        }
+
+        .log-entry.success {
+            color: #4ade80;
+        }
+
+        .log-entry.error {
+            color: #f87171;
+        }
+
+        .log-entry.info {
+            color: #60a5fa;
+        }
+
+        .log-entry.warn {
+            color: #fbbf24;
+        }
+
+        .progress-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3b82f6;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .login-box {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box">
+            <h2 style="text-align: center; margin-bottom: 1.5rem;">Authentification Requise</h2>
+            <p style="color: #94a3b8; margin-bottom: 1.5rem; text-align: center;">Connectez-vous avec un compte
+                administrateur pour synchroniser les données vers le serveur.</p>
+            <form id="login-form">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem;">Identifiant</label>
+                    <input type="text" id="username" class="glass-input"
+                        style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 6px;"
+                        required>
+                </div>
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem;">Mot de passe</label>
+                    <input type="password" id="password" class="glass-input"
+                        style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 6px;"
+                        required>
+                </div>
+                <button type="submit" class="btn-primary"
+                    style="width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Se
+                    Connecter</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1><i class="fas fa-sync-alt"></i> Migration de Données</h1>
+        <p class="subtitle">Transférez vos données locales vers le serveur centralisé</p>
+
+        <div class="progress-container">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                <span id="status-text">En attente...</span>
+                <span id="percentage">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div id="log-area" class="log-area">
+            <div class="log-entry info">Initialisation de l'outil de migration...</div>
+            <div class="log-entry warn">Veuillez vous connecter pour commencer.</div>
+        </div>
+
+        <div class="controls">
+            <button id="btn-start" class="btn-primary"
+                style="padding: 10px 25px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 1rem; cursor: pointer; opacity: 0.5; pointer-events: none;">
+                <i class="fas fa-play"></i> Démarrer la Migration
+            </button>
+            <button onclick="window.location.reload()" class="btn-secondary"
+                style="padding: 10px 25px; background: rgba(255,255,255,0.1); color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 1rem; cursor: pointer;">
+                <i class="fas fa-redo"></i> Recharger
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let AUTH_TOKEN = null;
+
+        // Logger util
+        function log(message, type = 'info') {
+            const area = document.getElementById('log-area');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            area.appendChild(entry);
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function updateProgress(percent, status) {
+            document.getElementById('progress-fill').style.width = `${percent}%`;
+            document.getElementById('percentage').textContent = `${Math.round(percent)}%`;
+            if (status) document.getElementById('status-text').textContent = status;
+        }
+
+        // Auth handling
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    AUTH_TOKEN = data.token;
+                    document.getElementById('login-overlay').style.display = 'none';
+                    document.getElementById('btn-start').style.opacity = '1';
+                    document.getElementById('btn-start').style.pointerEvents = 'auto';
+                    log(`Connecté en tant que ${data.user.username}`, 'success');
+                    log('Prêt à démarrer. Cliquez sur "Démarrer la Migration".', 'info');
+                } else {
+                    alert('Erreur de connexion: ' + (data.message || 'Inconnue'));
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Impossible de contacter le serveur. Vérifiez qu\'il est bien lancé (npm start ou start_with_pm2.bat).');
+            }
+        });
+
+        // Migration Logic
+        const STORAGE_KEYS = {
+            CLIENTS: { key: 'gtm_clients', endpoint: '/clients', name: 'Clients' },
+            BRANDS: { key: 'gtm_brands_raw', endpoint: '/brands', name: 'Marques' },
+            SHOWROOMS: { key: 'gtm_showrooms_raw', endpoint: '/showrooms', name: 'Showrooms' },
+            VEHICLES: { key: 'gtm_vehicles', endpoint: '/vehicles', name: 'Véhicules' },
+            ORDERS: { key: 'gtm_orders', endpoint: '/orders', name: 'Commandes' },
+            SHIPMENTS: { key: 'gtm_shipments', endpoint: '/shipments', name: 'Expéditions' },
+            CASH: { key: 'gtm_cash', endpoint: '/cash', name: 'Transactions' },
+            USERS: { key: 'gtm_users', endpoint: '/users', name: 'Utilisateurs' }
+        };
+
+        document.getElementById('btn-start').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-start');
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+
+            log('Démarrage de la migration...', 'info');
+
+            // 1. Load all local data
+            const localData = {};
+            let totalItems = 0;
+
+            for (const [key, config] of Object.entries(STORAGE_KEYS)) {
+                const raw = localStorage.getItem(config.key);
+                if (raw) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        localData[key] = Array.isArray(parsed) ? parsed : [];
+                        totalItems += localData[key].length;
+                        log(`${config.name}: ${localData[key].length} éléments trouvés localement`, 'info');
+                    } catch (e) {
+                        log(`Erreur de lecture pour ${config.key}`, 'error');
+                        localData[key] = [];
+                    }
+                } else {
+                    localData[key] = [];
+                }
+            }
+
+            if (totalItems === 0) {
+                log('Aucune donnée locale trouvée à migrer.', 'warn');
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                return;
+            }
+
+            // 2. Process Sync order (Dependencies first)
+            // Order: Brands/Showrooms -> Clients -> Shipments -> Vehicles -> Orders -> Cash
+
+            const migrationOrder = ['BRANDS', 'SHOWROOMS', 'CLIENTS', 'SHIPMENTS', 'VEHICLES', 'ORDERS', 'CASH', 'USERS'];
+
+            let processedItems = 0;
+
+            for (const section of migrationOrder) {
+                const config = STORAGE_KEYS[section];
+                const items = localData[section];
+
+                if (items.length === 0) continue;
+
+                log(`Migration de ${config.name} (${items.length})...`, 'info');
+
+                for (const item of items) {
+                    try {
+                        // Check if exists first? Or just try create and ignore duplicates?
+                        // Simple approach: Try create, if error (duplicate), try update or skip
+
+                        // Clean item data if necessary (e.g. remove local-only fields)
+                        const payload = { ...item };
+
+                        // Special handling for Users: Map frontend 'role' string to backend logic if necessary
+                        if (section === 'USERS') {
+                            if (payload.role && !payload.roleId) payload.roleId = payload.role;
+                            // Don't migrate self if it conflicts?
+                        }
+
+                        // Special handling for Brands/Showrooms if they are simple strings in some legacy versions
+                        if (section === 'BRANDS' && typeof payload === 'string') {
+                            // Should verify structure. But based on app.js, raw is object.
+                        }
+
+                        const res = await fetch(`${API_URL}${config.endpoint}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${AUTH_TOKEN}`
+                            },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const result = await res.json();
+
+                        if (result.success) {
+                            // log(`OK: ${item.id || item.name}`, 'success');
+                        } else {
+                            if (result.message && result.message.includes('Duplicate')) {
+                                log(`Existe déjà: ${item.id || item.name} (Ignoré)`, 'warn');
+                            } else {
+                                log(`Erreur sur ${item.id || item.name}: ${result.message}`, 'error');
+                            }
+                        }
+
+                    } catch (err) {
+                        log(`Erreur réseau: ${err.message}`, 'error');
+                    }
+
+                    processedItems++;
+                    updateProgress((processedItems / totalItems) * 100, `Traitement de ${config.name}...`);
+                }
+            }
+
+            log('Migration terminée !', 'success');
+            log('Vous pouvez maintenant accéder à localhost:5000 et voir vos données.', 'success');
+            updateProgress(100, 'Terminé');
+
+            btn.innerHTML = '<i class="fas fa-check"></i> Terminé';
+        });
+    </script>
+</body>
+
+</html>

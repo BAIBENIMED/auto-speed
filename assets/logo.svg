@@ -1,0 +1,28 @@
+<svg width="600" height="150" viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@800&amp;display=swap');
+            .text-base { 
+                font-family: 'Outfit', sans-serif; 
+                font-weight: 800; 
+                font-size: 80px; 
+            }
+        </style>
+    </defs>
+    
+    <!-- Main Group Centered -->
+    <g transform="translate(30, 100)">
+        <!-- TIBOU in Dark/Black -->
+        <text class="text-base" fill="#1A1A1A" x="0" y="0">TIBOU</text>
+        
+        <!-- AUTO in Red -->
+        <text class="text-base" fill="#D32F2F" x="260" y="0">AUTO</text>
+
+        <!-- Dynamic Speed Lines Accent under AUTO -->
+        <g transform="translate(265, 15)">
+            <rect x="0" y="0" width="180" height="6" rx="3" fill="#D32F2F" />
+            <rect x="190" y="0" width="40" height="6" rx="3" fill="#D32F2F" opacity="0.6" />
+            <rect x="238" y="0" width="15" height="6" rx="3" fill="#D32F2F" opacity="0.4" />
+        </g>
+    </g>
+</svg>

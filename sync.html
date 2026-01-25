@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synchronisation Forcée - TIBOU AUTO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        .status-line {
+            margin: 5px 0;
+        }
+
+        .success {
+            color: #10b981;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+
+        .info {
+            color: #3b82f6;
+        }
+
+        .warning {
+            color: #f59e0b;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .credentials {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .credentials strong {
+            color: #856404;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔄 Synchronisation Forcée</h1>
+        <p class="subtitle">Outil de diagnostic et synchronisation des données TIBOU AUTO</p>
+
+        <div class="credentials">
+            <strong>ℹ️ Identifiants par défaut :</strong><br>
+            Username: <code>admin</code><br>
+            Password: <code>admin123</code>
+        </div>
+
+        <div id="status" class="status">
+            <div class="status-line info">Prêt à synchroniser...</div>
+            <div class="status-line">Cliquez sur le bouton ci-dessous pour démarrer.</div>
+        </div>
+
+        <button id="syncBtn" onclick="startSync()">Démarrer la Synchronisation</button>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        const statusDiv = document.getElementById('status');
+        const syncBtn = document.getElementById('syncBtn');
+
+        function log(message, type = 'info') {
+            const line = document.createElement('div');
+            line.className = `status-line ${type}`;
+            line.textContent = message;
+            statusDiv.appendChild(line);
+            statusDiv.scrollTop = statusDiv.scrollHeight;
+        }
+
+        function clear() {
+            statusDiv.innerHTML = '';
+        }
+
+        async function startSync() {
+            clear();
+            syncBtn.disabled = true;
+
+            try {
+                log('🚀 Démarrage de la synchronisation...', 'info');
+                log('');
+
+                // Step 1: Login
+                log('1️⃣ Connexion au serveur...', 'info');
+                const loginResponse = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (!loginData.success) {
+                    log(`❌ Échec de connexion: ${loginData.message}`, 'error');
+                    syncBtn.disabled = false;
+                    return;
+                }
+
+                log(`✅ Connecté en tant que: ${loginData.user.name}`, 'success');
+                log(`   Rôle: ${loginData.user.role}`, 'info');
+                log('');
+
+                const token = loginData.token;
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                };
+
+                // Step 2: Fetch all data
+                log('2️⃣ Récupération des données...', 'info');
+
+                const endpoints = [
+                    { key: 'gtm_roles', url: '/roles', name: 'Rôles' },
+                    { key: 'gtm_users', url: '/users', name: 'Utilisateurs' },
+                    { key: 'gtm_clients', url: '/clients', name: 'Clients' },
+                    { key: 'gtm_orders', url: '/orders', name: 'Commandes' },
+                    { key: 'gtm_vehicles', url: '/vehicles', name: 'Véhicules' },
+                    { key: 'gtm_shipments', url: '/shipments', name: 'Expéditions' },
+                    { key: 'gtm_brands_raw', url: '/brands', name: 'Marques' },
+                    { key: 'gtm_showrooms_raw', url: '/showrooms', name: 'Showrooms' },
+                    { key: 'gtm_settings', url: '/settings', name: 'Paramètres' },
+                    { key: 'gtm_exchange_rates', url: '/exchange-rates', name: 'Taux de change' },
+                    { key: 'gtm_cash', url: '/cash', name: 'Transactions' }
+                ];
+
+                let totalItems = 0;
+
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch(`${API_BASE}${endpoint.url}`, { headers });
+                        const data = await response.json();
+
+                        if (data.success) {
+                            localStorage.setItem(endpoint.key, JSON.stringify(data.data));
+                            const count = Array.isArray(data.data) ? data.data.length : 1;
+                            totalItems += count;
+                            log(`   ✅ ${endpoint.name}: ${count} élément(s)`, 'success');
+                        } else {
+                            log(`   ⚠️ ${endpoint.name}: ${data.message}`, 'warning');
+                        }
+                    } catch (error) {
+                        log(`   ❌ ${endpoint.name}: ${error.message}`, 'error');
+                    }
+                }
+
+                log('');
+                log('3️⃣ Traitement des données dérivées...', 'info');
+
+                // Process brands
+                const brandsRaw = JSON.parse(localStorage.getItem('gtm_brands_raw') || '[]');
+                const brandNames = brandsRaw.map(b => b.name);
+                localStorage.setItem('gtm_brands', JSON.stringify(brandNames));
+                log(`   ✅ Marques simplifiées: ${brandNames.length}`, 'success');
+
+                // Process brand models
+                const brandModels = {};
+                brandsRaw.forEach(b => {
+                    brandModels[b.name] = b.models ? b.models.map(m => m.name) : [];
+                });
+                localStorage.setItem('gtm_brand_models', JSON.stringify(brandModels));
+                log(`   ✅ Modèles de marques traités`, 'success');
+
+                // Process showrooms
+                const showroomsRaw = JSON.parse(localStorage.getItem('gtm_showrooms_raw') || '[]');
+                const showroomNames = showroomsRaw.map(s => s.name);
+                localStorage.setItem('gtm_showrooms', JSON.stringify(showroomNames));
+                log(`   ✅ Showrooms simplifiés: ${showroomNames.length}`, 'success');
+
+                // Save user session
+                const sessionUser = {
+                    id: loginData.user.id,
+                    username: loginData.user.username,
+                    name: loginData.user.name,
+                    role: loginData.user.role,
+                    clientId: loginData.user.clientId,
+                    token: loginData.token
+                };
+                localStorage.setItem('gtm_current_user', JSON.stringify(sessionUser));
+                log(`   ✅ Session utilisateur sauvegardée`, 'success');
+
+                log('');
+                log('═══════════════════════════════════════', 'success');
+                log(`✅ SYNCHRONISATION TERMINÉE !`, 'success');
+                log(`📊 Total: ${totalItems} éléments synchronisés`, 'success');
+                log('═══════════════════════════════════════', 'success');
+                log('');
+                log('🔄 Redirection vers l\'application dans 3 secondes...', 'info');
+
+                setTimeout(() => {
+                    window.location.href = '/index.html';
+                }, 3000);
+
+            } catch (error) {
+                log('');
+                log(`❌ ERREUR: ${error.message}`, 'error');
+                log('');
+                log('Vérifiez que le serveur est démarré sur le port 5000.', 'warning');
+                syncBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>

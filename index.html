@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIBOU AUTO - Gestion de Commandes Véhicules</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css?v=V7_0_FINAL">
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <!-- Tesseract.js for OCR -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <!-- PDF.js for interpreting PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <!-- SheetJS for Excel parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js for Dashboard Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+
+<body>
+    <div id="login-container" style="display: none;"></div>
+
+    <div id="app-container" class="app-container" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar glass">
+            <div class="logo-container">
+                <img src="assets/logo.svg" alt="TIBOU AUTO Logo [V7]" class="logo-image"
+                    style="height: 50px; width: 100%; object-fit: contain;">
+                <div style="font-size: 10px; color: var(--primary); text-align: center; margin-top: -10px;">VERSION 7.0
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-link active" data-view="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Tableau de Bord</span>
+                </a>
+                <a href="#" class="nav-link" data-view="alerts">
+                    <i class="fas fa-bell"></i>
+                    <span>Alertes</span>
+                </a>
+                <a href="#" class="nav-link" data-view="clients">
+                    <i class="fas fa-users"></i>
+                    <span>Clients</span>
+                </a>
+                <a href="#" class="nav-link" data-view="orders">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Commandes</span>
+                </a>
+                <a href="#" class="nav-link" data-view="purchases">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Achats</span>
+                </a>
+                <a href="#" class="nav-link" data-view="suppliers">
+                    <i class="fas fa-truck-field"></i>
+                    <span>Fournisseurs</span>
+                </a>
+                <a href="#" class="nav-link" data-view="vehicles">
+                    <i class="fas fa-car"></i>
+                    <span>Véhicules</span>
+                </a>
+                <a href="#" class="nav-link" data-view="shipments">
+                    <i class="fas fa-shipping-fast"></i>
+                    <span>Expédition</span>
+                </a>
+                <a href="#" class="nav-link" data-view="tracking">
+                    <i class="fas fa-globe-americas"></i>
+                    <span>Tracking</span>
+                </a>
+                <a href="#" class="nav-link" data-view="cash">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Caisse</span>
+                </a>
+                <a href="#" class="nav-link" data-view="verification">
+                    <i class="fas fa-file-contract"></i>
+                    <span>Verif Doc</span>
+                </a>
+                <a href="#" class="nav-link" data-view="exchange-rates">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Taux de Chang</span>
+                </a>
+                <a href="#" class="nav-link" data-view="audit" id="nav-audit" style="display: none;">
+                    <i class="fas fa-history"></i>
+                    <span>Journal d'activité</span>
+                </a>
+                <a href="#" class="nav-link" data-view="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Paramètres</span>
+                </a>
+                <a href="#" class="nav-link logout-link" id="btn-logout"
+                    style="margin-top: auto; color: var(--danger);">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <img src="https://ui-avatars.com/api/?name=Admin+User&background=6366f1&color=fff" alt="User"
+                        class="avatar">
+                    <div class="user-info">
+                        <span class="user-name">Administrateur</span>
+                        <span class="user-role">Super Admin</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="search-container glass">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Rechercher une commande, un client...">
+                </div>
+                <div class="top-bar-actions">
+                    <button class="btn-icon glass" title="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge"></span>
+                    </button>
+                    <button class="btn-primary" id="btn-new-order">
+                        <i class="fas fa-plus"></i>
+                        <span>Nouvelle Commande</span>
+                    </button>
+                </div>
+            </header>
+
+            <div id="view-container" class="view-content">
+                <!-- Content will be injected here via JavaScript -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/apiService.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/sageService.js"></script>
+    <script src="js/app.js?v=V7_0_FINAL"></script>
+</body>
+
+</html>
