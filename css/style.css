@@ -186,6 +186,12 @@ body {
 .logo-image {
     height: 65px !important;
     /* Increased from 50px */
+    transition: var(--transition);
+}
+
+/* White logo for dark/elite themes */
+body:not([data-theme="light"]) .logo-image {
+    filter: brightness(0) invert(1);
 }
 
 .nav-link {

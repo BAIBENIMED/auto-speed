@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="login-wrapper">
                     <div class="login-box glass">
                         <div class="login-logo" style="display: flex; justify-content: center; margin-bottom: 20px;">
-                            <img src="assets/logo.svg" alt="TIBOU AUTO" style="height: 80px; width: auto;">
+                            <img src="assets/logo.svg" alt="TIBOU AUTO" class="logo-image" style="height: 80px; width: auto;">
                         </div>
                         
                         <form id="login-form">
