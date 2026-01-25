@@ -8,7 +8,8 @@ const Shipment = sequelize.define('Shipment', {
     },
     containerNumber: {
         type: DataTypes.STRING(100),
-        field: 'container_number'
+        field: 'container_number',
+        unique: true
     },
     shipmentDate: {
         type: DataTypes.DATE,

@@ -59,6 +59,9 @@ const shipmentsController = {
             res.status(201).json({ success: true, data: shipment });
         } catch (error) {
             console.error('Error creating shipment:', error);
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return res.status(400).json({ success: false, message: 'Ce numéro de conteneur est déjà enregistré.' });
+            }
             res.status(400).json({ success: false, message: error.message || 'Erreur lors de la création de l\'expédition' });
         }
     },

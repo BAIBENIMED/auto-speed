@@ -5846,6 +5846,13 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         },
 
         async handleShipmentSubmission(formData) {
+            const submitBtn = document.querySelector('#shipment-form button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+            }
+
             try {
                 const shipmentId = formData.get('shipmentId');
                 const selectedVehicleIds = formData.getAll('vehicleIds');
@@ -5932,7 +5939,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 this.renderView(this.currentView);
             } catch (error) {
                 console.error("Error in handleShipmentSubmission:", error);
-                this.showToast("Erreur lors de l'enregistrement de l'expédition", "error");
+                this.showToast(error.message || "Erreur lors de l'enregistrement de l'expédition", "error");
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = shipmentId ? 'Enregistrer les modifications' : "Lancer l'expédition";
+                }
             }
         },
 
