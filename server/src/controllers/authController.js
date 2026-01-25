@@ -76,7 +76,7 @@ exports.login = async (req, res) => {
         console.error('Login error:', error);
         res.status(500).json({
             success: false,
-            message: 'Erreur serveur lors de la connexion.',
+            message: `ERREUR SERVEUR: ${error.message}`,
             debug_info: {
                 error: error.message,
                 name: error.name,
