@@ -135,11 +135,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             loginContainer.innerHTML = `
                 <div class="login-wrapper">
                     <div class="login-box glass">
-                        <div class="login-logo" style="display: flex; justify-content: center; margin-bottom: 20px;">
+                        <div class="login-logo" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
                             <div class="logo-text-wrapper" style="font-size: 3.5rem; letter-spacing: -2px;">
                                 <span class="tibou">TIBOU</span>
                                 <span class="auto">AUTO</span>
                             </div>
+                            <div style="color: #ff0000; font-size: 0.7rem; font-weight: 800; letter-spacing: 5px; margin-top: -5px; text-transform: uppercase;">CHINA CARS</div>
                         </div>
                         
                         <form id="login-form">
