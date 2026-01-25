@@ -61,6 +61,33 @@ app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'TIBOU AUTO API is running' });
 });
 
+// Diagnostic endpoint for Cloud deployment
+app.get('/api/diag', async (req, res) => {
+    try {
+        await sequelize.authenticate();
+        const usersCount = await models.User.count();
+        const rolesCount = await models.Role.count();
+        res.json({
+            status: 'CONNECTED',
+            database: process.env.DB_NAME,
+            stats: {
+                users: usersCount,
+                roles: rolesCount
+            },
+            env: {
+                node_env: process.env.NODE_ENV,
+                port: process.env.PORT
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'ERROR',
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+});
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({ success: false, message: 'Route non trouvée' });
