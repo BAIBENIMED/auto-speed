@@ -63,32 +63,41 @@ app.get('/health', (req, res) => {
 
 // Diagnostic endpoint for Cloud deployment
 app.get('/api/diag', async (req, res) => {
-    const diagData = {
-        status: 'PENDING',
-        config: {
+    // Show environment status immediately
+    const diag = {
+        timestamp: new Date().toISOString(),
+        version: "2.0",
+        environment: {
+            NODE_ENV: process.env.NODE_ENV,
+            DB_HOST_SET: !!process.env.DB_HOST,
+            DB_USER_SET: !!process.env.DB_USER,
+            DB_NAME_SET: !!process.env.DB_NAME,
+            DB_PORT_SET: !!process.env.DB_PORT,
+            JWT_SECRET_SET: !!process.env.JWT_SECRET,
+            PORT: process.env.PORT
+        },
+        database_config: {
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
             database: process.env.DB_NAME,
-            port: process.env.DB_PORT,
-            node_env: process.env.NODE_ENV
+            port: process.env.DB_PORT
         }
     };
 
     try {
         await sequelize.authenticate();
-        const usersCount = await models.User.count();
-        diagData.status = 'CONNECTED';
-        diagData.stats = { users: usersCount };
-        res.json(diagData);
+        diag.database_connection = "OK";
+        diag.users_count = await models.User.count();
+        res.json(diag);
     } catch (error) {
-        diagData.status = 'ERROR';
-        diagData.error = {
+        diag.database_connection = "FAILED";
+        diag.error = {
             name: error.name,
-            message: error.message,
+            message: error.message || "Unknown error (Empty message)",
             code: error.original ? error.original.code : error.code,
-            syscall: error.original ? error.original.syscall : undefined
+            details: error.toString()
         };
-        res.status(500).json(diagData);
+        res.status(500).json(diag);
     }
 });
 
