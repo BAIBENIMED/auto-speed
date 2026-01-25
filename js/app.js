@@ -133,6 +133,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderLogin() {
             const loginContainer = document.getElementById('login-container');
             loginContainer.innerHTML = `
+                <style>
+                    #login-container {
+                        background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.4), transparent 70%),
+                                    radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.3), transparent 60%),
+                                    #1e293b !important;
+                    }
+                </style>
                 <div class="login-wrapper">
                     <div class="login-box glass">
                         <div class="login-logo" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
