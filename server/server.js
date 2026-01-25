@@ -63,28 +63,32 @@ app.get('/health', (req, res) => {
 
 // Diagnostic endpoint for Cloud deployment
 app.get('/api/diag', async (req, res) => {
+    const diagData = {
+        status: 'PENDING',
+        config: {
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT,
+            node_env: process.env.NODE_ENV
+        }
+    };
+
     try {
         await sequelize.authenticate();
         const usersCount = await models.User.count();
-        const rolesCount = await models.Role.count();
-        res.json({
-            status: 'CONNECTED',
-            database: process.env.DB_NAME,
-            stats: {
-                users: usersCount,
-                roles: rolesCount
-            },
-            env: {
-                node_env: process.env.NODE_ENV,
-                port: process.env.PORT
-            }
-        });
+        diagData.status = 'CONNECTED';
+        diagData.stats = { users: usersCount };
+        res.json(diagData);
     } catch (error) {
-        res.status(500).json({
-            status: 'ERROR',
+        diagData.status = 'ERROR';
+        diagData.error = {
+            name: error.name,
             message: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
+            code: error.original ? error.original.code : error.code,
+            syscall: error.original ? error.original.syscall : undefined
+        };
+        res.status(500).json(diagData);
     }
 });
 
