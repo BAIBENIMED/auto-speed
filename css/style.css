@@ -2,8 +2,9 @@
     /* Color Palette - Simple (Original Indigo) */
     --primary: #6366f1;
     --primary-hover: #4f46e5;
-    --bg-dark: #0f172a;
-    --bg-card: rgba(30, 41, 59, 0.7);
+    --bg-dark: #1e293b;
+    /* Lighter slate blue */
+    --bg-card: rgba(51, 65, 85, 0.7);
     --bg-glass: rgba(255, 255, 255, 0.05);
     --border-glass: rgba(255, 255, 255, 0.1);
     --text-primary: #f8fafc;
@@ -127,8 +128,8 @@ body {
     display: flex;
     height: 100vh;
     width: 100vw;
-    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 60%),
-        radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.1), transparent 50%),
+    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.25), transparent 70%),
+        radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.2), transparent 60%),
         var(--bg-dark);
 }
 
