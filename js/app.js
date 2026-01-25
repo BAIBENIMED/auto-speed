@@ -1474,7 +1474,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                     </div>
                     <div class="stat-card glass">
-                        <div class="stat-icon" style="background: rgba(129, 140, 248, 0.2); color: var(--accent-purple);">
+                        <div class="stat-icon" style="background: rgba(194, 161, 94, 0.1); color: var(--primary);">
                             <i class="fas fa-dolly"></i>
                         </div>
                         <div class="stat-info">
@@ -1491,7 +1491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
                     <div class="stat-card glass">
-                        <div class="stat-icon" style="background: rgba(99, 102, 241, 0.2); color: var(--primary);">
+                        <div class="stat-icon" style="background: rgba(194, 161, 94, 0.1); color: var(--primary);">
                             <i class="fas fa-shopping-cart"></i>
                         </div>
                         <div class="stat-info">
@@ -1592,7 +1592,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <tr>
                                         <td>${new Date(t.date).toLocaleDateString()}</td>
                                         <td style="font-size: 0.85rem;">${t.clientName || t.description || 'N/A'}</td>
-                                        <td><span class="badge-pill" style="background: rgba(139, 112, 246, 0.1); color: #a78bfa; font-size: 0.7rem;">${(t.showroom && t.showroom !== 'N/A') ? t.showroom : 'Principal'}</span></td>
+                                        <td><span class="badge-pill" style="background: rgba(194, 161, 94, 0.1); color: var(--primary); font-size: 0.7rem;">${(t.showroom && t.showroom !== 'N/A') ? t.showroom : 'Principal'}</span></td>
                                         <td><span class="badge-outline ${t.type === 'In' ? 'success' : 'danger'}">${t.type === 'In' ? 'IN' : 'OUT'}</span></td>
                                         <td class="${t.type === 'In' ? 'success' : 'danger'}" style="font-weight: 600;">
                                             ${t.type === 'In' ? '+' : '-'} ${this.formatCurrency(t.amount)}
