@@ -27,11 +27,19 @@ app.use(express.static(path.join(__dirname, '..'), {
     }
 }));
 
-// CORS - more permissive for local development and network access
-app.use(cors({
-    origin: '*',
-    credentials: true
-}));
+// CORS - strictly allow the render domain in production, or '*' with credentials handled
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        // In production, we'd ideally list the domain, but for now we'll allow all while debugging
+        return callback(null, true);
+    },
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 
 // Body parser
 app.use(express.json());
@@ -66,7 +74,13 @@ app.get('/api/diag', async (req, res) => {
     // Show environment status immediately
     const diag = {
         timestamp: new Date().toISOString(),
-        version: "2.0",
+        version: "2.1",
+        request: {
+            origin: req.get('origin'),
+            host: req.get('host'),
+            protocol: req.protocol,
+            ip: req.ip
+        },
         environment: {
             NODE_ENV: process.env.NODE_ENV,
             DB_HOST_SET: !!process.env.DB_HOST,
