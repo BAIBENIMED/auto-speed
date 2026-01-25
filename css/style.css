@@ -183,15 +183,44 @@ body {
     /* Allow scrolling for nav items */
 }
 
-.logo-image {
-    height: 65px !important;
-    /* Increased from 50px */
+.logo-text-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    letter-spacing: -1px;
+    user-select: none;
     transition: var(--transition);
 }
 
-/* White logo for dark/elite themes */
-body:not([data-theme="light"]) .logo-image {
-    filter: brightness(0) invert(1);
+.logo-text-wrapper .tibou {
+    color: #1a1a1a;
+    /* Default Light */
+}
+
+.logo-text-wrapper .auto {
+    color: #D32F2F;
+    /* Default Red */
+}
+
+/* Dark/Elite Themes: White & Dark Red */
+body:not([data-theme="light"]) .logo-text-wrapper .tibou {
+    color: #ffffff;
+}
+
+body:not([data-theme="light"]) .logo-text-wrapper .auto {
+    color: #990000;
+    /* Dark Red */
+    text-shadow: 0 0 10px rgba(153, 0, 0, 0.3);
+}
+
+[data-theme="elite"] .logo-text-wrapper .auto {
+    color: #c2a15e;
+    /* Gold for Elite theme specifically, or should I stick to Red? */
+    /* User said RED for black theme, let's stick to their request for all dark themes */
+    color: #b30000;
 }
 
 .nav-link {
