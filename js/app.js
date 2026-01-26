@@ -5037,11 +5037,19 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     return sum + vehicles.filter(veh => veh.shipmentId === s.id).length;
                 }, 0);
 
+                const firstShipment = v.shipments.find(s => s.containerNumber);
+                const trackingLink = firstShipment ? this.getTrackingUrl(firstShipment.carrier || '17Track', firstShipment.containerNumber) : null;
+
                 return `
                                     <tr>
                                         <td>
                                             <div style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">${v.name}</div>
                                             <div style="font-size: 0.75rem; color: var(--text-dim);">${Array.from(v.carriers).join(', ') || 'Transporteur non spécifié'}</div>
+                                            ${trackingLink ? `
+                                                <a href="${trackingLink}" target="_blank" style="font-size: 0.7rem; color: var(--success); text-decoration: none; margin-top: 5px; display: inline-block;">
+                                                    <i class="fas fa-external-link-alt"></i> Suivre ce Voyage
+                                                </a>
+                                            ` : ''}
                                         </td>
                                         <td>
                                             <div style="font-size: 0.85rem;"><strong>ETD:</strong> ${v.etd ? new Date(v.etd).toLocaleDateString() : '-'}</div>
@@ -5113,11 +5121,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>ETD (Départ prévu)</label>
-                                    <input type="date" name="etd" value="${template.etd || ''}" class="glass-input">
+                                    <input type="date" name="etd" value="${this.formatDateForInput(template.etd)}" class="glass-input">
                                 </div>
                                 <div class="form-group">
                                     <label>ETA (Arrivée prévue)</label>
-                                    <input type="date" name="eta" value="${template.eta || ''}" class="glass-input">
+                                    <input type="date" name="eta" value="${this.formatDateForInput(template.eta)}" class="glass-input">
                                 </div>
                             </div>
 
@@ -5133,7 +5141,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 </div>
                                 <div class="form-group">
                                     <label>Date Arrivée</label>
-                                    <input type="date" name="arrivalDate" value="${template.arrivalDate || ''}" class="glass-input">
+                                    <input type="date" name="arrivalDate" value="${this.formatDateForInput(template.arrivalDate)}" class="glass-input">
                                 </div>
                             </div>
 
@@ -5927,7 +5935,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             </div>
                                             <div class="form-group">
                                                 <label>Date d'expédition</label>
-                                                <input type="date" name="shipmentDate" value="${shipment.shipmentDate}" required class="glass-input">
+                                                <input type="date" name="shipmentDate" value="${this.formatDateForInput(shipment.shipmentDate)}" required class="glass-input">
                                             </div>
                                         </div>
                                         <div class="form-row">
@@ -5977,17 +5985,17 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             </div>
                                             <div class="form-group">
                                                 <label>Réception Documents</label>
-                                                <input type="date" name="docReceptionDate" value="${shipment.docReceptionDate || ''}" class="glass-input">
+                                                <input type="date" name="docReceptionDate" value="${this.formatDateForInput(shipment.docReceptionDate)}" class="glass-input">
                                             </div>
                                         </div>
                                         <div class="form-row">
                                             <div class="form-group">
                                                 <label>ETD (Départ prévu)</label>
-                                                <input type="date" name="etd" value="${shipment.etd || ''}" class="glass-input">
+                                                <input type="date" name="etd" value="${this.formatDateForInput(shipment.etd)}" class="glass-input">
                                             </div>
                                             <div class="form-group">
                                                 <label>ETA (Arrivée prévue)</label>
-                                                <input type="date" name="eta" value="${shipment.eta || ''}" class="glass-input">
+                                                <input type="date" name="eta" value="${this.formatDateForInput(shipment.eta)}" class="glass-input">
                                             </div>
                                             <div class="form-group">
                                                 <label>Statut</label>
@@ -6002,15 +6010,15 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                         <div class="form-row">
                                             <div class="form-group">
                                                 <label>Date Arrivée</label>
-                                                <input type="date" name="arrivalDate" value="${shipment.arrivalDate || ''}" class="glass-input">
+                                                <input type="date" name="arrivalDate" value="${this.formatDateForInput(shipment.arrivalDate)}" class="glass-input">
                                             </div>
                                             <div class="form-group">
                                                 <label>Date Dédouanement</label>
-                                                <input type="date" name="customsClearanceDate" value="${shipment.customsClearanceDate || ''}" class="glass-input">
+                                                <input type="date" name="customsClearanceDate" value="${this.formatDateForInput(shipment.customsClearanceDate)}" class="glass-input">
                                             </div>
                                             <div class="form-group">
                                                 <label>Date Enlèvement</label>
-                                                <input type="date" name="pickupDate" value="${shipment.pickupDate || ''}" class="glass-input">
+                                                <input type="date" name="pickupDate" value="${this.formatDateForInput(shipment.pickupDate)}" class="glass-input">
                                             </div>
                                         </div>
                                         <div class="modal-footer">

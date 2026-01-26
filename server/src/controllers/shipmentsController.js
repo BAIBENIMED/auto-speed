@@ -76,7 +76,8 @@ const shipmentsController = {
             // Handle vehicle updates if necessary
             res.json({ success: true, data: shipment });
         } catch (error) {
-            res.status(400).json({ success: false, message: 'Erreur lors de la mise à jour de l\'expédition' });
+            console.error('Error updating shipment:', error);
+            res.status(400).json({ success: false, message: 'Erreur lors de la mise à jour de l\'expédition', error: error.message });
         }
     },
 

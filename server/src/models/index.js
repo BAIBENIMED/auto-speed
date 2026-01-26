@@ -55,6 +55,7 @@ attachAuditLog(User, 'Utilisateur');
 attachAuditLog(Settings, 'Paramètres');
 attachAuditLog(PurchaseOrder, 'Commande Achat');
 attachAuditLog(Supplier, 'Fournisseur');
+attachAuditLog(Shipment, 'Expedition');
 
 module.exports = {
     User,
