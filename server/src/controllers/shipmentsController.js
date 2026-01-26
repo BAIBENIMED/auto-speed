@@ -1,4 +1,5 @@
 const { Shipment, Vehicle, Order } = require('../models');
+const trackingService = require('../services/trackingService');
 
 const shipmentsController = {
     getAll: async (req, res) => {
@@ -56,6 +57,9 @@ const shipmentsController = {
                     { where: { id: req.body.vehicleIds } }
                 );
             }
+            // Trigger tracking refresh
+            trackingService.refreshMmsis().catch(err => console.error('Tracking refresh error:', err));
+
             res.status(201).json({ success: true, data: shipment });
         } catch (error) {
             console.error('Error creating shipment:', error);
@@ -74,6 +78,10 @@ const shipmentsController = {
             }
             await shipment.update(req.body);
             // Handle vehicle updates if necessary
+
+            // Trigger tracking refresh
+            trackingService.refreshMmsis().catch(err => console.error('Tracking refresh error:', err));
+
             res.json({ success: true, data: shipment });
         } catch (error) {
             console.error('Error updating shipment:', error);

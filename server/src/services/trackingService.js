@@ -39,7 +39,7 @@ class TrackingService {
             });
 
             this.activeMmsis = newMmsis;
-            console.log(`[TrackingService] Tracking ${this.activeMmsis.size} vessels.`);
+            console.log(`[TrackingService] Tracking ${this.activeMmsis.size} vessels: ${Array.from(this.activeMmsis).join(', ')}`);
 
             // If connection is already open, we might need to re-subscribe if the list changed
             // But AISStream usually filter by bounding box or we filter messages in onMessage
