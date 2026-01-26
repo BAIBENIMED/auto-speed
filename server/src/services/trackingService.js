@@ -1,5 +1,4 @@
 const WebSocket = require('ws');
-const { Shipment } = require('../models');
 
 class TrackingService {
     constructor() {
@@ -7,6 +6,7 @@ class TrackingService {
         this.ws = null;
         this.reconnectTimer = null;
         this.activeMmsis = new Set();
+        this.lastRefresh = null;
     }
 
     async start() {
@@ -15,34 +15,31 @@ class TrackingService {
             return;
         }
 
-        // Periodically refresh active MMSIs from database
+        // Initial refresh
         await this.refreshMmsis();
-        setInterval(() => this.refreshMmsis(), 1000 * 60 * 5); // Every 5 minutes instead of 1 hour
+        // Periodically refresh (as fallback)
+        setInterval(() => this.refreshMmsis(), 1000 * 60 * 15);
 
         this.connect();
     }
 
     async refreshMmsis() {
         try {
+            const { Shipment } = require('../models');
             const shipments = await Shipment.findAll({
-                where: {
-                    isArchived: false
-                    // track any non-archived shipment that has an MMSI
-                }
+                where: { isArchived: false }
             });
 
             const newMmsis = new Set();
             shipments.forEach(s => {
-                if (s.mmsi && s.mmsi.trim() !== '') {
-                    newMmsis.add(s.mmsi);
+                if (s.mmsi && s.mmsi.toString().trim() !== '') {
+                    newMmsis.add(s.mmsi.toString().trim());
                 }
             });
 
             this.activeMmsis = newMmsis;
-            console.log(`[TrackingService] Tracking ${this.activeMmsis.size} vessels: ${Array.from(this.activeMmsis).join(', ')}`);
-
-            // If connection is already open, we might need to re-subscribe if the list changed
-            // But AISStream usually filter by bounding box or we filter messages in onMessage
+            this.lastRefresh = new Date();
+            console.log(`[TrackingService] Refresh complete. Tracking ${this.activeMmsis.size} vessels: ${Array.from(this.activeMmsis).join(', ')}`);
         } catch (error) {
             console.error('[TrackingService] Error refreshing MMSIs:', error);
         }
@@ -56,7 +53,7 @@ class TrackingService {
             console.log('[TrackingService] WebSocket connected.');
             const subscriptionMessage = {
                 APIKey: this.apiKey,
-                BoundingBoxes: [[[-90, -180], [90, 180]]] // Global tracking - No filters for maximum reliability
+                BoundingBoxes: [[[-90, -180], [90, 180]]]
             };
             this.ws.send(JSON.stringify(subscriptionMessage));
         });
@@ -64,19 +61,21 @@ class TrackingService {
         this.ws.on('message', (data) => {
             try {
                 const message = JSON.parse(data);
-                const mmsi = message.MetaData.MMSI.toString();
+                if (!message.MetaData || !message.MetaData.MMSI) return;
+
+                const mmsi = message.MetaData.MMSI.toString().trim();
 
                 if (this.activeMmsis.has(mmsi)) {
-                    console.log(`[TrackingService] Signal received for tracked vessel: ${mmsi}`);
+                    console.log(`[TrackingService] Signal CAPTURED for vessel: ${mmsi}`);
                     this.updateVesselPosition(message);
                 }
             } catch (e) {
-                // Ignore parse errors or unrelated messages
+                // Ignore errors
             }
         });
 
         this.ws.on('error', (err) => {
-            console.error('[TrackingService] WebSocket error:', err);
+            console.error('[TrackingService] WebSocket error:', err.message);
         });
 
         this.ws.on('close', () => {
@@ -88,50 +87,58 @@ class TrackingService {
 
     async updateVesselPosition(message) {
         try {
-            const mmsi = message.MetaData.MMSI.toString();
-            const { Latitude, Longitude } = message.MetaData;
+            const mmsi = message.MetaData.MMSI.toString().trim();
+            const { Latitude, Longitude, ShipName } = message.MetaData;
 
-            // AIS messages have different formats based on MessageID
+            if (Latitude === undefined || Longitude === undefined) return;
+
             let updateData = {
+                currentLat: Latitude,
+                currentLng: Longitude,
                 lastUpdate: new Date(),
-                shipStatus: message.MetaData.ShipName || 'En route'
+                shipStatus: ShipName || 'En route'
             };
 
-            if (message.MessageType === 'PositionReport') {
-                updateData.currentLat = Latitude;
-                updateData.currentLng = Longitude;
+            // Parse specific message info
+            if (message.MessageType === 'PositionReport' && message.Message.PositionReport) {
                 updateData.speed = message.Message.PositionReport.Sog;
                 updateData.course = message.Message.PositionReport.Cog;
-            } else if (message.MessageType === 'ShipStaticData') {
+            } else if (message.MessageType === 'ShipStaticData' && message.Message.ShipStaticData) {
                 const staticData = message.Message.ShipStaticData;
                 if (staticData.Destination && staticData.Destination !== '@@@@@@@@@@@@@@@@@@@@') {
                     updateData.destination = staticData.Destination.trim();
                 }
-
-                // Parse ETA (Month, Day, Hour, Minute)
                 if (staticData.Eta) {
                     const { Month, Day, Hour, Minute } = staticData.Eta;
                     if (Month > 0 && Day > 0) {
                         const now = new Date();
                         let year = now.getFullYear();
-                        // If ETA month is smaller than now and we are at year end, it might be next year
-                        if (Month < (now.getMonth() + 1) && (now.getMonth() + 1) >= 10 && Month <= 3) {
-                            year++;
-                        }
-                        const etaDate = new Date(year, Month - 1, Day, Hour < 24 ? Hour : 0, Minute < 60 ? Minute : 0);
-                        updateData.eta = etaDate;
+                        if (Month < (now.getMonth() + 1) && (now.getMonth() + 1) >= 10 && Month <= 3) year++;
+                        updateData.eta = new Date(year, Month - 1, Day, Hour < 24 ? Hour : 0, Minute < 60 ? Minute : 0);
                     }
                 }
             }
 
+            // Database update with trim aware query
+            const { Shipment } = require('../models');
+            const { sequelize } = require('../config/database');
+
             await Shipment.update(updateData, {
-                where: { mmsi: mmsi }
+                where: sequelize.where(sequelize.fn('TRIM', sequelize.col('mmsi')), mmsi)
             });
 
-            // console.log(`[TrackingService] Updated vessel ${mmsi} to ${Latitude}, ${Longitude}`);
         } catch (error) {
-            console.error('[TrackingService] Error updating position:', error);
+            console.error('[TrackingService] Database update error:', error);
         }
+    }
+
+    getStatus() {
+        return {
+            connected: this.ws && this.ws.readyState === WebSocket.OPEN,
+            trackingCount: this.activeMmsis.size,
+            activeMmsis: Array.from(this.activeMmsis),
+            lastRefresh: this.lastRefresh
+        };
     }
 }
 

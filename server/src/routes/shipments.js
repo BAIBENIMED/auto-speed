@@ -7,6 +7,7 @@ router.use(authMiddleware);
 
 router.get('/', shipmentsController.getAll);
 router.get('/tracking', shipmentsController.getTrackingData);
+router.get('/status', shipmentsController.getTrackingStatus);
 router.get('/:id', shipmentsController.getById);
 router.post('/', shipmentsController.create);
 router.put('/:id', shipmentsController.update);

@@ -117,6 +117,15 @@ const shipmentsController = {
             console.error('Error fetching tracking data:', error);
             res.status(500).json({ success: false, message: 'Erreur lors de la récupération des données de tracking' });
         }
+    },
+
+    getTrackingStatus: async (req, res) => {
+        try {
+            const status = trackingService.getStatus();
+            res.json({ success: true, data: status });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Erreur status tracking' });
+        }
     }
 };
 
