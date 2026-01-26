@@ -6,6 +6,7 @@ const { authMiddleware } = require('../middleware/auth');
 router.use(authMiddleware);
 
 router.get('/', shipmentsController.getAll);
+router.get('/tracking', shipmentsController.getTrackingData);
 router.get('/:id', shipmentsController.getById);
 router.post('/', shipmentsController.create);
 router.put('/:id', shipmentsController.update);

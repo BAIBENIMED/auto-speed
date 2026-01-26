@@ -63,6 +63,10 @@ app.use('/api/sync', require('./src/routes/sync'));
 app.use('/api/purchase-orders', require('./src/routes/purchaseOrders'));
 app.use('/api/suppliers', require('./src/routes/suppliers'));
 app.use('/api/upload', require('./src/routes/upload'));
+
+// Initialize Tracking Service
+const trackingService = require('./src/services/trackingService');
+trackingService.start().catch(err => console.error('Error starting TrackingService:', err));
 // More routes will be added here
 
 // Health check

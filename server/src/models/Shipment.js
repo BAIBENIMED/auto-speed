@@ -69,6 +69,38 @@ const Shipment = sequelize.define('Shipment', {
     },
     voyage: {
         type: DataTypes.STRING(100)
+    },
+    mmsi: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+    },
+    currentLat: {
+        type: DataTypes.DECIMAL(10, 8),
+        allowNull: true,
+        field: 'current_lat'
+    },
+    currentLng: {
+        type: DataTypes.DECIMAL(11, 8),
+        allowNull: true,
+        field: 'current_lng'
+    },
+    speed: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: true
+    },
+    course: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    lastUpdate: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'last_update'
+    },
+    shipStatus: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        field: 'ship_status'
     }
 }, {
     tableName: 'shipments',

@@ -93,6 +93,22 @@ const shipmentsController = {
         } catch (error) {
             res.status(500).json({ success: false, message: 'Erreur lors de la suppression de l\'expédition' });
         }
+    },
+
+    getTrackingData: async (req, res) => {
+        try {
+            const shipments = await Shipment.findAll({
+                where: {
+                    isArchived: false,
+                    currentLat: { [require('sequelize').Op.ne]: null }
+                },
+                attributes: ['id', 'containerNumber', 'carrier', 'mmsi', 'currentLat', 'currentLng', 'speed', 'course', 'lastUpdate', 'shipStatus', 'eta', 'destination']
+            });
+            res.json({ success: true, data: shipments });
+        } catch (error) {
+            console.error('Error fetching tracking data:', error);
+            res.status(500).json({ success: false, message: 'Erreur lors de la récupération des données de tracking' });
+        }
     }
 };
 

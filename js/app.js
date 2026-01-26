@@ -1846,25 +1846,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div id="map" style="height: 100%; width: 100%; min-height: 400px;"></div>
                     
                     <!-- Overlay Stats -->
-                    <div style="position: absolute; bottom: 20px; left: 20px; z-index: 1000; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div id="tracking-stats" style="position: absolute; bottom: 20px; left: 20px; z-index: 1000; display: flex; gap: 10px; flex-wrap: wrap;">
                         <div class="glass" style="padding: 10px 15px; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px);">
-                            <div style="font-size: 0.8rem; color: #aaa;">Navires en route</div>
-                            <div style="font-size: 1.2rem; font-weight: bold; color: #fff;">3</div>
+                            <div style="font-size: 0.8rem; color: #aaa;">Navires suivis</div>
+                            <div id="stat-vessels-count" style="font-size: 1.2rem; font-weight: bold; color: #fff;">0</div>
                         </div>
                         <div class="glass" style="padding: 10px 15px; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px);">
-                            <div style="font-size: 0.8rem; color: #aaa;">Navires arrivés</div>
-                            <div style="font-size: 1.2rem; font-weight: bold; color: #10b981;">0</div>
-                        </div>
-                        <div class="glass" style="padding: 10px 15px; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px);">
-                            <div style="font-size: 0.8rem; color: #aaa;">Arrivent bientôt</div>
-                            <div style="font-size: 1.2rem; font-weight: bold; color: #f59e0b;">1</div>
+                            <div style="font-size: 0.8rem; color: #aaa;">Dernière MAJ</div>
+                            <div id="stat-last-update" style="font-size: 1.2rem; font-weight: bold; color: #10b981;">-</div>
                         </div>
                     </div>
                 </div>
             `;
 
                 // Initialize Leaflet Map
-                setTimeout(() => {
+                setTimeout(async () => {
                     if (typeof L === 'undefined') return;
 
                     try {
@@ -1876,7 +1872,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         this.mapTracking = L.map('map', {
                             zoomControl: false,
                             attributionControl: false
-                        }).setView([-10, 40], 2); // Optimized view for the Cape route
+                        }).setView([-10, 40], 2);
 
                         const map = this.mapTracking;
                         L.control.zoom({ position: 'topright' }).addTo(map);
@@ -1886,119 +1882,76 @@ document.addEventListener('DOMContentLoaded', async () => {
                             subdomains: 'abcd'
                         }).addTo(map);
 
-                        const ships = [
-                            {
-                                name: 'MSC ALGERIA',
-                                lat: -34.8, lng: 18.5, // Cape of Good Hope
-                                origin: 'Nansha (CN)',
-                                dest: 'Valencia (ES) ➔ Skikda (DZ)',
-                                etd: '15 Déc 2025',
-                                eta: '20 Fév 2026',
-                                type: 'Container Ship',
-                                bl: 'BL-NSH-SK-9901',
-                                speed: '19.2 kts',
-                                update: 'Live',
-                                status: 'Transit Cape'
-                            },
-                            {
-                                name: 'CMA CGM MAGHREB',
-                                lat: 38.5, lng: 5.0, // Near Valencia
-                                origin: 'Nansha (CN)',
-                                dest: 'Malte (MT) ➔ Bejaia (DZ)',
-                                etd: '28 Nov 2025',
-                                eta: '30 Jan 2026',
-                                type: 'RO-RO',
-                                bl: 'BL-NSH-BEJ-4432',
-                                speed: '14.5 kts',
-                                update: '22m ago',
-                                status: 'Transshipment'
-                            },
-                            {
-                                name: 'MAERSK LIBERTY',
-                                lat: -5.0, lng: 75.0, // Indian Ocean
-                                origin: 'Nansha (CN)',
-                                dest: 'Malte (MT) ➔ Alger (DZ)',
-                                etd: '10 Jan 2026',
-                                eta: '15 Mars 2026',
-                                type: 'Container Ship',
-                                bl: 'BL-NSH-ALG-7761',
-                                speed: '18.1 kts',
-                                update: '3m ago',
-                                status: 'At Sea'
-                            }
-                        ];
+                        // Fetch real tracking data
+                        const response = await fetch(`${API_URL}/shipments/tracking`, {
+                            headers: { 'Authorization': `Bearer ${StorageService.get('token')}` }
+                        });
+                        const result = await response.json();
+                        const ships = result.success ? result.data : [];
+
+                        // Update Stats
+                        document.getElementById('stat-vessels-count').textContent = ships.length;
+                        if (ships.length > 0) {
+                            const latestUpdate = new Date(Math.max(...ships.map(s => new Date(s.lastUpdate))));
+                            document.getElementById('stat-last-update').textContent = latestUpdate.toLocaleTimeString();
+                        }
 
                         ships.forEach(ship => {
                             const icon = L.divIcon({
                                 className: 'custom-ship-icon',
-                                html: `<div style="color: #3b82f6; filter: drop-shadow(0 0 8px #3b82f6); font-size: 24px;"><i class="fas fa-ship"></i></div>`,
+                                html: `<div style="color: #3b82f6; filter: drop-shadow(0 0 8px #3b82f6); font-size: 24px; transform: rotate(${ship.course || 0}deg);"><i class="fas fa-ship"></i></div>`,
                                 iconSize: [30, 30],
                                 iconAnchor: [15, 15]
                             });
 
-                            const marker = L.marker([ship.lat, ship.lng], { icon: icon }).addTo(map);
+                            const marker = L.marker([ship.currentLat, ship.currentLng], { icon: icon }).addTo(map);
                             marker.bindPopup(`
                                 <div style="font-family: 'Outfit', sans-serif; color: #333; min-width: 250px;">
-                                    <h3 style="margin: 0 0 8px 0; color: #1e293b;">${ship.name}</h3>
+                                    <h3 style="margin: 0 0 8px 0; color: #1e293b;">${ship.carrier || 'Navire Interne'}</h3>
                                     <div style="background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">Route Plan</div>
-                                        <div style="font-size: 0.9rem; font-weight: 600;">${ship.dest}</div>
-                                        <div style="font-size: 0.75rem; color: #ef4444; margin-top: 4px;"><strong>Via Cap de Bonne Espérance</strong></div>
+                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">Destination</div>
+                                        <div style="font-size: 0.9rem; font-weight: 600;">${ship.destination || 'N/A'}</div>
                                     </div>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; margin-bottom: 10px;">
-                                        <div><span style="color: #64748b;">ETD:</span> <strong>${ship.etd}</strong></div>
-                                        <div><span style="color: #64748b;">ETA:</span> <strong>${ship.eta}</strong></div>
+                                        <div><span style="color: #64748b;">MMSI:</span> <strong>${ship.mmsi}</strong></div>
+                                        <div><span style="color: #64748b;">Vitesse:</span> <strong>${ship.speed || 0} kts</strong></div>
                                     </div>
                                     <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
-                                        <span>BL: <strong>${ship.bl}</strong></span>
-                                        <span style="color: #10b981;">Statut: ${ship.status}</span>
+                                        <span>Conteneur: <strong>${ship.containerNumber}</strong></span>
+                                        <span style="color: #10b981;">${ship.shipStatus || 'En route'}</span>
+                                    </div>
+                                    <div style="font-size: 0.65rem; color: #94a3b8; margin-top: 8px; text-align: right;">
+                                        Mise à jour: ${new Date(ship.lastUpdate).toLocaleString()}
                                     </div>
                                 </div>
                             `);
                         });
 
-                        // Draw Route (China -> Cape -> Algeria)
+                        // Draw Route Layer (Static Global Route for Context)
                         L.polyline([
                             [22.7, 113.8], [1.3, 103.8], [-10.0, 85.0], [-23.0, 50.0], [-34.4, 18.5],
                             [-15.0, 0.0], [15.0, -18.0], [36.0, -9.0], [36.0, -5.3], [39.4, -0.3], [35.9, 14.5], [36.7, 3.1]
                         ], {
-                            color: '#ef4444', // Red for emphasis
-                            weight: 3,
-                            opacity: 0.6,
-                            dashArray: '10, 15'
+                            color: '#ef4444',
+                            weight: 2,
+                            opacity: 0.3,
+                            dashArray: '5, 10'
                         }).addTo(map);
 
-                        // Manual Labels (Since we used dark_nolabels)
-                        const africaLabelIcon = L.divIcon({
-                            className: 'map-label-africa',
-                            html: `<div style="color: rgba(255,255,255,0.4); font-size: 24px; font-weight: bold; letter-spacing: 5px; text-transform: uppercase; pointer-events: none;">AFRIQUE</div>`,
-                            iconSize: [200, 40],
-                            iconAnchor: [100, 20]
-                        });
-                        L.marker([5.0, 20.0], { icon: africaLabelIcon }).addTo(map);
-
-                        const europeLabelIcon = L.divIcon({
-                            className: 'map-label-europe',
-                            html: `<div style="color: rgba(255,255,255,0.3); font-size: 18px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; pointer-events: none;">EUROPE</div>`,
-                            iconSize: [150, 30],
-                            iconAnchor: [75, 15]
-                        });
-                        L.marker([48.0, 15.0], { icon: europeLabelIcon }).addTo(map);
-
-                        const asiaLabelIcon = L.divIcon({
-                            className: 'map-label-asia',
-                            html: `<div style="color: rgba(255,255,255,0.3); font-size: 20px; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; pointer-events: none;">ASIE</div>`,
-                            iconSize: [150, 30],
-                            iconAnchor: [75, 15]
-                        });
-                        L.marker([45.0, 90.0], { icon: asiaLabelIcon }).addTo(map);
+                        // Manual Labels
+                        L.marker([5.0, 20.0], {
+                            icon: L.divIcon({
+                                className: 'map-label',
+                                html: `<div style="color: rgba(255,255,255,0.2); font-size: 20px; font-weight: bold; letter-spacing: 5px; text-transform: uppercase;">AFRIQUE</div>`
+                            })
+                        }).addTo(map);
 
                     } catch (e) {
-                        console.error('Map init error:', e);
+                        console.error('Tracking init error:', e);
                     }
                 }, 300);
             } catch (err) {
-                console.error("Tracking error:", err);
+                console.error("Tracking Error:", err);
             }
         },
 
@@ -4902,7 +4855,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 <td><strong>${s.id}</strong></td>
                                 <td>
                                     <div style="font-weight: 500;">${s.containerNumber || 'N/A'}</div>
-                                    <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px;">${s.carrier || '17Track'} <span style="color: var(--text-main); font-weight: 500;">/ ${s.forwarder || '-'}</span></div>
+                            <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px;">
+                                ${s.carrier || '17Track'} <span style="color: var(--text-main); font-weight: 500;">/ ${s.forwarder || '-'}</span>
+                                ${s.mmsi ? `<span style="display: block; color: var(--success); font-weight: 600;">MMSI: ${s.mmsi}</span>` : ''}
+                            </div>
                                     ${s.containerNumber ? `
                                         <div style="display: flex; gap: 5px; margin-top: 5px;">
                                             <a href="${this.getTrackingUrl(s.carrier || '17Track', s.containerNumber)}" 
@@ -5751,6 +5707,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             <input type="text" name="containerNumber" required class="glass-input" placeholder="ex: CONT-123456">
                                         </div>
                                         <div class="form-group">
+                                            <label>MMSI (Identifiant Navire <span style="color: var(--success); font-weight: bold;">Real-time</span>)</label>
+                                            <input type="text" name="mmsi" class="glass-input" placeholder="ex: 255806114" maxlength="9" style="border: 1px solid var(--success);">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
                                             <label>Voyage (Groupement)</label>
                                             <input type="text" name="voyage" class="glass-input" placeholder="ex: VOY-JAN-01">
                                         </div>
@@ -5924,42 +5886,48 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 </div>
                                 <form id="shipment-form">
                                     <input type="hidden" name="shipmentId" value="${shipment.id}">
-                                        <div class="form-row">
-                                            <div class="form-group">
-                                                <label>Numéro de Conteneur <span style="color: var(--danger);">*</span></label>
-                                                <input type="text" name="containerNumber" value="${shipment.containerNumber || ''}" required class="glass-input">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Voyage (Groupement)</label>
-                                                <input type="text" name="voyage" value="${shipment.voyage || ''}" class="glass-input">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Date d'expédition</label>
-                                                <input type="date" name="shipmentDate" value="${this.formatDateForInput(shipment.shipmentDate)}" required class="glass-input">
-                                            </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Numéro de Conteneur <span style="color: var(--danger);">*</span></label>
+                                            <input type="text" name="containerNumber" value="${shipment.containerNumber || ''}" required class="glass-input">
                                         </div>
-                                        <div class="form-row">
-                                            <div class="form-group">
-                                                <label>Transporteur</label>
-                                                <select name="carrier" class="glass-select">
-                                                    ${StorageService.get(STORAGE_KEYS.CARRIERS).map(c => `
-                                                        <option value="${c}" ${shipment.carrier === c ? 'selected' : ''}>${c}</option>
-                                                    `).join('')}
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Port de Chargement</label>
-                                                <input type="text" name="loadingPort" value="${shipment.loadingPort || ''}" class="glass-input">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Transitaire Port</label>
-                                                <input type="text" name="forwarder" value="${shipment.forwarder || ''}" class="glass-input">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Port de Destination</label>
-                                                <input type="text" name="destination" value="${shipment.destination}" required class="glass-input">
-                                            </div>
+                                        <div class="form-group">
+                                            <label>MMSI (Identifiant Navire <span style="color: var(--success); font-weight: bold;">Real-time</span>)</label>
+                                            <input type="text" name="mmsi" value="${shipment.mmsi || ''}" class="glass-input" placeholder="ex: 255806114" maxlength="9" style="border: 1px solid var(--success);">
                                         </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Voyage (Groupement)</label>
+                                            <input type="text" name="voyage" value="${shipment.voyage || ''}" class="glass-input">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Date d'expédition</label>
+                                            <input type="date" name="shipmentDate" value="${this.formatDateForInput(shipment.shipmentDate)}" required class="glass-input">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Transporteur</label>
+                                            <select name="carrier" class="glass-select">
+                                                ${StorageService.get(STORAGE_KEYS.CARRIERS).map(c => `
+                                                    <option value="${c}" ${shipment.carrier === c ? 'selected' : ''}>${c}</option>
+                                                `).join('')}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Port de Chargement</label>
+                                            <input type="text" name="loadingPort" value="${shipment.loadingPort || ''}" class="glass-input">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Transitaire Port</label>
+                                            <input type="text" name="forwarder" value="${shipment.forwarder || ''}" class="glass-input">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Port de Destination</label>
+                                            <input type="text" name="destination" value="${shipment.destination}" required class="glass-input">
+                                        </div>
+                                    </div>
                                         <div class="form-group">
                                             <label>Véhicules dans cette expédition</label>
                                             <div class="vehicles-selection-grid glass" style="max-height: 200px; overflow-y: auto; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.2);">
@@ -6069,6 +6037,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     loadingPort: formData.get('loadingPort'),
                     trackingNumber: formData.get('trackingNumber'),
                     blNumber: formData.get('blNumber'),
+                    mmsi: formData.get('mmsi'),
                     carrier: formData.get('carrier'),
                     status: formData.get('status'),
                     forwarder: formData.get('forwarder'),
