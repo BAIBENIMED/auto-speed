@@ -66,6 +66,9 @@ const Shipment = sequelize.define('Shipment', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
         field: 'is_archived'
+    },
+    voyage: {
+        type: DataTypes.STRING(100)
     }
 }, {
     tableName: 'shipments',
