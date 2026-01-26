@@ -7,6 +7,8 @@ class TrackingService {
         this.reconnectTimer = null;
         this.activeMmsis = new Set();
         this.lastRefresh = null;
+        this.messageCount = 0;
+        this.startTime = new Date();
     }
 
     async start() {
@@ -59,6 +61,7 @@ class TrackingService {
         });
 
         this.ws.on('message', (data) => {
+            this.messageCount++;
             try {
                 const message = JSON.parse(data);
                 if (!message.MetaData || !message.MetaData.MMSI) return;
@@ -137,8 +140,26 @@ class TrackingService {
             connected: this.ws && this.ws.readyState === WebSocket.OPEN,
             trackingCount: this.activeMmsis.size,
             activeMmsis: Array.from(this.activeMmsis),
-            lastRefresh: this.lastRefresh
+            lastRefresh: this.lastRefresh,
+            totalMessagesReceived: this.messageCount,
+            uptimeMinutes: Math.floor((new Date() - this.startTime) / 60000)
         };
+    }
+
+    // Manual injection for testing
+    async injectFakeSignal(mmsi, lat, lng) {
+        const fakeMessage = {
+            MetaData: {
+                MMSI: mmsi,
+                Latitude: lat,
+                Longitude: lng,
+                ShipName: 'TEST SIGNAL'
+            },
+            MessageType: 'PositionReport',
+            Message: { PositionReport: { Sog: 12.5, Cog: 180 } }
+        };
+        await this.updateVesselPosition(fakeMessage);
+        return true;
     }
 }
 

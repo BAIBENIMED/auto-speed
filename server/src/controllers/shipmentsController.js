@@ -126,6 +126,19 @@ const shipmentsController = {
         } catch (error) {
             res.status(500).json({ success: false, message: 'Erreur status tracking' });
         }
+    },
+
+    testTrackingSignal: async (req, res) => {
+        try {
+            const { mmsi, lat, lng } = req.body;
+            if (!mmsi || lat === undefined || lng === undefined) {
+                return res.status(400).json({ success: false, message: 'mmsi, lat, lng requis' });
+            }
+            await trackingService.injectFakeSignal(mmsi, lat, lng);
+            res.json({ success: true, message: 'Signal de test injecté' });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Erreur injection' });
+        }
     }
 };
 
