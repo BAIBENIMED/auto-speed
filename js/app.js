@@ -1915,6 +1915,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; margin-bottom: 10px;">
                                         <div><span style="color: #64748b;">MMSI:</span> <strong>${ship.mmsi}</strong></div>
                                         <div><span style="color: #64748b;">Vitesse:</span> <strong>${ship.speed || 0} kts</strong></div>
+                                        <div><span style="color: #64748b;">ETA:</span> <strong>${ship.eta ? new Date(ship.eta).toLocaleDateString() : 'N/A'}</strong></div>
+                                        <div><span style="color: #64748b;">Heure ETA:</span> <strong>${ship.eta ? new Date(ship.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</strong></div>
                                     </div>
                                     <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
                                         <span>Conteneur: <strong>${ship.containerNumber}</strong></span>

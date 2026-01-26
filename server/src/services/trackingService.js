@@ -92,23 +92,39 @@ class TrackingService {
             const { Latitude, Longitude } = message.MetaData;
 
             // AIS messages have different formats based on MessageID
-            let speed = null;
-            let course = null;
-            let status = message.MetaData.ShipName || 'En route';
+            let updateData = {
+                lastUpdate: new Date(),
+                shipStatus: message.MetaData.ShipName || 'En route'
+            };
 
             if (message.MessageType === 'PositionReport') {
-                speed = message.Message.PositionReport.Sog;
-                course = message.Message.PositionReport.Cog;
+                updateData.currentLat = Latitude;
+                updateData.currentLng = Longitude;
+                updateData.speed = message.Message.PositionReport.Sog;
+                updateData.course = message.Message.PositionReport.Cog;
+            } else if (message.MessageType === 'ShipStaticData') {
+                const staticData = message.Message.ShipStaticData;
+                if (staticData.Destination && staticData.Destination !== '@@@@@@@@@@@@@@@@@@@@') {
+                    updateData.destination = staticData.Destination.trim();
+                }
+
+                // Parse ETA (Month, Day, Hour, Minute)
+                if (staticData.Eta) {
+                    const { Month, Day, Hour, Minute } = staticData.Eta;
+                    if (Month > 0 && Day > 0) {
+                        const now = new Date();
+                        let year = now.getFullYear();
+                        // If ETA month is smaller than now and we are at year end, it might be next year
+                        if (Month < (now.getMonth() + 1) && (now.getMonth() + 1) >= 10 && Month <= 3) {
+                            year++;
+                        }
+                        const etaDate = new Date(year, Month - 1, Day, Hour < 24 ? Hour : 0, Minute < 60 ? Minute : 0);
+                        updateData.eta = etaDate;
+                    }
+                }
             }
 
-            await Shipment.update({
-                currentLat: Latitude,
-                currentLng: Longitude,
-                speed: speed,
-                course: course,
-                lastUpdate: new Date(),
-                shipStatus: status
-            }, {
+            await Shipment.update(updateData, {
                 where: { mmsi: mmsi }
             });
 
