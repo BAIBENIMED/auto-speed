@@ -3,24 +3,16 @@ const router = express.Router();
 const shipmentsController = require('../controllers/shipmentsController');
 const { authMiddleware } = require('../middleware/auth');
 
-// Conditional auth middleware - skip for public routes
-const conditionalAuth = (req, res, next) => {
-    const publicPaths = ['/tracking', '/status', '/test-signal'];
-    if (publicPaths.includes(req.path)) {
-        return next();
-    }
-    return authMiddleware(req, res, next);
-};
-
-// Apply conditional auth to all routes
-router.use(conditionalAuth);
-
-// Public tracking routes (no auth required)
+// ===== PUBLIC ROUTES (NO AUTH) =====
+// These MUST be defined BEFORE router.use(authMiddleware)
 router.get('/tracking', shipmentsController.getTrackingData);
 router.get('/status', shipmentsController.getTrackingStatus);
 router.post('/test-signal', shipmentsController.testTrackingSignal);
 
-// Protected routes (auth required)
+// ===== PROTECTED ROUTES (AUTH REQUIRED) =====
+// Apply auth middleware to all remaining routes
+router.use(authMiddleware);
+
 router.get('/', shipmentsController.getAll);
 router.get('/:id', shipmentsController.getById);
 router.post('/', shipmentsController.create);
