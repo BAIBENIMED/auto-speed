@@ -107,6 +107,7 @@ const ApiService = {
     createShipment: (data) => ApiService.request('/shipments', { method: 'POST', body: data }),
     updateShipment: (id, data) => ApiService.request(`/shipments/${id}`, { method: 'PUT', body: data }),
     deleteShipment: (id) => ApiService.request(`/shipments/${id}`, { method: 'DELETE' }),
+    getTrackingData: () => ApiService.request('/shipments/tracking'),
 
     // Cash
     getCashTransactions: () => ApiService.request('/cash'),

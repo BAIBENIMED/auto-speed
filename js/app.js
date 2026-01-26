@@ -1882,12 +1882,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                             subdomains: 'abcd'
                         }).addTo(map);
 
-                        // Fetch real tracking data
-                        const response = await fetch(`${API_URL}/shipments/tracking`, {
-                            headers: { 'Authorization': `Bearer ${StorageService.get('token')}` }
-                        });
-                        const result = await response.json();
-                        const ships = result.success ? result.data : [];
+                        // Fetch real tracking data using the service
+                        const response = await ApiService.getTrackingData();
+                        const ships = response.success ? response.data : [];
+
+                        // Synchronize positions into StorageService for real-time awareness
+                        if (ships.length > 0) {
+                            const localShipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+                            let updated = false;
+                            ships.forEach(ship => {
+                                const local = localShipments.find(ls => ls.id === ship.id);
+                                if (local) {
+                                    local.currentLat = ship.currentLat;
+                                    local.currentLng = ship.currentLng;
+                                    local.speed = ship.speed;
+                                    local.course = ship.course;
+                                    local.lastUpdate = ship.lastUpdate;
+                                    local.shipStatus = ship.shipStatus;
+                                    local.eta = ship.eta;
+                                    local.destination = ship.destination;
+                                    updated = true;
+                                }
+                            });
+                            if (updated) {
+                                localStorage.setItem(STORAGE_KEYS.SHIPMENTS, JSON.stringify(localShipments));
+                            }
+                        }
 
                         // Update Stats
                         document.getElementById('stat-vessels-count').textContent = ships.length;
@@ -6124,7 +6144,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             // Basculer vers la vue Tracking Mondial
             this.renderView('tracking');
 
-            // Attendre que la carte soit initialisée pour faire le zoom
+            // Attendre que la carte soit initialisée et que renderTracking ait fini ses fetches
             setTimeout(() => {
                 const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
                 const shipment = shipments.find(s => s.id === shipmentId);
@@ -6132,14 +6152,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 if (shipment && shipment.currentLat && shipment.currentLng && this.mapTracking) {
                     this.mapTracking.setView([shipment.currentLat, shipment.currentLng], 12);
                     this.showToast(`🛳️ Zoom sur le navire : ${shipment.carrier || 'Navire'}`, "info");
-
-                    // Optionnel : Ouvrir la popup si possible (plus complexe sans référence au marker)
                 } else if (shipment && shipment.mmsi) {
                     this.showToast("Le navire est enregistré (MMSI: " + shipment.mmsi + ") mais aucun signal satellite récent n'a été capté.", "warning");
                 } else {
                     this.showToast("Veuillez d'abord renseigner le MMSI du navire pour activer le tracking.", "warning");
                 }
-            }, 1000);
+            }, 1500); // 1.5s delay to ensure everything is ready
         },
 
         renderCash(query = '', filter = 'all', showroomFilter = '') {
