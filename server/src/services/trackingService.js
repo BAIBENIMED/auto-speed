@@ -17,7 +17,7 @@ class TrackingService {
 
         // Periodically refresh active MMSIs from database
         await this.refreshMmsis();
-        setInterval(() => this.refreshMmsis(), 1000 * 60 * 60); // Every hour
+        setInterval(() => this.refreshMmsis(), 1000 * 60 * 5); // Every 5 minutes instead of 1 hour
 
         this.connect();
     }
@@ -26,8 +26,8 @@ class TrackingService {
         try {
             const shipments = await Shipment.findAll({
                 where: {
-                    isArchived: false,
-                    status: ['En mer', 'Transit Cape', 'En route'] // Only track active shipments
+                    isArchived: false
+                    // track any non-archived shipment that has an MMSI
                 }
             });
 
