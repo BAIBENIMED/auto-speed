@@ -134,10 +134,11 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
     // 1. Start listening IMMEDIATELY (Crucial for Render/Cloud health checks)
     app.listen(PORT, '0.0.0.0', () => {
-        console.log(`\n-----------------------------------------`);
-        console.log(`🚀 SERVEUR ACTIF sur le port ${PORT}`);
-        console.log(`📊 Health Check: Ready for Render`);
         console.log(`-----------------------------------------\n`);
+
+        // Start Maritime Tracking Service
+        const trackingService = require('./src/services/trackingService');
+        trackingService.start();
     });
 
     // 2. Initialize Database in background (Non-blocking)

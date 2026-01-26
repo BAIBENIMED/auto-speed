@@ -56,8 +56,7 @@ class TrackingService {
             console.log('[TrackingService] WebSocket connected.');
             const subscriptionMessage = {
                 APIKey: this.apiKey,
-                BoundingBoxes: [[[-90, -180], [90, 180]]], // Global tracking
-                FiltersShipType: [70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80] // Cargo & Tankers
+                BoundingBoxes: [[[-90, -180], [90, 180]]] // Global tracking - No filters for maximum reliability
             };
             this.ws.send(JSON.stringify(subscriptionMessage));
         });
@@ -68,6 +67,7 @@ class TrackingService {
                 const mmsi = message.MetaData.MMSI.toString();
 
                 if (this.activeMmsis.has(mmsi)) {
+                    console.log(`[TrackingService] Signal received for tracked vessel: ${mmsi}`);
                     this.updateVesselPosition(message);
                 }
             } catch (e) {
