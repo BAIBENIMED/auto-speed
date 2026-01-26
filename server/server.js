@@ -45,6 +45,11 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ULTRA SIMPLE TEST - No auth, no dependencies
+app.get('/api/test-public', (req, res) => {
+    res.json({ message: 'PUBLIC ACCESS WORKS', timestamp: new Date().toISOString(), version: '3.0' });
+});
+
 // Direct public tracking endpoints (bypass router auth issues)
 app.get('/api/shipments/status', async (req, res) => {
     try {
