@@ -45,6 +45,34 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Direct public tracking endpoints (bypass router auth issues)
+app.get('/api/shipments/status', async (req, res) => {
+    try {
+        const trackingService = require('./src/services/trackingService');
+        const status = trackingService.getStatus();
+        res.json({ success: true, data: status });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erreur status tracking' });
+    }
+});
+
+app.get('/api/shipments/tracking', async (req, res) => {
+    try {
+        const { Shipment } = require('./src/models');
+        const shipments = await Shipment.findAll({
+            where: {
+                isArchived: false,
+                currentLat: { [require('sequelize').Op.ne]: null }
+            },
+            attributes: ['id', 'containerNumber', 'carrier', 'mmsi', 'currentLat', 'currentLng', 'speed', 'course', 'lastUpdate', 'shipStatus', 'eta', 'destination']
+        });
+        res.json({ success: true, data: shipments });
+    } catch (error) {
+        console.error('Error fetching tracking data:', error);
+        res.status(500).json({ success: false, message: 'Erreur lors de la récupération des données de tracking' });
+    }
+});
+
 // Routes
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/users', require('./src/routes/users'));
