@@ -19,6 +19,8 @@ class ContainerTrackingService {
                 // UNLESS the error is "Unauthorized" which implies bad key.
                 if (error.response && error.response.status === 401) {
                     console.warn('[Safecube] Invalid API Key. Falling back to simulation.');
+                } else if (error.message.includes('Simulation')) {
+                    // Keep simulation if we deliberately threw it
                 } else {
                     // Return simulation with "Simulation (Fallback)" status if real API error
                     const sim = this.simulateTracking(containerNumber);
@@ -35,27 +37,79 @@ class ContainerTrackingService {
     async fetchFromSafecube(containerNumber) {
         console.log(`[Safecube] Fetching real data for ${containerNumber}...`);
 
-        // const response = await axios.get(`${this.baseUrl}/shipments`, {
-        const response = await axios.get(`https://api.sinay.ai/safecube/api/v1/shipments`, {
-            params: { container: containerNumber },
-            headers: {
-                'API_KEY': this.apiKey,
-                'Accept': 'application/json'
-            },
-            timeout: 10000
-        });
+        try {
+            // 1. Try to get shipment details
+            const response = await axios.get(`https://api.sinay.ai/safecube/api/v1/shipments`, {
+                params: { container: containerNumber },
+                headers: {
+                    'API_KEY': this.apiKey,
+                    'Accept': 'application/json'
+                },
+                timeout: 10000
+            });
 
-        const data = response.data;
+            return this.mapSafecubeResponse(response.data, containerNumber);
 
-        // Map Safecube response to our standardized format
-        // Note: Adaptation required based on exact Safecube response structure
-        // Assuming typical structure: { data: { events: [], current_status: {}, ... } }
+        } catch (error) {
+            // 403 means "Not found/Not accessible" -> We need to create it
+            if (error.response && error.response.status === 403) {
+                console.log(`[Safecube] Container ${containerNumber} not found/authorized. Attempting creation...`);
+                return await this.createAndTrackSafecube(containerNumber);
+            }
+            throw error;
+        }
+    }
 
+    async createAndTrackSafecube(containerNumber) {
+        try {
+            // 2. Create Shipment
+            const postResponse = await axios.post(`https://api.sinay.ai/safecube/api/v1/public/shipments`,
+                [{ shipmentNumber: containerNumber }],
+                {
+                    headers: {
+                        'API_KEY': this.apiKey,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    timeout: 10000
+                }
+            );
+
+            if (postResponse.status === 200 || postResponse.status === 202) {
+                console.log(`[Safecube] Creation successful for ${containerNumber}.`);
+                // Return a temporary "Pending" status because data won't be available immediately
+                return {
+                    containerNumber: containerNumber,
+                    status: 'Initialisation du suivi...',
+                    location: {
+                        lat: 0,
+                        lng: 0,
+                        name: 'En attente de données'
+                    },
+                    events: [{
+                        date: new Date().toISOString(),
+                        description: 'Conteneur ajouté au tracking Safecube',
+                        location: 'Système'
+                    }],
+                    eta: null,
+                    vesselName: 'En attente',
+                    voyage: 'N/A',
+                    provider: 'Safecube (Pending)'
+                };
+            }
+        } catch (createError) {
+            console.error(`[Safecube] Creation failed for ${containerNumber}:`, createError.message);
+            // Fallback to simulation if creation fails
+            throw createError;
+        }
+    }
+
+    mapSafecubeResponse(data, containerNumber) {
         // Safeguard against different response structures
         const shipment = Array.isArray(data) ? data[0] : (data.data || data);
 
         if (!shipment) {
-            throw new Error('Container not found in Safecube');
+            throw new Error('Container not found in Safecube response');
         }
 
         return {

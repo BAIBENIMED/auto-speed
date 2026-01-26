@@ -6,8 +6,7 @@ const { authMiddleware } = require('../middleware/auth');
 // ===== PUBLIC ROUTES (NO AUTH) =====
 // These MUST be defined BEFORE router.use(authMiddleware)
 router.get('/tracking', shipmentsController.getTrackingData);
-router.get('/status', shipmentsController.getTrackingStatus);
-router.post('/test-signal', shipmentsController.testTrackingSignal);
+
 
 // ===== PROTECTED ROUTES (AUTH REQUIRED) =====
 // Apply auth middleware to all remaining routes

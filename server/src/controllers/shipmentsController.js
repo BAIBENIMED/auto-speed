@@ -1,5 +1,5 @@
 const { Shipment, Vehicle, Order } = require('../models');
-const trackingService = require('../services/trackingService');
+
 
 const shipmentsController = {
     getAll: async (req, res) => {
@@ -58,7 +58,7 @@ const shipmentsController = {
                 );
             }
             // Trigger tracking refresh
-            trackingService.refreshMmsis().catch(err => console.error('Tracking refresh error:', err));
+
 
             res.status(201).json({ success: true, data: shipment });
         } catch (error) {
@@ -80,7 +80,7 @@ const shipmentsController = {
             // Handle vehicle updates if necessary
 
             // Trigger tracking refresh
-            trackingService.refreshMmsis().catch(err => console.error('Tracking refresh error:', err));
+
 
             res.json({ success: true, data: shipment });
         } catch (error) {
@@ -119,27 +119,7 @@ const shipmentsController = {
         }
     },
 
-    getTrackingStatus: async (req, res) => {
-        try {
-            const status = trackingService.getStatus();
-            res.json({ success: true, data: status });
-        } catch (error) {
-            res.status(500).json({ success: false, message: 'Erreur status tracking' });
-        }
-    },
 
-    testTrackingSignal: async (req, res) => {
-        try {
-            const { mmsi, lat, lng } = req.body;
-            if (!mmsi || lat === undefined || lng === undefined) {
-                return res.status(400).json({ success: false, message: 'mmsi, lat, lng requis' });
-            }
-            await trackingService.injectFakeSignal(mmsi, lat, lng);
-            res.json({ success: true, message: 'Signal de test injecté' });
-        } catch (error) {
-            res.status(500).json({ success: false, message: 'Erreur injection' });
-        }
-    }
 };
 
 module.exports = shipmentsController;
