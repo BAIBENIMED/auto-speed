@@ -5687,7 +5687,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
             // Allow selecting a vehicle that is either the pre-selected one OR has an order but no shipment AND is not archived
             const availableVehicles = vehicles.filter(v =>
-                (v.id === preSelectedVehicleId || !v.shipmentId) && !v.archived
+                (v.id === preSelectedVehicleId || !v.shipmentId) && !v.isArchived
             );
             const orders = StorageService.get(STORAGE_KEYS.ORDERS);
 
@@ -6119,45 +6119,25 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         },
 
         async trackShipment(shipmentId) {
-            // Manual Tracking Logic Only
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-            const shipment = shipments.find(s => s.id === shipmentId);
+            // Basculer vers la vue Tracking Mondial
+            this.renderView('tracking');
 
-            if (!shipment) return;
+            // Attendre que la carte soit initialisée pour faire le zoom
+            setTimeout(() => {
+                const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+                const shipment = shipments.find(s => s.id === shipmentId);
 
-            const newStatus = prompt(`Mettre à jour le statut pour l'expédition ${shipment.containerNumber} ?\n(Actuel: ${shipment.status})`, shipment.status);
+                if (shipment && shipment.currentLat && shipment.currentLng && this.mapTracking) {
+                    this.mapTracking.setView([shipment.currentLat, shipment.currentLng], 12);
+                    this.showToast(`🛳️ Zoom sur le navire : ${shipment.carrier || 'Navire'}`, "info");
 
-            if (newStatus && newStatus !== shipment.status) {
-                shipment.status = newStatus;
-                shipment.lastUpdate = new Date().toISOString();
-
-                await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, shipment);
-                this.showToast(`Statut mis à jour : ${newStatus}`, "success");
-
-                // Update vehicle statuses linked to this shipment
-                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                const linkedVehicles = vehicles.filter(v => v.shipmentId === shipment.id);
-                let updatedCount = 0;
-
-                for (const v of linkedVehicles) {
-                    let vStatus = v.status;
-                    if (newStatus === 'Arrivé') vStatus = 'Arrived';
-                    else if (newStatus === 'Livré') vStatus = 'Sold'; // Or 'Handed Over' depending on logic, keeping simple
-                    else if (newStatus === 'En mer') vStatus = 'In Transit';
-
-                    if (vStatus !== v.status) {
-                        v.status = vStatus;
-                        await StorageService.update(STORAGE_KEYS.VEHICLES, v.id, v);
-                        updatedCount++;
-                    }
+                    // Optionnel : Ouvrir la popup si possible (plus complexe sans référence au marker)
+                } else if (shipment && shipment.mmsi) {
+                    this.showToast("Le navire est enregistré (MMSI: " + shipment.mmsi + ") mais aucun signal satellite récent n'a été capté.", "warning");
+                } else {
+                    this.showToast("Veuillez d'abord renseigner le MMSI du navire pour activer le tracking.", "warning");
                 }
-
-                if (updatedCount > 0) {
-                    this.showToast(`${updatedCount} véhicules mis à jour.`, "info");
-                }
-
-                this.renderView('shipments'); // Refresh view
-            }
+            }, 1000);
         },
 
         renderCash(query = '', filter = 'all', showroomFilter = '') {
