@@ -4808,7 +4808,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             }
 
             if (!this.shipmentFilters.showArchived) {
-                shipments = shipments.filter(s => !s.archived);
+                shipments = shipments.filter(s => !s.isArchived);
             }
 
             this.viewContainer.innerHTML = `
@@ -4899,10 +4899,6 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     <div style="font-size: 0.85rem;"><strong>ETD:</strong> ${s.etd ? new Date(s.etd).toLocaleDateString() : '-'}</div>
                                     <div style="font-size: 0.85rem;"><strong>ETA:</strong> ${s.eta ? new Date(s.eta).toLocaleDateString() : '-'}</div>
                                     <div style="font-size: 0.85rem; color: var(--success);"><strong>Arr:</strong> ${s.arrivalDate ? new Date(s.arrivalDate).toLocaleDateString() : '-'}</div>
-                                </td>
-                                <td>
-                                    <div style="font-size: 0.8rem; color: var(--text-dim);">De: ${s.loadingPort || '-'}</div>
-                                    <div style="font-size: 0.9rem; font-weight: 500;">Vers: ${s.destination}</div>
                                 </td>
                                 <td>
                                     <div style="font-size: 0.85rem;"><strong>BL:</strong> ${s.blNumber || '-'}</div>
@@ -5991,6 +5987,15 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                 <input type="date" name="pickupDate" value="${this.formatDateForInput(shipment.pickupDate)}" class="glass-input">
                                             </div>
                                         </div>
+                                        <div class="form-group">
+                                            <label class="checkbox-item" style="display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
+                                                <input type="checkbox" name="isArchived" value="true" ${shipment.isArchived ? 'checked' : ''} style="width: 18px; height: 18px;">
+                                                <div style="display: flex; flex-direction: column;">
+                                                    <span style="font-weight: 500;">Archiver cette expédition</span>
+                                                    <span style="font-size: 0.75rem; color: var(--text-dim);">Masque l'expédition des vues principales.</span>
+                                                </div>
+                                            </label>
+                                        </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
                                             <button type="submit" class="btn-primary">Enregistrer les modifications</button>
@@ -6044,6 +6049,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     status: formData.get('status'),
                     forwarder: formData.get('forwarder'),
                     voyage: formData.get('voyage'),
+                    isArchived: formData.get('isArchived') === 'true' || false,
                     arrivalDate: sanitizeDate(formData.get('arrivalDate')),
                     customsClearanceDate: sanitizeDate(formData.get('customsClearanceDate')),
                     pickupDate: sanitizeDate(formData.get('pickupDate'))
