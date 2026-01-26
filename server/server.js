@@ -148,6 +148,34 @@ const startServer = async () => {
         await sequelize.sync({ alter: true });
         console.log('✅ Base de données synchronisée (MODE: ALTER)');
 
+        // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
+        try {
+            const columnsToEnsure = [
+                { table: 'shipments', name: 'mmsi', def: 'VARCHAR(20)' },
+                { table: 'shipments', name: 'current_lat', def: 'DECIMAL(10, 8)' },
+                { table: 'shipments', name: 'current_lng', def: 'DECIMAL(11, 8)' },
+                { table: 'shipments', name: 'speed', def: 'DECIMAL(5, 2)' },
+                { table: 'shipments', name: 'course', def: 'INTEGER' },
+                { table: 'shipments', name: 'last_update', def: 'DATETIME' },
+                { table: 'shipments', name: 'ship_status', def: 'VARCHAR(100)' },
+                { table: 'shipments', name: 'voyage', def: 'VARCHAR(100)' }
+            ];
+
+            for (const col of columnsToEnsure) {
+                try {
+                    const [results] = await sequelize.query(`SHOW COLUMNS FROM ${col.table} LIKE '${col.name}'`);
+                    if (results.length === 0) {
+                        console.log(`🔧 Adding missing column ${col.name} to ${col.table}...`);
+                        await sequelize.query(`ALTER TABLE ${col.table} ADD COLUMN ${col.name} ${col.def}`);
+                    }
+                } catch (colErr) {
+                    console.error(`⚠️ Could not verify/add column ${col.name}:`, colErr.message);
+                }
+            }
+        } catch (schemaErr) {
+            console.error('❌ Schema fix error:', schemaErr);
+        }
+
         // Auto-seed Roles if empty
         const rolesCount = await models.Role.count();
         if (rolesCount === 0) {
