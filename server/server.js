@@ -69,6 +69,9 @@ const trackingService = require('./src/services/trackingService');
 trackingService.start().catch(err => console.error('Error starting TrackingService:', err));
 // More routes will be added here
 
+// Basic reachability test
+app.get('/', (req, res) => res.json({ message: 'TIBOU AUTO API is running', version: '2.5' }));
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.3 - FIXED)' });
