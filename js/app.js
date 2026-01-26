@@ -8695,6 +8695,172 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             }
         },
 
+        async renderVoyages() {
+            this.viewContainer.innerHTML = `
+                <div class="view-header">
+                    <div>
+                        <h1>Suivi des Voyages</h1>
+                        <p>Vue groupée des expéditions par voyage maritime</p>
+                    </div>
+                </div>
+                <div class="glass" style="padding: 20px;">
+                    <div id="voyages-grid" class="dashboard-grid">
+                        <div class="loader-container"><div class="loader"></div></div>
+                    </div>
+                </div>
+            `;
+
+            try {
+                const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+                const container = document.getElementById('voyages-grid');
+
+                // Group by Voyage
+                const voyages = {};
+                shipments.forEach(s => {
+                    if (!s.voyage || s.isArchived) return; // Skip archived or non-voyage items
+
+                    const vName = s.voyage.toUpperCase().trim();
+                    if (!voyages[vName]) {
+                        voyages[vName] = {
+                            name: vName,
+                            shipments: [],
+                            containers: [],
+                            status: s.status, // Default to first seen
+                            eta: s.eta,
+                            etd: s.etd,
+                            carrier: s.carrier,
+                            vesselName: s.shipStatus // Sometimes vessel name is here
+                        };
+                    }
+                    voyages[vName].shipments.push(s);
+                    if (s.containerNumber) voyages[vName].containers.push(s.containerNumber);
+
+                    // Update status priority (simplified)
+                    if (s.status === 'Arrivé') voyages[vName].status = 'Arrivé';
+                });
+
+                const voyageList = Object.values(voyages);
+
+                if (voyageList.length === 0) {
+                    container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-dim);">Aucun voyage actif trouvé.</p>';
+                    return;
+                }
+
+                container.innerHTML = voyageList.map(v => `
+                    <div class="stat-card glass" style="display: flex; flex-direction: column; justify-content: space-between;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue);">
+                                <i class="fas fa-ship"></i>
+                            </div>
+                            <span class="status-badge ${v.status === 'Arrivé' ? 'success' : 'warning'}">${v.status || 'En cours'}</span>
+                        </div>
+                        
+                        <div class="stat-info">
+                            <h3 style="font-size: 1.2rem; margin-bottom: 5px;">${v.name}</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 10px;">
+                                <i class="fas fa-anchor" style="width: 20px; text-align: center;"></i> ${v.carrier || 'Compagnie inconnue'}
+                            </p>
+                            
+                            <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px;">
+                                    <span style="color: var(--text-dim);">Conteneurs:</span>
+                                    <strong>${v.containers.length}</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                                    <span style="color: var(--text-dim);">ETA:</span>
+                                    <strong>${v.eta ? new Date(v.eta).toLocaleDateString() : 'N/A'}</strong>
+                                </div>
+                            </div>
+                            
+                            <button class="btn-primary" style="width: 100%;" onclick="app.showVoyageTracking('${v.name}')">
+                                <i class="fas fa-map-marked-alt"></i> Suivre le Voyage
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error("Error rendering voyages:", error);
+                this.showToast("Erreur affichage voyages", "error");
+            }
+        },
+
+        async showVoyageTracking(voyageName) {
+            this.showToast(`Recherche de la position du voyage ${voyageName}...`, "info");
+
+            try {
+                // Call our new backend endpoint
+                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message || "Impossible de localiser le voyage");
+                }
+
+                const data = result.data;
+
+                // Show Modal with Map
+                const modalHtml = `
+                    <div class="modal-overlay">
+                        <div class="modal-content glass" style="width: 800px; max-width: 95vw;">
+                            <div class="modal-header">
+                                <h2><i class="fas fa-satellite-dish"></i> Suivi Voyage: ${voyageName}</h2>
+                                <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                            </div>
+                            <div style="height: 400px; background: #1a1a1a; position: relative; border-radius: 12px; overflow: hidden; margin-bottom: 20px;">
+                                <div id="voyage-map" style="width: 100%; height: 100%;"></div>
+                                <div style="position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; color: white; border: 1px solid rgba(255,255,255,0.2);">
+                                    <div style="font-weight: bold; margin-bottom: 5px;">${data.vesselName || 'Navire Inconnu'}</div>
+                                    <div style="font-size: 0.9rem;">Statut: <span style="color: #4ade80;">${data.status}</span></div>
+                                    <div style="font-size: 0.8rem; color: #ccc; margin-top: 5px;">Via Conteneur: ${data.containerNumber}</div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div class="details-section">
+                                    <h3>Dernière Position</h3>
+                                    <p>${data.location.name || 'En mer'}</p>
+                                    <p style="font-family: monospace; color: var(--text-dim);">${data.location.lat.toFixed(4)}, ${data.location.lng.toFixed(4)}</p>
+                                </div>
+                                <div class="details-section">
+                                    <h3>Estimations</h3>
+                                    <p>ETA Destination: <strong>${data.eta ? new Date(data.eta).toLocaleDateString() : 'Non calculé'}</strong></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                // Initialize Leaflet Map
+                if (window.L) {
+                    const map = L.map('voyage-map').setView([data.location.lat, data.location.lng], 5);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+                    }).addTo(map);
+
+                    const icon = L.divIcon({
+                        html: '<i class="fas fa-ship" style="font-size: 24px; color: #fff; text-shadow: 0 0 10px #000;"></i>',
+                        className: 'ship-marker-icon',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+
+                    L.marker([data.location.lat, data.location.lng], { icon: icon })
+                        .addTo(map)
+                        .bindPopup(`<b>${voyageName}</b><br>${data.status}`)
+                        .openPopup();
+                } else {
+                    document.getElementById('voyage-map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:white;">Carte non disponible (Leaflet manquant)</div>';
+                }
+
+            } catch (error) {
+                console.error("Tracking Error:", error);
+                this.showToast(error.message, "danger");
+            }
+        },
+
         async renderAudit() {
             this.viewContainer.innerHTML = `
                 <div class="view-header">
