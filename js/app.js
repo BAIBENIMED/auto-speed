@@ -4923,9 +4923,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         </div>
                         `;
 
-            if (sArchivedF) {
-                sArchivedF.addEventListener('change', (e) => {
+            const archivedFilter = document.getElementById('filter-shipment-archived');
+            if (archivedFilter) {
+                archivedFilter.addEventListener('change', (e) => {
                     this.shipmentFilters.showArchived = e.target.checked;
+                    this.renderView('shipments'); // Refresh with current query
                 });
             }
         },
