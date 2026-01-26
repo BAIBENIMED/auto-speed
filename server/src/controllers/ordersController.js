@@ -27,6 +27,12 @@ const ordersController = {
                 if (orderData.client) {
                     orderData.clientName = `${orderData.client.firstName} ${orderData.client.lastName}`;
                 }
+                if (orderData.Vehicles && orderData.Vehicles.length > 0) {
+                    const v = orderData.Vehicles[0];
+                    if (!orderData.vehicleName || orderData.vehicleName === 'undefined') {
+                        orderData.vehicleName = `${v.brand} ${v.model || ''} (${v.year})`;
+                    }
+                }
                 return orderData;
             });
 
@@ -53,6 +59,12 @@ const ordersController = {
             const orderData = order.toJSON();
             if (orderData.client) {
                 orderData.clientName = `${orderData.client.firstName} ${orderData.client.lastName}`;
+            }
+            if (orderData.Vehicles && orderData.Vehicles.length > 0) {
+                const v = orderData.Vehicles[0];
+                if (!orderData.vehicleName || orderData.vehicleName === 'undefined') {
+                    orderData.vehicleName = `${v.brand} ${v.model || ''} (${v.year})`;
+                }
             }
             res.json({ success: true, data: orderData });
         } catch (error) {

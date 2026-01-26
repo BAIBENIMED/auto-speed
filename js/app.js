@@ -759,10 +759,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </div>
                             <div class="details-section">
                                 <h3><i class="fas fa-car"></i> Véhicule</h3>
-                                <p><strong>Modèle:</strong> ${order.vehicleName}</p>
+                                <p><strong>Modèle:</strong> ${order.vehicleName || (vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : 'N/A')}</p>
                                 <p><strong>Châssis:</strong> ${vehicle ? vehicle.chassisNumber : 'N/A'}</p>
                                 ${vehicle && vehicle.options ? `<p><strong>Options:</strong> <span style="font-size: 0.85rem; color: var(--text-dim);">${vehicle.options}</span></p>` : ''}
-                                <p><strong>Prix Total:</strong> ${this.formatCurrency(order.totalAmount)}</p>
+                                
+                                ${shipment ? `
+                                <div style="margin-top: 15px; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border-left: 3px solid var(--primary);">
+                                    <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--primary);"><i class="fas fa-shipping-fast"></i> Situation du Transport</h4>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+                                        <div><strong>ETD:</strong> ${shipment.etd ? new Date(shipment.etd).toLocaleDateString() : 'N/A'}</div>
+                                        <div><strong>ETA:</strong> ${shipment.eta ? new Date(shipment.eta).toLocaleDateString() : 'N/A'}</div>
+                                        <div><strong>Dédouanement:</strong> ${shipment.customsClearanceDate ? new Date(shipment.customsClearanceDate).toLocaleDateString() : 'N/A'}</div>
+                                        <div><strong>Enlèvement:</strong> ${shipment.pickupDate ? new Date(shipment.pickupDate).toLocaleDateString() : 'N/A'}</div>
+                                    </div>
+                                    <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
+                                        <strong>Conteneur:</strong> ${shipment.containerNumber} | <strong>Compagnie:</strong> ${shipment.carrier || 'N/A'}
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <p style="margin-top: 10px;"><strong>Prix Total:</strong> ${this.formatCurrency(order.totalAmount)}</p>
                             </div>
                             <div class="details-section">
                                 <h3><i class="fas fa-money-bill-wave"></i> Détail Financier</h3>
