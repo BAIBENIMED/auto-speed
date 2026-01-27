@@ -155,8 +155,16 @@ const startServer = async () => {
         console.log('⏳ Initialisation de la base de données...');
 
         // Sync models
-        await sequelize.sync({ alter: true });
-        console.log('✅ Base de données synchronisée (MODE: ALTER)');
+        try {
+            await sequelize.sync({ alter: true });
+            console.log('✅ Base de données synchronisée (MODE: ALTER)');
+        } catch (syncError) {
+            if (syncError.name === 'SequelizeDatabaseError' && syncError.parent && syncError.parent.code === 'ER_TOO_MANY_KEYS') {
+                console.warn('⚠️ [DB Warning] Trop d\'index détectés sur certaines tables. La synchronisation automatique a été ignorée pour éviter de bloquer le serveur.');
+            } else {
+                console.error('❌ [DB Error] Erreur de synchronisation schema:', syncError.message);
+            }
+        }
 
         // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
         try {
