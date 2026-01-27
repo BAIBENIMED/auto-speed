@@ -32,6 +32,10 @@ const Client = sequelize.define('Client', {
         type: DataTypes.STRING(100),
         field: 'passport_number'
     },
+    nin: {
+        type: DataTypes.STRING(100),
+        field: 'nin'
+    },
     showroom: {
         type: DataTypes.STRING(100)
     },
