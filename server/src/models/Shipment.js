@@ -70,10 +70,6 @@ const Shipment = sequelize.define('Shipment', {
     voyage: {
         type: DataTypes.STRING(100)
     },
-    mmsi: {
-        type: DataTypes.STRING(20),
-        allowNull: true
-    },
     currentLat: {
         type: DataTypes.DECIMAL(10, 8),
         allowNull: true,

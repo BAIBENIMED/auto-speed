@@ -4731,7 +4731,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     <div style="font-weight: 500;">${s.containerNumber || 'N/A'}</div>
                             <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px;">
                                 ${s.carrier || '17Track'} <span style="color: var(--text-main); font-weight: 500;">/ ${s.forwarder || '-'}</span>
-                                ${s.mmsi ? `<span style="display: block; color: var(--success); font-weight: 600;">MMSI: ${s.mmsi}</span>` : ''}
+                                ${s.containerNumber ? `<span style="display: block; color: var(--text-dim); font-size: 0.8rem;">Cont: ${s.containerNumber}</span>` : ''}
                             </div>
                                     ${s.containerNumber ? `
                                         <div style="display: flex; gap: 5px; margin-top: 5px;">
@@ -5578,10 +5578,6 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             <label>Numéro de Conteneur <span style="color: var(--danger);">*</span></label>
                                             <input type="text" name="containerNumber" required class="glass-input" placeholder="ex: CONT-123456">
                                         </div>
-                                        <div class="form-group">
-                                            <label>MMSI (Identifiant Navire <span style="color: var(--success); font-weight: bold;">Real-time</span>)</label>
-                                            <input type="text" name="mmsi" class="glass-input" placeholder="ex: 255806114" maxlength="9" style="border: 1px solid var(--success);">
-                                        </div>
                                     </div>
                                     <div class="form-row">
                                         <div class="form-group">
@@ -5763,10 +5759,6 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             <label>Numéro de Conteneur <span style="color: var(--danger);">*</span></label>
                                             <input type="text" name="containerNumber" value="${shipment.containerNumber || ''}" required class="glass-input">
                                         </div>
-                                        <div class="form-group">
-                                            <label>MMSI (Identifiant Navire <span style="color: var(--success); font-weight: bold;">Real-time</span>)</label>
-                                            <input type="text" name="mmsi" value="${shipment.mmsi || ''}" class="glass-input" placeholder="ex: 255806114" maxlength="9" style="border: 1px solid var(--success);">
-                                        </div>
                                     </div>
                                     <div class="form-row">
                                         <div class="form-group">
@@ -5918,7 +5910,6 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     loadingPort: formData.get('loadingPort'),
                     trackingNumber: formData.get('trackingNumber'),
                     blNumber: formData.get('blNumber'),
-                    mmsi: formData.get('mmsi'),
                     carrier: formData.get('carrier'),
                     status: formData.get('status'),
                     forwarder: formData.get('forwarder'),
@@ -6004,10 +5995,8 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 if (shipment && shipment.currentLat && shipment.currentLng && this.mapTracking) {
                     this.mapTracking.setView([shipment.currentLat, shipment.currentLng], 12);
                     this.showToast(`🛳️ Zoom sur le navire : ${shipment.carrier || 'Navire'}`, "info");
-                } else if (shipment && shipment.mmsi) {
-                    this.showToast("Le navire est enregistré (MMSI: " + shipment.mmsi + ") mais aucun signal satellite récent n'a été capté.", "warning");
                 } else {
-                    this.showToast("Veuillez d'abord renseigner le MMSI du navire pour activer le tracking.", "warning");
+                    this.showToast("Détails du suivi non disponibles pour cette expédition.", "warning");
                 }
             }, 1500); // 1.5s delay to ensure everything is ready
         },
@@ -8554,6 +8543,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         <h1>Suivi des Voyages</h1>
                         <p>Vue groupée des expéditions par voyage maritime</p>
                     </div>
+                    <div class="search-box glass" style="margin-left: auto;">
+                        <input type="text" id="direct-tracking-input" placeholder="N° Conteneur ou BL..." style="background: transparent; border: none; color: white; padding: 10px; width: 250px;">
+                        <button class="btn-primary" onclick="app.showDirectTracking()" style="padding: 8px 15px;">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="glass" style="padding: 20px;">
                     <div id="voyages-grid" class="dashboard-grid">
@@ -8569,7 +8564,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 // Group by Voyage
                 const voyages = {};
                 shipments.forEach(s => {
-                    if (!s.voyage || s.isArchived) return; // Skip archived or non-voyage items
+                    if (!s.voyage || s.isArchived) return;
 
                     const vName = s.voyage.toUpperCase().trim();
                     if (!voyages[vName]) {
@@ -8577,17 +8572,23 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             name: vName,
                             shipments: [],
                             containers: [],
-                            status: s.status, // Default to first seen
+                            blNumbers: [],
+                            status: s.status,
                             eta: s.eta,
                             etd: s.etd,
                             carrier: s.carrier,
-                            vesselName: s.shipStatus // Sometimes vessel name is here
+                            vesselName: s.shipStatus
                         };
                     }
                     voyages[vName].shipments.push(s);
-                    if (s.containerNumber) voyages[vName].containers.push(s.containerNumber);
+                    if (s.containerNumber && !voyages[vName].containers.includes(s.containerNumber)) {
+                        voyages[vName].containers.push(s.containerNumber);
+                    }
+                    if (s.blNumber && !voyages[vName].blNumbers.includes(s.blNumber)) {
+                        voyages[vName].blNumbers.push(s.blNumber);
+                    }
 
-                    // Update status priority (simplified)
+                    // Update status priority
                     if (s.status === 'Arrivé') voyages[vName].status = 'Arrivé';
                 });
 
@@ -8598,38 +8599,43 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     return;
                 }
 
-                container.innerHTML = voyageList.map(v => `
-                    <div class="stat-card glass" style="display: flex; flex-direction: column; justify-content: space-between;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue);">
-                                <i class="fas fa-ship"></i>
-                            </div>
-                            <span class="status-badge ${v.status === 'Arrivé' ? 'success' : 'warning'}">${v.status || 'En cours'}</span>
-                        </div>
-                        
-                        <div class="stat-info">
-                            <h3 style="font-size: 1.2rem; margin-bottom: 5px;">${v.name}</h3>
-                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 10px;">
-                                <i class="fas fa-anchor" style="width: 20px; text-align: center;"></i> ${v.carrier || 'Compagnie inconnue'}
-                            </p>
-                            
-                            <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px;">
-                                    <span style="color: var(--text-dim);">Conteneurs:</span>
-                                    <strong>${v.containers.length}</strong>
+                container.innerHTML = voyageList.map(v => {
+                    const primaryIdentifier = v.blNumbers[0] || v.containers[0] || 'N/A';
+                    const identifierLabel = v.blNumbers[0] ? 'BL' : 'Cont.';
+
+                    return `
+                        <div class="stat-card glass" style="display: flex; flex-direction: column; justify-content: space-between;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                                <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue);">
+                                    <i class="fas fa-ship"></i>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                                    <span style="color: var(--text-dim);">ETA:</span>
-                                    <strong>${v.eta ? new Date(v.eta).toLocaleDateString() : 'N/A'}</strong>
-                                </div>
+                                <span class="status-badge ${v.status === 'Arrivé' ? 'success' : 'warning'}">${v.status || 'En cours'}</span>
                             </div>
                             
-                            <button class="btn-primary" style="width: 100%;" onclick="app.showVoyageTracking('${v.name}')">
-                                <i class="fas fa-map-marked-alt"></i> Suivre le Voyage
-                            </button>
+                            <div class="stat-info">
+                                <h3 style="font-size: 1.2rem; margin-bottom: 5px;">${v.name}</h3>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 10px;">
+                                    <i class="fas fa-barcode" style="width: 20px; text-align: center;"></i> ${identifierLabel}: ${primaryIdentifier}
+                                </p>
+                                
+                                <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px;">
+                                        <span style="color: var(--text-dim);">Expéditions:</span>
+                                        <strong>${v.shipments.length}</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                                        <span style="color: var(--text-dim);">ETA:</span>
+                                        <strong>${v.eta ? new Date(v.eta).toLocaleDateString() : 'N/A'}</strong>
+                                    </div>
+                                </div>
+                                
+                                <button class="btn-primary" style="width: 100%;" onclick="app.showVoyageTracking('${v.name}')">
+                                    <i class="fas fa-map-marked-alt"></i> Suivre le Voyage
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
 
             } catch (error) {
                 console.error("Error rendering voyages:", error);
@@ -8639,77 +8645,108 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
         async showVoyageTracking(voyageName) {
             this.showToast(`Recherche de la position du voyage ${voyageName}...`, "info");
-
             try {
-                // Call our new backend endpoint
                 const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
                 const result = await response.json();
+                if (!result.success) throw new Error(result.message || "Impossible de localiser le voyage");
+                this.showTrackingModal(result.data, `Suivi Voyage: ${voyageName}`);
+            } catch (error) {
+                console.error("Voyage Tracking Error:", error);
+                this.showToast(error.message, "danger");
+            }
+        },
 
-                if (!result.success) {
-                    throw new Error(result.message || "Impossible de localiser le voyage");
-                }
+        async showDirectTracking() {
+            const input = document.getElementById('direct-tracking-input');
+            const number = input?.value?.trim();
+            if (!number) return this.showToast("Entrez un numéro de conteneur ou BL", "warning");
 
-                const data = result.data;
+            this.showToast(`Recherche du numéro ${number}...`, "info");
+            try {
+                const response = await fetch(`/api/tracking/container/${encodeURIComponent(number)}`);
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || "Suivi impossible pour ce numéro");
+                this.showTrackingModal(result.data, `Suivi Direct: ${number}`);
+            } catch (error) {
+                console.error("Direct Tracking Error:", error);
+                this.showToast(error.message, "danger");
+            }
+        },
 
-                // Show Modal with Map
-                const modalHtml = `
-                    <div class="modal-overlay">
-                        <div class="modal-content glass" style="width: 800px; max-width: 95vw;">
-                            <div class="modal-header">
-                                <h2><i class="fas fa-satellite-dish"></i> Suivi Voyage: ${voyageName}</h2>
-                                <button class="btn-close" onclick="app.closeModal()">&times;</button>
-                            </div>
-                            <div style="height: 400px; background: #1a1a1a; position: relative; border-radius: 12px; overflow: hidden; margin-bottom: 20px;">
-                                <div id="voyage-map" style="width: 100%; height: 100%;"></div>
-                                <div style="position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; color: white; border: 1px solid rgba(255,255,255,0.2);">
-                                    <div style="font-weight: bold; margin-bottom: 5px;">${data.vesselName || 'Navire Inconnu'}</div>
-                                    <div style="font-size: 0.9rem;">Statut: <span style="color: #4ade80;">${data.status}</span></div>
-                                    <div style="font-size: 0.8rem; color: #ccc; margin-top: 5px;">Via Conteneur: ${data.containerNumber}</div>
-                                </div>
-                            </div>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                                <div class="details-section">
-                                    <h3>Dernière Position</h3>
-                                    <p>${data.location.name || 'En mer'}</p>
-                                    <p style="font-family: monospace; color: var(--text-dim);">${data.location.lat.toFixed(4)}, ${data.location.lng.toFixed(4)}</p>
-                                </div>
-                                <div class="details-section">
-                                    <h3>Estimations</h3>
-                                    <p>ETA Destination: <strong>${data.eta ? new Date(data.eta).toLocaleDateString() : 'Non calculé'}</strong></p>
+        showTrackingModal(data, title) {
+            const modalHtml = `
+                <div class="modal-overlay">
+                    <div class="modal-content glass" style="width: 800px; max-width: 95vw;">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-satellite-dish"></i> ${title}</h2>
+                            <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                        </div>
+                        <div style="height: 400px; background: #1a1a1a; position: relative; border-radius: 12px; overflow: hidden; margin-bottom: 20px;">
+                            <div id="voyage-map" style="width: 100%; height: 100%;"></div>
+                            <div style="position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; color: white; border: 1px solid rgba(255,255,255,0.2); z-index: 1000; min-width: 200px;">
+                                <div style="font-weight: bold; margin-bottom: 5px; font-size: 1.1rem; color: var(--accent-blue);">${data.vesselName || 'Navire Inconnu'}</div>
+                                <div style="font-size: 0.9rem; margin-bottom: 4px;">Statut: <span style="color: #4ade80; font-weight: bold;">${data.status}</span></div>
+                                <div style="font-size: 0.8rem; color: #ccc;">ID: <span style="font-family: monospace;">${data.identifier || data.containerNumber}</span></div>
+                                <div style="font-size: 0.75rem; color: #888; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
+                                    Source: ${data.provider || 'Inconnue'}
                                 </div>
                             </div>
                         </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="details-section glass" style="padding: 15px; background: rgba(255,255,255,0.03);">
+                                <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--text-dim);">Dernière Position</h3>
+                                <p style="font-weight: bold; margin-bottom: 5px;">${data.location.name || 'En mer'}</p>
+                                <p style="font-family: monospace; color: var(--text-dim); font-size: 0.85rem;">${data.location.lat.toFixed(4)}, ${data.location.lng.toFixed(4)}</p>
+                            </div>
+                            <div class="details-section glass" style="padding: 15px; background: rgba(255,255,255,0.03);">
+                                <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--text-dim);">Estimations</h3>
+                                <p>ETA: <strong>${data.eta ? new Date(data.eta).toLocaleDateString() : 'Non calculé'}</strong></p>
+                                <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 5px;">Voyage: ${data.voyage || 'N/A'}</p>
+                            </div>
+                        </div>
+                        
+                        ${data.events && data.events.length > 0 ? `
+                        <div style="margin-top: 20px;">
+                            <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--text-dim);">Événements récents</h3>
+                            <div style="max-height: 150px; overflow-y: auto; font-size: 0.85rem;">
+                                ${data.events.slice(0, 5).map(e => `
+                                    <div style="display: flex; gap: 10px; margin-bottom: 8px; border-left: 2px solid var(--accent-blue); padding-left: 10px;">
+                                        <div style="color: var(--text-dim); white-space: nowrap;">${new Date(e.date).toLocaleDateString()}</div>
+                                        <div>
+                                            <div style="font-weight: bold;">${e.description}</div>
+                                            <div style="color: var(--text-dim); font-size: 0.8rem;">${e.location}</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
-                `;
+                </div>
+            `;
 
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-                // Initialize Leaflet Map
-                if (window.L) {
-                    const map = L.map('voyage-map').setView([data.location.lat, data.location.lng], 5);
-                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-                    }).addTo(map);
+            if (window.L) {
+                const map = L.map('voyage-map', { zoomControl: false }).setView([data.location.lat, data.location.lng], 5);
+                L.control.zoom({ position: 'topright' }).addTo(map);
 
-                    const icon = L.divIcon({
-                        html: '<i class="fas fa-ship" style="font-size: 24px; color: #fff; text-shadow: 0 0 10px #000;"></i>',
-                        className: 'ship-marker-icon',
-                        iconSize: [24, 24],
-                        iconAnchor: [12, 12]
-                    });
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; CARTO'
+                }).addTo(map);
 
-                    L.marker([data.location.lat, data.location.lng], { icon: icon })
-                        .addTo(map)
-                        .bindPopup(`<b>${voyageName}</b><br>${data.status}`)
-                        .openPopup();
-                } else {
-                    document.getElementById('voyage-map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:white;">Carte non disponible (Leaflet manquant)</div>';
-                }
+                const icon = L.divIcon({
+                    html: '<i class="fas fa-ship" style="font-size: 24px; color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.5);"></i>',
+                    className: 'ship-marker-icon',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
 
-            } catch (error) {
-                console.error("Tracking Error:", error);
-                this.showToast(error.message, "danger");
+                L.marker([data.location.lat, data.location.lng], { icon: icon })
+                    .addTo(map)
+                    .bindPopup(`<b>${data.vesselName || 'Navire'}</b><br>${data.status}`)
+                    .openPopup();
             }
         },
 

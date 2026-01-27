@@ -15,35 +15,40 @@ router.get('/container/:number', async (req, res) => {
     }
 });
 
-// Get tracking info for a Voyage (finds first valid container in voyage)
+// Get tracking info for a Voyage (finds first valid BL or container in voyage)
 router.get('/voyage/:voyageName', async (req, res) => {
     try {
         const { voyageName } = req.params;
 
-        // Find a shipment in this voyage that has a container number
-        const shipment = await Shipment.findOne({
+        // Find shipments in this voyage
+        const shipments = await Shipment.findAll({
             where: {
                 voyage: voyageName,
                 isArchived: false
             }
         });
 
-        if (!shipment || !shipment.containerNumber) {
-            return res.status(404).json({ success: false, message: 'Aucun conteneur trouvé pour ce voyage' });
+        if (!shipments || shipments.length === 0) {
+            return res.status(404).json({ success: false, message: 'Aucune expédition trouvée pour ce voyage' });
         }
 
-        // Use the found container to track the voyage
-        const trackingInfo = await containerTrackingService.trackContainer(shipment.containerNumber);
+        // 1. Try to find a BL number first (more reliable for voyage tracking)
+        const shipmentWithBL = shipments.find(s => s.blNumber && s.blNumber.trim() !== '');
+        if (shipmentWithBL) {
+            console.log(`[Tracking] Tracking voyage ${voyageName} via BL ${shipmentWithBL.blNumber}`);
+            const trackingInfo = await containerTrackingService.trackContainer(shipmentWithBL.blNumber, true);
+            return res.json({ success: true, data: { ...trackingInfo, voyageName } });
+        }
 
-        // Attach voyage-specific summary if needed
-        res.json({
-            success: true,
-            data: {
-                ...trackingInfo,
-                voyageName: voyageName,
-                representativeContainer: shipment.containerNumber
-            }
-        });
+        // 2. Fallback to Container Number
+        const shipmentWithContainer = shipments.find(s => s.containerNumber && s.containerNumber.trim() !== '');
+        if (shipmentWithContainer) {
+            console.log(`[Tracking] Tracking voyage ${voyageName} via Container ${shipmentWithContainer.containerNumber}`);
+            const trackingInfo = await containerTrackingService.trackContainer(shipmentWithContainer.containerNumber, false);
+            return res.json({ success: true, data: { ...trackingInfo, voyageName } });
+        }
+
+        res.status(404).json({ success: false, message: 'Aucun BL ou conteneur trouvé pour ce voyage' });
 
     } catch (error) {
         console.error('Voyage tracking error:', error);

@@ -110,7 +110,7 @@ const shipmentsController = {
                     isArchived: false,
                     currentLat: { [require('sequelize').Op.ne]: null }
                 },
-                attributes: ['id', 'containerNumber', 'carrier', 'mmsi', 'currentLat', 'currentLng', 'speed', 'course', 'lastUpdate', 'shipStatus', 'eta', 'destination']
+                attributes: ['id', 'containerNumber', 'carrier', 'currentLat', 'currentLng', 'speed', 'course', 'lastUpdate', 'shipStatus', 'eta', 'destination']
             });
             res.json({ success: true, data: shipments });
         } catch (error) {

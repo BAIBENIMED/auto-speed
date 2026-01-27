@@ -161,7 +161,6 @@ const startServer = async () => {
         // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
         try {
             const columnsToEnsure = [
-                { table: 'shipments', name: 'mmsi', def: 'VARCHAR(20)' },
                 { table: 'shipments', name: 'current_lat', def: 'DECIMAL(10, 8)' },
                 { table: 'shipments', name: 'current_lng', def: 'DECIMAL(11, 8)' },
                 { table: 'shipments', name: 'speed', def: 'DECIMAL(5, 2)' },
