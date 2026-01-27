@@ -146,7 +146,7 @@ const app = {
                     <div class="login-box glass">
                         <div class="login-logo" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
                             <div class="logo-text-wrapper" style="font-size: 3.5rem; letter-spacing: -2px;">
-                                <span class="tibou">TIBOU</span>
+                                <span class="tibou" style="color: white;">TIBOU</span>
                                 <span class="auto">AUTO</span>
                             </div>
                             <div style="color: #ff0000; font-size: 0.7rem; font-weight: 800; letter-spacing: 5px; margin-top: -5px; text-transform: uppercase;">CHINA CARS</div>
