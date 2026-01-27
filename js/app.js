@@ -9056,17 +9056,14 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 };
 
 // Initialize App
-(async () => {
-    try {
-        window.app = app; // Expose globally immediately
-        await app.init();
-    } catch (err) {
-        console.error('Critical Error during App Init:', err);
-        document.body.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif;">
-                <h1>Erreur Critique</h1>
-                <p>L'application n'a pas pu démarrer.</p>
-                <pre>${err.message}\n${err.stack}</pre>
-            </div>`;
-    }
-})();
+// Initialize App
+window.app = app; // Expose globally immediately
+app.init().catch(err => {
+    console.error('Critical Error during App Init:', err);
+    document.body.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif;">
+            <h1>Erreur Critique</h1>
+            <p>L'application n'a pas pu démarrer.</p>
+            <pre>${err.message}\n${err.stack}</pre>
+        </div>`;
+});
 // End of App Logic
