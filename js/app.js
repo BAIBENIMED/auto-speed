@@ -4728,7 +4728,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             ` : shipments.map(s => {
                 const shipmentVehicles = vehicles.filter(v => v.shipmentId === s.id);
                 return `
-                            <tr>
+                            <tr class="${this.isOutdated(s.lastUpdate) ? 'outdated' : ''}">
                                 <td><strong>${s.id}</strong></td>
                                 <td>
                                     <div style="font-weight: 500;">${s.containerNumber || 'N/A'}</div>
@@ -4751,7 +4751,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             </button>
                                         </div>
                                     ` : ''}
-                                    ${s.lastTrackedAt ? `<div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 4px;">MàJ: ${new Date(s.lastTrackedAt).toLocaleString()}</div>` : ''}
+                                    ${s.lastUpdate ? `
+                                        <div style="font-size: 0.65rem; color: ${this.isOutdated(s.lastUpdate) ? 'var(--danger)' : 'var(--text-dim)'}; margin-top: 4px; font-weight: ${this.isOutdated(s.lastUpdate) ? '600' : '400'}">
+                                            <i class="fas fa-clock"></i> MàJ: ${new Date(s.lastUpdate).toLocaleString()}
+                                            ${this.isOutdated(s.lastUpdate) ? ' <span class="badge" style="background: var(--danger); font-size: 0.55rem;">Alerte +24h</span>' : ''}
+                                        </div>
+                                    ` : '<div style="font-size: 0.65rem; color: var(--danger); margin-top: 4px; font-weight: 600;"><i class="fas fa-exclamation-circle"></i> Jamais synchronisé</div>'}
                                 </td>
                                 <td>
                                     <div class="shipment-vehicles-list" style="display: flex; flex-direction: column; gap: 8px;">
@@ -4824,10 +4829,14 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         etd: s.etd,
                         eta: s.eta,
                         arrivalDate: s.arrivalDate,
-                        status: s.status
+                        status: s.status,
+                        lastUpdate: s.lastUpdate
                     };
                 }
                 acc[voyageName].shipments.push(s);
+                if (s.lastUpdate && (!acc[voyageName].lastUpdate || new Date(s.lastUpdate) > new Date(acc[voyageName].lastUpdate))) {
+                    acc[voyageName].lastUpdate = s.lastUpdate;
+                }
                 if (s.carrier) acc[voyageName].carriers.add(s.carrier);
                 if (s.loadingPort) acc[voyageName].ports.add(s.loadingPort);
                 if (s.destination) acc[voyageName].destinations.add(s.destination);
@@ -4885,6 +4894,15 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             <div style="font-size: 0.85rem;"><strong>ETD:</strong> ${v.etd ? new Date(v.etd).toLocaleDateString() : '-'}</div>
                                             <div style="font-size: 0.85rem;"><strong>ETA:</strong> ${v.eta ? new Date(v.eta).toLocaleDateString() : '-'}</div>
                                             <div style="font-size: 0.85rem; color: var(--success);"><strong>Port:</strong> ${Array.from(v.ports).join(', ') || '-'}</div>
+                                            <div style="font-size: 0.75rem; color: ${this.isOutdated(v.lastUpdate) ? 'var(--danger)' : 'var(--text-dim)'}; margin-top: 5px;">
+                                                <i class="fas fa-clock"></i> MàJ: ${v.lastUpdate ? new Date(v.lastUpdate).toLocaleString() : 'Jamais'}
+                                            </div>
+                                            <div style="margin-top: 8px;">
+                                                <label class="switch-container" style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-dim); cursor: pointer;">
+                                                    <input type="checkbox" onchange="app.toggleVoyageTracking('${v.name}', this.checked)" ${v.shipments.some(s => s.isTrackingActive) ? 'checked' : ''} style="width: 14px; height: 14px;">
+                                                    <span>Tracking Actif</span>
+                                                </label>
+                                            </div>
                                         </td>
                                         <td style="text-align: center;">
                                             <span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">${v.shipments.length}</span>
@@ -4978,6 +4996,16 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 </div>
                             </div>
 
+                            <div class="form-group" style="margin-top: 10px;">
+                                <label class="checkbox-item" style="display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; cursor: pointer;">
+                                    <input type="checkbox" name="isTrackingActive" value="true" ${voyageShipments.some(s => s.isTrackingActive) ? 'checked' : ''} style="width: 18px; height: 18px;">
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-weight: 500;">Activer le Tracking API</span>
+                                        <span style="font-size: 0.75rem; color: var(--text-dim);">Lance le suivi automatique pour tous les conteneurs de ce voyage.</span>
+                                    </div>
+                                </label>
+                            </div>
+
                             <div class="modal-footer">
                                 <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
                                 <button type="submit" class="btn-primary">Mettre à jour tout le voyage</button>
@@ -5015,7 +5043,8 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     etd: sanitizeDate(formData.get('etd')),
                     eta: sanitizeDate(formData.get('eta')),
                     status: formData.get('status'),
-                    arrivalDate: sanitizeDate(formData.get('arrivalDate'))
+                    arrivalDate: sanitizeDate(formData.get('arrivalDate')),
+                    isTrackingActive: formData.get('isTrackingActive') === 'true'
                 };
 
                 // Update each shipment in the voyage
@@ -8968,6 +8997,110 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 </div>
             `;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
+        },
+
+        isOutdated(dateStr) {
+            if (!dateStr) return true;
+            const lastUpdate = new Date(dateStr);
+            const now = new Date();
+            const diffHours = (now - lastUpdate) / (1000 * 60 * 60);
+            return diffHours > 24;
+        },
+
+        async toggleVoyageTracking(voyageName, active) {
+            try {
+                this.showToast(`Mise à jour du tracking pour ${voyageName}...`, "info");
+                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    this.showToast(res.message, "success");
+                    await StorageService.syncAll();
+                    this.renderView(this.currentView);
+                } else {
+                    throw new Error(res.message);
+                }
+            } catch (error) {
+                console.error("Toggle error:", error);
+                this.showToast("Erreur lors du changement de statut", "error");
+                this.renderView(this.currentView);
+            }
+        },
+
+        renderAlerts() {
+            const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+                .filter(s => !s.isArchived && this.isOutdated(s.lastUpdate))
+                .sort((a, b) => new Date(a.lastUpdate || 0) - new Date(b.lastUpdate || 0));
+
+            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+            const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+            const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+
+            this.viewContainer.innerHTML = `
+                <div class="view-header">
+                    <div class="header-info">
+                        <h1>Alertes Tracking</h1>
+                        <p>${shipments.length} expédition(s) nécessitant une mise à jour (+24h)</p>
+                    </div>
+                    <button class="btn-primary" onclick="StorageService.syncAll().then(() => app.renderAlerts())">
+                        <i class="fas fa-sync"></i> Tout rafraîchir
+                    </button>
+                </div>
+
+                <div class="data-table-container glass">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Expédition</th>
+                                <th>Conteneur</th>
+                                <th>Dernière MàJ</th>
+                                <th>Véhicules / Clients</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${shipments.length === 0 ? `
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 40px;">
+                                        <i class="fas fa-check-circle" style="font-size: 3rem; color: var(--success); margin-bottom: 10px;"></i>
+                                        <p>Toutes les expéditions sont à jour !</p>
+                                    </td>
+                                </tr>
+                            ` : shipments.map(s => {
+                const shipmentVehicles = vehicles.filter(v => v.shipmentId === s.id);
+                return `
+                                    <tr style="background: rgba(239, 68, 68, 0.05);">
+                                        <td><strong>${s.id}</strong><div style="font-size: 0.75rem; color: var(--text-dim);">${s.voyage || 'SANS VOYAGE'}</div></td>
+                                        <td>
+                                            <div style="font-weight: bold;">${s.containerNumber || 'N/A'}</div>
+                                            <div style="font-size: 0.7rem; color: var(--text-dim);">${s.carrier || ''}</div>
+                                        </td>
+                                        <td style="color: var(--danger); font-weight: 600;">
+                                            ${s.lastUpdate ? new Date(s.lastUpdate).toLocaleString() : 'Jamais'}
+                                            <div style="font-size: 0.65rem; opacity: 0.8;">Retard critique</div>
+                                        </td>
+                                        <td>
+                                            ${shipmentVehicles.map(v => {
+                    const order = orders.find(o => o.id === v.orderId);
+                    const client = order ? clients.find(c => c.id === order.clientId) : null;
+                    return `<div style="font-size: 0.8rem;"><i class="fas fa-user"></i> ${client ? client.firstName + ' ' + client.lastName : 'Inconnu'}</div>`;
+                }).join('')}
+                                        </td>
+                                        <td>
+                                            <button class="btn-action" onclick="app.trackShipment('${s.id}')" title="Rafraîchir Maintenant">
+                                                <i class="fas fa-sync-alt" style="color: var(--success);"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
         },
 
     };

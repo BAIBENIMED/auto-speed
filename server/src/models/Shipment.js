@@ -93,6 +93,11 @@ const Shipment = sequelize.define('Shipment', {
         allowNull: true,
         field: 'last_update'
     },
+    isTrackingActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'is_tracking_active'
+    },
     shipStatus: {
         type: DataTypes.STRING(100),
         allowNull: true,

@@ -637,6 +637,24 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
+/* Tracking Alerts & Switches */
+.switch-container input[type="checkbox"] {
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.switch-container span {
+    user-select: none;
+}
+
+.data-table tr.outdated {
+    background: rgba(239, 68, 68, 0.03);
+}
+
+.data-table tr.outdated:hover {
+    background: rgba(239, 68, 68, 0.06);
+}
+
 /* New Badge Styles */
 .badge-pill {
     padding: 4px 10px;

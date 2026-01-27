@@ -107,4 +107,22 @@ router.post('/:id/refresh', async (req, res) => {
     }
 });
 
+// Toggle tracking activation for a voyage
+router.post('/voyage/:voyageName/toggle', async (req, res) => {
+    try {
+        const { voyageName } = req.params;
+        const { active } = req.body;
+
+        await Shipment.update(
+            { isTrackingActive: !!active },
+            { where: { voyage: voyageName } }
+        );
+
+        res.json({ success: true, message: `Tracking ${active ? 'activé' : 'désactivé'} pour le voyage ${voyageName}` });
+    } catch (error) {
+        console.error('Voyage toggle error:', error);
+        res.status(500).json({ success: false, message: 'Erreur lors de la modification du statut de suivi' });
+    }
+});
+
 module.exports = router;
