@@ -105,32 +105,55 @@ class ContainerTrackingService {
 
     mapSinayV2Response(data, number, isBL) {
         const metadata = data.metadata || {};
-        const locations = data.locations || [];
-        const route = data.route || {};
+        const routeData = data.routeData || {};
+        const vessels = data.vessels || [];
 
-        // Find last known location (AIS or last stop)
-        let lastLoc = locations[0] || { coordinates: { lat: 0, lng: 0 }, name: 'Inconnu' };
+        // 1. Current Position
+        // routeData.coordinates is the most reliable "current" point in V2
+        let currentLat = routeData.coordinates?.lat || 0;
+        let currentLng = routeData.coordinates?.lng || 0;
+        let locationName = 'En transit';
 
-        // If we have AIS data, it usually represents current position
-        const currentCoord = data.ais?.lastCoordinate || lastLoc.coordinates;
+        // 2. Events Mapping
+        // In V2, events are typically inside information about the specific container or the whole shipment
+        const container = (data.containers && data.containers[0]) || {};
+        const rawEvents = container.events || data.events || [];
+
+        const mappedEvents = rawEvents.map(e => ({
+            date: e.date,
+            description: e.description || e.eventCode || 'Événement',
+            location: e.location?.name || '',
+            isActual: e.isActual
+        })).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // 3. Current Location Name (from latest actual event)
+        const lastActualEvent = mappedEvents.find(e => e.isActual);
+        if (lastActualEvent) {
+            locationName = lastActualEvent.location || locationName;
+            // If routeData coordinates are missing or zero, fallback to last actual event's coordinates
+            if (!currentLat && lastActualEvent.location?.coordinates) {
+                currentLat = lastActualEvent.location.coordinates.lat;
+                currentLng = lastActualEvent.location.coordinates.lng;
+            }
+        }
+
+        // 4. Vessel Name
+        // Try to get the vessel from the vessels list or latest event
+        let vesselName = data.ais?.vesselName || (vessels.length > 0 ? vessels[vessels.length - 1].name : metadata.sealineName || 'Navire');
 
         return {
             identifier: number,
             type: isBL ? 'BL' : 'Container',
             status: metadata.shippingStatus || 'En transit',
             location: {
-                lat: currentCoord.lat,
-                lng: currentCoord.lng,
-                name: lastLoc.name || 'Position Satellite'
+                lat: parseFloat(currentLat),
+                lng: parseFloat(currentLng),
+                name: locationName
             },
-            events: (data.events || []).map(e => ({
-                date: e.date,
-                description: e.description || e.status,
-                location: e.location?.name || ''
-            })),
-            eta: route.pod?.date || metadata.updatedAt,
-            vesselName: data.ais?.vesselName || metadata.sealineName || 'Navire',
-            voyage: 'N/A', // V2 has complex route structure
+            events: mappedEvents,
+            eta: data.route?.pod?.date || metadata.updatedAt,
+            vesselName: vesselName,
+            voyage: 'N/A',
             provider: 'Sinay V2'
         };
     }
