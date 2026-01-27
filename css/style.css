@@ -1286,6 +1286,9 @@ textarea.glass-input {
 
 /* Authentication & RBAC Styles */
 #login-container {
+    position: fixed;
+    top: 0;
+    left: 0;
     height: 100vh;
     width: 100vw;
     display: flex;
@@ -1295,6 +1298,7 @@ textarea.glass-input {
         linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.8)),
         url('../assets/login-wallpaper.png') no-repeat center center / cover;
     background-color: #000;
+    z-index: 9999;
 }
 
 .login-box {
