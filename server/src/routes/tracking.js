@@ -52,7 +52,7 @@ router.get('/voyage/:voyageName', async (req, res) => {
                 destination: trackingInfo.unloadingPort || s.destination,
                 currentLat: trackingInfo.location?.lat || s.currentLat,
                 currentLng: trackingInfo.location?.lng || s.currentLng,
-                shipStatus: trackingInfo.status || s.shipStatus,
+                shipStatus: trackingInfo.vesselName || s.shipStatus,
                 lastUpdate: new Date()
             })));
 
@@ -96,7 +96,7 @@ router.post('/:id/refresh', async (req, res) => {
             destination: trackingData.unloadingPort || shipment.destination,
             currentLat: trackingData.location?.lat || shipment.currentLat,
             currentLng: trackingData.location?.lng || shipment.currentLng,
-            shipStatus: trackingData.status || shipment.shipStatus,
+            shipStatus: trackingData.vesselName || shipment.shipStatus,
             lastUpdate: new Date()
         });
 

@@ -4824,6 +4824,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         shipments: [],
                         vessels: new Set(),
                         carriers: new Set(),
+                        forwarders: new Set(),
                         ports: new Set(),
                         destinations: new Set(),
                         etd: s.etd,
@@ -4838,6 +4839,8 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     acc[voyageName].lastUpdate = s.lastUpdate;
                 }
                 if (s.carrier) acc[voyageName].carriers.add(s.carrier);
+                if (s.forwarder) acc[voyageName].forwarders.add(s.forwarder);
+                if (s.shipStatus) acc[voyageName].vessels.add(s.shipStatus);
                 if (s.loadingPort) acc[voyageName].ports.add(s.loadingPort);
                 if (s.destination) acc[voyageName].destinations.add(s.destination);
                 return acc;
@@ -4861,12 +4864,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Nom du Voyage</th>
-                                <th>Logistique (Groupée)</th>
-                                <th style="text-align: center;">Conteneurs</th>
-                                <th style="text-align: center;">Véhicules</th>
-                                <th>Destinations</th>
-                                <th>Statut Global</th>
+                                <th>Voyage & Navires</th>
+                                <th>Logistique (POL <i class="fas fa-arrow-right"></i> POD)</th>
+                                <th>Transitaire</th>
+                                <th style="text-align: center;">Cargaison</th>
+                                <th>Statut & MàJ</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -4883,42 +4885,66 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     <tr>
                                         <td>
                                             <div style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">${v.name}</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-dim);">${Array.from(v.carriers).join(', ') || 'Transporteur non spécifié'}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 5px;">
+                                                <i class="fas fa-ship"></i> Navires: ${Array.from(v.vessels).filter(n => n && n !== 'N/A').join(', ') || 'N/A'}
+                                            </div>
+                                            <div style="font-size: 0.75rem; color: var(--text-dim);">
+                                                <i class="fas fa-building"></i> Compagnie: ${Array.from(v.carriers).join(', ') || 'N/A'}
+                                            </div>
                                             ${trackingLink ? `
-                                                <a href="${trackingLink}" target="_blank" style="font-size: 0.7rem; color: var(--success); text-decoration: none; margin-top: 5px; display: inline-block;">
+                                                <a href="${trackingLink}" target="_blank" style="font-size: 0.7rem; color: var(--success); text-decoration: none; margin-top: 8px; display: inline-block;">
                                                     <i class="fas fa-external-link-alt"></i> Suivre ce Voyage
                                                 </a>
                                             ` : ''}
                                         </td>
                                         <td>
-                                            <div style="font-size: 0.85rem;"><strong>ETD:</strong> ${v.etd ? new Date(v.etd).toLocaleDateString() : '-'}</div>
-                                            <div style="font-size: 0.85rem;"><strong>ETA:</strong> ${v.eta ? new Date(v.eta).toLocaleDateString() : '-'}</div>
-                                            <div style="font-size: 0.85rem; color: var(--success);"><strong>Port:</strong> ${Array.from(v.ports).join(', ') || '-'}</div>
-                                            <div style="font-size: 0.75rem; color: ${this.isOutdated(v.lastUpdate) ? 'var(--danger)' : 'var(--text-dim)'}; margin-top: 5px;">
-                                                <i class="fas fa-clock"></i> MàJ: ${v.lastUpdate ? new Date(v.lastUpdate).toLocaleString() : 'Jamais'}
+                                            <div style="font-size: 0.85rem;">
+                                                <span style="color: var(--text-dim);">POL:</span> <strong>${Array.from(v.ports).join(', ') || '-'}</strong>
+                                            </div>
+                                            <div style="font-size: 0.85rem; margin-top: 3px;">
+                                                <span style="color: var(--text-dim);">POD:</span> <strong>${Array.from(v.destinations).join(', ') || '-'}</strong>
+                                            </div>
+                                            <div style="font-size: 0.8rem; color: var(--accent-blue); margin-top: 5px;">
+                                                <i class="far fa-calendar-alt"></i> ETD: ${v.etd ? new Date(v.etd).toLocaleDateString() : '-'}
+                                            </div>
+                                            <div style="font-size: 0.8rem; color: var(--success);">
+                                                <i class="far fa-calendar-check"></i> ETA: ${v.eta ? new Date(v.eta).toLocaleDateString() : '-'}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 600; font-size: 0.85rem;">${Array.from(v.forwarders).join(', ') || 'Direct'}</div>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <div style="margin-bottom: 5px;">
+                                                <span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); cursor: pointer;" onclick="app.showVoyageShipmentsModal('${v.name}')">
+                                                    <i class="fas fa-box"></i> ${v.shipments.length} Cont.
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="badge-pill" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+                                                    <i class="fas fa-car"></i> ${totalVehicles} Véh.
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style="margin-bottom: 5px;"><span class="status-badge ${v.status.toLowerCase()}">${v.status}</span></div>
+                                            <div style="font-size: 0.7rem; color: ${this.isOutdated(v.lastUpdate) ? 'var(--danger)' : 'var(--text-dim)'}; font-weight: ${this.isOutdated(v.lastUpdate) ? '600' : '400'}">
+                                                <i class="fas fa-history"></i> MàJ: ${v.lastUpdate ? new Date(v.lastUpdate).toLocaleString() : 'Jamais'}
                                             </div>
                                             <div style="margin-top: 8px;">
-                                                <label class="switch-container" style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-dim); cursor: pointer;">
-                                                    <input type="checkbox" onchange="app.toggleVoyageTracking('${v.name}', this.checked)" ${v.shipments.some(s => s.isTrackingActive) ? 'checked' : ''} style="width: 14px; height: 14px;">
-                                                    <span>Tracking Actif</span>
+                                                <label class="switch-container" style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-dim); cursor: pointer;" title="Activer/Désactiver le suivi API">
+                                                    <input type="checkbox" onchange="app.toggleVoyageTracking('${v.name.replace(/'/g, "\\'")}', this.checked)" ${v.shipments.some(s => s.isTrackingActive) ? 'checked' : ''} style="width: 14px; height: 14px;">
+                                                    <span>Tracking API</span>
                                                 </label>
                                             </div>
                                         </td>
-                                        <td style="text-align: center;">
-                                            <span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">${v.shipments.length}</span>
-                                        </td>
-                                        <td style="text-align: center;">
-                                            <span class="badge-pill" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">${totalVehicles}</span>
-                                        </td>
-                                        <td>${Array.from(v.destinations).join(', ') || '-'}</td>
-                                        <td><span class="status-badge ${v.status.toLowerCase()}">${v.status}</span></td>
                                         <td>
                                             <div class="table-actions">
                                                 <button class="btn-action" onclick="app.showVoyageShipmentsModal('${v.name}')" title="Détails Expéditions / Clients">
                                                     <i class="fas fa-users-cog"></i>
                                                 </button>
                                                 <button class="btn-action" onclick="app.showVoyageTracking('${v.name}')" title="Historique & Tracking (API)">
-                                                    <i class="fas fa-history" style="color: var(--success);"></i>
+                                                    <i class="fas fa-satellite-dish" style="color: var(--success);"></i>
                                                 </button>
                                                 ${v.name !== 'SANS VOYAGE' ? `
                                                     <button class="btn-action" onclick="app.showEditVoyageModal('${v.name}')" title="Modifier tout le voyage">
