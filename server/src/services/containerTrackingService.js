@@ -2,23 +2,24 @@ const axios = require('axios');
 
 class ContainerTrackingService {
     constructor() {
-        // Safecube API Configuration
+        // Sinay/Safecube API Configuration
         this.apiKey = process.env.SAFECUBE_API_KEY;
-        this.baseUrl = 'https://api.safecube.com/v2';
+        this.baseUrl = 'https://api.sinay.ai/container-tracking/api/v2';
     }
 
     async trackContainer(number, isBL = false) {
+        if (!number) return this.simulateTracking('N/A', isBL);
+
         // 1. Try Real API if Key is present
         if (this.apiKey && this.apiKey.trim() !== '' && this.apiKey !== 'your_safecube_key_here') {
             try {
-                return await this.fetchFromSafecube(number, isBL);
+                return await this.fetchFromSinayV2(number, isBL);
             } catch (error) {
-                console.error(`[Safecube] Tracking failed for ${number}:`, error.message);
+                console.error(`[SinayV2] Tracking failed for ${number}:`, error.message);
 
                 if (error.response && error.response.status === 401) {
-                    console.warn('[Safecube] Invalid API Key. Falling back to simulation.');
+                    console.warn('[SinayV2] Invalid API Key. Falling back to simulation.');
                 } else {
-                    // Fallback to simulation if real API error
                     const sim = this.simulateTracking(number, isBL);
                     sim.status += ' (Simulé - API HS)';
                     return sim;
@@ -30,122 +31,107 @@ class ContainerTrackingService {
         return this.simulateTracking(number, isBL);
     }
 
-    async fetchFromSafecube(number, isBL = false) {
+    detectSealine(number) {
+        if (number.startsWith('MRSU')) return 'MAEU'; // Maersk
+        if (number.startsWith('MSCU') || number.startsWith('MEDU')) return 'MEDU'; // MSC
+        return null;
+    }
+
+    async fetchFromSinayV2(number, isBL = false) {
         const type = isBL ? 'bl' : 'container';
-        console.log(`[Safecube] Fetching real data for ${type} ${number}...`);
+        const sealine = this.detectSealine(number);
+        console.log(`[SinayV2] Fetching V2 data for ${type} ${number} (Sealine: ${sealine || 'Auto'})...`);
 
         try {
-            // Safecube API v1: /shipments?container=XXX or ?bl=XXX
-            const params = isBL ? { bl: number } : { container: number };
-            const response = await axios.get(`https://api.sinay.ai/safecube/api/v1/shipments`, {
-                params,
+            // Sinay V2 Path: /shipment
+            // Params: shipmentNumber, sealine, shipmentType (CT=Container, BL=Bill of lading)
+            const response = await axios.get(`${this.baseUrl}/shipment`, {
+                params: {
+                    shipmentNumber: number,
+                    sealine: sealine,
+                    shipmentType: isBL ? 'BL' : 'CT',
+                    route: true,
+                    ais: true
+                },
                 headers: {
                     'API_KEY': this.apiKey,
                     'Accept': 'application/json'
                 },
-                timeout: 10000
+                timeout: 15000
             });
 
-            if (response.data && (Array.isArray(response.data) ? response.data.length > 0 : true)) {
-                return this.mapSafecubeResponse(response.data, number);
-            } else {
-                // If empty but successful, maybe not registered yet?
-                console.log(`[Safecube] ${type} ${number} not found in database. Attempting registration...`);
-                return await this.createAndTrackSafecube(number, isBL);
-            }
+            return this.mapSinayV2Response(response.data, number, isBL);
 
         } catch (error) {
-            // 403/404 means "Not found/Not accessible" -> We need to create it
-            if (error.response && (error.response.status === 403 || error.response.status === 404)) {
-                console.log(`[Safecube] ${type} ${number} not found/authorized. Attempting registration...`);
-                return await this.createAndTrackSafecube(number, isBL);
+            // 403 Forbidden on V2 often means the shipment isn't registered/tracked yet in the Sinay account
+            // Some Sinay products require "Registration" via POST before "Tracking" via GET.
+            if (error.response && error.response.status === 403) {
+                console.log(`[SinayV2] 403 Forbidden for ${number}. Attempting legacy registration...`);
+                // Fallback to legacy registration flow if possible, or just simulate
+                return await this.createAndTrackLegacy(number, isBL);
             }
             throw error;
         }
     }
 
-    async createAndTrackSafecube(number, isBL = false) {
+    async createAndTrackLegacy(number, isBL = false) {
         try {
-            // Registration Payload
-            const payload = isBL
-                ? [{ blNumber: number }]
-                : [{ shipmentNumber: number }];
+            console.log(`[Sinay] Attempting registration for ${number}...`);
+            const payload = isBL ? [{ blNumber: number }] : [{ shipmentNumber: number }];
 
-            console.log(`[Safecube] Registering ${isBL ? 'BL' : 'Container'} ${number}...`);
-
-            const postResponse = await axios.post(`https://api.sinay.ai/safecube/api/v1/public/shipments`,
+            await axios.post(`https://api.sinay.ai/safecube/api/v1/public/shipments`,
                 payload,
                 {
-                    headers: {
-                        'API_KEY': this.apiKey,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
+                    headers: { 'API_KEY': this.apiKey, 'Content-Type': 'application/json' },
                     timeout: 10000
                 }
             );
 
-            if (postResponse.status === 200 || postResponse.status === 202) {
-                console.log(`[Safecube] Registration successful for ${number}.`);
-                return {
-                    identifier: number,
-                    type: isBL ? 'BL' : 'Container',
-                    status: 'Initialisation...',
-                    location: { lat: 0, lng: 0, name: 'Registration en cours' },
-                    events: [{
-                        date: new Date().toISOString(),
-                        description: 'Enregistrement envoyé à Safecube',
-                        location: 'Système'
-                    }],
-                    eta: null,
-                    vesselName: 'Recherche...',
-                    voyage: 'N/A',
-                    provider: 'Safecube (Pending)'
-                };
-            }
-        } catch (createError) {
-            console.error(`[Safecube] Registration failed for ${number}:`, createError.message);
-
-            if (createError.response && (createError.response.status === 403 || createError.response.status === 401)) {
-                const sim = this.simulateTracking(number, isBL);
-                sim.status += ' (Simulé - Clé API Limitée)';
-                sim.events.unshift({
-                    date: new Date().toISOString(),
-                    description: 'Erreur API: Droits insuffisants (403)',
-                    location: 'Système'
-                });
-                return sim;
-            }
-            throw createError;
+            return {
+                identifier: number,
+                type: isBL ? 'BL' : 'Container',
+                status: 'Initialisation (V2)...',
+                location: { lat: 0, lng: 0, name: 'Enregistrement en cours' },
+                events: [{ date: new Date().toISOString(), description: 'Enregistrement activé', location: 'Systèle' }],
+                provider: 'Sinay V2 (Pending)'
+            };
+        } catch (err) {
+            console.error(`[Sinay] Registration failed:`, err.message);
+            const sim = this.simulateTracking(number, isBL);
+            sim.status += ' (Simulé - Droits Insuffisants)';
+            return sim;
         }
     }
 
-    mapSafecubeResponse(data, number) {
-        const shipment = Array.isArray(data) ? data[0] : (data.data || data);
+    mapSinayV2Response(data, number, isBL) {
+        const metadata = data.metadata || {};
+        const locations = data.locations || [];
+        const route = data.route || {};
 
-        if (!shipment) {
-            throw new Error('Data empty in Safecube response');
-        }
+        // Find last known location (AIS or last stop)
+        let lastLoc = locations[0] || { coordinates: { lat: 0, lng: 0 }, name: 'Inconnu' };
+
+        // If we have AIS data, it usually represents current position
+        const currentCoord = data.ais?.lastCoordinate || lastLoc.coordinates;
 
         return {
             identifier: number,
-            containerNumber: shipment.container_number || number,
-            blNumber: shipment.bl_number,
-            status: shipment.status || 'En transit',
+            type: isBL ? 'BL' : 'Container',
+            status: metadata.shippingStatus || 'En transit',
             location: {
-                lat: parseFloat(shipment.latitude || shipment.location?.lat || 0),
-                lng: parseFloat(shipment.longitude || shipment.location?.lng || 0),
-                name: shipment.location?.name || shipment.last_port || 'Position Satellite'
+                lat: currentCoord.lat,
+                lng: currentCoord.lng,
+                name: lastLoc.name || 'Position Satellite'
             },
-            events: (shipment.events || []).map(e => ({
-                date: e.date || e.timestamp,
+            events: (data.events || []).map(e => ({
+                date: e.date,
                 description: e.description || e.status,
-                location: e.location || ''
+                location: e.location?.name || ''
             })),
-            eta: shipment.pod_eta || shipment.eta,
-            vesselName: shipment.vessel_name || shipment.vessel,
-            voyage: shipment.voyage_number || 'N/A',
-            provider: 'Safecube'
+            eta: route.pod?.date || metadata.updatedAt,
+            vesselName: data.ais?.vesselName || metadata.sealineName || 'Navire',
+            voyage: 'N/A', // V2 has complex route structure
+            provider: 'Sinay V2'
         };
     }
 
