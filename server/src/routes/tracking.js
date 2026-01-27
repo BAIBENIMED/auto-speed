@@ -34,17 +34,26 @@ router.get('/voyage/:voyageName', async (req, res) => {
 
         // 1. Try to find a BL number first (more reliable for voyage tracking)
         const shipmentWithBL = shipments.find(s => s.blNumber && s.blNumber.trim() !== '');
-        if (shipmentWithBL) {
-            console.log(`[Tracking] Tracking voyage ${voyageName} via BL ${shipmentWithBL.blNumber}`);
-            const trackingInfo = await containerTrackingService.trackContainer(shipmentWithBL.blNumber, true);
-            return res.json({ success: true, data: { ...trackingInfo, voyageName } });
-        }
+        const targetShipment = shipmentWithBL || shipments.find(s => s.containerNumber && s.containerNumber.trim() !== '');
 
-        // 2. Fallback to Container Number
-        const shipmentWithContainer = shipments.find(s => s.containerNumber && s.containerNumber.trim() !== '');
-        if (shipmentWithContainer) {
-            console.log(`[Tracking] Tracking voyage ${voyageName} via Container ${shipmentWithContainer.containerNumber}`);
-            const trackingInfo = await containerTrackingService.trackContainer(shipmentWithContainer.containerNumber, false);
+        if (targetShipment) {
+            const identifier = targetShipment.blNumber || targetShipment.containerNumber;
+            const isBL = !!targetShipment.blNumber;
+
+            console.log(`[Tracking] Tracking voyage ${voyageName} via ${identifier}`);
+            const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL);
+
+            // CASCADE UPDATE: Update ALL shipments in this voyage with the new data
+            await Promise.all(shipments.map(s => s.update({
+                status: trackingInfo.status || s.status,
+                etd: trackingInfo.etd || s.etd,
+                eta: trackingInfo.eta || s.eta,
+                currentLat: trackingInfo.location?.lat || s.currentLat,
+                currentLng: trackingInfo.location?.lng || s.currentLng,
+                shipStatus: trackingInfo.status || s.shipStatus,
+                lastUpdate: new Date()
+            })));
+
             return res.json({ success: true, data: { ...trackingInfo, voyageName } });
         }
 
