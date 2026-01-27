@@ -4947,11 +4947,6 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                 <button class="btn-action" onclick="app.showVoyageTrackingHistory('${v.name.replace(/'/g, "\\'")}')" title="Vision Satellite & Historique">
                                                     <i class="fas fa-satellite-dish" style="color: var(--success);"></i>
                                                 </button>
-                                                ${v.name !== 'SANS VOYAGE' ? `
-                                                    <button class="btn-action" onclick="app.showEditVoyageModal('${v.name}')" title="Modifier tout le voyage">
-                                                        <i class="fas fa-edit"></i>
-                                                    </button>
-                                                ` : ''}
                                             </div>
                                         </td>
                                     </tr>
@@ -8897,7 +8892,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                         </div>
                                         <div class="timeline-content">
                                             <div style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">
-                                                ${new Date(event.date).toLocaleDateString()} ${new Date(event.date).toLocaleTimeString([], { hour: '2min', minute: '2min' })}
+                                                ${new Date(event.date).toLocaleDateString()} ${new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                             <div style="font-weight: 700; font-size: 1rem; margin: 4px 0;">${event.description}</div>
                                             <div style="font-size: 0.85rem; color: var(--text-secondary);">
