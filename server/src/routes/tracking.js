@@ -54,6 +54,7 @@ router.get('/voyage/:voyageName', async (req, res) => {
                 currentLat: trackingInfo.location?.lat || s.currentLat,
                 currentLng: trackingInfo.location?.lng || s.currentLng,
                 shipStatus: trackingInfo.vesselName || s.shipStatus,
+                trackingHistory: trackingInfo.events ? JSON.stringify(trackingInfo.events) : s.trackingHistory,
                 lastUpdate: new Date()
             })));
 
@@ -103,6 +104,7 @@ router.post('/:id/refresh', async (req, res) => {
             currentLat: trackingData.location?.lat || shipment.currentLat,
             currentLng: trackingData.location?.lng || shipment.currentLng,
             shipStatus: trackingData.vesselName || shipment.shipStatus,
+            trackingHistory: trackingData.events ? JSON.stringify(trackingData.events) : shipment.trackingHistory,
             lastUpdate: new Date()
         });
 

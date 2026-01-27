@@ -176,7 +176,8 @@ const startServer = async () => {
                 { table: 'shipments', name: 'last_update', def: 'DATETIME' },
                 { table: 'shipments', name: 'ship_status', def: 'VARCHAR(100)' },
                 { table: 'shipments', name: 'voyage', def: 'VARCHAR(100)' },
-                { table: 'shipments', name: 'is_tracking_active', def: 'TINYINT(1) DEFAULT 0' }
+                { table: 'shipments', name: 'is_tracking_active', def: 'TINYINT(1) DEFAULT 0' },
+                { table: 'shipments', name: 'tracking_history', def: 'LONGTEXT' }
             ];
 
             for (const col of columnsToEnsure) {

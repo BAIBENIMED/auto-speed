@@ -9129,6 +9129,107 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             `;
         },
 
+        showVoyageTracking(voyageName) {
+            const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+                .filter(s => s.voyage === voyageName && !s.isArchived);
+
+            if (shipments.length === 0) {
+                this.showToast("Aucune expédition trouvée pour ce voyage", "warning");
+                return;
+            }
+
+            // Find a shipment with history
+            const shipmentWithHistory = shipments.find(s => s.trackingHistory);
+            let events = [];
+
+            if (shipmentWithHistory) {
+                try {
+                    events = JSON.parse(shipmentWithHistory.trackingHistory);
+                } catch (e) {
+                    console.error("Failed to parse tracking history", e);
+                }
+            }
+
+            if (events.length === 0) {
+                // No history, offer to refresh
+                const confirmRefresh = confirm("Aucun historique stocké pour ce voyage. Voulez-vous lancer un suivi satellite maintenant ?");
+                if (confirmRefresh) {
+                    this.trackVoyage(voyageName);
+                }
+                return;
+            }
+
+            const modalHtml = `
+                <div class="modal-overlay" onclick="app.closeModal()">
+                    <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 700px; max-width: 95vw;">
+                        <div class="modal-header">
+                            <div>
+                                <h2>Historique de Tracking: ${voyageName}</h2>
+                                <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;">
+                                    Source: ${shipmentWithHistory.shipStatus || 'Navire inconnu'} | ${shipments.length} conteneur(s)
+                                </p>
+                            </div>
+                            <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="tracking-timeline" style="padding: 20px 0;">
+                                ${events.map((event, index) => `
+                                    <div class="timeline-item" style="display: flex; gap: 20px; margin-bottom: 25px; position: relative;">
+                                        ${index !== events.length - 1 ? `<div style="position: absolute; left: 14px; top: 30px; bottom: -20px; width: 2px; background: var(--border-glass);"></div>` : ''}
+                                        <div class="timeline-marker" style="width: 30px; height: 30px; border-radius: 50%; background: ${event.isActual ? 'var(--success)' : 'var(--border-glass)'}; display: flex; align-items: center; justify-content: center; z-index: 1; flex-shrink: 0; box-shadow: ${event.isActual ? '0 0 10px rgba(34, 197, 94, 0.4)' : 'none'};">
+                                            <i class="fas ${event.isActual ? 'fa-check' : 'fa-clock'}" style="font-size: 0.8rem; color: ${event.isActual ? 'white' : 'var(--text-dim)'};"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <div style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">
+                                                ${new Date(event.date).toLocaleDateString()} ${new Date(event.date).toLocaleTimeString([], { hour: '2min', minute: '2min' })}
+                                            </div>
+                                            <div style="font-weight: 700; font-size: 1rem; margin: 4px 0;">${event.description}</div>
+                                            <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                                <i class="fas fa-map-marker-alt" style="font-size: 0.7rem;"></i> ${event.location || 'En transit'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="padding-top: 20px; border-top: 1px solid var(--border-glass);">
+                            <div style="flex: 1; font-size: 0.75rem; color: var(--text-dim);">
+                                <i class="fas fa-info-circle"></i> Données stockées localement. Cliquez sur <i class="fas fa-satellite-dish"></i> pour rafraîchir.
+                            </div>
+                            <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                            <button class="btn-primary" onclick="app.trackVoyage('${voyageName.replace(/'/g, "\\'")}')">
+                                <i class="fas fa-sync"></i> Rafraîchir Satellite
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        },
+
+        async trackVoyage(voyageName) {
+            this.showToast(`Mise à jour du suivi satellite pour ${voyageName}...`, "info");
+            try {
+                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
+                const res = await response.json();
+                if (res.success) {
+                    this.showToast("Données satellite récupérées avec succès", "success");
+                    await StorageService.syncAll();
+                    // Keep modal open or re-render? Let's refresh view and if modal was open, it might need restart.
+                    // For now, let's just refresh the tracking view if we are on it.
+                    this.renderView(this.currentView);
+                    // If we want to show the new history immediately:
+                    this.closeModal();
+                    setTimeout(() => this.showVoyageTracking(voyageName), 500);
+                } else {
+                    throw new Error(res.message);
+                }
+            } catch (err) {
+                console.error("Voyage tracking error:", err);
+                this.showToast("Erreur API Satellite: " + err.message, "danger");
+            }
+        },
+
     };
 
     try {

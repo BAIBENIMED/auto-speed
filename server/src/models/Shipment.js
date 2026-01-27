@@ -102,6 +102,11 @@ const Shipment = sequelize.define('Shipment', {
         type: DataTypes.STRING(100),
         allowNull: true,
         field: 'ship_status'
+    },
+    trackingHistory: {
+        type: DataTypes.TEXT('long'),
+        allowNull: true,
+        field: 'tracking_history'
     }
 }, {
     tableName: 'shipments',
