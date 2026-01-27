@@ -56,4 +56,42 @@ router.get('/voyage/:voyageName', async (req, res) => {
     }
 });
 
+// Refresh and sync tracking for a specific shipment ID
+router.post('/:id/refresh', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const shipment = await Shipment.findByPk(id);
+
+        if (!shipment) {
+            return res.status(404).json({ success: false, message: 'Expédition non trouvée' });
+        }
+
+        const identifier = shipment.blNumber || shipment.containerNumber;
+        if (!identifier) {
+            return res.status(400).json({ success: false, message: 'Aucun BL ou numéro de conteneur' });
+        }
+
+        const isBL = !!shipment.blNumber;
+        console.log(`[Tracking] Syncing shipment ${id} via ${identifier}`);
+
+        const trackingData = await containerTrackingService.trackContainer(identifier, isBL);
+
+        // Update Shipment in DB
+        await shipment.update({
+            status: trackingData.status || shipment.status,
+            etd: trackingData.etd || shipment.etd,
+            eta: trackingData.eta || shipment.eta,
+            currentLat: trackingData.location?.lat || shipment.currentLat,
+            currentLng: trackingData.location?.lng || shipment.currentLng,
+            shipStatus: trackingData.status || shipment.shipStatus,
+            lastUpdate: new Date()
+        });
+
+        res.json({ success: true, data: trackingData });
+    } catch (error) {
+        console.error('Shipment refresh error:', error);
+        res.status(500).json({ success: false, message: 'Erreur lors du rafraîchissement' });
+    }
+});
+
 module.exports = router;

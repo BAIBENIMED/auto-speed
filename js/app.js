@@ -4735,12 +4735,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                                     ${s.containerNumber ? `
                                         <div style="display: flex; gap: 5px; margin-top: 5px;">
-                                            <a href="${this.getTrackingUrl(s.carrier || '17Track', s.containerNumber)}" 
-                                               target="_blank" 
+                                            <button onclick="app.zoomToShipment('${s.id}')" 
                                                class="btn-action" 
-                                               style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--primary); text-decoration: none; border: 1px solid var(--primary); padding: 2px 8px; border-radius: 4px; background: rgba(99, 102, 241, 0.1);">
-                                                <i class="fas fa-external-link-alt"></i> Suivre
-                                            </a>
+                                               style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--primary); border: 1px solid var(--primary); padding: 2px 8px; border-radius: 4px; background: rgba(99, 102, 241, 0.1);">
+                                                <i class="fas fa-satellite-dish"></i> Suivre
+                                            </button>
                                             <button class="btn-action" 
                                                     onclick="app.trackShipment('${s.id}')"
                                                     style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--success); border: 1px solid var(--success); padding: 2px 8px; border-radius: 4px; background: rgba(34, 197, 94, 0.1);"
@@ -5984,6 +5983,28 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         },
 
         async trackShipment(shipmentId) {
+            this.showToast(`Mise à jour du suivi pour l'expédition ${shipmentId}...`, "info");
+            try {
+                const response = await fetch(`/api/tracking/${shipmentId}/refresh`, { method: 'POST' });
+                const res = await response.json();
+
+                if (res.success) {
+                    this.showToast("Suivi mis à jour avec succès", "success");
+                    // Afficher le modal avec les détails frais
+                    this.showTrackingModal(res.data, `Suivi: ${res.data.identifier}`);
+                    // Synchroniser les données locales pour mettre à jour le tableau
+                    await this.sync();
+                    this.renderView('shipments');
+                } else {
+                    throw new Error(res.message);
+                }
+            } catch (error) {
+                console.error("Refresh Error:", error);
+                this.showToast("Erreur lors de la mise à jour: " + error.message, "danger");
+            }
+        },
+
+        async zoomToShipment(shipmentId) {
             // Basculer vers la vue Tracking Mondial
             this.renderView('tracking');
 
@@ -5998,7 +6019,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 } else {
                     this.showToast("Détails du suivi non disponibles pour cette expédition.", "warning");
                 }
-            }, 1500); // 1.5s delay to ensure everything is ready
+            }, 1500);
         },
 
         renderCash(query = '', filter = 'all', showroomFilter = '') {
