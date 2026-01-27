@@ -3,144 +3,145 @@
  */
 
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const app = {
-        viewContainer: document.getElementById('view-container'),
-        navLinks: document.querySelectorAll('.nav-link'),
-        currentView: 'dashboard',
-        mapTracking: null,
+// DOMContentLoaded removed to allow global definition
+// document.addEventListener('DOMContentLoaded', async () => {
+const app = {
+    viewContainer: document.getElementById('view-container'),
+    navLinks: document.querySelectorAll('.nav-link'),
+    currentView: 'dashboard',
+    mapTracking: null,
 
-        generateVehicleId(brand) {
-            if (!brand) return `v${Date.now()}`;
+    generateVehicleId(brand) {
+        if (!brand) return `v${Date.now()}`;
 
-            const prefix = brand.substring(0, 3).toUpperCase().padEnd(3, 'X');
-            const random = Math.floor(1000 + Math.random() * 9000);
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const prefix = brand.substring(0, 3).toUpperCase().padEnd(3, 'X');
+        const random = Math.floor(1000 + Math.random() * 9000);
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
 
-            let newId = `${prefix}-${random}`;
+        let newId = `${prefix}-${random}`;
 
-            // Uniqueness check
-            let attempts = 0;
-            while (vehicles.some(v => v.id === newId) && attempts < 10) {
-                const nextRandom = Math.floor(1000 + Math.random() * 9000);
-                newId = `${prefix}-${nextRandom}`;
-                attempts++;
+        // Uniqueness check
+        let attempts = 0;
+        while (vehicles.some(v => v.id === newId) && attempts < 10) {
+            const nextRandom = Math.floor(1000 + Math.random() * 9000);
+            newId = `${prefix}-${nextRandom}`;
+            attempts++;
+        }
+
+        return newId;
+    },
+
+    searchQuery: '',
+    dashboardFilters: {
+        showroom: '',
+        startDate: '',
+        endDate: ''
+    },
+    orderFilters: {
+        status: '',
+        showroom: '',
+        startDate: '',
+        endDate: '',
+        showArchived: false
+    },
+    vehicleFilters: {
+        showArchived: false
+    },
+    shipmentFilters: {
+        showArchived: false
+    },
+
+    getTrackingUrl(carrier, number) {
+        if (!number) return null;
+        const cleanNumber = number.trim();
+        switch (carrier?.toUpperCase()) {
+            case 'MSC': return `https://www.msc.com/en/track-a-shipment?query=${cleanNumber}`;
+            case 'MAERSK': return `https://www.maersk.com/tracking/${cleanNumber}`;
+            case 'CMA CGM': return `https://www.cma-cgm.com/ebusiness/tracking/search?SearchType=Container&Reference=${cleanNumber}`;
+            case 'HAPAG-LLOYD': return `https://www.hapag-lloyd.com/en/online-business/track-and-trace/container-tracing/${cleanNumber}.html`;
+            case 'COSCO': return `https://lines.coscoshipping.com/track/#/container/${cleanNumber}`;
+            case 'ONE': return `https://www.one-line.com/en/tracking?container_number=${cleanNumber}`;
+            case 'EVERGREEN': return `https://ct.shipment-tracking.com/t97?container_number=${cleanNumber}`;
+            case 'ZIM': return `https://www.zim.com/tools/track-a-shipment?containerNumber=${cleanNumber}`;
+            case 'YANG MING': return `https://www.yangming.com/e-service/track_trace/track_trace_cargo_tracking.aspx?number=${cleanNumber}`;
+            case 'HMM': return `https://www.hmm21.com/cms/company/engn/index.jsp?type=2&number=${cleanNumber}`;
+            case 'OOCL': return `https://www.oocl.com/eng/ourservices/eservices/cargotracking/Pages/cargotracking.aspx?container=${cleanNumber}`;
+            case 'PIL': return `https://www.pilship.com/p-shipment-tracking/${cleanNumber}`;
+            case 'DHL': return `https://www.dhl.com/en/express/tracking.html?AWB=${cleanNumber}`;
+            case 'FEDEX': return `https://www.fedex.com/fedextrack/?tracknumbers=${cleanNumber}`;
+            case '17TRACK': return `https://t.17track.net/en#nums=${cleanNumber}`;
+            default:
+                // By default, try 17track as it supports many carriers and containers
+                return `https://t.17track.net/en#nums=${cleanNumber}`;
+        }
+    },
+
+    isOutdated(dateStr) {
+        if (!dateStr) return true;
+        const lastUpdate = new Date(dateStr);
+        const now = new Date();
+        const diffHours = (now - lastUpdate) / (1000 * 60 * 60);
+        return diffHours > 24;
+    },
+
+    async init() {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+
+        if (currentUser && currentUser.token) {
+            // Wait for initial data sync from server only if logged in
+            try {
+                const synced = await StorageService.syncAll();
+                if (!synced) {
+                    console.warn("Initial sync failed, using local data.");
+                }
+            } catch (error) {
+                console.error("❌ Critical sync error during initialization:", error);
+                // If it's a 401/Auth error, checkSession will handle redirect
+                if (error.message.includes('Token expiré') || error.message.includes('Accès refusé')) {
+                    this.checkSession();
+                    return; // Stop initialization
+                }
+                // For other errors, we might still want to proceed with local data
             }
+        }
 
-            return newId;
-        },
+        this.syncOrderStatuses();
+        this.checkSession();
 
-        searchQuery: '',
-        dashboardFilters: {
-            showroom: '',
-            startDate: '',
-            endDate: ''
-        },
-        orderFilters: {
-            status: '',
-            showroom: '',
-            startDate: '',
-            endDate: '',
-            showArchived: false
-        },
-        vehicleFilters: {
-            showArchived: false
-        },
-        shipmentFilters: {
-            showArchived: false
-        },
-
-        getTrackingUrl(carrier, number) {
-            if (!number) return null;
-            const cleanNumber = number.trim();
-            switch (carrier?.toUpperCase()) {
-                case 'MSC': return `https://www.msc.com/en/track-a-shipment?query=${cleanNumber}`;
-                case 'MAERSK': return `https://www.maersk.com/tracking/${cleanNumber}`;
-                case 'CMA CGM': return `https://www.cma-cgm.com/ebusiness/tracking/search?SearchType=Container&Reference=${cleanNumber}`;
-                case 'HAPAG-LLOYD': return `https://www.hapag-lloyd.com/en/online-business/track-and-trace/container-tracing/${cleanNumber}.html`;
-                case 'COSCO': return `https://lines.coscoshipping.com/track/#/container/${cleanNumber}`;
-                case 'ONE': return `https://www.one-line.com/en/tracking?container_number=${cleanNumber}`;
-                case 'EVERGREEN': return `https://ct.shipment-tracking.com/t97?container_number=${cleanNumber}`;
-                case 'ZIM': return `https://www.zim.com/tools/track-a-shipment?containerNumber=${cleanNumber}`;
-                case 'YANG MING': return `https://www.yangming.com/e-service/track_trace/track_trace_cargo_tracking.aspx?number=${cleanNumber}`;
-                case 'HMM': return `https://www.hmm21.com/cms/company/engn/index.jsp?type=2&number=${cleanNumber}`;
-                case 'OOCL': return `https://www.oocl.com/eng/ourservices/eservices/cargotracking/Pages/cargotracking.aspx?container=${cleanNumber}`;
-                case 'PIL': return `https://www.pilship.com/p-shipment-tracking/${cleanNumber}`;
-                case 'DHL': return `https://www.dhl.com/en/express/tracking.html?AWB=${cleanNumber}`;
-                case 'FEDEX': return `https://www.fedex.com/fedextrack/?tracknumbers=${cleanNumber}`;
-                case '17TRACK': return `https://t.17track.net/en#nums=${cleanNumber}`;
-                default:
-                    // By default, try 17track as it supports many carriers and containers
-                    return `https://t.17track.net/en#nums=${cleanNumber}`;
-            }
-        },
-
-        isOutdated(dateStr) {
-            if (!dateStr) return true;
-            const lastUpdate = new Date(dateStr);
-            const now = new Date();
-            const diffHours = (now - lastUpdate) / (1000 * 60 * 60);
-            return diffHours > 24;
-        },
-
-        async init() {
-            const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-
-            if (currentUser && currentUser.token) {
-                // Wait for initial data sync from server only if logged in
-                try {
-                    const synced = await StorageService.syncAll();
-                    if (!synced) {
-                        console.warn("Initial sync failed, using local data.");
-                    }
-                } catch (error) {
-                    console.error("❌ Critical sync error during initialization:", error);
-                    // If it's a 401/Auth error, checkSession will handle redirect
-                    if (error.message.includes('Token expiré') || error.message.includes('Accès refusé')) {
-                        this.checkSession();
-                        return; // Stop initialization
-                    }
-                    // For other errors, we might still want to proceed with local data
+        // Periodic background sync (every 60 seconds)
+        setInterval(async () => {
+            const session = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+            if (session && session.token && this.appContainer?.style.display !== 'none') {
+                const refreshed = await StorageService.syncAll();
+                if (refreshed && this.currentView !== 'login') {
+                    this.renderView(this.currentView);
                 }
             }
+        }, 60000);
+    },
 
-            this.syncOrderStatuses();
-            this.checkSession();
+    checkSession() {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        const loginContainer = document.getElementById('login-container');
+        const appContainer = document.getElementById('app-container');
 
-            // Periodic background sync (every 60 seconds)
-            setInterval(async () => {
-                const session = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-                if (session && session.token && this.appContainer?.style.display !== 'none') {
-                    const refreshed = await StorageService.syncAll();
-                    if (refreshed && this.currentView !== 'login') {
-                        this.renderView(this.currentView);
-                    }
-                }
-            }, 60000);
-        },
+        if (currentUser && currentUser.id) {
+            loginContainer.style.display = 'none';
+            appContainer.style.display = 'flex';
+            this.setupEventListeners();
+            this.applyTheme();
+            this.renderSidebar();
+            this.renderView(this.currentView);
+        } else {
+            appContainer.style.display = 'none';
+            loginContainer.style.display = 'flex';
+            this.renderLogin();
+        }
+    },
 
-        checkSession() {
-            const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-            const loginContainer = document.getElementById('login-container');
-            const appContainer = document.getElementById('app-container');
-
-            if (currentUser && currentUser.id) {
-                loginContainer.style.display = 'none';
-                appContainer.style.display = 'flex';
-                this.setupEventListeners();
-                this.applyTheme();
-                this.renderSidebar();
-                this.renderView(this.currentView);
-            } else {
-                appContainer.style.display = 'none';
-                loginContainer.style.display = 'flex';
-                this.renderLogin();
-            }
-        },
-
-        renderLogin() {
-            const loginContainer = document.getElementById('login-container');
-            loginContainer.innerHTML = `
+    renderLogin() {
+        const loginContainer = document.getElementById('login-container');
+        loginContainer.innerHTML = `
                 <div class="login-wrapper">
                     <div class="login-box glass">
                         <div class="login-logo" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
@@ -174,211 +175,211 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             `;
 
-            document.getElementById('login-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleLogin();
-            });
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleLogin();
+        });
 
-            this.applyTheme(); // Ensure login also respects theme (mostly dark/glass)
-        },
+        this.applyTheme(); // Ensure login also respects theme (mostly dark/glass)
+    },
 
-        async handleLogin() {
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
+    async handleLogin() {
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
 
-            try {
-                const response = await ApiService.login({ username, password });
+        try {
+            const response = await ApiService.login({ username, password });
 
-                if (response.success) {
-                    const sessionUser = {
-                        id: response.user.id,
-                        username: response.user.username,
-                        name: response.user.name,
-                        role: response.user.role,
-                        clientId: response.user.clientId,
-                        token: response.token // Important: Store token for future requests
-                    };
+            if (response.success) {
+                const sessionUser = {
+                    id: response.user.id,
+                    username: response.user.username,
+                    name: response.user.name,
+                    role: response.user.role,
+                    clientId: response.user.clientId,
+                    token: response.token // Important: Store token for future requests
+                };
 
-                    // Save to localStorage so ApiService and app can use it
-                    await StorageService.save(STORAGE_KEYS.CURRENT_USER, sessionUser);
-                    // Also update the hidden token if necessary or if ApiService reads from here
-                    localStorage.setItem('gtm_current_user', JSON.stringify(sessionUser));
+                // Save to localStorage so ApiService and app can use it
+                await StorageService.save(STORAGE_KEYS.CURRENT_USER, sessionUser);
+                // Also update the hidden token if necessary or if ApiService reads from here
+                localStorage.setItem('gtm_current_user', JSON.stringify(sessionUser));
 
-                    // Sync data from server now that we are authenticated
-                    await StorageService.syncAll();
+                // Sync data from server now that we are authenticated
+                await StorageService.syncAll();
 
-                    // Fetch roles from API and store them
-                    try {
-                        const rolesResponse = await ApiService.getRoles();
-                        if (rolesResponse.success && rolesResponse.data) {
-                            await StorageService.save(STORAGE_KEYS.ROLES, rolesResponse.data);
-                        }
-                    } catch (error) {
-                        console.error("Error fetching roles:", error);
+                // Fetch roles from API and store them
+                try {
+                    const rolesResponse = await ApiService.getRoles();
+                    if (rolesResponse.success && rolesResponse.data) {
+                        await StorageService.save(STORAGE_KEYS.ROLES, rolesResponse.data);
                     }
-
-                    this.showToast(`Bienvenue, ${response.user.name}`, "success");
-                    this.checkSession();
-                } else {
-                    this.showToast(response.message || "Identifiant ou mot de passe incorrect", "error");
+                } catch (error) {
+                    console.error("Error fetching roles:", error);
                 }
-            } catch (error) {
-                console.error("Login error:", error);
-                this.showToast(error.message || "Erreur de connexion au serveur", "error");
-            }
-        },
 
-        async handleLogout() {
-            try {
-                await ApiService.logout();
-            } catch (error) {
-                console.error("Logout error on server:", error);
-            } finally {
-                // Clear local data
-                localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-                localStorage.removeItem('gtm_current_user');
-                // Optional: Clear other data if needed, but keeping cache might be fine
-
-                this.showToast("Déconnexion réussie", "success");
-
-                // Reset state and show login
-                this.currentView = 'dashboard';
+                this.showToast(`Bienvenue, ${response.user.name}`, "success");
                 this.checkSession();
-            }
-        },
-
-        applyTheme(themeName = null) {
-            const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-            const theme = themeName || (settings ? settings.theme : 'dark');
-
-            // Remove all existing theme attributes if switching to default (dark)
-            if (theme === 'dark') {
-                document.body.removeAttribute('data-theme');
             } else {
-                document.body.setAttribute('data-theme', theme);
+                this.showToast(response.message || "Identifiant ou mot de passe incorrect", "error");
             }
-        },
+        } catch (error) {
+            console.error("Login error:", error);
+            this.showToast(error.message || "Erreur de connexion au serveur", "error");
+        }
+    },
 
-        setupEventListeners() {
-            this.navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const view = link.getAttribute('data-view');
-                    if (this.canAccess(view)) {
-                        this.switchView(view);
-                    } else {
-                        this.showToast("Accès refusé : vous n'avez pas les droits nécessaires.", "error");
-                    }
-                });
-            });
+    async handleLogout() {
+        try {
+            await ApiService.logout();
+        } catch (error) {
+            console.error("Logout error on server:", error);
+        } finally {
+            // Clear local data
+            localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+            localStorage.removeItem('gtm_current_user');
+            // Optional: Clear other data if needed, but keeping cache might be fine
 
-            // Logout
-            const btnLogout = document.getElementById('btn-logout');
-            if (btnLogout) {
-                btnLogout.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-                        this.handleLogout();
-                    }
-                });
-            }
+            this.showToast("Déconnexion réussie", "success");
 
-            // "Nouvelle Commande" button
-            document.getElementById('btn-new-order').addEventListener('click', () => {
-                this.showOrderModal();
-            });
+            // Reset state and show login
+            this.currentView = 'dashboard';
+            this.checkSession();
+        }
+    },
 
-            // Handle modal closing
-            document.addEventListener('click', (e) => {
-                if (e.target.classList.contains('modal-overlay')) {
-                    this.closeModal();
-                }
-            });
+    applyTheme(themeName = null) {
+        const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+        const theme = themeName || (settings ? settings.theme : 'dark');
 
-            // Prevent closing when clicking inside modal content (already handled by propagation but good for safety)
-            document.addEventListener('mousedown', (e) => {
-                if (e.target.classList.contains('modal-overlay')) {
-                    this.isMouseDownOnOverlay = true;
+        // Remove all existing theme attributes if switching to default (dark)
+        if (theme === 'dark') {
+            document.body.removeAttribute('data-theme');
+        } else {
+            document.body.setAttribute('data-theme', theme);
+        }
+    },
+
+    setupEventListeners() {
+        this.navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const view = link.getAttribute('data-view');
+                if (this.canAccess(view)) {
+                    this.switchView(view);
                 } else {
-                    this.isMouseDownOnOverlay = false;
+                    this.showToast("Accès refusé : vous n'avez pas les droits nécessaires.", "error");
                 }
             });
+        });
 
-            document.addEventListener('mouseup', (e) => {
-                if (e.target.classList.contains('modal-overlay') && this.isMouseDownOnOverlay) {
-                    this.closeModal();
+        // Logout
+        const btnLogout = document.getElementById('btn-logout');
+        if (btnLogout) {
+            btnLogout.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+                    this.handleLogout();
                 }
+            });
+        }
+
+        // "Nouvelle Commande" button
+        document.getElementById('btn-new-order').addEventListener('click', () => {
+            this.showOrderModal();
+        });
+
+        // Handle modal closing
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                this.closeModal();
+            }
+        });
+
+        // Prevent closing when clicking inside modal content (already handled by propagation but good for safety)
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                this.isMouseDownOnOverlay = true;
+            } else {
                 this.isMouseDownOnOverlay = false;
-            });
-
-            // Search functionality
-            const searchInput = document.querySelector('.search-container input');
-            searchInput.addEventListener('input', (e) => {
-                this.searchQuery = e.target.value.toLowerCase();
-                // If on dashboard, maybe the user wants to jump to orders if searching?
-                // For now, just re-render the current view
-                this.renderView(this.currentView);
-            });
-        },
-
-        async validateOrder(id) {
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const order = orders.find(o => o.id === id);
-            if (order) {
-                order.isValidated = true;
-                await StorageService.update(STORAGE_KEYS.ORDERS, id, order);
-                await this.syncOrderStatuses();
-                this.showToast(`Commande #${id} validée`, "success");
-                this.renderView(this.currentView);
             }
-        },
+        });
 
-        async unvalidateOrder(id) {
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const order = orders.find(o => o.id === id);
+        document.addEventListener('mouseup', (e) => {
+            if (e.target.classList.contains('modal-overlay') && this.isMouseDownOnOverlay) {
+                this.closeModal();
+            }
+            this.isMouseDownOnOverlay = false;
+        });
 
-            if (!order) return;
+        // Search functionality
+        const searchInput = document.querySelector('.search-container input');
+        searchInput.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.toLowerCase();
+            // If on dashboard, maybe the user wants to jump to orders if searching?
+            // For now, just re-render the current view
+            this.renderView(this.currentView);
+        });
+    },
 
-            let confirmMessage = `Voulez-vous vraiment dévalider la commande #${id} ? Cela bloquera à nouveau la sélection de véhicule.`;
+    async validateOrder(id) {
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const order = orders.find(o => o.id === id);
+        if (order) {
+            order.isValidated = true;
+            await StorageService.update(STORAGE_KEYS.ORDERS, id, order);
+            await this.syncOrderStatuses();
+            this.showToast(`Commande #${id} validée`, "success");
+            this.renderView(this.currentView);
+        }
+    },
 
-            if (order.vehicleId) {
-                confirmMessage = `ATTENTION : Cette commande est liée au véhicule réf. "${order.vehicleId}". \n\nEn dévalidant cette commande, le véhicule sera DÉTACHÉ et remis en vente immédiatement. \n\nSouhaitez-vous continuer ?`;
+    async unvalidateOrder(id) {
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const order = orders.find(o => o.id === id);
+
+        if (!order) return;
+
+        let confirmMessage = `Voulez-vous vraiment dévalider la commande #${id} ? Cela bloquera à nouveau la sélection de véhicule.`;
+
+        if (order.vehicleId) {
+            confirmMessage = `ATTENTION : Cette commande est liée au véhicule réf. "${order.vehicleId}". \n\nEn dévalidant cette commande, le véhicule sera DÉTACHÉ et remis en vente immédiatement. \n\nSouhaitez-vous continuer ?`;
+        }
+
+        if (confirm(confirmMessage)) {
+            order.isValidated = false;
+
+            // Clear vehicle reference on the order itself
+            order.vehicleId = null;
+            order.vehicleName = "Sans véhicule";
+
+            await StorageService.update(STORAGE_KEYS.ORDERS, id, order);
+
+            // Also release the vehicle status/link
+            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+            const linkedVehicles = vehicles.filter(v => v.orderId === id || (v.id === order.vehicleId));
+
+            for (const vToRelease of linkedVehicles) {
+                vToRelease.orderId = null;
+                vToRelease.status = 'Available';
+                await StorageService.update(STORAGE_KEYS.VEHICLES, vToRelease.id, vToRelease);
             }
 
-            if (confirm(confirmMessage)) {
-                order.isValidated = false;
+            await this.syncOrderStatuses();
+            this.showToast(`Commande #${id} dévalidée et véhicule libéré`, "info");
+            this.renderView(this.currentView);
+        }
+    },
 
-                // Clear vehicle reference on the order itself
-                order.vehicleId = null;
-                order.vehicleName = "Sans véhicule";
+    showOrderModal() {
+        const allAvailableVehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => !v.orderId && !v.archived);
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS);
+        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
+        const colors = StorageService.get(STORAGE_KEYS.COLORS);
+        const currentYear = new Date().getFullYear();
 
-                await StorageService.update(STORAGE_KEYS.ORDERS, id, order);
-
-                // Also release the vehicle status/link
-                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
-                const linkedVehicles = vehicles.filter(v => v.orderId === id || (v.id === order.vehicleId));
-
-                for (const vToRelease of linkedVehicles) {
-                    vToRelease.orderId = null;
-                    vToRelease.status = 'Available';
-                    await StorageService.update(STORAGE_KEYS.VEHICLES, vToRelease.id, vToRelease);
-                }
-
-                await this.syncOrderStatuses();
-                this.showToast(`Commande #${id} dévalidée et véhicule libéré`, "info");
-                this.renderView(this.currentView);
-            }
-        },
-
-        showOrderModal() {
-            const allAvailableVehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => !v.orderId && !v.archived);
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS);
-            const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
-            const colors = StorageService.get(STORAGE_KEYS.COLORS);
-            const currentYear = new Date().getFullYear();
-
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 600px;">
                         <div class="modal-header">
@@ -469,191 +470,154 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            const brandFilter = document.getElementById('filter-brand');
-            const modelFilter = document.getElementById('filter-model');
-            const categoryFilter = document.getElementById('filter-category');
-            const showroomFilter = document.getElementById('filter-showroom');
-            const vehicleSelect = document.getElementById('order-vehicle-select');
+        const brandFilter = document.getElementById('filter-brand');
+        const modelFilter = document.getElementById('filter-model');
+        const categoryFilter = document.getElementById('filter-category');
+        const showroomFilter = document.getElementById('filter-showroom');
+        const vehicleSelect = document.getElementById('order-vehicle-select');
 
-            const refreshVehicles = () => {
-                const brand = brandFilter.value;
-                const model = modelFilter.value;
-                const category = categoryFilter.value;
-                const showroom = showroomFilter.value;
+        const refreshVehicles = () => {
+            const brand = brandFilter.value;
+            const model = modelFilter.value;
+            const category = categoryFilter.value;
+            const showroom = showroomFilter.value;
 
-                let filtered = allAvailableVehicles;
+            let filtered = allAvailableVehicles;
 
-                if (brand) filtered = filtered.filter(v => v.brand === brand);
-                if (model) filtered = filtered.filter(v => (v.model || '') === model);
-                if (showroom) filtered = filtered.filter(v => v.showroom === showroom);
-                if (category === 'Neuf') {
-                    filtered = filtered.filter(v => v.condition === 'Neuf');
-                } else if (category === 'Recent') {
-                    filtered = filtered.filter(v => v.year >= (currentYear - 3));
-                }
+            if (brand) filtered = filtered.filter(v => v.brand === brand);
+            if (model) filtered = filtered.filter(v => (v.model || '') === model);
+            if (showroom) filtered = filtered.filter(v => v.showroom === showroom);
+            if (category === 'Neuf') {
+                filtered = filtered.filter(v => v.condition === 'Neuf');
+            } else if (category === 'Recent') {
+                filtered = filtered.filter(v => v.year >= (currentYear - 3));
+            }
 
-                vehicleSelect.innerHTML = '<option value="">Choisir un véhicule...</option>';
-                filtered.forEach(v => {
-                    const option = document.createElement('option');
-                    option.value = v.id;
-                    option.textContent = `[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}`;
-                    vehicleSelect.appendChild(option);
+            vehicleSelect.innerHTML = '<option value="">Choisir un véhicule...</option>';
+            filtered.forEach(v => {
+                const option = document.createElement('option');
+                option.value = v.id;
+                option.textContent = `[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}`;
+                vehicleSelect.appendChild(option);
+            });
+        };
+
+        brandFilter.addEventListener('change', () => {
+            const brand = brandFilter.value;
+            modelFilter.innerHTML = '<option value="">Tous les modèles</option>';
+            if (brand && brandModels[brand]) {
+                brandModels[brand].forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    modelFilter.appendChild(opt);
                 });
-            };
+            }
+            refreshVehicles();
+        });
 
-            brandFilter.addEventListener('change', () => {
-                const brand = brandFilter.value;
-                modelFilter.innerHTML = '<option value="">Tous les modèles</option>';
-                if (brand && brandModels[brand]) {
-                    brandModels[brand].forEach(m => {
-                        const opt = document.createElement('option');
-                        opt.value = m;
-                        opt.textContent = m;
-                        modelFilter.appendChild(opt);
-                    });
-                }
-                refreshVehicles();
-            });
+        modelFilter.addEventListener('change', refreshVehicles);
+        categoryFilter.addEventListener('change', refreshVehicles);
+        showroomFilter.addEventListener('change', refreshVehicles);
 
-            modelFilter.addEventListener('change', refreshVehicles);
-            categoryFilter.addEventListener('change', refreshVehicles);
-            showroomFilter.addEventListener('change', refreshVehicles);
+        document.getElementById('order-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleOrderSubmission(new FormData(e.target));
+        });
+    },
 
-            document.getElementById('order-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleOrderSubmission(new FormData(e.target));
-            });
-        },
+    closeModal() {
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) modal.remove();
+    },
 
-        closeModal() {
-            const modal = document.querySelector('.modal-overlay');
-            if (modal) modal.remove();
-        },
+    calculateOrderStatus(order) {
+        if (order.status === 'ANNULÉE' || order.status === 'LIVRÉE' || order.status === 'ANNULÉ') return order.status;
+        if (!order.isValidated) return 'EN ATTENTE DE VALIDATION';
+        if (!order.vehicleId) return "ATTENTE AFFECTATION VÉHICULE";
 
-        calculateOrderStatus(order) {
-            if (order.status === 'ANNULÉE' || order.status === 'LIVRÉE' || order.status === 'ANNULÉ') return order.status;
-            if (!order.isValidated) return 'EN ATTENTE DE VALIDATION';
-            if (!order.vehicleId) return "ATTENTE AFFECTATION VÉHICULE";
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        const vehicle = vehicles.find(v => v.id === order.vehicleId);
 
+        if (!vehicle || !vehicle.shipmentId) return "ATTENTE EXPÉDITION";
+
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+        const shipment = shipments.find(s => s.id === vehicle.shipmentId);
+
+        if (!shipment) return "ATTENTE EXPÉDITION";
+
+        if (shipment.pickupDate) return 'ENLEVÉE';
+        if (shipment.arrivalDate) return 'ARRIVÉE';
+        if (shipment.status === 'En mer') return 'EN MER';
+        if (shipment.status === 'Préparation' || shipment.etd) return 'A BORD';
+
+        return order.status || 'EN COURS';
+    },
+
+    async syncOrderStatuses() {
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        for (const order of orders) {
+            const newStatus = this.calculateOrderStatus(order);
+            if (order.status !== newStatus) {
+                order.status = newStatus;
+                await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
+            }
+        }
+    },
+
+    async handleOrderSubmission(formData) {
+        const submitBtn = document.querySelector('#order-form button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+        }
+
+        try {
+            const clientId = formData.get('clientId');
+            const vehicleId = formData.get('vehicleId');
+            const orderId = formData.get('orderId');
+
+            const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === clientId);
             const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-            const vehicle = vehicles.find(v => v.id === order.vehicleId);
+            const vehicle = vehicles.find(v => v.id === vehicleId);
 
-            if (!vehicle || !vehicle.shipmentId) return "ATTENTE EXPÉDITION";
-
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-            const shipment = shipments.find(s => s.id === vehicle.shipmentId);
-
-            if (!shipment) return "ATTENTE EXPÉDITION";
-
-            if (shipment.pickupDate) return 'ENLEVÉE';
-            if (shipment.arrivalDate) return 'ARRIVÉE';
-            if (shipment.status === 'En mer') return 'EN MER';
-            if (shipment.status === 'Préparation' || shipment.etd) return 'A BORD';
-
-            return order.status || 'EN COURS';
-        },
-
-        async syncOrderStatuses() {
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            for (const order of orders) {
-                const newStatus = this.calculateOrderStatus(order);
-                if (order.status !== newStatus) {
-                    order.status = newStatus;
-                    await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
-                }
-            }
-        },
-
-        async handleOrderSubmission(formData) {
-            const submitBtn = document.querySelector('#order-form button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+            if (!client) {
+                this.showToast('Veuillez sélectionner un client valide.', 'danger');
+                return;
             }
 
-            try {
-                const clientId = formData.get('clientId');
-                const vehicleId = formData.get('vehicleId');
-                const orderId = formData.get('orderId');
-
-                const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === clientId);
-                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                const vehicle = vehicles.find(v => v.id === vehicleId);
-
-                if (!client) {
-                    this.showToast('Veuillez sélectionner un client valide.', 'danger');
+            if (vehicleId) {
+                if (!vehicle) return;
+                // Strict Validation: Vehicle must not be already ordered (unless by this order)
+                if (vehicle.orderId && vehicle.orderId !== orderId) {
+                    this.showToast('Ce véhicule est déjà associé à une autre commande !', 'danger');
                     return;
                 }
+            }
 
-                if (vehicleId) {
-                    if (!vehicle) return;
-                    // Strict Validation: Vehicle must not be already ordered (unless by this order)
-                    if (vehicle.orderId && vehicle.orderId !== orderId) {
-                        this.showToast('Ce véhicule est déjà associé à une autre commande !', 'danger');
-                        return;
-                    }
-                }
+            // Get manual price or vehicle price
+            const manualPrice = Number(formData.get('totalAmount') || 0);
 
-                // Get manual price or vehicle price
-                const manualPrice = Number(formData.get('totalAmount') || 0);
+            let finalOrderId = orderId;
 
-                let finalOrderId = orderId;
-
-                if (orderId) {
-                    const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-                    const orderIndex = orders.findIndex(o => o.id === orderId);
-                    if (orderIndex !== -1) {
-                        // Unlink previous vehicle if changed
-                        const previousVehicleId = orders[orderIndex].vehicleId;
-                        if (previousVehicleId && previousVehicleId !== vehicleId) {
-                            const prevVehicle = vehicles.find(v => v.id === previousVehicleId);
-                            if (prevVehicle) {
-                                prevVehicle.orderId = null;
-                                await StorageService.update(STORAGE_KEYS.VEHICLES, prevVehicle.id, prevVehicle);
-                            }
+            if (orderId) {
+                const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+                const orderIndex = orders.findIndex(o => o.id === orderId);
+                if (orderIndex !== -1) {
+                    // Unlink previous vehicle if changed
+                    const previousVehicleId = orders[orderIndex].vehicleId;
+                    if (previousVehicleId && previousVehicleId !== vehicleId) {
+                        const prevVehicle = vehicles.find(v => v.id === previousVehicleId);
+                        if (prevVehicle) {
+                            prevVehicle.orderId = null;
+                            await StorageService.update(STORAGE_KEYS.VEHICLES, prevVehicle.id, prevVehicle);
                         }
-
-                        const updatedOrder = {
-                            ...orders[orderIndex],
-                            clientId: client.id,
-                            clientName: `${client.firstName} ${client.lastName}`,
-                            vehicleId: vehicleId || null,
-                            vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''}`,
-                            requestedBrand: formData.get('requestedBrand') || '',
-                            requestedModel: formData.get('requestedModel') || '',
-                            requestedColor: formData.get('requestedColor') || '',
-                            totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
-                            discount: 0,
-                            date: (formData.get('date') && formData.get('date').trim() !== '') ? new Date(formData.get('date')).toISOString() : orders[orderIndex].date,
-                            remarks: formData.get('remarks') || '',
-                            showroom: formData.get('showroom') || orders[orderIndex].showroom || 'Showroom Principal',
-                            status: formData.get('status') || orders[orderIndex].status
-                        };
-
-                        // Calculate status normally UNLESS it was manually set to ANNULÉE
-                        if (updatedOrder.status !== 'ANNULÉE') {
-                            updatedOrder.status = this.calculateOrderStatus(updatedOrder);
-                        } else {
-                            // If manually cancelled, release ALL associated vehicles
-                            const linkedVehicles = vehicles.filter(v => v.orderId === orderId);
-                            for (const vToRelease of linkedVehicles) {
-                                vToRelease.orderId = null;
-                                vToRelease.status = 'Available';
-                                await StorageService.update(STORAGE_KEYS.VEHICLES, vToRelease.id, vToRelease);
-                            }
-                            updatedOrder.vehicleId = null;
-                            updatedOrder.vehicleName = 'COMMANDE ANNULÉE';
-                        }
-
-                        await StorageService.update(STORAGE_KEYS.ORDERS, orderId, updatedOrder);
                     }
-                } else {
-                    // Create new order
-                    finalOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-                    const newOrder = {
-                        id: finalOrderId,
+
+                    const updatedOrder = {
+                        ...orders[orderIndex],
                         clientId: client.id,
                         clientName: `${client.firstName} ${client.lastName}`,
                         vehicleId: vehicleId || null,
@@ -661,73 +625,110 @@ document.addEventListener('DOMContentLoaded', async () => {
                         requestedBrand: formData.get('requestedBrand') || '',
                         requestedModel: formData.get('requestedModel') || '',
                         requestedColor: formData.get('requestedColor') || '',
-                        date: new Date().toISOString(),
                         totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
                         discount: 0,
-                        currency: vehicle ? (vehicle.sellingCurrency || 'EUR') : (StorageService.get(STORAGE_KEYS.SETTINGS)?.sellingCurrency || 'EUR'),
-                        date: (formData.get('date') && formData.get('date').trim() !== '') ? new Date(formData.get('date')).toISOString() : new Date().toISOString(),
+                        date: (formData.get('date') && formData.get('date').trim() !== '') ? new Date(formData.get('date')).toISOString() : orders[orderIndex].date,
                         remarks: formData.get('remarks') || '',
-                        showroom: formData.get('showroom') || 'Showroom Principal',
-                        isValidated: false
+                        showroom: formData.get('showroom') || orders[orderIndex].showroom || 'Showroom Principal',
+                        status: formData.get('status') || orders[orderIndex].status
                     };
-                    newOrder.status = this.calculateOrderStatus(newOrder);
-                    await StorageService.add(STORAGE_KEYS.ORDERS, newOrder);
+
+                    // Calculate status normally UNLESS it was manually set to ANNULÉE
+                    if (updatedOrder.status !== 'ANNULÉE') {
+                        updatedOrder.status = this.calculateOrderStatus(updatedOrder);
+                    } else {
+                        // If manually cancelled, release ALL associated vehicles
+                        const linkedVehicles = vehicles.filter(v => v.orderId === orderId);
+                        for (const vToRelease of linkedVehicles) {
+                            vToRelease.orderId = null;
+                            vToRelease.status = 'Available';
+                            await StorageService.update(STORAGE_KEYS.VEHICLES, vToRelease.id, vToRelease);
+                        }
+                        updatedOrder.vehicleId = null;
+                        updatedOrder.vehicleName = 'COMMANDE ANNULÉE';
+                    }
+
+                    await StorageService.update(STORAGE_KEYS.ORDERS, orderId, updatedOrder);
                 }
-
-                // Link vehicle to order if provided
-                if (vehicle) {
-                    vehicle.orderId = finalOrderId;
-                    vehicle.showroom = formData.get('showroom') || 'Showroom Principal';
-                    await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
-                }
-
-                await this.syncOrderStatuses();
-                this.closeModal();
-                this.showToast(orderId ? 'Commande mise à jour' : 'Nouvelle commande créée avec succès', 'success');
-                this.renderView(this.currentView);
-            } catch (error) {
-                console.error("Error in handleOrderSubmission:", error);
-                this.showToast(`Erreur lors de l'enregistrement: ${error.message || 'Serveur injoignable'}`, "error");
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = formData.get('orderId') ? 'Enregistrer' : 'Créer la commande';
-                }
-            }
-        },
-
-        showOrderDetails(id) {
-            const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === id);
-            const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId);
-            const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === order.vehicleId);
-
-            const cash = StorageService.get(STORAGE_KEYS.CASH).filter(t => t.orderId === id);
-            const totalPaid = cash.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-            // Timeline status logic
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-            const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
-
-            const steps = [
-                { id: 'validation', label: 'Validation', icon: 'fa-check-double', completed: order.isValidated },
-                { id: 'assignment', label: 'Affectation', icon: 'fa-car', completed: !!order.vehicleId },
-                { id: 'shipping', label: 'Expédition', icon: 'fa-shipping-fast', completed: !!shipment },
-                { id: 'onboard', label: 'A Bord', icon: 'fa-ship', completed: shipment && (shipment.status === 'Préparation' || shipment.etd) },
-                { id: 'atsea', label: 'En Mer', icon: 'fa-water', completed: shipment && shipment.status === 'En mer' },
-                { id: 'arrived', label: 'Arrivée', icon: 'fa-box-open', completed: shipment && (shipment.arrivalDate || shipment.status === 'Arrivée' || shipment.status === 'Arrivé') },
-                { id: 'delivered', label: 'Enlevée', icon: 'fa-handshake', completed: shipment && (shipment.pickupDate || shipment.status === 'Livré' || shipment.status === 'Enlevée') }
-            ];
-
-            // Determine active step (last completed step or first incomplete)
-            let activeIndex = -1;
-            for (let i = steps.length - 1; i >= 0; i--) {
-                if (steps[i].completed) {
-                    activeIndex = i;
-                    break;
-                }
+            } else {
+                // Create new order
+                finalOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+                const newOrder = {
+                    id: finalOrderId,
+                    clientId: client.id,
+                    clientName: `${client.firstName} ${client.lastName}`,
+                    vehicleId: vehicleId || null,
+                    vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''}`,
+                    requestedBrand: formData.get('requestedBrand') || '',
+                    requestedModel: formData.get('requestedModel') || '',
+                    requestedColor: formData.get('requestedColor') || '',
+                    date: new Date().toISOString(),
+                    totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
+                    discount: 0,
+                    currency: vehicle ? (vehicle.sellingCurrency || 'EUR') : (StorageService.get(STORAGE_KEYS.SETTINGS)?.sellingCurrency || 'EUR'),
+                    date: (formData.get('date') && formData.get('date').trim() !== '') ? new Date(formData.get('date')).toISOString() : new Date().toISOString(),
+                    remarks: formData.get('remarks') || '',
+                    showroom: formData.get('showroom') || 'Showroom Principal',
+                    isValidated: false
+                };
+                newOrder.status = this.calculateOrderStatus(newOrder);
+                await StorageService.add(STORAGE_KEYS.ORDERS, newOrder);
             }
 
-            const modalHtml = `
+            // Link vehicle to order if provided
+            if (vehicle) {
+                vehicle.orderId = finalOrderId;
+                vehicle.showroom = formData.get('showroom') || 'Showroom Principal';
+                await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
+            }
+
+            await this.syncOrderStatuses();
+            this.closeModal();
+            this.showToast(orderId ? 'Commande mise à jour' : 'Nouvelle commande créée avec succès', 'success');
+            this.renderView(this.currentView);
+        } catch (error) {
+            console.error("Error in handleOrderSubmission:", error);
+            this.showToast(`Erreur lors de l'enregistrement: ${error.message || 'Serveur injoignable'}`, "error");
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = formData.get('orderId') ? 'Enregistrer' : 'Créer la commande';
+            }
+        }
+    },
+
+    showOrderDetails(id) {
+        const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === id);
+        const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId);
+        const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === order.vehicleId);
+
+        const cash = StorageService.get(STORAGE_KEYS.CASH).filter(t => t.orderId === id);
+        const totalPaid = cash.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+        // Timeline status logic
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
+
+        const steps = [
+            { id: 'validation', label: 'Validation', icon: 'fa-check-double', completed: order.isValidated },
+            { id: 'assignment', label: 'Affectation', icon: 'fa-car', completed: !!order.vehicleId },
+            { id: 'shipping', label: 'Expédition', icon: 'fa-shipping-fast', completed: !!shipment },
+            { id: 'onboard', label: 'A Bord', icon: 'fa-ship', completed: shipment && (shipment.status === 'Préparation' || shipment.etd) },
+            { id: 'atsea', label: 'En Mer', icon: 'fa-water', completed: shipment && shipment.status === 'En mer' },
+            { id: 'arrived', label: 'Arrivée', icon: 'fa-box-open', completed: shipment && (shipment.arrivalDate || shipment.status === 'Arrivée' || shipment.status === 'Arrivé') },
+            { id: 'delivered', label: 'Enlevée', icon: 'fa-handshake', completed: shipment && (shipment.pickupDate || shipment.status === 'Livré' || shipment.status === 'Enlevée') }
+        ];
+
+        // Determine active step (last completed step or first incomplete)
+        let activeIndex = -1;
+        for (let i = steps.length - 1; i >= 0; i--) {
+            if (steps[i].completed) {
+                activeIndex = i;
+                break;
+            }
+        }
+
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 700px; max-height: 90vh; overflow-y: auto;">
                         <div class="modal-header">
@@ -860,20 +861,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        },
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
 
-        showEditOrderModal(id) {
-            const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === id);
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => (!v.orderId && !v.archived) || v.id === order.vehicleId);
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS);
-            const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
-            const colors = StorageService.get(STORAGE_KEYS.COLORS);
+    showEditOrderModal(id) {
+        const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === id);
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => (!v.orderId && !v.archived) || v.id === order.vehicleId);
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS);
+        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
+        const colors = StorageService.get(STORAGE_KEYS.COLORS);
 
-            if (!order) return;
+        if (!order) return;
 
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass">
                         <div class="modal-header">
@@ -969,35 +970,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            // Dynamic model population
-            const brandSelect = document.getElementById('edit-requested-brand');
-            const modelSelect = document.getElementById('edit-requested-model');
+        // Dynamic model population
+        const brandSelect = document.getElementById('edit-requested-brand');
+        const modelSelect = document.getElementById('edit-requested-model');
 
-            brandSelect.addEventListener('change', () => {
-                const brand = brandSelect.value;
-                modelSelect.innerHTML = '<option value="">Sélectionner...</option>';
-                if (brand && brandModels[brand]) {
-                    brandModels[brand].forEach(m => {
-                        const opt = document.createElement('option');
-                        opt.value = m;
-                        opt.textContent = m;
-                        modelSelect.appendChild(opt);
-                    });
-                }
-            });
+        brandSelect.addEventListener('change', () => {
+            const brand = brandSelect.value;
+            modelSelect.innerHTML = '<option value="">Sélectionner...</option>';
+            if (brand && brandModels[brand]) {
+                brandModels[brand].forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    modelSelect.appendChild(opt);
+                });
+            }
+        });
 
 
 
-            document.getElementById('order-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleOrderSubmission(new FormData(e.target));
-            });
-        },
+        document.getElementById('order-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleOrderSubmission(new FormData(e.target));
+        });
+    },
 
-        showConfirmModal(message, onConfirm) {
-            const modalHtml = `
+    showConfirmModal(message, onConfirm) {
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 400px; text-align: center;">
                         <div class="modal-header" style="justify-content: center;">
@@ -1011,104 +1012,104 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            document.getElementById('btn-confirm-action').addEventListener('click', async () => {
-                await onConfirm();
-                this.closeModal();
-            });
-        },
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.getElementById('btn-confirm-action').addEventListener('click', async () => {
+            await onConfirm();
+            this.closeModal();
+        });
+    },
 
-        deleteOrder(id) {
-            this.showConfirmModal('Êtes-vous sûr de vouloir supprimer cette commande ?', async () => {
-                try {
-                    // Clean up vehicle link
-                    const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                    const vehicle = vehicles.find(v => v.orderId === id);
-                    if (vehicle) {
-                        vehicle.orderId = null;
-                        if (!vehicle.shipmentId) {
-                            vehicle.status = 'Available';
-                        }
-                        await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
+    deleteOrder(id) {
+        this.showConfirmModal('Êtes-vous sûr de vouloir supprimer cette commande ?', async () => {
+            try {
+                // Clean up vehicle link
+                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+                const vehicle = vehicles.find(v => v.orderId === id);
+                if (vehicle) {
+                    vehicle.orderId = null;
+                    if (!vehicle.shipmentId) {
+                        vehicle.status = 'Available';
                     }
-                    await StorageService.delete(STORAGE_KEYS.ORDERS, id);
-                    this.showToast('Commande supprimée avec succès', 'success');
-                    this.renderView(this.currentView);
-                } catch (error) {
-                    console.error("Error deleting order:", error);
-                    this.showToast(`Échec de la suppression: ${error.message || 'Erreur serveur'}`, 'danger');
+                    await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
                 }
-            });
-        },
+                await StorageService.delete(STORAGE_KEYS.ORDERS, id);
+                this.showToast('Commande supprimée avec succès', 'success');
+                this.renderView(this.currentView);
+            } catch (error) {
+                console.error("Error deleting order:", error);
+                this.showToast(`Échec de la suppression: ${error.message || 'Erreur serveur'}`, 'danger');
+            }
+        });
+    },
 
-        archiveOrder(id) {
+    archiveOrder(id) {
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const order = orders.find(o => o.id === id);
+        if (!order) return;
+
+        const netPrice = (order.totalAmount || 0) - (order.discount || 0);
+        const paid = this.getPaidAmount(order.id);
+        const balance = Math.max(0, netPrice - paid);
+
+        if (balance > 0) {
+            this.showToast(`Impossible de clôturer: Solde restant de ${this.formatCurrency(balance)}`, 'danger');
+            return;
+        }
+
+        if (order.status !== 'ENLEVÉE') {
+            this.showToast('Impossible de clôturer: Le véhicule doit être enlevé (statut ENLEVÉE)', 'danger');
+            return;
+        }
+
+        this.showConfirmModal("Voulez-vous vraiment clôturer ce dossier ?<br>Cela archivera la commande, le véhicule et l'expédition associée.", async () => {
             const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const order = orders.find(o => o.id === id);
-            if (!order) return;
+            const orderIndex = orders.findIndex(o => o.id === id);
+            if (orderIndex === -1) return;
 
-            const netPrice = (order.totalAmount || 0) - (order.discount || 0);
-            const paid = this.getPaidAmount(order.id);
-            const balance = Math.max(0, netPrice - paid);
+            const order = orders[orderIndex];
+            order.archived = true;
+            const vehicleId = order.vehicleId;
 
-            if (balance > 0) {
-                this.showToast(`Impossible de clôturer: Solde restant de ${this.formatCurrency(balance)}`, 'danger');
-                return;
-            }
+            await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
 
-            if (order.status !== 'ENLEVÉE') {
-                this.showToast('Impossible de clôturer: Le véhicule doit être enlevé (statut ENLEVÉE)', 'danger');
-                return;
-            }
+            if (vehicleId) {
+                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+                const vehicle = vehicles.find(v => v.id === vehicleId);
 
-            this.showConfirmModal("Voulez-vous vraiment clôturer ce dossier ?<br>Cela archivera la commande, le véhicule et l'expédition associée.", async () => {
-                const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-                const orderIndex = orders.findIndex(o => o.id === id);
-                if (orderIndex === -1) return;
+                if (vehicle) {
+                    vehicle.archived = true;
+                    const shipmentId = vehicle.shipmentId;
 
-                const order = orders[orderIndex];
-                order.archived = true;
-                const vehicleId = order.vehicleId;
-
-                await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
-
-                if (vehicleId) {
-                    const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                    const vehicle = vehicles.find(v => v.id === vehicleId);
-
-                    if (vehicle) {
-                        vehicle.archived = true;
-                        const shipmentId = vehicle.shipmentId;
-
-                        if (shipmentId) {
-                            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-                            const shipment = shipments.find(s => s.id === shipmentId);
-                            if (shipment) {
-                                shipment.archived = true;
-                                await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, shipment);
-                            }
+                    if (shipmentId) {
+                        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+                        const shipment = shipments.find(s => s.id === shipmentId);
+                        if (shipment) {
+                            shipment.archived = true;
+                            await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, shipment);
                         }
-
-                        await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
                     }
+
+                    await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
                 }
+            }
 
-                this.showToast('Dossier clôturé avec succès', 'success');
-                this.renderView(this.currentView);
-            });
-        },
+            this.showToast('Dossier clôturé avec succès', 'success');
+            this.renderView(this.currentView);
+        });
+    },
 
-        deleteClient(id) {
-            this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce client ? Toutes les commandes associées resteront mais le client sera marqué comme inconnu.', async () => {
-                await StorageService.delete(STORAGE_KEYS.CLIENTS, id);
-                this.renderView(this.currentView);
-            });
-        },
+    deleteClient(id) {
+        this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce client ? Toutes les commandes associées resteront mais le client sera marqué comme inconnu.', async () => {
+            await StorageService.delete(STORAGE_KEYS.CLIENTS, id);
+            this.renderView(this.currentView);
+        });
+    },
 
-        showVehicleDetails(id) {
-            const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === id);
-            if (!vehicle) return;
+    showVehicleDetails(id) {
+        const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === id);
+        if (!vehicle) return;
 
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 550px;">
                         <div class="modal-header">
@@ -1154,293 +1155,293 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        },
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
 
-        async deleteVehicle(id) {
-            this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce véhicule du stock ?', async () => {
-                await StorageService.delete(STORAGE_KEYS.VEHICLES, id);
-                this.renderView(this.currentView);
+    async deleteVehicle(id) {
+        this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce véhicule du stock ?', async () => {
+            await StorageService.delete(STORAGE_KEYS.VEHICLES, id);
+            this.renderView(this.currentView);
+        });
+    },
+
+    switchView(viewName) {
+        if (this.currentView === viewName) return;
+
+        // Close any open modals when switching views
+        this.closeModal();
+
+        // Reset search query when switching views for a clean state
+        const searchInput = document.querySelector('.search-container input');
+        if (searchInput) {
+            searchInput.value = '';
+            this.searchQuery = '';
+        }
+
+        // Update active state in sidebar
+        this.navLinks.forEach(link => {
+            if (link.getAttribute('data-view') === viewName) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+
+        this.currentView = viewName;
+        this.renderView(viewName);
+    },
+
+    attachDashboardListeners() {
+        const showroomFilter = document.getElementById('dash-filter-showroom');
+        const startFilter = document.getElementById('dash-filter-start');
+        const endFilter = document.getElementById('dash-filter-end');
+        const resetBtn = document.getElementById('btn-reset-filters');
+
+        if (showroomFilter) {
+            showroomFilter.addEventListener('change', (e) => {
+                this.dashboardFilters.showroom = e.target.value;
+                this.renderDashboard();
             });
-        },
+        }
 
-        switchView(viewName) {
-            if (this.currentView === viewName) return;
+        if (startFilter) {
+            startFilter.addEventListener('change', (e) => {
+                this.dashboardFilters.startDate = e.target.value;
+                this.renderDashboard();
+            });
+        }
 
-            // Close any open modals when switching views
-            this.closeModal();
+        if (endFilter) {
+            endFilter.addEventListener('change', (e) => {
+                this.dashboardFilters.endDate = e.target.value;
+                this.renderDashboard();
+            });
+        }
 
-            // Reset search query when switching views for a clean state
-            const searchInput = document.querySelector('.search-container input');
-            if (searchInput) {
-                searchInput.value = '';
-                this.searchQuery = '';
-            }
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.dashboardFilters = { showroom: '', startDate: '', endDate: '' };
+                this.renderDashboard();
+            });
+        }
 
-            // Update active state in sidebar
-            this.navLinks.forEach(link => {
-                if (link.getAttribute('data-view') === viewName) {
-                    link.classList.add('active');
-                } else {
-                    link.classList.remove('active');
+        const syncBtn = document.getElementById('btn-sync-dashboard');
+        if (syncBtn) {
+            syncBtn.addEventListener('click', async () => {
+                const icon = syncBtn.querySelector('i');
+                if (icon) icon.classList.add('fa-spin');
+                try {
+                    await StorageService.syncAll();
+                    this.renderDashboard();
+                    Toast.show('Données actualisées avec succès', 'success');
+                } catch (e) {
+                    Toast.show('Erreur lors de l\'actualisation', 'error');
+                } finally {
+                    if (icon) icon.classList.remove('fa-spin');
                 }
             });
+        }
+    },
 
-            this.currentView = viewName;
-            this.renderView(viewName);
-        },
+    renderView(viewName) {
+        this.viewContainer.innerHTML = ''; // Clear container
 
-        attachDashboardListeners() {
-            const showroomFilter = document.getElementById('dash-filter-showroom');
-            const startFilter = document.getElementById('dash-filter-start');
-            const endFilter = document.getElementById('dash-filter-end');
-            const resetBtn = document.getElementById('btn-reset-filters');
+        switch (viewName) {
+            case 'dashboard':
+                this.renderDashboard();
+                break;
+            case 'orders':
+                this.renderOrders(this.searchQuery);
+                break;
+            case 'clients':
+                this.renderClients(this.searchQuery);
+                break;
+            case 'vehicles':
+                this.renderVehicles(this.searchQuery);
+                break;
+            case 'shipments':
+                this.renderShipments(this.searchQuery);
+                break;
+            case 'cash':
+                this.renderCash(this.searchQuery);
+                break;
+            case 'purchases':
+                this.renderPurchases(this.searchQuery);
+                break;
+            case 'exchange-rates':
+                this.renderExchangeRates(this.searchQuery);
+                break;
+            case 'settings':
+                this.renderSettings();
+                break;
+            case 'audit':
+                this.renderAudit();
+                break;
 
-            if (showroomFilter) {
-                showroomFilter.addEventListener('change', (e) => {
-                    this.dashboardFilters.showroom = e.target.value;
-                    this.renderDashboard();
+            case 'alerts':
+                this.renderAlerts();
+                break;
+            case 'verification':
+                this.renderVerification();
+                break;
+            case 'suppliers':
+                this.renderSuppliers(this.searchQuery);
+                break;
+            case 'voyages':
+                this.renderVoyages();
+                break;
+            case 'global-tracking':
+                this.renderGlobalTracking();
+                break;
+            default:
+                this.renderDashboard();
+        }
+    },
+
+    async renderDashboard() {
+        try {
+            let orders = StorageService.get(STORAGE_KEYS.ORDERS);
+            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+            let cash = StorageService.get(STORAGE_KEYS.CASH);
+
+            // Apply global search query if any
+            if (this.searchQuery) {
+                const q = this.searchQuery.toLowerCase();
+                orders = orders.filter(o =>
+                    String(o.id || '').toLowerCase().includes(q) ||
+                    String(o.clientName || '').toLowerCase().includes(q) ||
+                    String(o.vehicleName || '').toLowerCase().includes(q)
+                );
+                cash = cash.filter(t =>
+                    String(t.clientName || '').toLowerCase().includes(q) ||
+                    String(t.description || '').toLowerCase().includes(q)
+                );
+            }
+
+            // Apply Filters
+            if (this.dashboardFilters.showroom) {
+                // Filter orders by showroom
+                orders = orders.filter(o => o.showroom === this.dashboardFilters.showroom);
+                // Filter cash transactions by showroom
+                cash = cash.filter(t => t.showroom === this.dashboardFilters.showroom);
+            }
+
+            if (this.dashboardFilters.startDate) {
+                const start = new Date(this.dashboardFilters.startDate);
+                orders = orders.filter(o => new Date(o.date) >= start);
+                cash = cash.filter(t => new Date(t.date) >= start);
+            }
+
+            if (this.dashboardFilters.endDate) {
+                const end = new Date(this.dashboardFilters.endDate);
+                end.setHours(23, 59, 59, 999);
+                orders = orders.filter(o => new Date(o.date) <= end);
+                cash = cash.filter(t => new Date(t.date) <= end);
+            }
+
+            // Financial Calculations
+            const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
+            const reportingCurrency = settings.sellingCurrency || 'EUR';
+
+            // Calculate Unpaid from Orders (Converted)
+            const unpaidAmount = orders.reduce((sum, order) => {
+                const paid = this.getPaidAmount(order.id); // In order currency
+                const balance = Math.max(0, order.totalAmount - paid);
+                // Convert balance to reporting currency
+                return sum + this.convertCurrency(balance, order.currency, reportingCurrency, order.date);
+            }, 0);
+
+            // Calculate Total Sales (Converted)
+            const totalSales = orders.reduce((sum, order) => {
+                return sum + this.convertCurrency(order.totalAmount, order.currency, reportingCurrency, order.date);
+            }, 0);
+
+            // Calculate Total Paid / Cash Flow (Converted)
+            // optimize: getPaidAmount does database lookups. Better to aggregate cash once.
+            const allCash = StorageService.get(STORAGE_KEYS.CASH) || [];
+            const totalInflow = cash.filter(t => t.type === 'In').reduce((sum, t) => sum + this.convertCurrency(Number(t.amount), t.currency, reportingCurrency, t.date), 0);
+            const totalOutflow = cash.filter(t => t.type === 'Out').reduce((sum, t) => sum + this.convertCurrency(Number(t.amount), t.currency, reportingCurrency, t.date), 0);
+            const netCashBalance = totalInflow - totalOutflow;
+
+            // Logistics & Stock Calculations
+            let dashboardVehicles = vehicles;
+            if (this.dashboardFilters.showroom) {
+                const allOrders = StorageService.get(STORAGE_KEYS.ORDERS);
+                dashboardVehicles = vehicles.filter(v => {
+                    const vShowroom = v.showroom || (v.orderId ? allOrders.find(o => o.id === v.orderId)?.showroom : null);
+                    return vShowroom === this.dashboardFilters.showroom;
                 });
             }
 
-            if (startFilter) {
-                startFilter.addEventListener('change', (e) => {
-                    this.dashboardFilters.startDate = e.target.value;
-                    this.renderDashboard();
-                });
-            }
+            // Stock Value (Converted - Asset Value)
+            const availableVehicles = dashboardVehicles.filter(v => v.status === 'Available');
+            const stockValue = availableVehicles.reduce((sum, v) => {
+                return sum + this.convertCurrency(Number(v.purchasePrice || 0), v.purchaseCurrency || 'EUR', reportingCurrency);
+            }, 0);
 
-            if (endFilter) {
-                endFilter.addEventListener('change', (e) => {
-                    this.dashboardFilters.endDate = e.target.value;
-                    this.renderDashboard();
-                });
-            }
+            const pendingOrders = orders.filter(o => o.status === 'Processing' || o.status === 'Pending').length;
+            const statusCounts = orders.reduce((acc, order) => {
+                acc[order.status] = (acc[order.status] || 0) + 1;
+                return acc;
+            }, {});
 
-            if (resetBtn) {
-                resetBtn.addEventListener('click', () => {
-                    this.dashboardFilters = { showroom: '', startDate: '', endDate: '' };
-                    this.renderDashboard();
-                });
-            }
+            // Logistics Calculations
+            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
 
-            const syncBtn = document.getElementById('btn-sync-dashboard');
-            if (syncBtn) {
-                syncBtn.addEventListener('click', async () => {
-                    const icon = syncBtn.querySelector('i');
-                    if (icon) icon.classList.add('fa-spin');
-                    try {
-                        await StorageService.syncAll();
-                        this.renderDashboard();
-                        Toast.show('Données actualisées avec succès', 'success');
-                    } catch (e) {
-                        Toast.show('Erreur lors de l\'actualisation', 'error');
-                    } finally {
-                        if (icon) icon.classList.remove('fa-spin');
-                    }
-                });
-            }
-        },
+            // DATA INTEGRITY CHECK (Self-Repair)
+            // Ensure vehicle statuses are consistent with their links
+            let dataChanged = false;
+            vehicles.forEach(v => {
+                const originalStatus = v.status;
 
-        renderView(viewName) {
-            this.viewContainer.innerHTML = ''; // Clear container
-
-            switch (viewName) {
-                case 'dashboard':
-                    this.renderDashboard();
-                    break;
-                case 'orders':
-                    this.renderOrders(this.searchQuery);
-                    break;
-                case 'clients':
-                    this.renderClients(this.searchQuery);
-                    break;
-                case 'vehicles':
-                    this.renderVehicles(this.searchQuery);
-                    break;
-                case 'shipments':
-                    this.renderShipments(this.searchQuery);
-                    break;
-                case 'cash':
-                    this.renderCash(this.searchQuery);
-                    break;
-                case 'purchases':
-                    this.renderPurchases(this.searchQuery);
-                    break;
-                case 'exchange-rates':
-                    this.renderExchangeRates(this.searchQuery);
-                    break;
-                case 'settings':
-                    this.renderSettings();
-                    break;
-                case 'audit':
-                    this.renderAudit();
-                    break;
-
-                case 'alerts':
-                    this.renderAlerts();
-                    break;
-                case 'verification':
-                    this.renderVerification();
-                    break;
-                case 'suppliers':
-                    this.renderSuppliers(this.searchQuery);
-                    break;
-                case 'voyages':
-                    this.renderVoyages();
-                    break;
-                case 'global-tracking':
-                    this.renderGlobalTracking();
-                    break;
-                default:
-                    this.renderDashboard();
-            }
-        },
-
-        async renderDashboard() {
-            try {
-                let orders = StorageService.get(STORAGE_KEYS.ORDERS);
-                const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
-                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                let cash = StorageService.get(STORAGE_KEYS.CASH);
-
-                // Apply global search query if any
-                if (this.searchQuery) {
-                    const q = this.searchQuery.toLowerCase();
-                    orders = orders.filter(o =>
-                        String(o.id || '').toLowerCase().includes(q) ||
-                        String(o.clientName || '').toLowerCase().includes(q) ||
-                        String(o.vehicleName || '').toLowerCase().includes(q)
-                    );
-                    cash = cash.filter(t =>
-                        String(t.clientName || '').toLowerCase().includes(q) ||
-                        String(t.description || '').toLowerCase().includes(q)
-                    );
-                }
-
-                // Apply Filters
-                if (this.dashboardFilters.showroom) {
-                    // Filter orders by showroom
-                    orders = orders.filter(o => o.showroom === this.dashboardFilters.showroom);
-                    // Filter cash transactions by showroom
-                    cash = cash.filter(t => t.showroom === this.dashboardFilters.showroom);
-                }
-
-                if (this.dashboardFilters.startDate) {
-                    const start = new Date(this.dashboardFilters.startDate);
-                    orders = orders.filter(o => new Date(o.date) >= start);
-                    cash = cash.filter(t => new Date(t.date) >= start);
-                }
-
-                if (this.dashboardFilters.endDate) {
-                    const end = new Date(this.dashboardFilters.endDate);
-                    end.setHours(23, 59, 59, 999);
-                    orders = orders.filter(o => new Date(o.date) <= end);
-                    cash = cash.filter(t => new Date(t.date) <= end);
-                }
-
-                // Financial Calculations
-                const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
-                const reportingCurrency = settings.sellingCurrency || 'EUR';
-
-                // Calculate Unpaid from Orders (Converted)
-                const unpaidAmount = orders.reduce((sum, order) => {
-                    const paid = this.getPaidAmount(order.id); // In order currency
-                    const balance = Math.max(0, order.totalAmount - paid);
-                    // Convert balance to reporting currency
-                    return sum + this.convertCurrency(balance, order.currency, reportingCurrency, order.date);
-                }, 0);
-
-                // Calculate Total Sales (Converted)
-                const totalSales = orders.reduce((sum, order) => {
-                    return sum + this.convertCurrency(order.totalAmount, order.currency, reportingCurrency, order.date);
-                }, 0);
-
-                // Calculate Total Paid / Cash Flow (Converted)
-                // optimize: getPaidAmount does database lookups. Better to aggregate cash once.
-                const allCash = StorageService.get(STORAGE_KEYS.CASH) || [];
-                const totalInflow = cash.filter(t => t.type === 'In').reduce((sum, t) => sum + this.convertCurrency(Number(t.amount), t.currency, reportingCurrency, t.date), 0);
-                const totalOutflow = cash.filter(t => t.type === 'Out').reduce((sum, t) => sum + this.convertCurrency(Number(t.amount), t.currency, reportingCurrency, t.date), 0);
-                const netCashBalance = totalInflow - totalOutflow;
-
-                // Logistics & Stock Calculations
-                let dashboardVehicles = vehicles;
-                if (this.dashboardFilters.showroom) {
-                    const allOrders = StorageService.get(STORAGE_KEYS.ORDERS);
-                    dashboardVehicles = vehicles.filter(v => {
-                        const vShowroom = v.showroom || (v.orderId ? allOrders.find(o => o.id === v.orderId)?.showroom : null);
-                        return vShowroom === this.dashboardFilters.showroom;
-                    });
-                }
-
-                // Stock Value (Converted - Asset Value)
-                const availableVehicles = dashboardVehicles.filter(v => v.status === 'Available');
-                const stockValue = availableVehicles.reduce((sum, v) => {
-                    return sum + this.convertCurrency(Number(v.purchasePrice || 0), v.purchaseCurrency || 'EUR', reportingCurrency);
-                }, 0);
-
-                const pendingOrders = orders.filter(o => o.status === 'Processing' || o.status === 'Pending').length;
-                const statusCounts = orders.reduce((acc, order) => {
-                    acc[order.status] = (acc[order.status] || 0) + 1;
-                    return acc;
-                }, {});
-
-                // Logistics Calculations
-                const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-
-                // DATA INTEGRITY CHECK (Self-Repair)
-                // Ensure vehicle statuses are consistent with their links
-                let dataChanged = false;
-                vehicles.forEach(v => {
-                    const originalStatus = v.status;
-
-                    // 1. Check Shipment Link
-                    if (v.shipmentId) {
-                        const shipment = shipments.find(s => s.id === v.shipmentId);
-                        if (shipment) {
-                            if (['Préparation', 'En mer'].includes(shipment.status)) {
-                                v.status = 'In Transit';
-                            } else if (shipment.status === 'Arrivé') {
-                                v.status = 'Arrived';
-                            } else if (shipment.status === 'Livré') {
-                                v.status = 'Sold';
-                            }
-                        } else {
-                            // Orphaned shipment ID?
-                            v.shipmentId = null;
+                // 1. Check Shipment Link
+                if (v.shipmentId) {
+                    const shipment = shipments.find(s => s.id === v.shipmentId);
+                    if (shipment) {
+                        if (['Préparation', 'En mer'].includes(shipment.status)) {
+                            v.status = 'In Transit';
+                        } else if (shipment.status === 'Arrivé') {
+                            v.status = 'Arrived';
+                        } else if (shipment.status === 'Livré') {
+                            v.status = 'Sold';
                         }
+                    } else {
+                        // Orphaned shipment ID?
+                        v.shipmentId = null;
                     }
-
-                    // 2. Check Order Link (if not shipped/arrived/sold)
-                    if (!v.shipmentId && v.orderId) {
-                        // Vehicle is ordered but not shipped -> Reserved
-                        v.status = 'Reserved';
-                    }
-
-                    // 3. Fallback to Available
-                    if (!v.shipmentId && !v.orderId && !['In Transit', 'Arrived', 'Sold', 'Reserved'].includes(v.status)) {
-                        v.status = 'Available';
-                    }
-
-                    if (v.status !== originalStatus) dataChanged = true;
-                });
-
-                if (dataChanged) {
-                    await StorageService.save(STORAGE_KEYS.VEHICLES, vehicles);
                 }
 
-                // Strict Status Counting (Mutually Exclusive)
-                const availableVehiclesCount = dashboardVehicles.filter(v => v.status === 'Available').length;
-                const reservedCount = dashboardVehicles.filter(v => v.status === 'Reserved').length;
-                const inTransitCount = dashboardVehicles.filter(v => v.status === 'In Transit').length;
-                const arrivedCount = dashboardVehicles.filter(v => v.status === 'Arrived').length;
-                const unassignedVehiclesCount = dashboardVehicles.filter(v => !v.orderId).length;
-                const unvalidatedOrdersCount = orders.filter(o => !o.isValidated).length;
+                // 2. Check Order Link (if not shipped/arrived/sold)
+                if (!v.shipmentId && v.orderId) {
+                    // Vehicle is ordered but not shipped -> Reserved
+                    v.status = 'Reserved';
+                }
+
+                // 3. Fallback to Available
+                if (!v.shipmentId && !v.orderId && !['In Transit', 'Arrived', 'Sold', 'Reserved'].includes(v.status)) {
+                    v.status = 'Available';
+                }
+
+                if (v.status !== originalStatus) dataChanged = true;
+            });
+
+            if (dataChanged) {
+                await StorageService.save(STORAGE_KEYS.VEHICLES, vehicles);
+            }
+
+            // Strict Status Counting (Mutually Exclusive)
+            const availableVehiclesCount = dashboardVehicles.filter(v => v.status === 'Available').length;
+            const reservedCount = dashboardVehicles.filter(v => v.status === 'Reserved').length;
+            const inTransitCount = dashboardVehicles.filter(v => v.status === 'In Transit').length;
+            const arrivedCount = dashboardVehicles.filter(v => v.status === 'Arrived').length;
+            const unassignedVehiclesCount = dashboardVehicles.filter(v => !v.orderId).length;
+            const unvalidatedOrdersCount = orders.filter(o => !o.isValidated).length;
 
 
 
-                // Finance grid
-                this.viewContainer.innerHTML = `
+            // Finance grid
+            this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div class="header-title-area">
                         <h1>Tableau de Bord Analytique</h1>
@@ -1594,11 +1595,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </thead>
                             <tbody>
                                 ${orders.slice(0, 5).map(order => {
-                    const paid = this.getPaidAmount(order.id);
-                    const balance = Math.max(0, order.totalAmount - paid);
-                    // Assuming 'vehicles' array is available in this scope and 'order.vehicleId' exists
-                    const vehicle = vehicles.find(v => v.id === order.vehicleId);
-                    return `
+                const paid = this.getPaidAmount(order.id);
+                const balance = Math.max(0, order.totalAmount - paid);
+                // Assuming 'vehicles' array is available in this scope and 'order.vehicleId' exists
+                const vehicle = vehicles.find(v => v.id === order.vehicleId);
+                return `
                                     <tr>
                                         <td style="font-weight: 600; color: var(--primary);">#${order.id}</td>
                                         <td>${order.clientName}</td>
@@ -1607,7 +1608,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         <td><span class="value ${balance === 0 ? 'success' : 'danger'}">${this.formatCurrency(balance)}</span></td>
                                     </tr>
                                     `;
-                }).join('')}
+            }).join('')}
                                 ${orders.length === 0 ? '<tr><td colspan="5" style="text-align: center; padding: 2rem;">Aucune commande.</td></tr>' : ''}
                             </tbody>
                         </table>
@@ -1672,222 +1673,222 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `;
-                this.attachDashboardListeners();
+            this.attachDashboardListeners();
 
-                // --- Initialize Charts ---
-                setTimeout(() => {
-                    // 1. Order Status Chart
-                    const canvasOrders = document.getElementById('ordersChart');
-                    const ctxOrders = canvasOrders?.getContext('2d');
-                    if (ctxOrders) {
-                        // Destroy existing instance if any
-                        const existingChart = Chart.getChart(canvasOrders);
-                        if (existingChart) existingChart.destroy();
+            // --- Initialize Charts ---
+            setTimeout(() => {
+                // 1. Order Status Chart
+                const canvasOrders = document.getElementById('ordersChart');
+                const ctxOrders = canvasOrders?.getContext('2d');
+                if (ctxOrders) {
+                    // Destroy existing instance if any
+                    const existingChart = Chart.getChart(canvasOrders);
+                    if (existingChart) existingChart.destroy();
 
-                        const statusLabels = ['EN ATTENTE DE VALIDATION', 'ATTENTE AFFECTATION VÉHICULE', 'ARRIVÉE', 'LIVRÉE', 'ANNULÉE'];
-                        const displayLabels = ['E.A. Validation', 'Attente Véhicule', 'Arrivée', 'Livrée', 'Annulée'];
-                        const orderStatusData = statusLabels.map(s => statusCounts[s] || 0);
+                    const statusLabels = ['EN ATTENTE DE VALIDATION', 'ATTENTE AFFECTATION VÉHICULE', 'ARRIVÉE', 'LIVRÉE', 'ANNULÉE'];
+                    const displayLabels = ['E.A. Validation', 'Attente Véhicule', 'Arrivée', 'Livrée', 'Annulée'];
+                    const orderStatusData = statusLabels.map(s => statusCounts[s] || 0);
 
-                        new Chart(ctxOrders, {
-                            type: 'doughnut',
-                            data: {
-                                labels: displayLabels,
-                                datasets: [{
-                                    data: orderStatusData,
-                                    backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ef4444'],
-                                    borderWidth: 0,
-                                    hoverOffset: 4
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: {
-                                        position: 'right',
-                                        labels: {
-                                            color: '#9ca3af',
-                                            font: { family: 'Outfit', size: 11 },
-                                            padding: 15,
-                                            usePointStyle: true
-                                        }
+                    new Chart(ctxOrders, {
+                        type: 'doughnut',
+                        data: {
+                            labels: displayLabels,
+                            datasets: [{
+                                data: orderStatusData,
+                                backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ef4444'],
+                                borderWidth: 0,
+                                hoverOffset: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: {
+                                        color: '#9ca3af',
+                                        font: { family: 'Outfit', size: 11 },
+                                        padding: 15,
+                                        usePointStyle: true
                                     }
                                 }
                             }
-                        });
-                    }
-
-                    // 2. Revenue Chart
-                    const canvasRevenue = document.getElementById('revenueChart');
-                    const ctxRevenue = canvasRevenue?.getContext('2d');
-                    if (ctxRevenue) {
-                        const existingChart = Chart.getChart(canvasRevenue);
-                        if (existingChart) existingChart.destroy();
-
-                        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-                        const revenues = showrooms.map(s => {
-                            const sCash = cash.filter(t => t.showroom === s && t.type === 'In');
-                            return sCash.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-                        });
-
-                        new Chart(ctxRevenue, {
-                            type: 'bar',
-                            data: {
-                                labels: showrooms.length ? showrooms : ['Aucun'],
-                                datasets: [{
-                                    label: 'Encaissements',
-                                    data: revenues.length ? revenues : [0],
-                                    backgroundColor: '#10b981',
-                                    borderRadius: 6
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: { display: false },
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true,
-                                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                                        ticks: { color: '#9ca3af' }
-                                    },
-                                    x: {
-                                        grid: { display: false },
-                                        ticks: { color: '#9ca3af' }
-                                    }
-                                }
-                            }
-                        });
-                    }
-
-                    // 3. CA par Showroom Chart
-                    const canvasCA = document.getElementById('caChart');
-                    const ctxCA = canvasCA?.getContext('2d');
-                    if (ctxCA) {
-                        const existingChart = Chart.getChart(canvasCA);
-                        if (existingChart) existingChart.destroy();
-
-                        const showrooms = [...(StorageService.get(STORAGE_KEYS.SHOWROOMS) || [])];
-                        // Add "Principal" if there are orders without a designated showroom
-                        if (orders.some(o => !o.showroom || o.showroom === 'N/A' || o.showroom === 'null')) {
-                            if (!showrooms.includes('Principal')) showrooms.push('Principal');
                         }
+                    });
+                }
 
-                        const caData = showrooms.map(s => {
-                            const sOrders = orders.filter(o => {
-                                const orderShowroom = (!o.showroom || o.showroom === 'N/A' || o.showroom === 'null') ? 'Principal' : o.showroom;
-                                return orderShowroom === s && o.isValidated;
-                            });
-                            return sOrders.reduce((sum, o) => sum + this.convertCurrency(Number(o.totalAmount || 0), o.currency, reportingCurrency, o.date), 0);
-                        });
+                // 2. Revenue Chart
+                const canvasRevenue = document.getElementById('revenueChart');
+                const ctxRevenue = canvasRevenue?.getContext('2d');
+                if (ctxRevenue) {
+                    const existingChart = Chart.getChart(canvasRevenue);
+                    if (existingChart) existingChart.destroy();
 
-                        new Chart(ctxCA, {
-                            type: 'bar',
-                            data: {
-                                labels: showrooms.length ? showrooms : ['Aucun'],
-                                datasets: [{
-                                    label: 'Chiffre d\'Affaires (Ventes Validées)',
-                                    data: caData.length ? caData : [0],
-                                    backgroundColor: '#6366f1',
-                                    borderRadius: 6
-                                }]
+                    const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+                    const revenues = showrooms.map(s => {
+                        const sCash = cash.filter(t => t.showroom === s && t.type === 'In');
+                        return sCash.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+                    });
+
+                    new Chart(ctxRevenue, {
+                        type: 'bar',
+                        data: {
+                            labels: showrooms.length ? showrooms : ['Aucun'],
+                            datasets: [{
+                                label: 'Encaissements',
+                                data: revenues.length ? revenues : [0],
+                                backgroundColor: '#10b981',
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
                             },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: { display: false },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: (context) => {
-                                                return this.formatCurrency(context.raw, reportingCurrency);
-                                            }
-                                        }
-                                    }
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                    ticks: { color: '#9ca3af' }
                                 },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true,
-                                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                                        ticks: {
-                                            color: '#9ca3af',
-                                            callback: (value) => this.formatCurrency(value, reportingCurrency)
-                                        }
-                                    },
-                                    x: {
-                                        grid: { display: false },
-                                        ticks: { color: '#9ca3af' }
-                                    }
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: '#9ca3af' }
                                 }
                             }
-                        });
+                        }
+                    });
+                }
+
+                // 3. CA par Showroom Chart
+                const canvasCA = document.getElementById('caChart');
+                const ctxCA = canvasCA?.getContext('2d');
+                if (ctxCA) {
+                    const existingChart = Chart.getChart(canvasCA);
+                    if (existingChart) existingChart.destroy();
+
+                    const showrooms = [...(StorageService.get(STORAGE_KEYS.SHOWROOMS) || [])];
+                    // Add "Principal" if there are orders without a designated showroom
+                    if (orders.some(o => !o.showroom || o.showroom === 'N/A' || o.showroom === 'null')) {
+                        if (!showrooms.includes('Principal')) showrooms.push('Principal');
                     }
-                }, 300);
-            } catch (err) {
-                console.error("Dashboard Render Error:", err);
-                this.viewContainer.innerHTML = `<div style="padding: 2rem; color: red;">Erreur lors de l'affichage du dashboard: ${err.message}</div>`;
-            }
-        },
+
+                    const caData = showrooms.map(s => {
+                        const sOrders = orders.filter(o => {
+                            const orderShowroom = (!o.showroom || o.showroom === 'N/A' || o.showroom === 'null') ? 'Principal' : o.showroom;
+                            return orderShowroom === s && o.isValidated;
+                        });
+                        return sOrders.reduce((sum, o) => sum + this.convertCurrency(Number(o.totalAmount || 0), o.currency, reportingCurrency, o.date), 0);
+                    });
+
+                    new Chart(ctxCA, {
+                        type: 'bar',
+                        data: {
+                            labels: showrooms.length ? showrooms : ['Aucun'],
+                            datasets: [{
+                                label: 'Chiffre d\'Affaires (Ventes Validées)',
+                                data: caData.length ? caData : [0],
+                                backgroundColor: '#6366f1',
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => {
+                                            return this.formatCurrency(context.raw, reportingCurrency);
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                    ticks: {
+                                        color: '#9ca3af',
+                                        callback: (value) => this.formatCurrency(value, reportingCurrency)
+                                    }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: '#9ca3af' }
+                                }
+                            }
+                        }
+                    });
+                }
+            }, 300);
+        } catch (err) {
+            console.error("Dashboard Render Error:", err);
+            this.viewContainer.innerHTML = `<div style="padding: 2rem; color: red;">Erreur lors de l'affichage du dashboard: ${err.message}</div>`;
+        }
+    },
 
 
 
 
-        renderOrders(query = '') {
-            const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-            let orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+    renderOrders(query = '') {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        let orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
 
-            if (query) {
-                const q = query.toLowerCase();
-                orders = orders.filter(o => {
-                    const c = clients.find(cl => cl.id === o.clientId);
-                    const clientName = c ? (c.firstName + ' ' + c.lastName).toLowerCase() : '';
-                    return (
-                        String(o.id || '').toLowerCase().includes(q) ||
-                        clientName.includes(q) ||
-                        String(o.clientName || '').toLowerCase().includes(q) ||
-                        String(o.vehicleName || '').toLowerCase().includes(q) ||
-                        String(o.status || '').toLowerCase().includes(q) ||
-                        String(o.showroom || '').toLowerCase().includes(q) ||
-                        (clients.find(c => c.id === o.clientId)?.reference || '').toLowerCase().includes(q)
-                    );
-                });
-            }
+        if (query) {
+            const q = query.toLowerCase();
+            orders = orders.filter(o => {
+                const c = clients.find(cl => cl.id === o.clientId);
+                const clientName = c ? (c.firstName + ' ' + c.lastName).toLowerCase() : '';
+                return (
+                    String(o.id || '').toLowerCase().includes(q) ||
+                    clientName.includes(q) ||
+                    String(o.clientName || '').toLowerCase().includes(q) ||
+                    String(o.vehicleName || '').toLowerCase().includes(q) ||
+                    String(o.status || '').toLowerCase().includes(q) ||
+                    String(o.showroom || '').toLowerCase().includes(q) ||
+                    (clients.find(c => c.id === o.clientId)?.reference || '').toLowerCase().includes(q)
+                );
+            });
+        }
 
-            // Apply Advanced Filters
-            if (this.orderFilters.status) {
-                orders = orders.filter(o => o.status === this.orderFilters.status);
-            }
-            if (this.orderFilters.showroom) {
-                orders = orders.filter(o => o.showroom === this.orderFilters.showroom);
-            }
-            if (this.orderFilters.startDate) {
-                const start = new Date(this.orderFilters.startDate);
-                orders = orders.filter(o => new Date(o.date) >= start);
-            }
-            if (this.orderFilters.endDate) {
-                const end = new Date(this.orderFilters.endDate);
-                end.setHours(23, 59, 59, 999);
-                orders = orders.filter(o => new Date(o.date) <= end);
-            }
-            // Filter archived orders
-            if (!this.orderFilters.showArchived) {
-                orders = orders.filter(o => !o.archived);
-            }
+        // Apply Advanced Filters
+        if (this.orderFilters.status) {
+            orders = orders.filter(o => o.status === this.orderFilters.status);
+        }
+        if (this.orderFilters.showroom) {
+            orders = orders.filter(o => o.showroom === this.orderFilters.showroom);
+        }
+        if (this.orderFilters.startDate) {
+            const start = new Date(this.orderFilters.startDate);
+            orders = orders.filter(o => new Date(o.date) >= start);
+        }
+        if (this.orderFilters.endDate) {
+            const end = new Date(this.orderFilters.endDate);
+            end.setHours(23, 59, 59, 999);
+            orders = orders.filter(o => new Date(o.date) <= end);
+        }
+        // Filter archived orders
+        if (!this.orderFilters.showArchived) {
+            orders = orders.filter(o => !o.archived);
+        }
 
-            const canCreate = this.canAccess('orders.create');
-            const canEdit = this.canAccess('orders.edit');
-            const canDelete = this.canAccess('orders.delete');
-            const canValidate = this.canAccess('orders.validate');
-            const canViewFinancials = this.canAccess('orders.financials');
-            const canManageShipment = this.canAccess('shipments.manage');
-            // Helper for managing shipment logic inside rows if needed, or just rely on checks there
+        const canCreate = this.canAccess('orders.create');
+        const canEdit = this.canAccess('orders.edit');
+        const canDelete = this.canAccess('orders.delete');
+        const canValidate = this.canAccess('orders.validate');
+        const canViewFinancials = this.canAccess('orders.financials');
+        const canManageShipment = this.canAccess('shipments.manage');
+        // Helper for managing shipment logic inside rows if needed, or just rely on checks there
 
-            this.viewContainer.innerHTML = `
+        this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <h1>Gestion des Commandes</h1>
                     <div class="header-actions">
@@ -1967,18 +1968,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </thead>
                         <tbody>
                             ${orders.map(order => {
-                const vehicle = vehicles.find(v => v.id === order.vehicleId || (order.id && v.orderId === order.id));
-                const client = clients.find(c => c.id === order.clientId);
-                const vehicleName = vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : (order.vehicleName || 'Sans véhicule');
-                const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
-                const isShipped = !!shipment;
+            const vehicle = vehicles.find(v => v.id === order.vehicleId || (order.id && v.orderId === order.id));
+            const client = clients.find(c => c.id === order.clientId);
+            const vehicleName = vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : (order.vehicleName || 'Sans véhicule');
+            const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
+            const isShipped = !!shipment;
 
-                const paid = this.getPaidAmount(order.id);
-                const netPrice = (order.totalAmount || 0) - (order.discount || 0);
-                const balance = Math.max(0, netPrice - paid);
-                const isPaid = balance <= 0;
+            const paid = this.getPaidAmount(order.id);
+            const netPrice = (order.totalAmount || 0) - (order.discount || 0);
+            const balance = Math.max(0, netPrice - paid);
+            const isPaid = balance <= 0;
 
-                return `
+            return `
                                 <tr>
                                     <td style="font-weight: 600; color: var(--primary);">#${order.id}</td>
                                     <td>
@@ -1994,8 +1995,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <td style="text-align: center;"><span class="status-badge ${(order.status || 'EN COURS').toLowerCase().replace(/\s+/g, '-')}">${order.status || 'EN COURS'}</span></td>
                                     <td>
                                         ${order.isValidated ?
-                        '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.1); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2);"><i class="fas fa-check-circle"></i> Validée</span>' :
-                        '<span class="badge-pill" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fas fa-clock"></i> En attente</span>'}
+                    '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.1); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2);"><i class="fas fa-check-circle"></i> Validée</span>' :
+                    '<span class="badge-pill" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fas fa-clock"></i> En attente</span>'}
                                     </td>
                                     ${canViewFinancials ? `
                                     <td>
@@ -2013,17 +2014,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                                             <button class="btn-action" onclick="app.showOrderDetails('${order.id}')" title="Voir détails"><i class="fas fa-eye"></i></button>
                                             ${canEdit ? `<button class="btn-action" onclick="app.showEditOrderModal('${order.id}')" title="Modifier"><i class="fas fa-edit"></i></button>` : ''}
                                             ${canValidate ? (
-                        order.isValidated ?
-                            `<button class="btn-action" onclick="app.unvalidateOrder('${order.id}')" title="Dévalider la commande" style="color: var(--danger); border-color: var(--danger);"><i class="fas fa-undo"></i></button>` :
-                            `<button class="btn-action" onclick="app.validateOrder('${order.id}')" title="Valider la commande" style="color: var(--primary); border-color: var(--primary);"><i class="fas fa-check-double"></i></button>`
-                    ) : ''}
+                    order.isValidated ?
+                        `<button class="btn-action" onclick="app.unvalidateOrder('${order.id}')" title="Dévalider la commande" style="color: var(--danger); border-color: var(--danger);"><i class="fas fa-undo"></i></button>` :
+                        `<button class="btn-action" onclick="app.validateOrder('${order.id}')" title="Valider la commande" style="color: var(--primary); border-color: var(--primary);"><i class="fas fa-check-double"></i></button>`
+                ) : ''}
                                             ${canViewFinancials ? `<button class="btn-action" onclick="app.showCashModal('${order.id}')" title="Encaisser" style="color: var(--success); border-color: var(--success);"><i class="fas fa-hand-holding-dollar"></i></button>` : ''}
                                             ${canManageShipment ? (
-                        order.vehicleId ? (isShipped ?
-                            `<button class="btn-action" onclick="app.switchView('shipments')" title="Voir l'expédition (Envoyé)" style="color: var(--success); border-color: var(--success);"><i class="fas fa-check-circle"></i></button>` :
-                            `<button class="btn-action" onclick="app.showShipmentModal('${order.vehicleId}')" title="Expédier le véhicule"><i class="fas fa-shipping-fast"></i></button>`
-                        ) : `<button class="btn-action disabled" title="Aucun véhicule lié" style="opacity: 0.3; cursor: not-allowed;"><i class="fas fa-shipping-fast"></i></button>`
-                    ) : ''}
+                    order.vehicleId ? (isShipped ?
+                        `<button class="btn-action" onclick="app.switchView('shipments')" title="Voir l'expédition (Envoyé)" style="color: var(--success); border-color: var(--success);"><i class="fas fa-check-circle"></i></button>` :
+                        `<button class="btn-action" onclick="app.showShipmentModal('${order.vehicleId}')" title="Expédier le véhicule"><i class="fas fa-shipping-fast"></i></button>`
+                    ) : `<button class="btn-action disabled" title="Aucun véhicule lié" style="opacity: 0.3; cursor: not-allowed;"><i class="fas fa-shipping-fast"></i></button>`
+                ) : ''}
                                             ${canDelete ? `<button class="btn-action danger" onclick="app.deleteOrder('${order.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>` : ''}
                                         </div>
                                     </td>
@@ -2034,48 +2035,48 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </table>
                 </div>
             `;
-            this.attachOrderFilterListeners();
-        },
+        this.attachOrderFilterListeners();
+    },
 
-        attachOrderFilterListeners() {
-            const statusF = document.getElementById('filter-order-status');
-            const showroomF = document.getElementById('filter-order-showroom');
-            const startF = document.getElementById('filter-order-start');
-            const endF = document.getElementById('filter-order-end');
+    attachOrderFilterListeners() {
+        const statusF = document.getElementById('filter-order-status');
+        const showroomF = document.getElementById('filter-order-showroom');
+        const startF = document.getElementById('filter-order-start');
+        const endF = document.getElementById('filter-order-end');
 
-            if (statusF) statusF.addEventListener('change', (e) => { this.orderFilters.status = e.target.value; this.renderView('orders'); });
-            if (showroomF) showroomF.addEventListener('change', (e) => { this.orderFilters.showroom = e.target.value; this.renderView('orders'); });
-            if (startF) startF.addEventListener('change', (e) => { this.orderFilters.startDate = e.target.value; this.renderView('orders'); });
-            if (endF) endF.addEventListener('change', (e) => { this.orderFilters.endDate = e.target.value; this.renderView('orders'); });
+        if (statusF) statusF.addEventListener('change', (e) => { this.orderFilters.status = e.target.value; this.renderView('orders'); });
+        if (showroomF) showroomF.addEventListener('change', (e) => { this.orderFilters.showroom = e.target.value; this.renderView('orders'); });
+        if (startF) startF.addEventListener('change', (e) => { this.orderFilters.startDate = e.target.value; this.renderView('orders'); });
+        if (endF) endF.addEventListener('change', (e) => { this.orderFilters.endDate = e.target.value; this.renderView('orders'); });
 
-            const archivedF = document.getElementById('filter-order-archived');
-            if (archivedF) archivedF.addEventListener('change', (e) => { this.orderFilters.showArchived = e.target.checked; this.renderView('orders'); });
-        },
+        const archivedF = document.getElementById('filter-order-archived');
+        if (archivedF) archivedF.addEventListener('change', (e) => { this.orderFilters.showArchived = e.target.checked; this.renderView('orders'); });
+    },
 
-        resetOrderFilters() {
-            this.orderFilters = { status: '', showroom: '', startDate: '', endDate: '', showArchived: false };
-            this.renderView('orders');
-        },
+    resetOrderFilters() {
+        this.orderFilters = { status: '', showroom: '', startDate: '', endDate: '', showArchived: false };
+        this.renderView('orders');
+    },
 
-        renderClients(query = '') {
-            const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-            let clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+    renderClients(query = '') {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        let clients = StorageService.get(STORAGE_KEYS.CLIENTS);
 
-            if (query) {
-                const q = query.toLowerCase();
-                clients = clients.filter(c =>
-                    String(c.firstName || '').toLowerCase().includes(q) ||
-                    String(c.lastName || '').toLowerCase().includes(q) ||
-                    String(c.company || '').toLowerCase().includes(q) ||
-                    String(c.email || '').toLowerCase().includes(q) ||
-                    String(c.reference || '').toLowerCase().includes(q) ||
-                    String(c.address || '').toLowerCase().includes(q) ||
-                    String(c.passportNumber || '').toLowerCase().includes(q) ||
-                    String(c.nin || '').toLowerCase().includes(q)
-                );
-            }
+        if (query) {
+            const q = query.toLowerCase();
+            clients = clients.filter(c =>
+                String(c.firstName || '').toLowerCase().includes(q) ||
+                String(c.lastName || '').toLowerCase().includes(q) ||
+                String(c.company || '').toLowerCase().includes(q) ||
+                String(c.email || '').toLowerCase().includes(q) ||
+                String(c.reference || '').toLowerCase().includes(q) ||
+                String(c.address || '').toLowerCase().includes(q) ||
+                String(c.passportNumber || '').toLowerCase().includes(q) ||
+                String(c.nin || '').toLowerCase().includes(q)
+            );
+        }
 
-            this.viewContainer.innerHTML = `
+        this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <h1>Base Clients</h1>
                     <button class="btn-primary" onclick="app.showClientModal()"><i class="fas fa-plus"></i> Nouveau Client</button>
@@ -2107,10 +2108,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ${clients.length === 0 ? '<p style="grid-column: 1/-1; text-align: center; padding: 2rem;">Aucun client trouvé.</p>' : ''}
                 </div>
             `;
-        },
+    },
 
-        showClientModal() {
-            const modalHtml = `
+    showClientModal() {
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass">
                         <div class="modal-header">
@@ -2171,69 +2172,69 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('client-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleClientSubmission(new FormData(e.target));
-            });
-        },
+        document.getElementById('client-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleClientSubmission(new FormData(e.target));
+        });
+    },
 
 
-        async handleClientSubmission(formData) {
-            try {
-                const clientId = formData.get('clientId');
-                const newClient = {
-                    id: clientId || `c${Date.now()}`,
-                    firstName: formData.get('firstName'),
-                    lastName: formData.get('lastName'),
-                    email: formData.get('email'),
-                    phone: formData.get('phone'),
-                    address: formData.get('address'),
-                    passportNumber: formData.get('passportNumber'),
-                    nin: formData.get('nin'),
-                    reference: formData.get('reference') || '',
-                    showroom: formData.get('showroom') || 'Showroom Principal'
-                };
+    async handleClientSubmission(formData) {
+        try {
+            const clientId = formData.get('clientId');
+            const newClient = {
+                id: clientId || `c${Date.now()}`,
+                firstName: formData.get('firstName'),
+                lastName: formData.get('lastName'),
+                email: formData.get('email'),
+                phone: formData.get('phone'),
+                address: formData.get('address'),
+                passportNumber: formData.get('passportNumber'),
+                nin: formData.get('nin'),
+                reference: formData.get('reference') || '',
+                showroom: formData.get('showroom') || 'Showroom Principal'
+            };
 
-                if (clientId) {
-                    await StorageService.update(STORAGE_KEYS.CLIENTS, clientId, newClient);
-                    this.showToast('Client mis à jour', 'success');
-                } else {
-                    // Disable button to prevent double-click
-                    const submitBtn = document.querySelector('#client-form button[type="submit"]');
-                    if (submitBtn) {
-                        submitBtn.disabled = true;
-                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
-                    }
-
-                    try {
-                        await StorageService.add(STORAGE_KEYS.CLIENTS, newClient);
-                        this.showToast('Client ajouté avec succès', 'success');
-                    } catch (addError) {
-                        // Re-enable button on error
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.textContent = 'Ajouter le client';
-                        }
-                        throw addError; // Rethrow to main catch
-                    }
+            if (clientId) {
+                await StorageService.update(STORAGE_KEYS.CLIENTS, clientId, newClient);
+                this.showToast('Client mis à jour', 'success');
+            } else {
+                // Disable button to prevent double-click
+                const submitBtn = document.querySelector('#client-form button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
                 }
 
-                this.closeModal();
-                this.renderView(this.currentView);
-            } catch (error) {
-                console.error("Error in handleClientSubmission:", error);
-                this.showToast(`Erreur lors de l'enregistrement: ${error.message || 'Serveur injoignable'}`, "error");
+                try {
+                    await StorageService.add(STORAGE_KEYS.CLIENTS, newClient);
+                    this.showToast('Client ajouté avec succès', 'success');
+                } catch (addError) {
+                    // Re-enable button on error
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Ajouter le client';
+                    }
+                    throw addError; // Rethrow to main catch
+                }
             }
-        },
+
+            this.closeModal();
+            this.renderView(this.currentView);
+        } catch (error) {
+            console.error("Error in handleClientSubmission:", error);
+            this.showToast(`Erreur lors de l'enregistrement: ${error.message || 'Serveur injoignable'}`, "error");
+        }
+    },
 
 
-        showEditClientModal(id) {
-            const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === id);
-            if (!client) return;
+    showEditClientModal(id) {
+        const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === id);
+        if (!client) return;
 
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass">
                         <div class="modal-header">
@@ -2295,46 +2296,46 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('client-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleClientSubmission(new FormData(e.target));
-            });
-        },
+        document.getElementById('client-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleClientSubmission(new FormData(e.target));
+        });
+    },
 
-        renderVehicles(query = '') {
-            const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-            const canCreate = this.canAccess('vehicles.create');
-            const canEdit = this.canAccess('vehicles.edit');
-            const canDelete = this.canAccess('vehicles.delete');
-            const canViewPurchasePrice = this.canAccess('vehicles.purchase_price');
+    renderVehicles(query = '') {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        const canCreate = this.canAccess('vehicles.create');
+        const canEdit = this.canAccess('vehicles.edit');
+        const canDelete = this.canAccess('vehicles.delete');
+        const canViewPurchasePrice = this.canAccess('vehicles.purchase_price');
 
-            let vehicles = [];
-            try {
-                vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
-            } catch (e) {
-                console.error("Error loading vehicles", e);
-                this.showToast("Erreur lors du chargement des véhicules", "error");
-                vehicles = [];
-            }
+        let vehicles = [];
+        try {
+            vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        } catch (e) {
+            console.error("Error loading vehicles", e);
+            this.showToast("Erreur lors du chargement des véhicules", "error");
+            vehicles = [];
+        }
 
-            if (query) {
-                const q = query.toLowerCase();
-                vehicles = vehicles.filter(v =>
-                    String(v.brand || '').toLowerCase().includes(q) ||
-                    String(v.chassisNumber || '').toLowerCase().includes(q) ||
-                    String(v.motorization || '').toLowerCase().includes(q) ||
-                    String(v.trim || '').toLowerCase().includes(q) ||
-                    String(v.id || '').toLowerCase().includes(q)
-                );
-            }
+        if (query) {
+            const q = query.toLowerCase();
+            vehicles = vehicles.filter(v =>
+                String(v.brand || '').toLowerCase().includes(q) ||
+                String(v.chassisNumber || '').toLowerCase().includes(q) ||
+                String(v.motorization || '').toLowerCase().includes(q) ||
+                String(v.trim || '').toLowerCase().includes(q) ||
+                String(v.id || '').toLowerCase().includes(q)
+            );
+        }
 
-            if (!this.vehicleFilters.showArchived) {
-                vehicles = vehicles.filter(v => !v.archived);
-            }
+        if (!this.vehicleFilters.showArchived) {
+            vehicles = vehicles.filter(v => !v.archived);
+        }
 
-            this.viewContainer.innerHTML = `
+        this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div class="header-info">
                         <h1>Inventaire des Véhicules</h1>
@@ -2370,43 +2371,43 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </thead>
                         <tbody>
                             ${vehicles.map(v => {
-                // Determine status display based on strict status property
-                let statusClass = 'available';
-                let statusLabel = 'Disponible';
+            // Determine status display based on strict status property
+            let statusClass = 'available';
+            let statusLabel = 'Disponible';
 
-                switch (v.status) {
-                    case 'Reserved':
+            switch (v.status) {
+                case 'Reserved':
+                    statusClass = 'warning';
+                    statusLabel = 'Réservé';
+                    break;
+                case 'In Transit':
+                    statusClass = 'primary'; // reuse primary or add special class
+                    statusLabel = 'Expédié';
+                    break;
+                case 'Arrived':
+                    statusClass = 'success';
+                    statusLabel = 'Arrivé';
+                    break;
+                case 'Sold':
+                    statusClass = 'danger';
+                    statusLabel = 'Vendu';
+                    break;
+                default:
+                    // Fallback for legacy data sanity
+                    if (v.shipmentId) {
+                        statusClass = 'success';
+                        statusLabel = 'Expédié';
+                    } else if (v.orderId) {
                         statusClass = 'warning';
                         statusLabel = 'Réservé';
-                        break;
-                    case 'In Transit':
-                        statusClass = 'primary'; // reuse primary or add special class
-                        statusLabel = 'Expédié';
-                        break;
-                    case 'Arrived':
-                        statusClass = 'success';
-                        statusLabel = 'Arrivé';
-                        break;
-                    case 'Sold':
-                        statusClass = 'danger';
-                        statusLabel = 'Vendu';
-                        break;
-                    default:
-                        // Fallback for legacy data sanity
-                        if (v.shipmentId) {
-                            statusClass = 'success';
-                            statusLabel = 'Expédié';
-                        } else if (v.orderId) {
-                            statusClass = 'warning';
-                            statusLabel = 'Réservé';
-                        }
-                }
+                    }
+            }
 
-                const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-                const brandObj = brandsRaw.find(b => b.name === v.brand);
-                const brandLogo = brandObj && brandObj.logo ? brandObj.logo : null;
+            const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+            const brandObj = brandsRaw.find(b => b.name === v.brand);
+            const brandLogo = brandObj && brandObj.logo ? brandObj.logo : null;
 
-                return `
+            return `
                                 <tr>
                                     <td><strong>#${v.id}</strong></td>
                                     <td>
@@ -2438,25 +2439,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     </td>
                                 </tr>
                             `;
-            }).join('')}
+        }).join('')}
                             ${vehicles.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 3rem;">Aucun véhicule trouvé.</td></tr>' : ''}
                         </tbody>
                     </table>
                 </div>
             `;
-            const vArchivedF = document.getElementById('filter-vehicle-archived');
-            if (vArchivedF) {
-                vArchivedF.addEventListener('change', (e) => {
-                    this.vehicleFilters.showArchived = e.target.checked;
-                    this.renderView('vehicles');
-                });
-            }
-        },
+        const vArchivedF = document.getElementById('filter-vehicle-archived');
+        if (vArchivedF) {
+            vArchivedF.addEventListener('change', (e) => {
+                this.vehicleFilters.showArchived = e.target.checked;
+                this.renderView('vehicles');
+            });
+        }
+    },
 
-        showVehicleModal() {
-            const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-            const modalHtml = `
+    showVehicleModal() {
+        const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 700px;">
                         <div class="modal-header">
@@ -2591,110 +2592,110 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
                 `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            // Add event listener for brand change to update models
-            const brandSelect = document.querySelector('select[name="brand"]');
-            const modelSelect = document.getElementById('model-select');
-            const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+        // Add event listener for brand change to update models
+        const brandSelect = document.querySelector('select[name="brand"]');
+        const modelSelect = document.getElementById('model-select');
+        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
 
-            brandSelect.addEventListener('change', (e) => {
-                const selectedBrand = e.target.value;
-                modelSelect.innerHTML = '<option value="">Sélectionner d\'abord une marque...</option>';
-                if (selectedBrand && brandModels[selectedBrand]) {
-                    brandModels[selectedBrand].forEach(model => {
-                        modelSelect.innerHTML += `<option value="${model}">${model}</option>`;
-                    });
-                }
-            });
-
-            document.getElementById('vehicle-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleVehicleSubmission(new FormData(e.target));
-            });
-        },
-
-        setupVehiclePhotoUpload() {
-            const fileInput = document.getElementById('vehicle-image-file');
-            if (!fileInput) return;
-
-            fileInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const statusEl = document.getElementById('vehicle-upload-status');
-                const previewEl = document.getElementById('vehicle-image-preview');
-                const urlInput = document.getElementById('vehicle-image-url');
-
-                statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Téléchargement...';
-
-                try {
-                    const res = await ApiService.uploadFile(file);
-                    if (res.success) {
-                        urlInput.value = res.data.url;
-                        previewEl.innerHTML = `<img src="${res.data.url}" style="max-width: 100%; max-height: 100%;">`;
-                        statusEl.innerHTML = '<span style="color: var(--success);"><i class="fas fa-check"></i> Téléchargé avec succès</span>';
-                        this.showToast('Photo téléchargée', 'success');
-                    } else {
-                        throw new Error(res.message);
-                    }
-                } catch (err) {
-                    console.error('Upload error:', err);
-                    statusEl.innerHTML = `<span style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> ${err.message || 'Erreur'}</span>`;
-                    this.showToast('Erreur lors du téléchargement', 'error');
-                }
-            });
-        },
-
-        async handleVehicleSubmission(formData) {
-            try {
-                const vehicleId = formData.get('vehicleId');
-                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                const existingVehicle = vehicleId ? vehicles.find(v => v.id === vehicleId) : null;
-
-                const newVehicle = {
-                    id: vehicleId || this.generateVehicleId(formData.get('brand')),
-                    brand: formData.get('brand'),
-                    model: formData.get('model'),
-                    trim: formData.get('trim'),
-                    motorization: formData.get('motorization'),
-                    supplier: formData.get('supplier'),
-                    year: formData.get('year') ? parseInt(formData.get('year')) : null,
-                    month: formData.get('month'),
-                    mileage: formData.get('mileage') ? parseInt(formData.get('mileage')) : 0,
-                    chassisNumber: formData.get('chassisNumber'),
-                    color: formData.get('color'),
-                    condition: formData.get('condition'),
-                    purchasePrice: Number(formData.get('purchasePrice')),
-                    purchaseCurrency: formData.get('purchaseCurrency'),
-                    sellingCurrency: formData.get('sellingCurrency'),
-                    estimatedCustomsDuty: Number(formData.get('estimatedCustomsDuty')) || 0,
-                    remarks: formData.get('remarks'),
-                    options: formData.get('options'),
-                    category: formData.get('category'),
-                    orderId: existingVehicle ? existingVehicle.orderId : null,
-                    shipmentId: existingVehicle ? existingVehicle.shipmentId : null
-                };
-
-                if (vehicleId) {
-                    await StorageService.update(STORAGE_KEYS.VEHICLES, vehicleId, newVehicle);
-                } else {
-                    await StorageService.add(STORAGE_KEYS.VEHICLES, newVehicle);
-                }
-
-                this.closeModal();
-                this.renderView(this.currentView);
-                this.showToast(vehicleId ? 'Véhicule mis à jour' : 'Véhicule ajouté avec succès', 'success');
-            } catch (error) {
-                console.error("Error in handleVehicleSubmission:", error);
-                this.showToast(`Erreur lors de l'enregistrement: ${error.message || 'Serveur injoignable'}`, "error");
+        brandSelect.addEventListener('change', (e) => {
+            const selectedBrand = e.target.value;
+            modelSelect.innerHTML = '<option value="">Sélectionner d\'abord une marque...</option>';
+            if (selectedBrand && brandModels[selectedBrand]) {
+                brandModels[selectedBrand].forEach(model => {
+                    modelSelect.innerHTML += `<option value="${model}">${model}</option>`;
+                });
             }
-        },
+        });
+
+        document.getElementById('vehicle-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleVehicleSubmission(new FormData(e.target));
+        });
+    },
+
+    setupVehiclePhotoUpload() {
+        const fileInput = document.getElementById('vehicle-image-file');
+        if (!fileInput) return;
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const statusEl = document.getElementById('vehicle-upload-status');
+            const previewEl = document.getElementById('vehicle-image-preview');
+            const urlInput = document.getElementById('vehicle-image-url');
+
+            statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Téléchargement...';
+
+            try {
+                const res = await ApiService.uploadFile(file);
+                if (res.success) {
+                    urlInput.value = res.data.url;
+                    previewEl.innerHTML = `<img src="${res.data.url}" style="max-width: 100%; max-height: 100%;">`;
+                    statusEl.innerHTML = '<span style="color: var(--success);"><i class="fas fa-check"></i> Téléchargé avec succès</span>';
+                    this.showToast('Photo téléchargée', 'success');
+                } else {
+                    throw new Error(res.message);
+                }
+            } catch (err) {
+                console.error('Upload error:', err);
+                statusEl.innerHTML = `<span style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> ${err.message || 'Erreur'}</span>`;
+                this.showToast('Erreur lors du téléchargement', 'error');
+            }
+        });
+    },
+
+    async handleVehicleSubmission(formData) {
+        try {
+            const vehicleId = formData.get('vehicleId');
+            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+            const existingVehicle = vehicleId ? vehicles.find(v => v.id === vehicleId) : null;
+
+            const newVehicle = {
+                id: vehicleId || this.generateVehicleId(formData.get('brand')),
+                brand: formData.get('brand'),
+                model: formData.get('model'),
+                trim: formData.get('trim'),
+                motorization: formData.get('motorization'),
+                supplier: formData.get('supplier'),
+                year: formData.get('year') ? parseInt(formData.get('year')) : null,
+                month: formData.get('month'),
+                mileage: formData.get('mileage') ? parseInt(formData.get('mileage')) : 0,
+                chassisNumber: formData.get('chassisNumber'),
+                color: formData.get('color'),
+                condition: formData.get('condition'),
+                purchasePrice: Number(formData.get('purchasePrice')),
+                purchaseCurrency: formData.get('purchaseCurrency'),
+                sellingCurrency: formData.get('sellingCurrency'),
+                estimatedCustomsDuty: Number(formData.get('estimatedCustomsDuty')) || 0,
+                remarks: formData.get('remarks'),
+                options: formData.get('options'),
+                category: formData.get('category'),
+                orderId: existingVehicle ? existingVehicle.orderId : null,
+                shipmentId: existingVehicle ? existingVehicle.shipmentId : null
+            };
+
+            if (vehicleId) {
+                await StorageService.update(STORAGE_KEYS.VEHICLES, vehicleId, newVehicle);
+            } else {
+                await StorageService.add(STORAGE_KEYS.VEHICLES, newVehicle);
+            }
+
+            this.closeModal();
+            this.renderView(this.currentView);
+            this.showToast(vehicleId ? 'Véhicule mis à jour' : 'Véhicule ajouté avec succès', 'success');
+        } catch (error) {
+            console.error("Error in handleVehicleSubmission:", error);
+            this.showToast(`Erreur lors de l'enregistrement: ${error.message || 'Serveur injoignable'}`, "error");
+        }
+    },
 
 
 
-        showBatchVehicleModal() {
-            const modalHtml = `
+    showBatchVehicleModal() {
+        const modalHtml = `
                         <div class="modal-overlay">
                             <div class="modal-content glass" style="width: 90vw; max-width: 1200px;">
                                 <div class="modal-header">
@@ -2719,94 +2720,94 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                         </div>
                         `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('batch-vehicle-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleBatchVehicleSubmission(new FormData(e.target));
-            });
-        },
+        document.getElementById('batch-vehicle-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleBatchVehicleSubmission(new FormData(e.target));
+        });
+    },
 
-        async handleBatchVehicleSubmission(formData) {
-            try {
-                const rawData = formData.get('batchData');
-                if (!rawData) return;
+    async handleBatchVehicleSubmission(formData) {
+        try {
+            const rawData = formData.get('batchData');
+            if (!rawData) return;
 
-                const lines = rawData.trim().split('\n');
-                let successCount = 0;
-                let errorCount = 0;
+            const lines = rawData.trim().split('\n');
+            let successCount = 0;
+            let errorCount = 0;
 
-                for (const [index, line] of lines.entries()) {
-                    // Skip empty lines
-                    if (!line.trim()) continue;
+            for (const [index, line] of lines.entries()) {
+                // Skip empty lines
+                if (!line.trim()) continue;
 
-                    // Split by tab (Excel copy) or comma (CSV)
-                    const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+                // Split by tab (Excel copy) or comma (CSV)
+                const parts = line.includes('\t') ? line.split('\t') : line.split(',');
 
-                    // Skip header if it looks like one (contains "Marque" or "Brand")
-                    if (index === 0 && (line.toLowerCase().includes('marque') || line.toLowerCase().includes('brand'))) continue;
+                // Skip header if it looks like one (contains "Marque" or "Brand")
+                if (index === 0 && (line.toLowerCase().includes('marque') || line.toLowerCase().includes('brand'))) continue;
 
-                    // Expecting at least 5 columns to be useful
-                    if (parts.length < 5) {
-                        console.warn('Skipping invalid line:', line);
-                        errorCount++;
-                        continue;
-                    }
-
-                    // Clean data
-                    const cleanParts = parts.map(p => p.trim().replace(/^"|"$/g, ''));
-
-                    // Mapping all fields (16 columns)
-                    const [
-                        brand, motorization, trim, year, month, color, mileage,
-                        condition, chassisNumber, supplier, status,
-                        pPrice, pCurr, sPrice, sCurr, remarks
-                    ] = cleanParts;
-
-                    if (!brand || !chassisNumber) {
-                        errorCount++;
-                        continue;
-                    }
-
-                    const vehicle = {
-                        id: this.generateVehicleId(brand),
-                        brand: brand,
-                        motorization: motorization || 'Standard',
-                        trim: trim || '',
-                        year: parseInt(year) || new Date().getFullYear(),
-                        month: month || '',
-                        color: color || 'Non spécifié',
-                        mileage: parseInt(mileage) || 0,
-                        condition: condition || 'Nouveau',
-                        chassisNumber: chassisNumber,
-                        supplier: supplier || 'Import/Lot',
-                        status: status || 'Available',
-                        purchasePrice: parseFloat(pPrice) || 0,
-                        purchaseCurrency: pCurr || 'EUR',
-                        sellingPrice: parseFloat(sPrice) || 0,
-                        sellingCurrency: sCurr || 'EUR',
-                        remarks: remarks || 'Importé par lot',
-                        price: parseFloat(sPrice) || 0
-                    };
-
-                    await StorageService.add(STORAGE_KEYS.VEHICLES, vehicle);
-                    successCount++;
+                // Expecting at least 5 columns to be useful
+                if (parts.length < 5) {
+                    console.warn('Skipping invalid line:', line);
+                    errorCount++;
+                    continue;
                 }
 
-                this.closeModal();
-                this.showToast(`${successCount} véhicules importés avec succès (${errorCount} erreurs)`, successCount > 0 ? 'success' : 'warning');
-                this.renderView('catalog');
-            } catch (error) {
-                console.error("Error in handleBatchVehicleSubmission:", error);
-                this.showToast("Erreur lors de l'importation par lot", "error");
+                // Clean data
+                const cleanParts = parts.map(p => p.trim().replace(/^"|"$/g, ''));
+
+                // Mapping all fields (16 columns)
+                const [
+                    brand, motorization, trim, year, month, color, mileage,
+                    condition, chassisNumber, supplier, status,
+                    pPrice, pCurr, sPrice, sCurr, remarks
+                ] = cleanParts;
+
+                if (!brand || !chassisNumber) {
+                    errorCount++;
+                    continue;
+                }
+
+                const vehicle = {
+                    id: this.generateVehicleId(brand),
+                    brand: brand,
+                    motorization: motorization || 'Standard',
+                    trim: trim || '',
+                    year: parseInt(year) || new Date().getFullYear(),
+                    month: month || '',
+                    color: color || 'Non spécifié',
+                    mileage: parseInt(mileage) || 0,
+                    condition: condition || 'Nouveau',
+                    chassisNumber: chassisNumber,
+                    supplier: supplier || 'Import/Lot',
+                    status: status || 'Available',
+                    purchasePrice: parseFloat(pPrice) || 0,
+                    purchaseCurrency: pCurr || 'EUR',
+                    sellingPrice: parseFloat(sPrice) || 0,
+                    sellingCurrency: sCurr || 'EUR',
+                    remarks: remarks || 'Importé par lot',
+                    price: parseFloat(sPrice) || 0
+                };
+
+                await StorageService.add(STORAGE_KEYS.VEHICLES, vehicle);
+                successCount++;
             }
-        },
 
-        showEditVehicleModal(id) {
-            const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(c => c.id === id);
-            if (!vehicle) return;
+            this.closeModal();
+            this.showToast(`${successCount} véhicules importés avec succès (${errorCount} erreurs)`, successCount > 0 ? 'success' : 'warning');
+            this.renderView('catalog');
+        } catch (error) {
+            console.error("Error in handleBatchVehicleSubmission:", error);
+            this.showToast("Erreur lors de l'importation par lot", "error");
+        }
+    },
 
-            const modalHtml = `
+    showEditVehicleModal(id) {
+        const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(c => c.id === id);
+        if (!vehicle) return;
+
+        const modalHtml = `
                         <div class="modal-overlay">
                             <div class="modal-content glass" style="width: 700px;">
                                 <div class="modal-header">
@@ -2946,69 +2947,69 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                         </div>
                         `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            // Populate model dropdown and add event listener
-            const brandSelect = document.querySelector('select[name="brand"]');
-            const modelSelect = document.getElementById('edit-model-select');
-            const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
+        // Populate model dropdown and add event listener
+        const brandSelect = document.querySelector('select[name="brand"]');
+        const modelSelect = document.getElementById('edit-model-select');
+        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
 
-            // Function to populate models based on brand
-            const populateModels = (brand, selectedModel = null) => {
-                modelSelect.innerHTML = '<option value="">Sélectionner...</option>';
-                if (brand && brandModels[brand]) {
-                    brandModels[brand].forEach(model => {
-                        const selected = model === selectedModel ? 'selected' : '';
-                        modelSelect.innerHTML += `<option value="${model}" ${selected}>${model}</option>`;
-                    });
-                }
+        // Function to populate models based on brand
+        const populateModels = (brand, selectedModel = null) => {
+            modelSelect.innerHTML = '<option value="">Sélectionner...</option>';
+            if (brand && brandModels[brand]) {
+                brandModels[brand].forEach(model => {
+                    const selected = model === selectedModel ? 'selected' : '';
+                    modelSelect.innerHTML += `<option value="${model}" ${selected}>${model}</option>`;
+                });
+            }
+        };
+
+        // Initial population with existing vehicle data
+        populateModels(vehicle.brand, vehicle.model);
+
+        // Add change listener for brand
+        brandSelect.addEventListener('change', (e) => {
+            populateModels(e.target.value);
+        });
+
+        document.getElementById('vehicle-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleVehicleSubmission(new FormData(e.target));
+        });
+    },
+
+    renderSettings() {
+        // DEBUG: Verify entry
+        // alert('Debug: Entering renderSettings'); 
+
+        try {
+            if (!this.viewContainer) {
+                alert('Error: viewContainer is missing');
+                return;
+            }
+
+            const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {
+                companyName: 'TIBOU AUTO',
+                purchaseCurrency: 'EUR',
+                sellingCurrency: 'EUR',
+                customsCurrency: 'XAF',
+                theme: 'dark',
+                geminiModel: 'gemini-1.5-flash'
             };
 
-            // Initial population with existing vehicle data
-            populateModels(vehicle.brand, vehicle.model);
+            const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+            const motors = StorageService.get(STORAGE_KEYS.MOTORS) || [];
+            const colors = StorageService.get(STORAGE_KEYS.COLORS) || [];
+            const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || [];
+            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+            const showroomsRaw = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
+            const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+            const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
+            const carriers = StorageService.get(STORAGE_KEYS.CARRIERS) || [];
 
-            // Add change listener for brand
-            brandSelect.addEventListener('change', (e) => {
-                populateModels(e.target.value);
-            });
-
-            document.getElementById('vehicle-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleVehicleSubmission(new FormData(e.target));
-            });
-        },
-
-        renderSettings() {
-            // DEBUG: Verify entry
-            // alert('Debug: Entering renderSettings'); 
-
-            try {
-                if (!this.viewContainer) {
-                    alert('Error: viewContainer is missing');
-                    return;
-                }
-
-                const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {
-                    companyName: 'TIBOU AUTO',
-                    purchaseCurrency: 'EUR',
-                    sellingCurrency: 'EUR',
-                    customsCurrency: 'XAF',
-                    theme: 'dark',
-                    geminiModel: 'gemini-1.5-flash'
-                };
-
-                const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-                const motors = StorageService.get(STORAGE_KEYS.MOTORS) || [];
-                const colors = StorageService.get(STORAGE_KEYS.COLORS) || [];
-                const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || [];
-                const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-                const showroomsRaw = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-                const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-                const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
-                const carriers = StorageService.get(STORAGE_KEYS.CARRIERS) || [];
-
-                // Helper to render a list config section
-                const renderConfigSection = (title, icon, items, type) => `
+            // Helper to render a list config section
+            const renderConfigSection = (title, icon, items, type) => `
                         <div class="settings-section">
                             <h3><i class="${icon}"></i> ${title}</h3>
                             <div class="config-grid" id="config-${type}">
@@ -3028,7 +3029,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         </div>
                         `;
 
-                this.viewContainer.innerHTML = `
+            this.viewContainer.innerHTML = `
                         <div class="view-header">
                             <h1>Configuration</h1>
                             <p>Gérez les paramètres de votre application.</p>
@@ -3172,73 +3173,73 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         </div >
     `;
 
-                document.querySelectorAll('input[name="theme"]').forEach(input => {
-                    input.addEventListener('change', (e) => {
-                        // Start previewing immediately on selection
-                        this.applyTheme(e.target.value);
-                        // Update visual selection status
-                        document.querySelectorAll('.theme-card').forEach(card => card.classList.remove('active'));
-                        e.target.parentElement.classList.add('active');
-                    });
+            document.querySelectorAll('input[name="theme"]').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    // Start previewing immediately on selection
+                    this.applyTheme(e.target.value);
+                    // Update visual selection status
+                    document.querySelectorAll('.theme-card').forEach(card => card.classList.remove('active'));
+                    e.target.parentElement.classList.add('active');
                 });
+            });
 
-                document.getElementById('settings-form').addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.target);
-                    const newSettings = {
-                        companyName: formData.get('companyName'),
-                        purchaseCurrency: formData.get('purchaseCurrency'),
-                        sellingCurrency: formData.get('sellingCurrency'),
-                        customsCurrency: formData.get('customsCurrency'),
-                        theme: formData.get('theme') || settings.theme,
-                        geminiApiKey: formData.get('geminiApiKey'),
-                        geminiModel: formData.get('geminiModel'),
-                        useAiExtraction: formData.get('useAiExtraction') === 'on'
-                    };
-                    await StorageService.save(STORAGE_KEYS.SETTINGS, newSettings);
-                    this.applyTheme(newSettings.theme);
-                    this.showToast('Paramètres enregistrés avec succès !', 'success');
-                });
+            document.getElementById('settings-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newSettings = {
+                    companyName: formData.get('companyName'),
+                    purchaseCurrency: formData.get('purchaseCurrency'),
+                    sellingCurrency: formData.get('sellingCurrency'),
+                    customsCurrency: formData.get('customsCurrency'),
+                    theme: formData.get('theme') || settings.theme,
+                    geminiApiKey: formData.get('geminiApiKey'),
+                    geminiModel: formData.get('geminiModel'),
+                    useAiExtraction: formData.get('useAiExtraction') === 'on'
+                };
+                await StorageService.save(STORAGE_KEYS.SETTINGS, newSettings);
+                this.applyTheme(newSettings.theme);
+                this.showToast('Paramètres enregistrés avec succès !', 'success');
+            });
 
-            } catch (error) {
-                console.error("Render Settings Error:", error);
-                alert(`Erreur CRITIQUE Paramètres: ${error.message} \n${error.stack} `);
-                this.showToast(`Erreur d'affichage des paramètres: ${error.message}`, 'error');
-            }
-        },
+        } catch (error) {
+            console.error("Render Settings Error:", error);
+            alert(`Erreur CRITIQUE Paramètres: ${error.message} \n${error.stack} `);
+            this.showToast(`Erreur d'affichage des paramètres: ${error.message}`, 'error');
+        }
+    },
 
-        async syncAllData() {
-            const loadingToast = this.showToast('Synchronisation forcée en cours...', 'info', 0);
+    async syncAllData() {
+        const loadingToast = this.showToast('Synchronisation forcée en cours...', 'info', 0);
+        try {
+            await StorageService.syncAll();
+            if (loadingToast && loadingToast.remove) loadingToast.remove();
+            this.showToast('Données synchronisées avec succès !', 'success');
+            this.renderView(this.currentView);
+        } catch (err) {
+            if (loadingToast && loadingToast.remove) loadingToast.remove();
+            this.showToast('Échec de la synchronisation : ' + err.message, 'error');
+        }
+    },
+
+    async handleResetData() {
+        if (confirm("Attention : Cela va effacer toutes les données stockées dans votre navigateur et les recharger depuis le serveur. Continuer ?")) {
+            const loadingToast = this.showToast('Réinitialisation en cours...', 'info', 0);
             try {
+                StorageService.clearAllCache();
                 await StorageService.syncAll();
                 if (loadingToast && loadingToast.remove) loadingToast.remove();
-                this.showToast('Données synchronisées avec succès !', 'success');
-                this.renderView(this.currentView);
+                this.showToast('Cache réinitialisé et données rechargées !', 'success');
+                window.location.reload(); // Hard reload to ensure all states are clean
             } catch (err) {
                 if (loadingToast && loadingToast.remove) loadingToast.remove();
-                this.showToast('Échec de la synchronisation : ' + err.message, 'error');
+                this.showToast('Erreur lors de la réinitialisation : ' + err.message, 'error');
             }
-        },
+        }
+    },
 
-        async handleResetData() {
-            if (confirm("Attention : Cela va effacer toutes les données stockées dans votre navigateur et les recharger depuis le serveur. Continuer ?")) {
-                const loadingToast = this.showToast('Réinitialisation en cours...', 'info', 0);
-                try {
-                    StorageService.clearAllCache();
-                    await StorageService.syncAll();
-                    if (loadingToast && loadingToast.remove) loadingToast.remove();
-                    this.showToast('Cache réinitialisé et données rechargées !', 'success');
-                    window.location.reload(); // Hard reload to ensure all states are clean
-                } catch (err) {
-                    if (loadingToast && loadingToast.remove) loadingToast.remove();
-                    this.showToast('Erreur lors de la réinitialisation : ' + err.message, 'error');
-                }
-            }
-        },
-
-        renderBrandsSection(brands) {
-            brands = brands || [];
-            return `
+    renderBrandsSection(brands) {
+        brands = brands || [];
+        return `
                 <div class="settings-section">
                     <h3><i class="fas fa-copyright"></i> Marques de Véhicules</h3>
                     <div class="config-grid" id="config-brands-raw">
@@ -3265,11 +3266,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-        },
+    },
 
-        renderShowroomSection(showrooms) {
-            showrooms = showrooms || [];
-            return `
+    renderShowroomSection(showrooms) {
+        showrooms = showrooms || [];
+        return `
                 <div class="settings-section">
                     <h3><i class="fas fa-store"></i> Showrooms</h3>
                     <div class="config-grid" id="config-showrooms-raw">
@@ -3296,163 +3297,163 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-        },
+    },
 
-        async addBrand() {
-            const input = document.getElementById('new-brand-input');
-            const name = input.value.trim();
-            if (!name) return;
+    async addBrand() {
+        const input = document.getElementById('new-brand-input');
+        const name = input.value.trim();
+        if (!name) return;
 
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-            if (brands.some(b => b.name.toLowerCase() === name.toLowerCase())) {
-                this.showToast('Cette marque existe déjà', 'warning');
-                return;
-            }
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        if (brands.some(b => b.name.toLowerCase() === name.toLowerCase())) {
+            this.showToast('Cette marque existe déjà', 'warning');
+            return;
+        }
 
-            const newBrand = { name: name };
-            await StorageService.add(STORAGE_KEYS.BRANDS_RAW, newBrand);
+        const newBrand = { name: name };
+        await StorageService.add(STORAGE_KEYS.BRANDS_RAW, newBrand);
 
-            // Sync legacy BRANDS list (optional but kept for internal logic)
+        // Sync legacy BRANDS list (optional but kept for internal logic)
+        const legacyBrands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+        if (!legacyBrands.includes(name)) {
+            legacyBrands.push(name);
+            localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(legacyBrands));
+        }
+
+        this.renderSettings();
+        this.showToast('Marque ajoutée', 'success');
+        input.value = '';
+    },
+
+    async removeBrand(id) {
+        if (!confirm('Supprimer cette marque ?')) return;
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        const brand = brands.find(b => b.id === id);
+
+        if (brand) {
+            const brandName = brand.name;
+            await StorageService.delete(STORAGE_KEYS.BRANDS_RAW, id);
+
+            // Update legacy
             const legacyBrands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-            if (!legacyBrands.includes(name)) {
-                legacyBrands.push(name);
+            const legacyIndex = legacyBrands.indexOf(brandName);
+            if (legacyIndex > -1) {
+                legacyBrands.splice(legacyIndex, 1);
                 localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(legacyBrands));
             }
 
             this.renderSettings();
-            this.showToast('Marque ajoutée', 'success');
-            input.value = '';
-        },
+            this.showToast('Marque supprimée', 'info');
+        }
+    },
 
-        async removeBrand(id) {
-            if (!confirm('Supprimer cette marque ?')) return;
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-            const brand = brands.find(b => b.id === id);
+    async editBrand(id) {
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        const brand = brands.find(b => b.id === id);
+        if (!brand) return;
 
-            if (brand) {
-                const brandName = brand.name;
-                await StorageService.delete(STORAGE_KEYS.BRANDS_RAW, id);
+        const newName = prompt('Nouveau nom:', brand.name);
+        if (newName && newName !== brand.name) {
+            const oldName = brand.name;
+            brand.name = newName;
+            await StorageService.update(STORAGE_KEYS.BRANDS_RAW, id, brand);
 
-                // Update legacy
-                const legacyBrands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-                const legacyIndex = legacyBrands.indexOf(brandName);
-                if (legacyIndex > -1) {
-                    legacyBrands.splice(legacyIndex, 1);
-                    localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(legacyBrands));
-                }
-
-                this.renderSettings();
-                this.showToast('Marque supprimée', 'info');
-            }
-        },
-
-        async editBrand(id) {
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-            const brand = brands.find(b => b.id === id);
-            if (!brand) return;
-
-            const newName = prompt('Nouveau nom:', brand.name);
-            if (newName && newName !== brand.name) {
-                const oldName = brand.name;
-                brand.name = newName;
-                await StorageService.update(STORAGE_KEYS.BRANDS_RAW, id, brand);
-
-                // Update legacy
-                const legacyBrands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-                const idx = legacyBrands.indexOf(oldName);
-                if (idx > -1) {
-                    legacyBrands[idx] = newName;
-                    localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(legacyBrands));
-                }
-
-                this.renderSettings();
-                this.showToast('Marque modifiée', 'success');
-            }
-        },
-
-        async addShowroom() {
-            const input = document.getElementById('new-showroom-input');
-            const name = input.value.trim();
-            if (!name) return;
-
-            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-            if (showrooms.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-                this.showToast('Ce showroom existe déjà', 'warning');
-                return;
+            // Update legacy
+            const legacyBrands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+            const idx = legacyBrands.indexOf(oldName);
+            if (idx > -1) {
+                legacyBrands[idx] = newName;
+                localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(legacyBrands));
             }
 
-            const newRoom = { name: name };
-            await StorageService.add(STORAGE_KEYS.SHOWROOMS_RAW, newRoom);
+            this.renderSettings();
+            this.showToast('Marque modifiée', 'success');
+        }
+    },
+
+    async addShowroom() {
+        const input = document.getElementById('new-showroom-input');
+        const name = input.value.trim();
+        if (!name) return;
+
+        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
+        if (showrooms.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+            this.showToast('Ce showroom existe déjà', 'warning');
+            return;
+        }
+
+        const newRoom = { name: name };
+        await StorageService.add(STORAGE_KEYS.SHOWROOMS_RAW, newRoom);
+
+        // Sync legacy
+        const legacy = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+        if (!legacy.includes(name)) {
+            legacy.push(name);
+            localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(legacy));
+        }
+
+        this.renderSettings();
+        this.showToast('Showroom ajouté', 'success');
+        input.value = '';
+    },
+
+    async removeShowroom(id) {
+        if (!confirm('Supprimer ce showroom ?')) return;
+        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
+        const showroom = showrooms.find(s => s.id === id);
+
+        if (showroom) {
+            const name = showroom.name;
+            await StorageService.delete(STORAGE_KEYS.SHOWROOMS_RAW, id);
 
             // Sync legacy
             const legacy = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-            if (!legacy.includes(name)) {
-                legacy.push(name);
+            const lIdx = legacy.indexOf(name);
+            if (lIdx > -1) {
+                legacy.splice(lIdx, 1);
                 localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(legacy));
             }
 
             this.renderSettings();
-            this.showToast('Showroom ajouté', 'success');
-            input.value = '';
-        },
+            this.showToast('Showroom supprimé', 'info');
+        }
+    },
 
-        async removeShowroom(id) {
-            if (!confirm('Supprimer ce showroom ?')) return;
-            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-            const showroom = showrooms.find(s => s.id === id);
+    async editShowroom(id) {
+        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
+        const room = showrooms.find(s => s.id === id);
+        if (!room) return;
 
-            if (showroom) {
-                const name = showroom.name;
-                await StorageService.delete(STORAGE_KEYS.SHOWROOMS_RAW, id);
+        const newName = prompt('Nouveau nom:', room.name);
+        if (newName && newName !== room.name) {
+            const oldName = room.name;
+            room.name = newName;
+            await StorageService.update(STORAGE_KEYS.SHOWROOMS_RAW, id, room);
 
-                // Sync legacy
-                const legacy = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-                const lIdx = legacy.indexOf(name);
-                if (lIdx > -1) {
-                    legacy.splice(lIdx, 1);
-                    localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(legacy));
-                }
-
-                this.renderSettings();
-                this.showToast('Showroom supprimé', 'info');
+            // Update legacy
+            const legacy = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+            const idx = legacy.indexOf(oldName);
+            if (idx > -1) {
+                legacy[idx] = newName;
+                localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(legacy));
             }
-        },
 
-        async editShowroom(id) {
-            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-            const room = showrooms.find(s => s.id === id);
-            if (!room) return;
+            this.renderSettings();
+            this.showToast('Showroom modifié', 'success');
+        }
+    },
 
-            const newName = prompt('Nouveau nom:', room.name);
-            if (newName && newName !== room.name) {
-                const oldName = room.name;
-                room.name = newName;
-                await StorageService.update(STORAGE_KEYS.SHOWROOMS_RAW, id, room);
+    renderBrandModelsSection() {
+        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
 
-                // Update legacy
-                const legacy = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-                const idx = legacy.indexOf(oldName);
-                if (idx > -1) {
-                    legacy[idx] = newName;
-                    localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(legacy));
-                }
-
-                this.renderSettings();
-                this.showToast('Showroom modifié', 'success');
-            }
-        },
-
-        renderBrandModelsSection() {
-            const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-
-            return `
+        return `
                 <div class="settings-section">
                     <h3><i class="fas fa-list"></i> Modèles par Marque</h3>
                     <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                         ${brands.map(brand => {
-                const models = brandModels[brand] || [];
-                return `
+            const models = brandModels[brand] || [];
+            return `
                                 <div class="brand-models-container" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
                                     <h4 style="margin-bottom: 0.75rem; color: var(--primary); font-size: 0.95rem;">
                                         <i class="fas fa-car"></i> ${brand}
@@ -3473,183 +3474,183 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </div>
                                 </div>
                             `;
-            }).join('')}
+        }).join('')}
                     </div>
                 </div>
             `;
-        },
+    },
 
-        deleteVehicle(id) {
-            this.showConfirmModal('Supprimer ce véhicule ?', async () => {
-                try {
-                    await StorageService.delete(STORAGE_KEYS.VEHICLES, id);
-                    if (this.currentView === 'vehicles') this.renderVehicles();
-                    else this.renderView(this.currentView);
-                    this.showToast('Véhicule supprimé', 'info');
-                } catch (error) {
-                    console.error(error);
-                    this.showToast('Erreur lors de la suppression', 'error');
-                }
-            });
-        },
-
-        deleteOrder(id) {
-            this.showConfirmModal('Supprimer cette commande et toutes les dépenses associées ?', async () => {
-                try {
-                    await StorageService.delete(STORAGE_KEYS.ORDERS, id);
-                    if (this.currentView === 'orders') this.renderOrders();
-                    else this.renderView(this.currentView);
-                    this.showToast('Commande supprimée', 'info');
-                } catch (error) {
-                    console.error(error);
-                    this.showToast('Erreur lors de la suppression', 'error');
-                }
-            });
-        },
-
-        deleteClient(id) {
-            this.showConfirmModal('Supprimer ce client ?', async () => {
-                try {
-                    await StorageService.delete(STORAGE_KEYS.CLIENTS, id);
-                    if (this.currentView === 'clients') this.renderClients();
-                    else this.renderView(this.currentView);
-                    this.showToast('Client supprimé', 'info');
-                } catch (error) {
-                    console.error(error);
-                    this.showToast('Erreur lors de la suppression', 'error');
-                }
-            });
-        },
-
-        async addBrandModel(brandName) {
-            // Find brand ID
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-            const brandObj = brands.find(b => b.name === brandName);
-
-            if (!brandObj) {
-                this.showToast('Erreur: Marque non trouvée', 'error');
-                return;
+    deleteVehicle(id) {
+        this.showConfirmModal('Supprimer ce véhicule ?', async () => {
+            try {
+                await StorageService.delete(STORAGE_KEYS.VEHICLES, id);
+                if (this.currentView === 'vehicles') this.renderVehicles();
+                else this.renderView(this.currentView);
+                this.showToast('Véhicule supprimé', 'info');
+            } catch (error) {
+                console.error(error);
+                this.showToast('Erreur lors de la suppression', 'error');
             }
+        });
+    },
 
-            const input = document.getElementById(`input-model-${brandName.replace(/\s/g, '_')}`);
-            const modelName = input.value.trim();
+    deleteOrder(id) {
+        this.showConfirmModal('Supprimer cette commande et toutes les dépenses associées ?', async () => {
+            try {
+                await StorageService.delete(STORAGE_KEYS.ORDERS, id);
+                if (this.currentView === 'orders') this.renderOrders();
+                else this.renderView(this.currentView);
+                this.showToast('Commande supprimée', 'info');
+            } catch (error) {
+                console.error(error);
+                this.showToast('Erreur lors de la suppression', 'error');
+            }
+        });
+    },
 
-            if (!modelName) return;
+    deleteClient(id) {
+        this.showConfirmModal('Supprimer ce client ?', async () => {
+            try {
+                await StorageService.delete(STORAGE_KEYS.CLIENTS, id);
+                if (this.currentView === 'clients') this.renderClients();
+                else this.renderView(this.currentView);
+                this.showToast('Client supprimé', 'info');
+            } catch (error) {
+                console.error(error);
+                this.showToast('Erreur lors de la suppression', 'error');
+            }
+        });
+    },
 
+    async addBrandModel(brandName) {
+        // Find brand ID
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        const brandObj = brands.find(b => b.name === brandName);
+
+        if (!brandObj) {
+            this.showToast('Erreur: Marque non trouvée', 'error');
+            return;
+        }
+
+        const input = document.getElementById(`input-model-${brandName.replace(/\s/g, '_')}`);
+        const modelName = input.value.trim();
+
+        if (!modelName) return;
+
+        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+        if (!brandModels[brandName]) brandModels[brandName] = [];
+
+        if (brandModels[brandName].includes(modelName)) {
+            this.showToast(`Ce modèle existe déjà pour ${brandName}`, 'warning');
+            return;
+        }
+
+        try {
+            const res = await ApiService.addVehicleModel(brandObj.id, { name: modelName });
+            if (res.success) {
+                // Update local cache
+                brandModels[brandName].push(modelName);
+
+                // Also update the full brands object if needed, but BRAND_MODELS is the main source for this view
+                // We should definitely update BRANDS_RAW models list too
+                if (brandObj.models) brandObj.models.push(res.data);
+                else brandObj.models = [res.data];
+
+                localStorage.setItem(STORAGE_KEYS.BRANDS_RAW, JSON.stringify(brands));
+                localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
+
+                this.renderSettings();
+                this.showToast(`Modèle "${modelName}" ajouté à ${brandName}`, 'success');
+            } else {
+                this.showToast(res.message || 'Erreur lors de l\'ajout', 'error');
+            }
+        } catch (error) {
+            console.error(error);
+            this.showToast('Erreur serveur', 'error');
+        }
+    },
+
+    async removeBrandModel(brandName, modelName) {
+        // Find brand ID and Model ID
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        const brandObj = brands.find(b => b.name === brandName);
+
+        if (!brandObj) return;
+
+        // We need the model ID. It's in brandObj.models
+        const modelObj = (brandObj.models || []).find(m => m.name === modelName);
+
+        if (!modelObj) {
+            // Fallback: if we only have names in cache (migrated data), we might not have IDs easily 
+            // but BRANDS_RAW should be fully populated by syncAll.
+            console.warn('Model ID not found locally for deletion');
+            this.showToast('Erreur: impossible de trouver l\'ID du modèle', 'error');
+            return;
+        }
+
+        try {
+            const res = await ApiService.deleteVehicleModel(modelObj.id);
+            if (res.success) {
+                const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+                if (brandModels[brandName]) {
+                    brandModels[brandName] = brandModels[brandName].filter(m => m !== modelName);
+                    localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
+                }
+
+                // Update BRANDS_RAW
+                brandObj.models = brandObj.models.filter(m => m.id !== modelObj.id);
+                localStorage.setItem(STORAGE_KEYS.BRANDS_RAW, JSON.stringify(brands));
+
+                this.renderSettings();
+                this.showToast(`Modèle "${modelName}" supprimé`, 'info');
+            }
+        } catch (error) {
+            console.error(error);
+            this.showToast('Erreur serveur lors de la suppression', 'error');
+        }
+    },
+
+    async addConfigItem(type) {
+        const input = document.getElementById(`input-${type}`);
+        const value = input.value.trim();
+        if (!value) return;
+
+        const key = STORAGE_KEYS[type];
+        await StorageService.add(key, value);
+
+        if (type === 'BRANDS') {
             const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-            if (!brandModels[brandName]) brandModels[brandName] = [];
-
-            if (brandModels[brandName].includes(modelName)) {
-                this.showToast(`Ce modèle existe déjà pour ${brandName}`, 'warning');
-                return;
-            }
-
-            try {
-                const res = await ApiService.addVehicleModel(brandObj.id, { name: modelName });
-                if (res.success) {
-                    // Update local cache
-                    brandModels[brandName].push(modelName);
-
-                    // Also update the full brands object if needed, but BRAND_MODELS is the main source for this view
-                    // We should definitely update BRANDS_RAW models list too
-                    if (brandObj.models) brandObj.models.push(res.data);
-                    else brandObj.models = [res.data];
-
-                    localStorage.setItem(STORAGE_KEYS.BRANDS_RAW, JSON.stringify(brands));
-                    localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
-
-                    this.renderSettings();
-                    this.showToast(`Modèle "${modelName}" ajouté à ${brandName}`, 'success');
-                } else {
-                    this.showToast(res.message || 'Erreur lors de l\'ajout', 'error');
-                }
-            } catch (error) {
-                console.error(error);
-                this.showToast('Erreur serveur', 'error');
-            }
-        },
-
-        async removeBrandModel(brandName, modelName) {
-            // Find brand ID and Model ID
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-            const brandObj = brands.find(b => b.name === brandName);
-
-            if (!brandObj) return;
-
-            // We need the model ID. It's in brandObj.models
-            const modelObj = (brandObj.models || []).find(m => m.name === modelName);
-
-            if (!modelObj) {
-                // Fallback: if we only have names in cache (migrated data), we might not have IDs easily 
-                // but BRANDS_RAW should be fully populated by syncAll.
-                console.warn('Model ID not found locally for deletion');
-                this.showToast('Erreur: impossible de trouver l\'ID du modèle', 'error');
-                return;
-            }
-
-            try {
-                const res = await ApiService.deleteVehicleModel(modelObj.id);
-                if (res.success) {
-                    const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-                    if (brandModels[brandName]) {
-                        brandModels[brandName] = brandModels[brandName].filter(m => m !== modelName);
-                        localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
-                    }
-
-                    // Update BRANDS_RAW
-                    brandObj.models = brandObj.models.filter(m => m.id !== modelObj.id);
-                    localStorage.setItem(STORAGE_KEYS.BRANDS_RAW, JSON.stringify(brands));
-
-                    this.renderSettings();
-                    this.showToast(`Modèle "${modelName}" supprimé`, 'info');
-                }
-            } catch (error) {
-                console.error(error);
-                this.showToast('Erreur serveur lors de la suppression', 'error');
-            }
-        },
-
-        async addConfigItem(type) {
-            const input = document.getElementById(`input-${type}`);
-            const value = input.value.trim();
-            if (!value) return;
-
-            const key = STORAGE_KEYS[type];
-            await StorageService.add(key, value);
-
-            if (type === 'BRANDS') {
-                const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-                if (!brandModels[value]) {
-                    brandModels[value] = [];
-                    // Keep BRAND_MODELS as a simple structured object in localStorage for now
-                    // as it's not directly supported by a single API endpoint yet (models are per brand)
-                    localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
-                }
-            }
-
-            this.renderSettings();
-            this.showToast(`${value} ajouté`, 'success');
-            input.value = '';
-        },
-
-        async removeConfigItem(type, value) {
-            const key = STORAGE_KEYS[type];
-            await StorageService.delete(key, value);
-
-            if (type === 'BRANDS') {
-                const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-                delete brandModels[value];
+            if (!brandModels[value]) {
+                brandModels[value] = [];
+                // Keep BRAND_MODELS as a simple structured object in localStorage for now
+                // as it's not directly supported by a single API endpoint yet (models are per brand)
                 localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
             }
+        }
 
-            this.renderSettings();
-            this.showToast(`${value} supprimé`, 'info');
-        },
+        this.renderSettings();
+        this.showToast(`${value} ajouté`, 'success');
+        input.value = '';
+    },
 
-        showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast glass ${type}`;
-            toast.style.cssText = `
+    async removeConfigItem(type, value) {
+        const key = STORAGE_KEYS[type];
+        await StorageService.delete(key, value);
+
+        if (type === 'BRANDS') {
+            const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+            delete brandModels[value];
+            localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
+        }
+
+        this.renderSettings();
+        this.showToast(`${value} supprimé`, 'info');
+    },
+
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast glass ${type}`;
+        toast.style.cssText = `
                         position: fixed;
                         bottom: 2rem;
                         right: 2rem;
@@ -3668,30 +3669,30 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         transition: all 0.3s ease;
                         `;
 
-            const icon = type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
-            toast.innerHTML = `<i class="fas ${icon}" style="color: var(--primary)"></i> <span>${message}</span>`;
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+        toast.innerHTML = `<i class="fas ${icon}" style="color: var(--primary)"></i> <span>${message}</span>`;
 
-            document.body.appendChild(toast);
+        document.body.appendChild(toast);
 
-            // Trigger animation
+        // Trigger animation
+        setTimeout(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0)';
+        }, 10);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
             setTimeout(() => {
-                toast.style.opacity = '1';
-                toast.style.transform = 'translateY(0)';
-            }, 10);
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    },
 
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    if (document.body.contains(toast)) {
-                        document.body.removeChild(toast);
-                    }
-                }, 300);
-            }, 3000);
-        },
-
-        renderShowroomSection(showrooms) {
-            return `
+    renderShowroomSection(showrooms) {
+        return `
                 <div class="settings-section">
                     <h3><i class="fas fa-store"></i> Showrooms</h3>
                     <div class="data-table-container glass" style="margin-bottom: 15px;">
@@ -3732,14 +3733,14 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-        },
+    },
 
-        editShowroom(id) {
-            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-            const showroom = showrooms.find(s => s.id === id);
-            if (!showroom) return;
+    editShowroom(id) {
+        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
+        const showroom = showrooms.find(s => s.id === id);
+        if (!showroom) return;
 
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 500px;">
                         <div class="modal-header">
@@ -3776,41 +3777,41 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('edit-showroom-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = {
-                    name: formData.get('name'),
-                    city: formData.get('city'),
-                    address: formData.get('address'),
-                    phone: formData.get('phone'),
-                    manager: formData.get('manager')
-                };
+        document.getElementById('edit-showroom-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                city: formData.get('city'),
+                address: formData.get('address'),
+                phone: formData.get('phone'),
+                manager: formData.get('manager')
+            };
 
-                try {
-                    // Merge new data with existing showroom data for a full update
-                    const fullShowroom = { ...showroom, ...data };
-                    await StorageService.update(STORAGE_KEYS.SHOWROOMS_RAW, id, fullShowroom);
+            try {
+                // Merge new data with existing showroom data for a full update
+                const fullShowroom = { ...showroom, ...data };
+                await StorageService.update(STORAGE_KEYS.SHOWROOMS_RAW, id, fullShowroom);
 
-                    // Also update simple list
-                    const latestShowrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-                    const simpleList = latestShowrooms.map(s => s.name);
-                    localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(simpleList));
+                // Also update simple list
+                const latestShowrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
+                const simpleList = latestShowrooms.map(s => s.name);
+                localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(simpleList));
 
-                    this.closeModal();
-                    this.renderSettings();
-                    this.showToast('Showroom mis à jour', 'success');
-                } catch (error) {
-                    console.error(error);
-                    this.showToast('Erreur serveur', 'error');
-                }
-            });
-        },
+                this.closeModal();
+                this.renderSettings();
+                this.showToast('Showroom mis à jour', 'success');
+            } catch (error) {
+                console.error(error);
+                this.showToast('Erreur serveur', 'error');
+            }
+        });
+    },
 
-        renderBrandsSection(brands) {
-            return `
+    renderBrandsSection(brands) {
+        return `
                 <div class="settings-section">
                     <h3><i class="fas fa-car"></i> Marques</h3>
                     <div class="data-table-container glass" style="margin-bottom: 15px;">
@@ -3852,14 +3853,14 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-        },
+    },
 
-        editBrand(id) {
-            const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-            const brand = brands.find(b => b.id === id);
-            if (!brand) return;
+    editBrand(id) {
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        const brand = brands.find(b => b.id === id);
+        if (!brand) return;
 
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 500px;">
                         <div class="modal-header">
@@ -3896,76 +3897,76 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            // Handle file upload
-            document.getElementById('brand-logo-file').addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
+        // Handle file upload
+        document.getElementById('brand-logo-file').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-                const statusEl = document.getElementById('upload-status');
-                const previewEl = document.getElementById('brand-logo-preview');
-                const urlInput = document.getElementById('brand-logo-url');
+            const statusEl = document.getElementById('upload-status');
+            const previewEl = document.getElementById('brand-logo-preview');
+            const urlInput = document.getElementById('brand-logo-url');
 
-                statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Téléchargement...';
+            statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Téléchargement...';
 
-                try {
-                    const res = await ApiService.uploadFile(file);
-                    if (res.success) {
-                        urlInput.value = res.data.url;
-                        previewEl.innerHTML = `<img src="${res.data.url}" style="max-width: 100%; max-height: 100%;">`;
-                        statusEl.innerHTML = '<span style="color: var(--success);"><i class="fas fa-check"></i> Téléchargé avec succès</span>';
-                        this.showToast('Logo téléchargé', 'success');
-                    } else {
-                        throw new Error(res.message);
-                    }
-                } catch (err) {
-                    console.error('Upload error:', err);
-                    statusEl.innerHTML = `<span style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> ${err.message || 'Erreur'}</span>`;
-                    this.showToast('Erreur lors du téléchargement', 'error');
+            try {
+                const res = await ApiService.uploadFile(file);
+                if (res.success) {
+                    urlInput.value = res.data.url;
+                    previewEl.innerHTML = `<img src="${res.data.url}" style="max-width: 100%; max-height: 100%;">`;
+                    statusEl.innerHTML = '<span style="color: var(--success);"><i class="fas fa-check"></i> Téléchargé avec succès</span>';
+                    this.showToast('Logo téléchargé', 'success');
+                } else {
+                    throw new Error(res.message);
                 }
-            });
+            } catch (err) {
+                console.error('Upload error:', err);
+                statusEl.innerHTML = `<span style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> ${err.message || 'Erreur'}</span>`;
+                this.showToast('Erreur lors du téléchargement', 'error');
+            }
+        });
 
-            document.getElementById('edit-brand-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = {
-                    name: formData.get('name'),
-                    logo: formData.get('logo')
-                };
+        document.getElementById('edit-brand-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                logo: formData.get('logo')
+            };
 
-                try {
-                    const res = await ApiService.updateBrand(id, data);
-                    if (res.success) {
-                        // Update local cache
-                        const index = brands.findIndex(b => b.id === id);
-                        if (index !== -1) {
-                            brands[index] = res.data; // Update full object
-                            localStorage.setItem(STORAGE_KEYS.BRANDS_RAW, JSON.stringify(brands));
+            try {
+                const res = await ApiService.updateBrand(id, data);
+                if (res.success) {
+                    // Update local cache
+                    const index = brands.findIndex(b => b.id === id);
+                    if (index !== -1) {
+                        brands[index] = res.data; // Update full object
+                        localStorage.setItem(STORAGE_KEYS.BRANDS_RAW, JSON.stringify(brands));
 
-                            // Update name list
-                            const simpleList = brands.map(b => b.name);
-                            localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(simpleList));
-                        }
-
-                        this.closeModal();
-                        this.renderSettings();
-                        this.showToast('Marque mise à jour', 'success');
-                    } else {
-                        this.showToast(res.message || 'Erreur lors de la mise à jour', 'error');
+                        // Update name list
+                        const simpleList = brands.map(b => b.name);
+                        localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(simpleList));
                     }
-                } catch (error) {
-                    console.error(error);
-                    this.showToast('Erreur serveur', 'error');
+
+                    this.closeModal();
+                    this.renderSettings();
+                    this.showToast('Marque mise à jour', 'success');
+                } else {
+                    this.showToast(res.message || 'Erreur lors de la mise à jour', 'error');
                 }
-            });
-        },
+            } catch (error) {
+                console.error(error);
+                this.showToast('Erreur serveur', 'error');
+            }
+        });
+    },
 
-        renderUserManagementSection() {
-            const users = StorageService.get(STORAGE_KEYS.USERS) || [];
-            const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
+    renderUserManagementSection() {
+        const users = StorageService.get(STORAGE_KEYS.USERS) || [];
+        const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
 
-            return `
+        return `
                         <div class="settings-section">
                             <h3><i class="fas fa-users-cog"></i> Gestion des Utilisateurs</h3>
                             <div class="data-table-container glass" style="margin-bottom: 20px;">
@@ -4032,45 +4033,45 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                         </div>
                         `;
-        },
+    },
 
-        async addUser() {
-            const name = document.getElementById('user-name').value.trim();
-            const username = document.getElementById('user-username').value.trim();
-            const password = document.getElementById('user-password').value.trim();
-            const role = document.getElementById('user-role').value;
+    async addUser() {
+        const name = document.getElementById('user-name').value.trim();
+        const username = document.getElementById('user-username').value.trim();
+        const password = document.getElementById('user-password').value.trim();
+        const role = document.getElementById('user-role').value;
 
-            if (!name || !username || !password || !role) {
-                this.showToast("Veuillez remplir tous les champs", "warning");
-                return;
-            }
+        if (!name || !username || !password || !role) {
+            this.showToast("Veuillez remplir tous les champs", "warning");
+            return;
+        }
 
-            const newUser = {
-                id: `u${Date.now()}`,
-                name,
-                username,
-                password,
-                role
-            };
+        const newUser = {
+            id: `u${Date.now()}`,
+            name,
+            username,
+            password,
+            role
+        };
 
-            await StorageService.add(STORAGE_KEYS.USERS, newUser);
-            this.renderSettings();
-            this.showToast(`Utilisateur ${name} créé avec succès`, "success");
+        await StorageService.add(STORAGE_KEYS.USERS, newUser);
+        this.renderSettings();
+        this.showToast(`Utilisateur ${name} créé avec succès`, "success");
 
-            // Clear fields
-            document.getElementById('user-name').value = '';
-            document.getElementById('user-username').value = '';
-            document.getElementById('user-password').value = '';
-        },
+        // Clear fields
+        document.getElementById('user-name').value = '';
+        document.getElementById('user-username').value = '';
+        document.getElementById('user-password').value = '';
+    },
 
-        showEditUserModal(id) {
-            const users = StorageService.get(STORAGE_KEYS.USERS);
-            const user = users.find(u => u.id === id);
-            if (!user) return;
+    showEditUserModal(id) {
+        const users = StorageService.get(STORAGE_KEYS.USERS);
+        const user = users.find(u => u.id === id);
+        if (!user) return;
 
-            const roles = StorageService.get(STORAGE_KEYS.ROLES);
+        const roles = StorageService.get(STORAGE_KEYS.ROLES);
 
-            const modalHtml = `
+        const modalHtml = `
                         <div class="modal-overlay">
                             <div class="modal-content glass" style="width: 500px;">
                                 <div class="modal-header">
@@ -4105,106 +4106,106 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                         </div>
                         `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('edit-user-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const updatedUser = {
-                    id: formData.get('id'),
-                    name: formData.get('name'),
-                    username: formData.get('username'),
-                    password: formData.get('password'),
-                    role: formData.get('role') // Mapping will be handled by StorageService
-                };
-
-                try {
-                    await StorageService.update(STORAGE_KEYS.USERS, updatedUser.id, updatedUser);
-
-                    const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-                    if (currentUser && currentUser.id === updatedUser.id) {
-                        // Refresh session user data from storage
-                        const users = StorageService.get(STORAGE_KEYS.USERS);
-                        const freshUser = users.find(u => u.id === updatedUser.id);
-                        if (freshUser) {
-                            const updatedSession = {
-                                ...currentUser,
-                                username: freshUser.username,
-                                name: freshUser.name,
-                                role: freshUser.role, // ID of the role
-                                clientId: freshUser.clientId
-                            };
-                            await StorageService.save(STORAGE_KEYS.CURRENT_USER, updatedSession);
-                            this.renderSidebar();
-                        }
-                    }
-
-                    this.closeModal();
-                    this.renderSettings();
-                    this.showToast("Utilisateur mis à jour", "success");
-                } catch (error) {
-                    console.error(error);
-                    this.showToast("Erreur lors de la mise à jour", "error");
-                }
-            });
-        },
-
-        removeUser(id) {
-            this.showConfirmModal("Supprimer cet utilisateur ?", async () => {
-                await StorageService.delete(STORAGE_KEYS.USERS, id);
-                this.renderSettings();
-                this.showToast("Utilisateur supprimé", "info");
-            });
-        },
-
-        async resetAdminPassword() {
-            if (!confirm('Voulez-vous vraiment réinitialiser le mot de passe de l\'administrateur à "admin123" ?')) return;
+        document.getElementById('edit-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const updatedUser = {
+                id: formData.get('id'),
+                name: formData.get('name'),
+                username: formData.get('username'),
+                password: formData.get('password'),
+                role: formData.get('role') // Mapping will be handled by StorageService
+            };
 
             try {
-                const res = await ApiService.resetAdminPassword();
-                if (res.success) {
-                    this.showToast(res.message, "success");
-                } else {
-                    this.showToast(res.message || "Erreur lors de la réinitialisation", "error");
+                await StorageService.update(STORAGE_KEYS.USERS, updatedUser.id, updatedUser);
+
+                const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+                if (currentUser && currentUser.id === updatedUser.id) {
+                    // Refresh session user data from storage
+                    const users = StorageService.get(STORAGE_KEYS.USERS);
+                    const freshUser = users.find(u => u.id === updatedUser.id);
+                    if (freshUser) {
+                        const updatedSession = {
+                            ...currentUser,
+                            username: freshUser.username,
+                            name: freshUser.name,
+                            role: freshUser.role, // ID of the role
+                            clientId: freshUser.clientId
+                        };
+                        await StorageService.save(STORAGE_KEYS.CURRENT_USER, updatedSession);
+                        this.renderSidebar();
+                    }
                 }
+
+                this.closeModal();
+                this.renderSettings();
+                this.showToast("Utilisateur mis à jour", "success");
             } catch (error) {
                 console.error(error);
-                this.showToast("Erreur serveur lors de la réinitialisation", "error");
+                this.showToast("Erreur lors de la mise à jour", "error");
             }
-        },
+        });
+    },
 
-        canAccess(view) {
-            const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-            if (!currentUser) return false;
+    removeUser(id) {
+        this.showConfirmModal("Supprimer cet utilisateur ?", async () => {
+            await StorageService.delete(STORAGE_KEYS.USERS, id);
+            this.renderSettings();
+            this.showToast("Utilisateur supprimé", "info");
+        });
+    },
 
-            // Admin always has full access
-            if (currentUser.role === 'admin') return true;
+    async resetAdminPassword() {
+        if (!confirm('Voulez-vous vraiment réinitialiser le mot de passe de l\'administrateur à "admin123" ?')) return;
 
-            const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
-            const userRole = roles.find(r => r.id === currentUser.role);
-
-            // If user has 'all' or 'view_all' permission, grant access to everything
-            if (userRole && (userRole.permissions.includes('all') || userRole.permissions.includes('view_all'))) {
-                return true;
+        try {
+            const res = await ApiService.resetAdminPassword();
+            if (res.success) {
+                this.showToast(res.message, "success");
+            } else {
+                this.showToast(res.message || "Erreur lors de la réinitialisation", "error");
             }
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur serveur lors de la réinitialisation", "error");
+        }
+    },
 
-            if (!userRole) return false;
-            return userRole.permissions.includes(view);
-        },
+    canAccess(view) {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        if (!currentUser) return false;
 
-        renderSidebar() {
-            const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-            if (!currentUser) return;
+        // Admin always has full access
+        if (currentUser.role === 'admin') return true;
 
-            const roles = StorageService.get(STORAGE_KEYS.ROLES);
-            const userRole = roles.find(r => r.id === currentUser.role);
+        const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
+        const userRole = roles.find(r => r.id === currentUser.role);
 
-            if (!userRole) return;
+        // If user has 'all' or 'view_all' permission, grant access to everything
+        if (userRole && (userRole.permissions.includes('all') || userRole.permissions.includes('view_all'))) {
+            return true;
+        }
 
-            // Update user profile in sidebar if exists
-            const profileArea = document.querySelector('.user-profile');
-            if (profileArea) {
-                profileArea.innerHTML = `
+        if (!userRole) return false;
+        return userRole.permissions.includes(view);
+    },
+
+    renderSidebar() {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        if (!currentUser) return;
+
+        const roles = StorageService.get(STORAGE_KEYS.ROLES);
+        const userRole = roles.find(r => r.id === currentUser.role);
+
+        if (!userRole) return;
+
+        // Update user profile in sidebar if exists
+        const profileArea = document.querySelector('.user-profile');
+        if (profileArea) {
+            profileArea.innerHTML = `
                     <div class="user-avatar">
                         <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=6366f1&color=fff" alt="${currentUser.name}">
                     </div>
@@ -4216,37 +4217,37 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 `;
+        }
+
+
+        // Hide/Show nav links based on permissions
+        document.querySelectorAll('.nav-link').forEach(link => {
+            const view = link.getAttribute('data-view');
+            if (this.canAccess(view)) {
+                link.style.display = 'flex';
+            } else {
+                link.style.display = 'none';
             }
+        });
 
+        // Specific check for audit log visibility (redundant but safe)
+        const auditLink = document.querySelector('[data-view="audit"]');
+        if (auditLink) {
+            auditLink.style.display = (currentUser.role === 'admin') ? 'flex' : 'none';
+        }
+    },
 
-            // Hide/Show nav links based on permissions
-            document.querySelectorAll('.nav-link').forEach(link => {
-                const view = link.getAttribute('data-view');
-                if (this.canAccess(view)) {
-                    link.style.display = 'flex';
-                } else {
-                    link.style.display = 'none';
-                }
-            });
+    logout() {
+        if (confirm("Voulez-vous vous déconnecter ?")) {
+            localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+            window.location.reload();
+        }
+    },
 
-            // Specific check for audit log visibility (redundant but safe)
-            const auditLink = document.querySelector('[data-view="audit"]');
-            if (auditLink) {
-                auditLink.style.display = (currentUser.role === 'admin') ? 'flex' : 'none';
-            }
-        },
+    renderRoleManagementSection() {
+        const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
 
-        logout() {
-            if (confirm("Voulez-vous vous déconnecter ?")) {
-                localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-                window.location.reload();
-            }
-        },
-
-        renderRoleManagementSection() {
-            const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
-
-            return `
+        return `
                 <div class="settings-section">
                     <h3><i class="fas fa-shield-alt"></i> Gestion des Droits d'Accès</h3>
                     <div class="data-table-container glass">
@@ -4264,9 +4265,9 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                         <td><strong>${r.name}</strong></td>
                                         <td>
                                             ${r.id === 'admin' ?
-                    '<span class="badge-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);">Accès Total</span>' :
-                    `<span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.2);">${r.permissions.length} permissions actives</span>`
-                }
+                '<span class="badge-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);">Accès Total</span>' :
+                `<span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.2);">${r.permissions.length} permissions actives</span>`
+            }
                                         </td>
                                         <td class="table-actions">
                                             <button type="button" class="btn-action" onclick="app.showEditRoleModal('${r.id}')" title="Modifier les droits">
@@ -4300,104 +4301,104 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-        },
+    },
 
-        async addRole() {
-            const id = document.getElementById('role-id').value.trim().toLowerCase();
-            const name = document.getElementById('role-name').value.trim();
+    async addRole() {
+        const id = document.getElementById('role-id').value.trim().toLowerCase();
+        const name = document.getElementById('role-name').value.trim();
 
-            if (!id || !name) {
-                this.showToast("Veuillez remplir l'ID et le Nom du rôle", "warning");
-                return;
-            }
+        if (!id || !name) {
+            this.showToast("Veuillez remplir l'ID et le Nom du rôle", "warning");
+            return;
+        }
 
-            const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
-            if (roles.find(r => r.id === id)) {
-                this.showToast("Un rôle avec cet ID existe déjà", "error");
-                return;
-            }
+        const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
+        if (roles.find(r => r.id === id)) {
+            this.showToast("Un rôle avec cet ID existe déjà", "error");
+            return;
+        }
 
-            const newRole = {
-                id,
-                name,
-                permissions: ['dashboard'] // Default permission
-            };
+        const newRole = {
+            id,
+            name,
+            permissions: ['dashboard'] // Default permission
+        };
 
+        try {
+            await StorageService.add(STORAGE_KEYS.ROLES, newRole);
+            this.renderSettings();
+            this.showToast(`Rôle "${name}" créé avec succès`, "success");
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur lors de la création du rôle", "error");
+        }
+    },
+
+    removeRole(id) {
+        this.showConfirmModal(`Supprimer le rôle "${id}" ?`, async () => {
             try {
-                await StorageService.add(STORAGE_KEYS.ROLES, newRole);
+                await StorageService.delete(STORAGE_KEYS.ROLES, id);
                 this.renderSettings();
-                this.showToast(`Rôle "${name}" créé avec succès`, "success");
+                this.showToast("Rôle supprimé", "info");
             } catch (error) {
                 console.error(error);
-                this.showToast("Erreur lors de la création du rôle", "error");
+                this.showToast("Erreur lors de la suppression", "error");
             }
-        },
+        });
+    },
 
-        removeRole(id) {
-            this.showConfirmModal(`Supprimer le rôle "${id}" ?`, async () => {
-                try {
-                    await StorageService.delete(STORAGE_KEYS.ROLES, id);
-                    this.renderSettings();
-                    this.showToast("Rôle supprimé", "info");
-                } catch (error) {
-                    console.error(error);
-                    this.showToast("Erreur lors de la suppression", "error");
-                }
-            });
-        },
+    showEditRoleModal(roleId) {
+        const roles = StorageService.get(STORAGE_KEYS.ROLES);
+        const role = roles.find(r => r.id === roleId);
+        if (!role) return;
 
-        showEditRoleModal(roleId) {
-            const roles = StorageService.get(STORAGE_KEYS.ROLES);
-            const role = roles.find(r => r.id === roleId);
-            if (!role) return;
+        const permissionGroups = {
+            'Tableau de Bord': [
+                { id: 'dashboard', label: 'Accès Vue' }
+            ],
+            'Alertes': [
+                { id: 'alerts', label: 'Accès Vue' }
+            ],
+            'Commandes': [
+                { id: 'orders', label: 'Accès Vue' },
+                { id: 'orders.create', label: 'Créer' },
+                { id: 'orders.edit', label: 'Modifier' },
+                { id: 'orders.delete', label: 'Supprimer' },
+                { id: 'orders.financials', label: 'Voir Finances (Prix/Marges)' },
+                { id: 'orders.validate', label: 'Valider/Dévalider' }
+            ],
+            'Véhicules': [
+                { id: 'vehicles', label: 'Accès Vue' },
+                { id: 'vehicles.create', label: 'Créer' },
+                { id: 'vehicles.edit', label: 'Modifier' },
+                { id: 'vehicles.delete', label: 'Supprimer' },
+                { id: 'vehicles.purchase_price', label: 'Voir Prix Achat' }
+            ],
+            'Clients': [
+                { id: 'clients', label: 'Accès Vue' },
+                { id: 'clients.create', label: 'Créer' },
+                { id: 'clients.edit', label: 'Modifier' },
+                { id: 'clients.delete', label: 'Supprimer' }
+            ],
+            'Expédition': [
+                { id: 'shipments', label: 'Accès Vue' },
+                { id: 'shipments.manage', label: 'Gérer' }
+            ],
+            'Caisse': [
+                { id: 'cash', label: 'Accès Vue' },
+                { id: 'cash.manage', label: 'Gérer' }
+            ],
+            'Paramètres': [
+                { id: 'settings', label: 'Accès Vue' },
+                { id: 'settings.users', label: 'Gérer Utilisateurs' }
+            ],
+            'Autres': [
+                { id: 'exchange-rates', label: 'Taux de Chang' },
+                { id: 'verification', label: 'Verif Doc' }
+            ]
+        };
 
-            const permissionGroups = {
-                'Tableau de Bord': [
-                    { id: 'dashboard', label: 'Accès Vue' }
-                ],
-                'Alertes': [
-                    { id: 'alerts', label: 'Accès Vue' }
-                ],
-                'Commandes': [
-                    { id: 'orders', label: 'Accès Vue' },
-                    { id: 'orders.create', label: 'Créer' },
-                    { id: 'orders.edit', label: 'Modifier' },
-                    { id: 'orders.delete', label: 'Supprimer' },
-                    { id: 'orders.financials', label: 'Voir Finances (Prix/Marges)' },
-                    { id: 'orders.validate', label: 'Valider/Dévalider' }
-                ],
-                'Véhicules': [
-                    { id: 'vehicles', label: 'Accès Vue' },
-                    { id: 'vehicles.create', label: 'Créer' },
-                    { id: 'vehicles.edit', label: 'Modifier' },
-                    { id: 'vehicles.delete', label: 'Supprimer' },
-                    { id: 'vehicles.purchase_price', label: 'Voir Prix Achat' }
-                ],
-                'Clients': [
-                    { id: 'clients', label: 'Accès Vue' },
-                    { id: 'clients.create', label: 'Créer' },
-                    { id: 'clients.edit', label: 'Modifier' },
-                    { id: 'clients.delete', label: 'Supprimer' }
-                ],
-                'Expédition': [
-                    { id: 'shipments', label: 'Accès Vue' },
-                    { id: 'shipments.manage', label: 'Gérer' }
-                ],
-                'Caisse': [
-                    { id: 'cash', label: 'Accès Vue' },
-                    { id: 'cash.manage', label: 'Gérer' }
-                ],
-                'Paramètres': [
-                    { id: 'settings', label: 'Accès Vue' },
-                    { id: 'settings.users', label: 'Gérer Utilisateurs' }
-                ],
-                'Autres': [
-                    { id: 'exchange-rates', label: 'Taux de Chang' },
-                    { id: 'verification', label: 'Verif Doc' }
-                ]
-            };
-
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 800px; max-height: 90vh; overflow-y: auto;">
                         <div class="modal-header">
@@ -4436,42 +4437,42 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 </div>
             `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('edit-role-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (role.id === 'admin') return;
+        document.getElementById('edit-role-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (role.id === 'admin') return;
 
-                const formData = new FormData(e.target);
-                const selectedPermissions = formData.getAll('permissions');
+            const formData = new FormData(e.target);
+            const selectedPermissions = formData.getAll('permissions');
 
-                const roleList = StorageService.get(STORAGE_KEYS.ROLES);
-                const index = roleList.findIndex(r => r.id === roleId);
-                if (index !== -1) {
-                    roleList[index].permissions = selectedPermissions;
-                    await StorageService.save(STORAGE_KEYS.ROLES, roleList);
-                    this.closeModal();
-                    this.renderSettings();
-                    this.renderSidebar();
-                    this.showToast("Droits d'accès mis à jour", "success");
-                }
-            });
-        },
+            const roleList = StorageService.get(STORAGE_KEYS.ROLES);
+            const index = roleList.findIndex(r => r.id === roleId);
+            if (index !== -1) {
+                roleList[index].permissions = selectedPermissions;
+                await StorageService.save(STORAGE_KEYS.ROLES, roleList);
+                this.closeModal();
+                this.renderSettings();
+                this.renderSidebar();
+                this.showToast("Droits d'accès mis à jour", "success");
+            }
+        });
+    },
 
 
 
-        renderExchangeRates(query = '') {
-            const rates = StorageService.get(STORAGE_KEYS.EXCHANGE_RATES) || [];
-            // Sort by date descending
-            rates.sort((a, b) => new Date(b.date) - new Date(a.date));
+    renderExchangeRates(query = '') {
+        const rates = StorageService.get(STORAGE_KEYS.EXCHANGE_RATES) || [];
+        // Sort by date descending
+        rates.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            // Filtering based on query (if needed in future)
-            const filteredRates = rates.filter(r =>
-                r.fromCurrency.toLowerCase().includes(query.toLowerCase()) ||
-                r.toCurrency.toLowerCase().includes(query.toLowerCase())
-            );
+        // Filtering based on query (if needed in future)
+        const filteredRates = rates.filter(r =>
+            r.fromCurrency.toLowerCase().includes(query.toLowerCase()) ||
+            r.toCurrency.toLowerCase().includes(query.toLowerCase())
+        );
 
-            this.viewContainer.innerHTML = `
+        this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <h1>Taux de Change</h1>
                     <div class="header-actions">
@@ -4515,15 +4516,15 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </table>
                 </div>
             `;
-        },
+    },
 
 
 
-        showExchangeRateModal() {
-            const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'XAF', 'CAD', 'GBP', 'CHF'];
-            const today = new Date().toISOString().split('T')[0];
+    showExchangeRateModal() {
+        const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'XAF', 'CAD', 'GBP', 'CHF'];
+        const today = new Date().toISOString().split('T')[0];
 
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 500px;">
                         <div class="modal-header">
@@ -4564,22 +4565,22 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('exchange-rate-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleExchangeRateSubmission(new FormData(e.target));
-            });
-        },
+        document.getElementById('exchange-rate-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleExchangeRateSubmission(new FormData(e.target));
+        });
+    },
 
-        showEditExchangeRateModal(id) {
-            const rates = StorageService.get(STORAGE_KEYS.EXCHANGE_RATES);
-            const rate = rates.find(r => r.id === id);
-            if (!rate) return;
+    showEditExchangeRateModal(id) {
+        const rates = StorageService.get(STORAGE_KEYS.EXCHANGE_RATES);
+        const rate = rates.find(r => r.id === id);
+        if (!rate) return;
 
-            const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'XAF', 'CAD', 'GBP', 'CHF'];
+        const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'XAF', 'CAD', 'GBP', 'CHF'];
 
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 500px;">
                         <div class="modal-header">
@@ -4618,76 +4619,76 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('exchange-rate-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleExchangeRateSubmission(new FormData(e.target));
-            });
-        },
+        document.getElementById('exchange-rate-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleExchangeRateSubmission(new FormData(e.target));
+        });
+    },
 
-        async handleExchangeRateSubmission(formData) {
-            try {
-                const rates = StorageService.get(STORAGE_KEYS.EXCHANGE_RATES) || [];
-                const id = formData.get('id');
+    async handleExchangeRateSubmission(formData) {
+        try {
+            const rates = StorageService.get(STORAGE_KEYS.EXCHANGE_RATES) || [];
+            const id = formData.get('id');
 
-                const newRate = {
-                    id: id || `ER-${Date.now()}`,
-                    fromCurrency: formData.get('fromCurrency'),
-                    toCurrency: formData.get('toCurrency'),
-                    rate: Number(formData.get('rate')),
-                    date: formData.get('date')
-                };
+            const newRate = {
+                id: id || `ER-${Date.now()}`,
+                fromCurrency: formData.get('fromCurrency'),
+                toCurrency: formData.get('toCurrency'),
+                rate: Number(formData.get('rate')),
+                date: formData.get('date')
+            };
 
-                if (newRate.fromCurrency === newRate.toCurrency) {
-                    this.showToast("Les devises source et cible doivent être différentes", "warning");
-                    return;
-                }
-
-                if (id) {
-                    await StorageService.update(STORAGE_KEYS.EXCHANGE_RATES, id, newRate);
-                } else {
-                    await StorageService.add(STORAGE_KEYS.EXCHANGE_RATES, newRate);
-                }
-
-                this.closeModal();
-                this.renderExchangeRates();
-                this.showToast(id ? 'Taux de change mis à jour' : 'Taux de change ajouté', 'success');
-            } catch (error) {
-                console.error("Error in handleExchangeRateSubmission:", error);
-                this.showToast("Erreur lors de l'enregistrement du taux de change", "error");
-            }
-        },
-
-        deleteExchangeRate(id) {
-            this.showConfirmModal("Supprimer ce taux de change ?", async () => {
-                await StorageService.delete(STORAGE_KEYS.EXCHANGE_RATES, id);
-                this.renderExchangeRates();
-                this.showToast("Taux de change supprimé", "info");
-            });
-        },
-
-        renderShipments(query = '') {
-            let shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
-
-            if (query) {
-                const q = query.toLowerCase();
-                shipments = shipments.filter(s =>
-                    String(s.trackingNumber || '').toLowerCase().includes(q) ||
-                    String(s.destination || '').toLowerCase().includes(q) ||
-                    String(s.containerNumber || '').toLowerCase().includes(q) ||
-                    String(s.id || '').toLowerCase().includes(q)
-                );
+            if (newRate.fromCurrency === newRate.toCurrency) {
+                this.showToast("Les devises source et cible doivent être différentes", "warning");
+                return;
             }
 
-            if (!this.shipmentFilters.showArchived) {
-                shipments = shipments.filter(s => !s.isArchived);
+            if (id) {
+                await StorageService.update(STORAGE_KEYS.EXCHANGE_RATES, id, newRate);
+            } else {
+                await StorageService.add(STORAGE_KEYS.EXCHANGE_RATES, newRate);
             }
 
-            this.viewContainer.innerHTML = `
+            this.closeModal();
+            this.renderExchangeRates();
+            this.showToast(id ? 'Taux de change mis à jour' : 'Taux de change ajouté', 'success');
+        } catch (error) {
+            console.error("Error in handleExchangeRateSubmission:", error);
+            this.showToast("Erreur lors de l'enregistrement du taux de change", "error");
+        }
+    },
+
+    deleteExchangeRate(id) {
+        this.showConfirmModal("Supprimer ce taux de change ?", async () => {
+            await StorageService.delete(STORAGE_KEYS.EXCHANGE_RATES, id);
+            this.renderExchangeRates();
+            this.showToast("Taux de change supprimé", "info");
+        });
+    },
+
+    renderShipments(query = '') {
+        let shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+
+        if (query) {
+            const q = query.toLowerCase();
+            shipments = shipments.filter(s =>
+                String(s.trackingNumber || '').toLowerCase().includes(q) ||
+                String(s.destination || '').toLowerCase().includes(q) ||
+                String(s.containerNumber || '').toLowerCase().includes(q) ||
+                String(s.id || '').toLowerCase().includes(q)
+            );
+        }
+
+        if (!this.shipmentFilters.showArchived) {
+            shipments = shipments.filter(s => !s.isArchived);
+        }
+
+        this.viewContainer.innerHTML = `
                         <div class="view-header">
                             <div class="header-info">
                                 <h1>Gestion des Expéditions</h1>
@@ -4727,8 +4728,8 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </td>
                                 </tr>
                             ` : shipments.map(s => {
-                const shipmentVehicles = vehicles.filter(v => v.shipmentId === s.id);
-                return `
+            const shipmentVehicles = vehicles.filter(v => v.shipmentId === s.id);
+            return `
                             <tr class="${this.isOutdated(s.lastUpdate) ? 'outdated' : ''}">
                                 <td><strong>${s.id}</strong></td>
                                 <td>
@@ -4762,16 +4763,16 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 <td>
                                     <div class="shipment-vehicles-list" style="display: flex; flex-direction: column; gap: 8px;">
                                         ${shipmentVehicles.map(v => {
-                    const order = orders.find(o => o.id === v.orderId);
-                    const client = order ? clients.find(c => c.id === order.clientId) : null;
-                    return `
+                const order = orders.find(o => o.id === v.orderId);
+                const client = order ? clients.find(c => c.id === order.clientId) : null;
+                return `
                                                 <div class="vehicle-item" style="font-size: 0.85rem; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
                                                     <i class="fas fa-car" style="color: var(--primary); margin-right: 5px;"></i>
                                                     <strong>${v.brand}</strong> 
                                                     <span style="color: var(--text-dim);"> - ${client?.firstName} ${client?.lastName || 'N/A'}</span>
                                                 </div>
                                             `;
-                }).join('')}
+            }).join('')}
                                         ${shipmentVehicles.length === 0 ? '<span style="color: var(--danger); font-size: 0.8rem;">Aucun véhicule lié</span>' : ''}
                                     </div>
                                 </td>
@@ -4797,63 +4798,63 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 </td>
                             </tr>
                         `;
-            }).join('')}
+        }).join('')}
                                 </tbody>
                             </table>
                         </div>
                         `;
 
-            const archivedFilter = document.getElementById('filter-shipment-archived');
-            if (archivedFilter) {
-                archivedFilter.addEventListener('change', (e) => {
-                    this.shipmentFilters.showArchived = e.target.checked;
-                    this.renderView('shipments'); // Refresh with current query
-                });
-            }
-        },
-
-        renderVoyages() {
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
-
-            // Group shipments by voyage name
-            const voyageMap = shipments.reduce((acc, s) => {
-                const voyageName = s.voyage && s.voyage.trim() !== '' ? s.voyage.trim() : 'SANS VOYAGE';
-                if (!acc[voyageName]) {
-                    acc[voyageName] = {
-                        name: voyageName,
-                        shipments: [],
-                        vessels: new Set(),
-                        carriers: new Set(),
-                        forwarders: new Set(),
-                        ports: new Set(),
-                        destinations: new Set(),
-                        etd: s.etd,
-                        eta: s.eta,
-                        arrivalDate: s.arrivalDate,
-                        status: s.status,
-                        lastUpdate: s.lastUpdate
-                    };
-                }
-                acc[voyageName].shipments.push(s);
-                if (s.lastUpdate && (!acc[voyageName].lastUpdate || new Date(s.lastUpdate) > new Date(acc[voyageName].lastUpdate))) {
-                    acc[voyageName].lastUpdate = s.lastUpdate;
-                }
-                if (s.carrier) acc[voyageName].carriers.add(s.carrier);
-                if (s.forwarder) acc[voyageName].forwarders.add(s.forwarder);
-                if (s.shipStatus) acc[voyageName].vessels.add(s.shipStatus);
-                if (s.loadingPort) acc[voyageName].ports.add(s.loadingPort);
-                if (s.destination) acc[voyageName].destinations.add(s.destination);
-                return acc;
-            }, {});
-
-            const voyages = Object.values(voyageMap).sort((a, b) => {
-                if (a.name === 'SANS VOYAGE') return 1;
-                if (b.name === 'SANS VOYAGE') return -1;
-                return a.name.localeCompare(b.name);
+        const archivedFilter = document.getElementById('filter-shipment-archived');
+        if (archivedFilter) {
+            archivedFilter.addEventListener('change', (e) => {
+                this.shipmentFilters.showArchived = e.target.checked;
+                this.renderView('shipments'); // Refresh with current query
             });
+        }
+    },
 
-            this.viewContainer.innerHTML = `
+    renderVoyages() {
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+
+        // Group shipments by voyage name
+        const voyageMap = shipments.reduce((acc, s) => {
+            const voyageName = s.voyage && s.voyage.trim() !== '' ? s.voyage.trim() : 'SANS VOYAGE';
+            if (!acc[voyageName]) {
+                acc[voyageName] = {
+                    name: voyageName,
+                    shipments: [],
+                    vessels: new Set(),
+                    carriers: new Set(),
+                    forwarders: new Set(),
+                    ports: new Set(),
+                    destinations: new Set(),
+                    etd: s.etd,
+                    eta: s.eta,
+                    arrivalDate: s.arrivalDate,
+                    status: s.status,
+                    lastUpdate: s.lastUpdate
+                };
+            }
+            acc[voyageName].shipments.push(s);
+            if (s.lastUpdate && (!acc[voyageName].lastUpdate || new Date(s.lastUpdate) > new Date(acc[voyageName].lastUpdate))) {
+                acc[voyageName].lastUpdate = s.lastUpdate;
+            }
+            if (s.carrier) acc[voyageName].carriers.add(s.carrier);
+            if (s.forwarder) acc[voyageName].forwarders.add(s.forwarder);
+            if (s.shipStatus) acc[voyageName].vessels.add(s.shipStatus);
+            if (s.loadingPort) acc[voyageName].ports.add(s.loadingPort);
+            if (s.destination) acc[voyageName].destinations.add(s.destination);
+            return acc;
+        }, {});
+
+        const voyages = Object.values(voyageMap).sort((a, b) => {
+            if (a.name === 'SANS VOYAGE') return 1;
+            if (b.name === 'SANS VOYAGE') return -1;
+            return a.name.localeCompare(b.name);
+        });
+
+        this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div class="header-info">
                         <h1>Suivi des Voyages</h1>
@@ -4875,14 +4876,22 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         </thead>
                         <tbody>
                             ${voyages.map(v => {
-                const totalVehicles = v.shipments.reduce((sum, s) => {
-                    return sum + vehicles.filter(veh => veh.shipmentId === s.id).length;
-                }, 0);
+            const totalVehicles = v.shipments.reduce((sum, s) => {
+                return sum + vehicles.filter(veh => veh.shipmentId === s.id).length;
+            }, 0);
 
-                const firstShipment = v.shipments.find(s => s.containerNumber);
-                const trackingLink = firstShipment ? this.getTrackingUrl(firstShipment.carrier || '17Track', firstShipment.containerNumber) : null;
+            const firstShipment = v.shipments.find(s => s.containerNumber);
+            const trackingLink = firstShipment ? this.getTrackingUrl(firstShipment.carrier || '17Track', firstShipment.containerNumber) : null;
+            const safeName = v.name.replace(/'/g, "\\'");
 
-                return `
+            // Smart Satellite Button Logic
+            const hasHistory = v.shipments.some(s => s.trackingHistory && s.trackingHistory.length > 20);
+            // If history exists, show it. If not, button triggers a refresh/fetch.
+            const satAction = hasHistory ? `app.showVoyageTrackingHistory('${safeName}')` : `app.trackVoyage('${safeName}')`;
+            const satColor = hasHistory ? 'var(--success)' : 'var(--text-dim)';
+            const satTitle = hasHistory ? 'Voir Historique Satellite' : 'Lancer Recherche Satellite';
+
+            return `
                                     <tr>
                                         <td>
                                             <div style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">${v.name}</div>
@@ -4917,7 +4926,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                         </td>
                                         <td style="text-align: center;">
                                             <div style="margin-bottom: 5px;">
-                                                <span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); cursor: pointer;" onclick="app.showVoyageShipmentsModal('${v.name}')">
+                                                <span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); cursor: pointer;" onclick="app.showVoyageShipmentsModal('${safeName}')">
                                                     <i class="fas fa-box"></i> ${v.shipments.length} Cont.
                                                 </span>
                                             </div>
@@ -4934,43 +4943,43 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             </div>
                                             <div style="margin-top: 8px;">
                                                 <label class="switch-container" style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-dim); cursor: pointer;" title="Activer/Désactiver le suivi API">
-                                                    <input type="checkbox" onchange="app.toggleVoyageTracking('${v.name.replace(/'/g, "\\'")}', this.checked)" ${v.shipments.some(s => s.isTrackingActive) ? 'checked' : ''} style="width: 14px; height: 14px;">
+                                                    <input type="checkbox" onchange="app.toggleVoyageTracking('${safeName}', this.checked)" ${v.shipments.some(s => s.isTrackingActive) ? 'checked' : ''} style="width: 14px; height: 14px;">
                                                     <span>Tracking API</span>
                                                 </label>
                                             </div>
                                         </td>
                                         <td>
                                             <div class="table-actions">
-                                                <button class="btn-action" onclick="app.showEditVoyageModal('${v.name.replace(/'/g, "\\'")}')" title="Détails & Modification Voyage">
+                                                <button class="btn-action" onclick="app.showEditVoyageModal('${safeName}')" title="Détails & Modification Voyage">
                                                     <i class="fas fa-users-cog"></i>
                                                 </button>
-                                                <button class="btn-action" onclick="app.showVoyageTrackingHistory('${v.name.replace(/'/g, "\\'")}')" title="Vision Satellite & Historique">
-                                                    <i class="fas fa-satellite-dish" style="color: var(--success);"></i>
+                                                <button class="btn-action" onclick="${satAction}" title="${satTitle}">
+                                                    <i class="fas fa-satellite-dish" style="color: ${satColor};"></i>
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
                                 `;
-            }).join('')}
+        }).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
-        },
+    },
 
-        showEditVoyageModal(voyageName) {
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-            const voyageShipments = shipments.filter(s => (s.voyage || '').trim() === voyageName.trim());
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+    showEditVoyageModal(voyageName) {
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const voyageShipments = shipments.filter(s => (s.voyage || '').trim() === voyageName.trim());
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
 
-            if (voyageShipments.length === 0) return;
+        if (voyageShipments.length === 0) return;
 
-            // Take first shipment as template
-            const template = voyageShipments[0];
+        // Take first shipment as template
+        const template = voyageShipments[0];
 
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 800px; max-width: 95vw;">
                         <div class="modal-header">
@@ -5050,8 +5059,8 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </thead>
                                     <tbody>
                                         ${voyageShipments.map(s => {
-                const sVehicles = vehicles.filter(v => v.shipmentId === s.id);
-                return `
+            const sVehicles = vehicles.filter(v => v.shipmentId === s.id);
+            return `
                                                 <tr>
                                                     <td>
                                                         <div style="font-weight: bold;">${s.blNumber || 'N/A'}</div>
@@ -5059,19 +5068,19 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                     </td>
                                                     <td>
                                                         ${sVehicles.map(v => {
-                    const order = orders.find(o => o.id === v.orderId);
-                    const client = order ? clients.find(c => c.id === order.clientId) : null;
-                    return `<div style="margin-bottom: 4px;">
+                const order = orders.find(o => o.id === v.orderId);
+                const client = order ? clients.find(c => c.id === order.clientId) : null;
+                return `<div style="margin-bottom: 4px;">
                                                                 <i class="fas fa-car" style="color: var(--primary);"></i> ${v.brand} ${v.model || ''}
                                                                 <div style="font-size: 0.7rem; color: var(--text-dim);">
                                                                     <i class="fas fa-user"></i> ${client ? client.firstName + ' ' + client.lastName : 'N/A'}
                                                                 </div>
                                                             </div>`;
-                }).join('')}
+            }).join('')}
                                                     </td>
                                                 </tr>
                                             `;
-            }).join('')}
+        }).join('')}
                                     </tbody>
                                 </table>
                             </div>
@@ -5082,65 +5091,65 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('voyage-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleVoyageSubmission(new FormData(e.target));
-            });
-        },
+        document.getElementById('voyage-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleVoyageSubmission(new FormData(e.target));
+        });
+    },
 
-        async handleVoyageSubmission(formData) {
-            const voyageName = formData.get('voyageName');
-            const submitBtn = document.querySelector('#voyage-form button[type="submit"]');
+    async handleVoyageSubmission(formData) {
+        const voyageName = formData.get('voyageName');
+        const submitBtn = document.querySelector('#voyage-form button[type="submit"]');
 
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...';
+        }
+
+        try {
+            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+            const voyageShipments = shipments.filter(s => (s.voyage || '').trim() === voyageName.trim());
+
+            const sanitizeDate = (val) => (val && val.trim() !== '' ? val : null);
+
+            const updates = {
+                loadingPort: formData.get('loadingPort'),
+                destination: formData.get('destination'),
+                etd: sanitizeDate(formData.get('etd')),
+                eta: sanitizeDate(formData.get('eta')),
+                status: formData.get('status'),
+                arrivalDate: sanitizeDate(formData.get('arrivalDate')),
+                isTrackingActive: formData.get('isTrackingActive') === 'true'
+            };
+
+            // Update each shipment in the voyage
+            for (const shipment of voyageShipments) {
+                await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, {
+                    ...shipment,
+                    ...updates
+                });
+            }
+
+            this.closeModal();
+            this.showToast(`Voyage ${voyageName} mis à jour avec succès (${voyageShipments.length} conteneurs)`, 'success');
+            this.renderView('voyages');
+        } catch (error) {
+            console.error("Error updating voyage:", error);
+            this.showToast("Erreur lors de la mise à jour du voyage", "error");
+        } finally {
             if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Mettre à jour tout le voyage';
             }
+        }
+    },
 
-            try {
-                const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-                const voyageShipments = shipments.filter(s => (s.voyage || '').trim() === voyageName.trim());
+    // --- Shipment from BL Functions ---
 
-                const sanitizeDate = (val) => (val && val.trim() !== '' ? val : null);
-
-                const updates = {
-                    loadingPort: formData.get('loadingPort'),
-                    destination: formData.get('destination'),
-                    etd: sanitizeDate(formData.get('etd')),
-                    eta: sanitizeDate(formData.get('eta')),
-                    status: formData.get('status'),
-                    arrivalDate: sanitizeDate(formData.get('arrivalDate')),
-                    isTrackingActive: formData.get('isTrackingActive') === 'true'
-                };
-
-                // Update each shipment in the voyage
-                for (const shipment of voyageShipments) {
-                    await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, {
-                        ...shipment,
-                        ...updates
-                    });
-                }
-
-                this.closeModal();
-                this.showToast(`Voyage ${voyageName} mis à jour avec succès (${voyageShipments.length} conteneurs)`, 'success');
-                this.renderView('voyages');
-            } catch (error) {
-                console.error("Error updating voyage:", error);
-                this.showToast("Erreur lors de la mise à jour du voyage", "error");
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Mettre à jour tout le voyage';
-                }
-            }
-        },
-
-        // --- Shipment from BL Functions ---
-
-        showShipmentBLUploadModal() {
-            const modalHtml = `
+    showShipmentBLUploadModal() {
+        const modalHtml = `
             <div id="modal-overlay" class="modal-overlay" onclick="app.closeModal()">
                 <div class="modal glass" onclick="event.stopPropagation()" style="width: 500px;">
                     <div class="modal-header">
@@ -5169,94 +5178,94 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             </div>
             `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            const dropZone = document.getElementById('shipment-drop-zone');
-            const fileInput = document.getElementById('shipment-bl-input');
+        const dropZone = document.getElementById('shipment-drop-zone');
+        const fileInput = document.getElementById('shipment-bl-input');
 
-            dropZone.onclick = () => fileInput.click();
+        dropZone.onclick = () => fileInput.click();
 
-            fileInput.onchange = (e) => {
-                if (e.target.files[0]) this.handleShipmentBLUpload(e.target.files[0]);
-            };
+        fileInput.onchange = (e) => {
+            if (e.target.files[0]) this.handleShipmentBLUpload(e.target.files[0]);
+        };
 
-            dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--primary)'; };
-            dropZone.ondragleave = () => dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
-            dropZone.ondrop = (e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files[0]) this.handleShipmentBLUpload(e.dataTransfer.files[0]);
-            };
-        },
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--primary)'; };
+        dropZone.ondragleave = () => dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files[0]) this.handleShipmentBLUpload(e.dataTransfer.files[0]);
+        };
+    },
 
-        async handleShipmentBLUpload(file) {
-            const statusDiv = document.getElementById('shipment-ocr-status');
-            const progressBar = document.getElementById('shipment-ocr-progress');
-            const statusText = document.getElementById('shipment-status-text');
+    async handleShipmentBLUpload(file) {
+        const statusDiv = document.getElementById('shipment-ocr-status');
+        const progressBar = document.getElementById('shipment-ocr-progress');
+        const statusText = document.getElementById('shipment-status-text');
 
-            statusDiv.style.display = 'block';
-            document.getElementById('shipment-drop-zone').style.pointerEvents = 'none';
-            document.getElementById('shipment-drop-zone').style.opacity = '0.5';
+        statusDiv.style.display = 'block';
+        document.getElementById('shipment-drop-zone').style.pointerEvents = 'none';
+        document.getElementById('shipment-drop-zone').style.opacity = '0.5';
 
-            try {
-                let extractedText = '';
+        try {
+            let extractedText = '';
 
-                if (file.type === 'application/pdf') {
-                    statusText.innerText = "Lecture du PDF...";
-                    const pdfUrl = URL.createObjectURL(file);
-                    const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-                    extractedText = await this.extractTextFromPdf(pdf);
+            if (file.type === 'application/pdf') {
+                statusText.innerText = "Lecture du PDF...";
+                const pdfUrl = URL.createObjectURL(file);
+                const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+                extractedText = await this.extractTextFromPdf(pdf);
 
-                    if (!extractedText || extractedText.trim().length < 50) {
-                        statusText.innerText = "PDF scanné. Conversion...";
-                        const imgUrl = await this.convertPdfToImage(pdf);
-                        extractedText = await this.performOCR(imgUrl, progressBar, statusText);
-                    }
-                    URL.revokeObjectURL(pdfUrl);
-                } else {
-                    statusText.innerText = "Analyse de l'image...";
-                    const imgUrl = URL.createObjectURL(file);
+                if (!extractedText || extractedText.trim().length < 50) {
+                    statusText.innerText = "PDF scanné. Conversion...";
+                    const imgUrl = await this.convertPdfToImage(pdf);
                     extractedText = await this.performOCR(imgUrl, progressBar, statusText);
-                    URL.revokeObjectURL(imgUrl);
                 }
-
-                // Call AI Extraction
-                statusText.innerText = "Analyse intelligente...";
-                progressBar.style.width = '90%';
-
-                const aiData = await this.callGeminiAI(extractedText);
-                console.log("Shipment AI Data:", aiData);
-
-                progressBar.style.width = '100%';
-                statusText.innerText = "Extraction réussie !";
-
-                setTimeout(() => {
-                    this.closeModal();
-                    this.showShipmentBLVerificationModal(aiData);
-                }, 500);
-
-            } catch (error) {
-                console.error("Shipment BL Error:", error);
-                this.showToast("Erreur d'extraction: " + error.message, "danger");
-                this.closeModal();
+                URL.revokeObjectURL(pdfUrl);
+            } else {
+                statusText.innerText = "Analyse de l'image...";
+                const imgUrl = URL.createObjectURL(file);
+                extractedText = await this.performOCR(imgUrl, progressBar, statusText);
+                URL.revokeObjectURL(imgUrl);
             }
-        },
 
-        async performOCR(imageUrl, progressBar, statusText) {
-            const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        progressBar.style.width = `${Math.round(m.progress * 100)}%`;
-                        statusText.innerText = `Lecture... ${Math.round(m.progress * 100)}%`;
-                    }
+            // Call AI Extraction
+            statusText.innerText = "Analyse intelligente...";
+            progressBar.style.width = '90%';
+
+            const aiData = await this.callGeminiAI(extractedText);
+            console.log("Shipment AI Data:", aiData);
+
+            progressBar.style.width = '100%';
+            statusText.innerText = "Extraction réussie !";
+
+            setTimeout(() => {
+                this.closeModal();
+                this.showShipmentBLVerificationModal(aiData);
+            }, 500);
+
+        } catch (error) {
+            console.error("Shipment BL Error:", error);
+            this.showToast("Erreur d'extraction: " + error.message, "danger");
+            this.closeModal();
+        }
+    },
+
+    async performOCR(imageUrl, progressBar, statusText) {
+        const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1, {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    progressBar.style.width = `${Math.round(m.progress * 100)}%`;
+                    statusText.innerText = `Lecture... ${Math.round(m.progress * 100)}%`;
                 }
-            });
-            const { data: { text } } = await worker.recognize(imageUrl);
-            await worker.terminate();
-            return text;
-        },
+            }
+        });
+        const { data: { text } } = await worker.recognize(imageUrl);
+        await worker.terminate();
+        return text;
+    },
 
-        showShipmentBLVerificationModal(data) {
-            const modalHtml = `
+    showShipmentBLVerificationModal(data) {
+        const modalHtml = `
             <div id="modal-overlay" class="modal-overlay" onclick="app.closeModal()">
                 <div class="modal glass" onclick="event.stopPropagation()" style="width: 600px;">
                     <div class="modal-header">
@@ -5305,369 +5314,369 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             </div>
             `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('shipment-verification-form').onsubmit = (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const verifiedData = Object.fromEntries(formData.entries());
-                this.handleShipmentBLSubmission(verifiedData);
-            };
-        },
+        document.getElementById('shipment-verification-form').onsubmit = (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const verifiedData = Object.fromEntries(formData.entries());
+            this.handleShipmentBLSubmission(verifiedData);
+        };
+    },
 
-        handleShipmentBLSubmission(data) {
-            this.closeModal();
+    handleShipmentBLSubmission(data) {
+        this.closeModal();
 
-            // Re-open the main shipment modal with pre-filled data
-            this.showShipmentModal();
+        // Re-open the main shipment modal with pre-filled data
+        this.showShipmentModal();
 
-            // Give a small delay for DOM to be ready
-            setTimeout(() => {
-                const form = document.getElementById('shipment-form');
-                if (!form) return;
+        // Give a small delay for DOM to be ready
+        setTimeout(() => {
+            const form = document.getElementById('shipment-form');
+            if (!form) return;
 
-                // Fill fields
-                form.querySelector('[name="containerNumber"]').value = data.containerNumber || '';
-                form.querySelector('[name="blNumber"]').value = data.blNumber || '';
-                form.querySelector('[name="loadingPort"]').value = data.loadingPort || '';
-                form.querySelector('[name="destination"]').value = data.portOfDestination || '';
-                form.querySelector('[name="etd"]').value = data.etd || '';
+            // Fill fields
+            form.querySelector('[name="containerNumber"]').value = data.containerNumber || '';
+            form.querySelector('[name="blNumber"]').value = data.blNumber || '';
+            form.querySelector('[name="loadingPort"]').value = data.loadingPort || '';
+            form.querySelector('[name="destination"]').value = data.portOfDestination || '';
+            form.querySelector('[name="etd"]').value = data.etd || '';
 
-                // Try to find and select carrier if it exists in our list
-                const carrierSelect = form.querySelector('[name="carrier"]');
-                if (carrierSelect && data.carrier) {
-                    const options = Array.from(carrierSelect.options);
-                    const match = options.find(opt => opt.value.toLowerCase().includes(data.carrier.toLowerCase()) || data.carrier.toLowerCase().includes(opt.value.toLowerCase()));
-                    if (match) carrierSelect.value = match.value;
-                }
+            // Try to find and select carrier if it exists in our list
+            const carrierSelect = form.querySelector('[name="carrier"]');
+            if (carrierSelect && data.carrier) {
+                const options = Array.from(carrierSelect.options);
+                const match = options.find(opt => opt.value.toLowerCase().includes(data.carrier.toLowerCase()) || data.carrier.toLowerCase().includes(opt.value.toLowerCase()));
+                if (match) carrierSelect.value = match.value;
+            }
 
-                // Auto-select vehicle if chassis was matched
-                if (data.chassisNumber && data.chassisNumber !== 'Non trouvé') {
-                    const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                    const matchedVehicle = vehicles.find(v => v.chassisNumber && (v.chassisNumber.includes(data.chassisNumber) || data.chassisNumber.includes(v.chassisNumber)));
+            // Auto-select vehicle if chassis was matched
+            if (data.chassisNumber && data.chassisNumber !== 'Non trouvé') {
+                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+                const matchedVehicle = vehicles.find(v => v.chassisNumber && (v.chassisNumber.includes(data.chassisNumber) || data.chassisNumber.includes(v.chassisNumber)));
 
-                    if (matchedVehicle) {
-                        this.showToast(`Véhicule matché: ${matchedVehicle.brand} ${matchedVehicle.model}`, "success");
-                        // We need to trigger the search and check logic in the main modal
-                        const searchInput = document.getElementById('shipment-vehicle-search');
-                        if (searchInput) {
-                            searchInput.value = matchedVehicle.chassisNumber;
-                            // Search logic is usually triggered by input event
-                            searchInput.dispatchEvent(new Event('input'));
+                if (matchedVehicle) {
+                    this.showToast(`Véhicule matché: ${matchedVehicle.brand} ${matchedVehicle.model}`, "success");
+                    // We need to trigger the search and check logic in the main modal
+                    const searchInput = document.getElementById('shipment-vehicle-search');
+                    if (searchInput) {
+                        searchInput.value = matchedVehicle.chassisNumber;
+                        // Search logic is usually triggered by input event
+                        searchInput.dispatchEvent(new Event('input'));
 
-                            // Try to check it
-                            setTimeout(() => {
-                                const checkbox = form.querySelector(`input[name="vehicleIds"][value="${matchedVehicle.id}"]`);
-                                if (checkbox) {
-                                    checkbox.checked = true;
-                                    // Make sure it's in the set (if we had access to it, but it's local to the other function)
-                                    // Actually the main modal logic handles it if we click it
-                                    checkbox.click();
-                                }
-                            }, 300);
-                        }
+                        // Try to check it
+                        setTimeout(() => {
+                            const checkbox = form.querySelector(`input[name="vehicleIds"][value="${matchedVehicle.id}"]`);
+                            if (checkbox) {
+                                checkbox.checked = true;
+                                // Make sure it's in the set (if we had access to it, but it's local to the other function)
+                                // Actually the main modal logic handles it if we click it
+                                checkbox.click();
+                            }
+                        }, 300);
                     }
                 }
-            }, 100);
-        },
+            }
+        }, 100);
+    },
 
-        formatDateForInput(dateStr) {
-            if (!dateStr || dateStr === 'Non trouvé') return '';
-            // Try to parse various date formats or just return as is if it looks like YYYY-MM-DD
-            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    formatDateForInput(dateStr) {
+        if (!dateStr || dateStr === 'Non trouvé') return '';
+        // Try to parse various date formats or just return as is if it looks like YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
 
-            try {
-                const d = new Date(dateStr);
-                if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
-            } catch (e) { }
+        try {
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        } catch (e) { }
 
-            return '';
-        },
+        return '';
+    },
 
-        _triggerDownload(blob, filename) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+    _triggerDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-            this.showToast(`Téléchargement de ${filename} lancé...`, 'success');
-        },
+        this.showToast(`Téléchargement de ${filename} lancé...`, 'success');
+    },
 
 
-        exportOrdersToCSV() {
+    exportOrdersToCSV() {
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        if (orders.length === 0) {
+            alert('Aucune commande à exporter.');
+            return;
+        }
+
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        const headers = ['N° BC', 'Date', 'Client', 'Véhicule', 'Chassis', 'Statut', 'Prix Net', 'Payé', 'Reste Du'];
+
+        const csvRows = [
+            headers.join(','),
+            ...orders.map(o => {
+                const vehicle = vehicles.find(v => v.id === o.vehicleId);
+                const netPrice = (o.totalAmount || 0) - (o.discount || 0);
+                const paid = this.getPaidAmount(o.id);
+                const balance = Math.max(0, netPrice - paid);
+
+                // Escape and format CSV fields
+                const escape = (text) => `"${String(text || '').replace(/"/g, '""')}"`;
+
+                return [
+                    escape(o.id),
+                    escape(new Date(o.date).toLocaleDateString()),
+                    escape(o.clientName),
+                    escape(o.vehicleName),
+                    escape(vehicle ? vehicle.chassisNumber : '-'),
+                    escape(o.status),
+                    netPrice,
+                    paid,
+                    balance
+                ].join(',');
+            })
+        ];
+
+        const csvString = csvRows.join('\n');
+        const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+
+        this._triggerDownload(blob, `commandes_export_${new Date().toISOString().split('T')[0]}.csv`);
+    },
+
+    exportOrdersToPDF() {
+        try {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                alert("Erreur: La bibliothèque PDF n'est pas chargée. Veuillez vérifier votre connexion internet.");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for better fit
             const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+            // Sort orders by date descending
+            orders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
             if (orders.length === 0) {
                 alert('Aucune commande à exporter.');
                 return;
             }
 
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-            const headers = ['N° BC', 'Date', 'Client', 'Véhicule', 'Chassis', 'Statut', 'Prix Net', 'Payé', 'Reste Du'];
+            // Header
+            doc.setFontSize(18);
+            doc.setTextColor(40, 40, 40);
+            doc.text('Liste des Commandes - TIBOU AUTO', 14, 20);
 
-            const csvRows = [
-                headers.join(','),
-                ...orders.map(o => {
-                    const vehicle = vehicles.find(v => v.id === o.vehicleId);
-                    const netPrice = (o.totalAmount || 0) - (o.discount || 0);
-                    const paid = this.getPaidAmount(o.id);
-                    const balance = Math.max(0, netPrice - paid);
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 28);
 
-                    // Escape and format CSV fields
-                    const escape = (text) => `"${String(text || '').replace(/"/g, '""')}"`;
+            // Define Columns
+            const tableColumn = ["N° BC", "Date", "Client", "Véhicule", "Statut", "Total Net", "Payé", "Reste"];
+            const tableRows = [];
 
-                    return [
-                        escape(o.id),
-                        escape(new Date(o.date).toLocaleDateString()),
-                        escape(o.clientName),
-                        escape(o.vehicleName),
-                        escape(vehicle ? vehicle.chassisNumber : '-'),
-                        escape(o.status),
-                        netPrice,
-                        paid,
-                        balance
-                    ].join(',');
-                })
-            ];
+            orders.forEach(order => {
+                const netPrice = (order.totalAmount || 0) - (order.discount || 0);
+                const paid = this.getPaidAmount(order.id);
+                const balance = Math.max(0, netPrice - paid);
 
-            const csvString = csvRows.join('\n');
-            const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+                // Simplify status for display
+                let displayStatus = order.status;
+                if (displayStatus === 'EN ATTENTE DE VALIDATION') displayStatus = 'En Attente';
 
-            this._triggerDownload(blob, `commandes_export_${new Date().toISOString().split('T')[0]}.csv`);
-        },
+                const orderData = [
+                    order.id,
+                    new Date(order.date).toLocaleDateString(),
+                    order.clientName,
+                    order.vehicleName,
+                    displayStatus,
+                    this.formatCurrency(netPrice).replace(/\u202F/g, ' ').replace(/\u00A0/g, ' '),
+                    this.formatCurrency(paid).replace(/\u202F/g, ' ').replace(/\u00A0/g, ' '),
+                    this.formatCurrency(balance).replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ')
+                ];
+                tableRows.push(orderData);
+            });
 
-        exportOrdersToPDF() {
-            try {
-                if (!window.jspdf || !window.jspdf.jsPDF) {
-                    alert("Erreur: La bibliothèque PDF n'est pas chargée. Veuillez vérifier votre connexion internet.");
-                    return;
-                }
-
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for better fit
-                const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-                // Sort orders by date descending
-                orders.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                if (orders.length === 0) {
-                    alert('Aucune commande à exporter.');
-                    return;
-                }
-
-                // Header
-                doc.setFontSize(18);
-                doc.setTextColor(40, 40, 40);
-                doc.text('Liste des Commandes - TIBOU AUTO', 14, 20);
-
-                doc.setFontSize(10);
-                doc.setTextColor(100);
-                doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 28);
-
-                // Define Columns
-                const tableColumn = ["N° BC", "Date", "Client", "Véhicule", "Statut", "Total Net", "Payé", "Reste"];
-                const tableRows = [];
-
-                orders.forEach(order => {
-                    const netPrice = (order.totalAmount || 0) - (order.discount || 0);
-                    const paid = this.getPaidAmount(order.id);
-                    const balance = Math.max(0, netPrice - paid);
-
-                    // Simplify status for display
-                    let displayStatus = order.status;
-                    if (displayStatus === 'EN ATTENTE DE VALIDATION') displayStatus = 'En Attente';
-
-                    const orderData = [
-                        order.id,
-                        new Date(order.date).toLocaleDateString(),
-                        order.clientName,
-                        order.vehicleName,
-                        displayStatus,
-                        this.formatCurrency(netPrice).replace(/\u202F/g, ' ').replace(/\u00A0/g, ' '),
-                        this.formatCurrency(paid).replace(/\u202F/g, ' ').replace(/\u00A0/g, ' '),
-                        this.formatCurrency(balance).replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ')
-                    ];
-                    tableRows.push(orderData);
-                });
-
-                doc.autoTable({
-                    head: [tableColumn],
-                    body: tableRows,
-                    startY: 35,
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [99, 102, 241],
-                        halign: 'center'
-                    },
-                    styles: {
-                        fontSize: 9,
-                        valign: 'middle',
-                        cellPadding: 3
-                    },
-                    columnStyles: {
-                        0: { cellWidth: 25, fontStyle: 'bold' }, // ID
-                        1: { cellWidth: 25 }, // Date
-                        2: { cellWidth: 40 }, // Client
-                        3: { cellWidth: 60 }, // Vehicle
-                        4: { cellWidth: 35, halign: 'center' }, // Status
-                        5: { cellWidth: 30, halign: 'right' }, // Total
-                        6: { cellWidth: 30, halign: 'right' }, // Paid
-                        7: { cellWidth: 30, halign: 'right', fontStyle: 'bold' } // Balance
-                    },
-                    didParseCell: function (data) {
-                        // Colorize Balance: Green if Paid (0), Red if Outstanding
-                        if (data.column.index === 7) {
-                            const rawVal = data.cell.raw;
-                            if (rawVal.includes('0') && rawVal.length < 5) { // Simple heuristic for zero/near zero formatting
-                                data.cell.styles.textColor = [34, 197, 94]; // Green
-                            } else {
-                                data.cell.styles.textColor = [239, 68, 68]; // Red
-                            }
+            doc.autoTable({
+                head: [tableColumn],
+                body: tableRows,
+                startY: 35,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [99, 102, 241],
+                    halign: 'center'
+                },
+                styles: {
+                    fontSize: 9,
+                    valign: 'middle',
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    0: { cellWidth: 25, fontStyle: 'bold' }, // ID
+                    1: { cellWidth: 25 }, // Date
+                    2: { cellWidth: 40 }, // Client
+                    3: { cellWidth: 60 }, // Vehicle
+                    4: { cellWidth: 35, halign: 'center' }, // Status
+                    5: { cellWidth: 30, halign: 'right' }, // Total
+                    6: { cellWidth: 30, halign: 'right' }, // Paid
+                    7: { cellWidth: 30, halign: 'right', fontStyle: 'bold' } // Balance
+                },
+                didParseCell: function (data) {
+                    // Colorize Balance: Green if Paid (0), Red if Outstanding
+                    if (data.column.index === 7) {
+                        const rawVal = data.cell.raw;
+                        if (rawVal.includes('0') && rawVal.length < 5) { // Simple heuristic for zero/near zero formatting
+                            data.cell.styles.textColor = [34, 197, 94]; // Green
+                        } else {
+                            data.cell.styles.textColor = [239, 68, 68]; // Red
                         }
                     }
-                });
+                }
+            });
 
-                doc.save(`commandes_tibou_auto_${new Date().toISOString().split('T')[0]}.pdf`);
-                this.showToast('Téléchargement du PDF lancé...', 'success');
-            } catch (e) {
-                console.error('PDF Export Error:', e);
-                alert('Une erreur est survenue lors de la génération du PDF.');
+            doc.save(`commandes_tibou_auto_${new Date().toISOString().split('T')[0]}.pdf`);
+            this.showToast('Téléchargement du PDF lancé...', 'success');
+        } catch (e) {
+            console.error('PDF Export Error:', e);
+            alert('Une erreur est survenue lors de la génération du PDF.');
+        }
+    },
+
+    exportPendingOrdersMatrixToPDF() {
+        try {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                alert("Erreur: La bibliothèque PDF n'est pas chargée.");
+                return;
             }
-        },
 
-        exportPendingOrdersMatrixToPDF() {
-            try {
-                if (!window.jspdf || !window.jspdf.jsPDF) {
-                    alert("Erreur: La bibliothèque PDF n'est pas chargée.");
-                    return;
-                }
-
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('l', 'mm', 'a4');
-                const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-
-                // 1. Filter Pending Orders (Strictly "ATTENTE AFFECTATION VÉHICULE")
-                const pendingOrders = orders.filter(o =>
-                    o.status === 'ATTENTE AFFECTATION VÉHICULE' && o.requestedBrand && o.requestedModel
-                );
-
-                if (pendingOrders.length === 0) {
-                    alert('Aucune commande en attente d\'affectation avec marque/modèle spécifiés.');
-                    return;
-                }
-
-                // 2. Extract Unique Colors (Columns)
-                const colors = [...new Set(pendingOrders.map(o => o.requestedColor || 'Non spécifié'))].sort();
-                // Ensure 'Non spécifié' is last
-                const nsIndex = colors.indexOf('Non spécifié');
-                if (nsIndex > -1) {
-                    colors.push(colors.splice(nsIndex, 1)[0]);
-                }
-
-                // 3. Aggregate Data [Brand - Model] -> { Color: Count }
-                const matrix = {};
-
-                pendingOrders.forEach(o => {
-                    const key = `${o.requestedBrand} - ${o.requestedModel}`;
-                    const color = o.requestedColor || 'Non spécifié';
-
-                    if (!matrix[key]) matrix[key] = { total: 0 };
-                    if (!matrix[key][color]) matrix[key][color] = 0;
-
-                    matrix[key][color]++;
-                    matrix[key].total++;
-                });
-
-                // 4. Build Table Rows
-                // Columns: [Marque - Modèle, ...Colors, TOTAL]
-                const tableColumns = ['Marque - Modèle', ...colors.map(c => c === 'Non spécifié' ? 'Autres' : c), 'TOTAL'];
-                const tableRows = Object.keys(matrix).sort().map(key => {
-                    const row = [key];
-                    let rowTotal = 0;
-
-                    colors.forEach(col => {
-                        const count = matrix[key][col] || 0;
-                        row.push(count > 0 ? count : '-');
-                        rowTotal += count;
-                    });
-
-                    row.push(rowTotal);
-                    return row;
-                });
-
-                // Footer Row (Totals per Color)
-                const footerRow = ['TOTAL GÉNÉRAL'];
-                let grandTotal = 0;
-                colors.forEach(col => {
-                    let colTotal = 0;
-                    Object.values(matrix).forEach(rowObj => {
-                        colTotal += (rowObj[col] || 0);
-                    });
-                    footerRow.push(colTotal > 0 ? colTotal : '-');
-                    grandTotal += colTotal;
-                });
-                footerRow.push(grandTotal);
-                tableRows.push(footerRow);
-
-                // 5. Generate PDF
-                doc.setFontSize(18);
-                doc.setTextColor(40, 40, 40);
-                doc.text('État des Commandes en Attente d\'Affectation', 14, 20);
-
-                doc.setFontSize(10);
-                doc.setTextColor(100);
-                doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 28);
-                doc.text(`Total véhicules à commander: ${grandTotal}`, 14, 34);
-
-                doc.autoTable({
-                    head: [tableColumns],
-                    body: tableRows,
-                    startY: 40,
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [79, 70, 229], // Indigo
-                        halign: 'center',
-                        fontStyle: 'bold',
-                        fontSize: 9
-                    },
-                    columnStyles: {
-                        0: { fontStyle: 'bold', cellWidth: 60 }, // Brand - Model column
-                        [tableColumns.length - 1]: { fontStyle: 'bold', fillColor: [243, 244, 246], halign: 'center' } // Row Total column
-                    },
-                    styles: {
-                        halign: 'center',
-                        valign: 'middle',
-                        fontSize: 9
-                    },
-                    didParseCell: function (data) {
-                        // Style the footer row
-                        if (data.row.index === tableRows.length - 1) {
-                            data.cell.styles.fontStyle = 'bold';
-                            data.cell.styles.fillColor = [229, 231, 235]; // Gray
-                        }
-                    }
-                });
-
-                doc.save(`matrice_commandes_attente_${new Date().toISOString().split('T')[0]}.pdf`);
-                this.showToast('Matrice des commandes téléchargée', 'success');
-
-            } catch (e) {
-                console.error('PDF Matrix Error:', e);
-                alert('Erreur lors de la génération de la matrice PDF.');
-            }
-        },
-
-        showShipmentModal(preSelectedVehicleId = null) {
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-            // Allow selecting a vehicle that is either the pre-selected one OR has an order but no shipment AND is not archived
-            const availableVehicles = vehicles.filter(v =>
-                (v.id === preSelectedVehicleId || !v.shipmentId) && !v.isArchived
-            );
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
             const orders = StorageService.get(STORAGE_KEYS.ORDERS);
 
-            const modalHtml = `
+            // 1. Filter Pending Orders (Strictly "ATTENTE AFFECTATION VÉHICULE")
+            const pendingOrders = orders.filter(o =>
+                o.status === 'ATTENTE AFFECTATION VÉHICULE' && o.requestedBrand && o.requestedModel
+            );
+
+            if (pendingOrders.length === 0) {
+                alert('Aucune commande en attente d\'affectation avec marque/modèle spécifiés.');
+                return;
+            }
+
+            // 2. Extract Unique Colors (Columns)
+            const colors = [...new Set(pendingOrders.map(o => o.requestedColor || 'Non spécifié'))].sort();
+            // Ensure 'Non spécifié' is last
+            const nsIndex = colors.indexOf('Non spécifié');
+            if (nsIndex > -1) {
+                colors.push(colors.splice(nsIndex, 1)[0]);
+            }
+
+            // 3. Aggregate Data [Brand - Model] -> { Color: Count }
+            const matrix = {};
+
+            pendingOrders.forEach(o => {
+                const key = `${o.requestedBrand} - ${o.requestedModel}`;
+                const color = o.requestedColor || 'Non spécifié';
+
+                if (!matrix[key]) matrix[key] = { total: 0 };
+                if (!matrix[key][color]) matrix[key][color] = 0;
+
+                matrix[key][color]++;
+                matrix[key].total++;
+            });
+
+            // 4. Build Table Rows
+            // Columns: [Marque - Modèle, ...Colors, TOTAL]
+            const tableColumns = ['Marque - Modèle', ...colors.map(c => c === 'Non spécifié' ? 'Autres' : c), 'TOTAL'];
+            const tableRows = Object.keys(matrix).sort().map(key => {
+                const row = [key];
+                let rowTotal = 0;
+
+                colors.forEach(col => {
+                    const count = matrix[key][col] || 0;
+                    row.push(count > 0 ? count : '-');
+                    rowTotal += count;
+                });
+
+                row.push(rowTotal);
+                return row;
+            });
+
+            // Footer Row (Totals per Color)
+            const footerRow = ['TOTAL GÉNÉRAL'];
+            let grandTotal = 0;
+            colors.forEach(col => {
+                let colTotal = 0;
+                Object.values(matrix).forEach(rowObj => {
+                    colTotal += (rowObj[col] || 0);
+                });
+                footerRow.push(colTotal > 0 ? colTotal : '-');
+                grandTotal += colTotal;
+            });
+            footerRow.push(grandTotal);
+            tableRows.push(footerRow);
+
+            // 5. Generate PDF
+            doc.setFontSize(18);
+            doc.setTextColor(40, 40, 40);
+            doc.text('État des Commandes en Attente d\'Affectation', 14, 20);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 28);
+            doc.text(`Total véhicules à commander: ${grandTotal}`, 14, 34);
+
+            doc.autoTable({
+                head: [tableColumns],
+                body: tableRows,
+                startY: 40,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [79, 70, 229], // Indigo
+                    halign: 'center',
+                    fontStyle: 'bold',
+                    fontSize: 9
+                },
+                columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 60 }, // Brand - Model column
+                    [tableColumns.length - 1]: { fontStyle: 'bold', fillColor: [243, 244, 246], halign: 'center' } // Row Total column
+                },
+                styles: {
+                    halign: 'center',
+                    valign: 'middle',
+                    fontSize: 9
+                },
+                didParseCell: function (data) {
+                    // Style the footer row
+                    if (data.row.index === tableRows.length - 1) {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [229, 231, 235]; // Gray
+                    }
+                }
+            });
+
+            doc.save(`matrice_commandes_attente_${new Date().toISOString().split('T')[0]}.pdf`);
+            this.showToast('Matrice des commandes téléchargée', 'success');
+
+        } catch (e) {
+            console.error('PDF Matrix Error:', e);
+            alert('Erreur lors de la génération de la matrice PDF.');
+        }
+    },
+
+    showShipmentModal(preSelectedVehicleId = null) {
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        // Allow selecting a vehicle that is either the pre-selected one OR has an order but no shipment AND is not archived
+        const availableVehicles = vehicles.filter(v =>
+            (v.id === preSelectedVehicleId || !v.shipmentId) && !v.isArchived
+        );
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+
+        const modalHtml = `
                         <div class="modal-overlay">
                             <div class="modal-content glass">
                                 <div class="modal-header">
@@ -5769,36 +5778,36 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                         </div>
                         `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            // Logic for vehicle search and selection persistence
-            const searchInput = document.getElementById('shipment-vehicle-search');
-            const listContainer = document.getElementById('shipment-vehicle-list');
-            const selectedVehicleIds = new Set();
-            if (preSelectedVehicleId) selectedVehicleIds.add(preSelectedVehicleId);
+        // Logic for vehicle search and selection persistence
+        const searchInput = document.getElementById('shipment-vehicle-search');
+        const listContainer = document.getElementById('shipment-vehicle-list');
+        const selectedVehicleIds = new Set();
+        if (preSelectedVehicleId) selectedVehicleIds.add(preSelectedVehicleId);
 
-            const renderVehicleList = (filterText = '') => {
-                const lowerFilter = filterText.toLowerCase();
+        const renderVehicleList = (filterText = '') => {
+            const lowerFilter = filterText.toLowerCase();
 
-                const filteredVehicles = availableVehicles.filter(v => {
-                    const order = orders.find(o => o.id === v.orderId);
-                    const searchString = `
+            const filteredVehicles = availableVehicles.filter(v => {
+                const order = orders.find(o => o.id === v.orderId);
+                const searchString = `
                         ${v.brand} ${v.model || ''}
                         ${v.vin || ''}
                         ${order?.clientName || ''}
                         ${order?.showroom || v.showroom || ''}
                         ${v.id}
                     `.toLowerCase();
-                    return searchString.includes(lowerFilter);
-                });
+                return searchString.includes(lowerFilter);
+            });
 
-                if (filteredVehicles.length === 0) {
-                    listContainer.innerHTML = '<p style="color: var(--text-dim); font-size: 0.9rem; padding: 10px;">Aucun véhicule trouvé.</p>';
-                } else {
-                    listContainer.innerHTML = filteredVehicles.map(v => {
-                        const order = orders.find(o => o.id === v.orderId);
-                        const isChecked = selectedVehicleIds.has(v.id);
-                        return `
+            if (filteredVehicles.length === 0) {
+                listContainer.innerHTML = '<p style="color: var(--text-dim); font-size: 0.9rem; padding: 10px;">Aucun véhicule trouvé.</p>';
+            } else {
+                listContainer.innerHTML = filteredVehicles.map(v => {
+                    const order = orders.find(o => o.id === v.orderId);
+                    const isChecked = selectedVehicleIds.has(v.id);
+                    return `
                             <label class="checkbox-item" style="display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
                                 <input type="checkbox" name="vehicleIds" value="${v.id}" ${isChecked ? 'checked' : ''} style="width: 18px; height: 18px;">
                                 <div style="display: flex; flex-direction: column;">
@@ -5810,44 +5819,44 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 </div>
                             </label>
                         `;
-                    }).join('');
-                }
+                }).join('');
+            }
 
-                // Re-attach listeners to new checkboxes
-                listContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                    cb.addEventListener('change', (e) => {
-                        if (e.target.checked) {
-                            selectedVehicleIds.add(e.target.value);
-                        } else {
-                            selectedVehicleIds.delete(e.target.value);
-                        }
-                    });
+            // Re-attach listeners to new checkboxes
+            listContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        selectedVehicleIds.add(e.target.value);
+                    } else {
+                        selectedVehicleIds.delete(e.target.value);
+                    }
                 });
-            };
-
-            // Initial Render
-            renderVehicleList();
-
-            // Search Listener
-            searchInput.addEventListener('input', (e) => {
-                renderVehicleList(e.target.value);
             });
+        };
 
-            document.getElementById('shipment-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleShipmentSubmission(new FormData(e.target));
-            });
-        },
+        // Initial Render
+        renderVehicleList();
 
-        showEditShipmentModal(id) {
-            const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === id);
-            if (!shipment) return;
+        // Search Listener
+        searchInput.addEventListener('input', (e) => {
+            renderVehicleList(e.target.value);
+        });
 
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            // const currentVehicle = vehicles.find(v => v.id === shipment.vehicleId); // This will be an array now
+        document.getElementById('shipment-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleShipmentSubmission(new FormData(e.target));
+        });
+    },
 
-            const modalHtml = `
+    showEditShipmentModal(id) {
+        const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === id);
+        if (!shipment) return;
+
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        // const currentVehicle = vehicles.find(v => v.id === shipment.vehicleId); // This will be an array now
+
+        const modalHtml = `
                         <div class="modal-overlay">
                             <div class="modal-content glass">
                                 <div class="modal-header">
@@ -5898,9 +5907,9 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             <label>Véhicules dans cette expédition</label>
                                             <div class="vehicles-selection-grid glass" style="max-height: 200px; overflow-y: auto; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.2);">
                                                 ${vehicles.filter(v => !v.shipmentId || v.shipmentId === shipment.id).map(v => {
-                const order = orders.find(o => o.id === v.orderId);
-                const isLinked = v.shipmentId === shipment.id;
-                return `
+            const order = orders.find(o => o.id === v.orderId);
+            const isLinked = v.shipmentId === shipment.id;
+            return `
                                     <label class="checkbox-item" style="display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
                                         <input type="checkbox" name="vehicleIds" value="${v.id}" ${isLinked ? 'checked' : ''} style="width: 18px; height: 18px;">
                                         <div style="display: flex; flex-direction: column;">
@@ -5909,7 +5918,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                         </div>
                                     </label>
                                 `;
-            }).join('')}
+        }).join('')}
                                             </div>
                                         </div>
                                         <div class="form-row">
@@ -5972,193 +5981,193 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 </div>
                             </div>
                             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('shipment-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleShipmentSubmission(new FormData(e.target));
-            });
-        },
+        document.getElementById('shipment-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleShipmentSubmission(new FormData(e.target));
+        });
+    },
 
-        async handleShipmentSubmission(formData) {
-            const submitBtn = document.querySelector('#shipment-form button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                const originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
-            }
+    async handleShipmentSubmission(formData) {
+        const submitBtn = document.querySelector('#shipment-form button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+        }
 
-            try {
-                const shipmentId = formData.get('shipmentId');
-                const selectedVehicleIds = formData.getAll('vehicleIds');
-                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-                const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-
-                if (selectedVehicleIds.length === 0) {
-                    this.showToast('Veuillez sélectionner au moins un véhicule', 'danger');
-                    return;
-                }
-
-                const sanitizeDate = (val) => (val && val.trim() !== '' ? val : null);
-                const shipmentData = {
-                    id: shipmentId || `SHP-${Date.now().toString().slice(-6)}`,
-                    containerNumber: formData.get('containerNumber'),
-                    shipmentDate: sanitizeDate(formData.get('shipmentDate')),
-                    etd: sanitizeDate(formData.get('etd')),
-                    eta: sanitizeDate(formData.get('eta')),
-                    docReceptionDate: sanitizeDate(formData.get('docReceptionDate')),
-                    destination: formData.get('destination'),
-                    loadingPort: formData.get('loadingPort'),
-                    trackingNumber: formData.get('trackingNumber'),
-                    blNumber: formData.get('blNumber'),
-                    carrier: formData.get('carrier'),
-                    status: formData.get('status'),
-                    forwarder: formData.get('forwarder'),
-                    voyage: formData.get('voyage'),
-                    isArchived: formData.get('isArchived') === 'true' || false,
-                    arrivalDate: sanitizeDate(formData.get('arrivalDate')),
-                    customsClearanceDate: sanitizeDate(formData.get('customsClearanceDate')),
-                    pickupDate: sanitizeDate(formData.get('pickupDate'))
-                };
-
-                if (shipmentId) {
-                    await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipmentId, shipmentData);
-                } else {
-                    await StorageService.add(STORAGE_KEYS.SHIPMENTS, shipmentData);
-                }
-
-                // Unlink vehicles previously in this shipment to handle removals
-                if (shipmentId) {
-                    for (const v of vehicles) {
-                        if (v.shipmentId === shipmentId || v.shipmentId === shipmentData.id) {
-                            // Check if it's still in the selected list
-                            if (!selectedVehicleIds.includes(v.id)) {
-                                delete v.shipmentId;
-                                v.status = v.orderId ? 'Reserved' : 'Available';
-                                await StorageService.update(STORAGE_KEYS.VEHICLES, v.id, v);
-                            }
-                        }
-                    }
-                }
-
-                // Link newly selected vehicles and update order statuses
-                for (const vId of selectedVehicleIds) {
-                    const vehicle = vehicles.find(v => v.id === vId);
-                    if (vehicle) {
-                        vehicle.shipmentId = shipmentData.id;
-
-                        // Update Vehicle Status based on Shipment Status
-                        if (shipmentData.status === 'Arrivé') {
-                            vehicle.status = 'Arrived';
-                        } else if (shipmentData.status === 'Livré') {
-                            vehicle.status = 'Sold';
-                        } else {
-                            vehicle.status = 'In Transit';
-                        }
-
-                        await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
-
-                        // Update linked order status
-                        if (vehicle.orderId) {
-                            const order = orders.find(o => o.id === vehicle.orderId);
-                            if (order) {
-                                order.status = shipmentData.status;
-                                await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
-                            }
-                        }
-                    }
-                }
-
-                await this.syncOrderStatuses();
-                this.closeModal();
-                this.showToast(shipmentId ? 'Expédition mise à jour' : 'Expédition enregistrée avec succès', 'success');
-                this.renderView(this.currentView);
-            } catch (error) {
-                console.error("Error in handleShipmentSubmission:", error);
-                this.showToast(error.message || "Erreur lors de l'enregistrement de l'expédition", "error");
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = shipmentId ? 'Enregistrer les modifications' : "Lancer l'expédition";
-                }
-            }
-        },
-
-        async trackShipment(shipmentId) {
-            this.showToast(`Mise à jour du suivi pour l'expédition ${shipmentId}...`, "info");
-            try {
-                const response = await fetch(`/api/tracking/${shipmentId}/refresh`, { method: 'POST' });
-                const res = await response.json();
-
-                if (res.success) {
-                    this.showToast("Suivi mis à jour avec succès", "success");
-                    // Afficher le modal avec les détails frais
-                    this.showTrackingModal(res.data, `Suivi: ${res.data.identifier}`);
-                    // Synchroniser les données locales pour mettre à jour le tableau
-                    await StorageService.syncAll();
-                    this.renderView('shipments');
-                } else {
-                    throw new Error(res.message);
-                }
-            } catch (error) {
-                console.error("Refresh Error:", error);
-                this.showToast("Erreur lors de la mise à jour: " + error.message, "danger");
-            }
-        },
-
-        async zoomToShipment(shipmentId) {
-            // Basculer vers la vue Tracking Mondial
-            this.renderView('tracking');
-
-            // Attendre que la carte soit initialisée et que renderTracking ait fini ses fetches
-            setTimeout(() => {
-                const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-                const shipment = shipments.find(s => s.id === shipmentId);
-
-                if (shipment && shipment.currentLat && shipment.currentLng && this.mapTracking) {
-                    this.mapTracking.setView([shipment.currentLat, shipment.currentLng], 12);
-                    this.showToast(`🛳️ Zoom sur le navire : ${shipment.carrier || 'Navire'}`, "info");
-                } else {
-                    this.showToast("Détails du suivi non disponibles pour cette expédition.", "warning");
-                }
-            }, 1500);
-        },
-
-        renderCash(query = '', filter = 'all', showroomFilter = '') {
-            let cash = StorageService.get(STORAGE_KEYS.CASH);
+        try {
+            const shipmentId = formData.get('shipmentId');
+            const selectedVehicleIds = formData.getAll('vehicleIds');
+            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
             const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
 
-            // Apply query filter
-            if (query) {
-                const q = query.toLowerCase();
-                cash = cash.filter(t =>
-                    String(t.clientName || '').toLowerCase().includes(q) ||
-                    String(t.id || '').toLowerCase().includes(q) ||
-                    String(t.orderId || '').toLowerCase().includes(q) ||
-                    String(t.description || '').toLowerCase().includes(q) ||
-                    String(t.showroom || '').toLowerCase().includes(q)
-                );
+            if (selectedVehicleIds.length === 0) {
+                this.showToast('Veuillez sélectionner au moins un véhicule', 'danger');
+                return;
             }
 
-            // Apply tab filter (Type)
-            if (filter === 'in') {
-                cash = cash.filter(t => t.type === 'In');
-            } else if (filter === 'out') {
-                cash = cash.filter(t => t.type === 'Out');
+            const sanitizeDate = (val) => (val && val.trim() !== '' ? val : null);
+            const shipmentData = {
+                id: shipmentId || `SHP-${Date.now().toString().slice(-6)}`,
+                containerNumber: formData.get('containerNumber'),
+                shipmentDate: sanitizeDate(formData.get('shipmentDate')),
+                etd: sanitizeDate(formData.get('etd')),
+                eta: sanitizeDate(formData.get('eta')),
+                docReceptionDate: sanitizeDate(formData.get('docReceptionDate')),
+                destination: formData.get('destination'),
+                loadingPort: formData.get('loadingPort'),
+                trackingNumber: formData.get('trackingNumber'),
+                blNumber: formData.get('blNumber'),
+                carrier: formData.get('carrier'),
+                status: formData.get('status'),
+                forwarder: formData.get('forwarder'),
+                voyage: formData.get('voyage'),
+                isArchived: formData.get('isArchived') === 'true' || false,
+                arrivalDate: sanitizeDate(formData.get('arrivalDate')),
+                customsClearanceDate: sanitizeDate(formData.get('customsClearanceDate')),
+                pickupDate: sanitizeDate(formData.get('pickupDate'))
+            };
+
+            if (shipmentId) {
+                await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipmentId, shipmentData);
+            } else {
+                await StorageService.add(STORAGE_KEYS.SHIPMENTS, shipmentData);
             }
 
-            // Apply Showroom filter
-            if (showroomFilter) {
-                cash = cash.filter(t => t.showroom === showroomFilter);
+            // Unlink vehicles previously in this shipment to handle removals
+            if (shipmentId) {
+                for (const v of vehicles) {
+                    if (v.shipmentId === shipmentId || v.shipmentId === shipmentData.id) {
+                        // Check if it's still in the selected list
+                        if (!selectedVehicleIds.includes(v.id)) {
+                            delete v.shipmentId;
+                            v.status = v.orderId ? 'Reserved' : 'Available';
+                            await StorageService.update(STORAGE_KEYS.VEHICLES, v.id, v);
+                        }
+                    }
+                }
             }
 
-            const totalIn = cash.filter(t => t.type === 'In').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-            const totalOut = cash.filter(t => t.type === 'Out').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-            const balance = totalIn - totalOut;
+            // Link newly selected vehicles and update order statuses
+            for (const vId of selectedVehicleIds) {
+                const vehicle = vehicles.find(v => v.id === vId);
+                if (vehicle) {
+                    vehicle.shipmentId = shipmentData.id;
 
-            this.viewContainer.innerHTML = `
+                    // Update Vehicle Status based on Shipment Status
+                    if (shipmentData.status === 'Arrivé') {
+                        vehicle.status = 'Arrived';
+                    } else if (shipmentData.status === 'Livré') {
+                        vehicle.status = 'Sold';
+                    } else {
+                        vehicle.status = 'In Transit';
+                    }
+
+                    await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
+
+                    // Update linked order status
+                    if (vehicle.orderId) {
+                        const order = orders.find(o => o.id === vehicle.orderId);
+                        if (order) {
+                            order.status = shipmentData.status;
+                            await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
+                        }
+                    }
+                }
+            }
+
+            await this.syncOrderStatuses();
+            this.closeModal();
+            this.showToast(shipmentId ? 'Expédition mise à jour' : 'Expédition enregistrée avec succès', 'success');
+            this.renderView(this.currentView);
+        } catch (error) {
+            console.error("Error in handleShipmentSubmission:", error);
+            this.showToast(error.message || "Erreur lors de l'enregistrement de l'expédition", "error");
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = shipmentId ? 'Enregistrer les modifications' : "Lancer l'expédition";
+            }
+        }
+    },
+
+    async trackShipment(shipmentId) {
+        this.showToast(`Mise à jour du suivi pour l'expédition ${shipmentId}...`, "info");
+        try {
+            const response = await fetch(`/api/tracking/${shipmentId}/refresh`, { method: 'POST' });
+            const res = await response.json();
+
+            if (res.success) {
+                this.showToast("Suivi mis à jour avec succès", "success");
+                // Afficher le modal avec les détails frais
+                this.showTrackingModal(res.data, `Suivi: ${res.data.identifier}`);
+                // Synchroniser les données locales pour mettre à jour le tableau
+                await StorageService.syncAll();
+                this.renderView('shipments');
+            } else {
+                throw new Error(res.message);
+            }
+        } catch (error) {
+            console.error("Refresh Error:", error);
+            this.showToast("Erreur lors de la mise à jour: " + error.message, "danger");
+        }
+    },
+
+    async zoomToShipment(shipmentId) {
+        // Basculer vers la vue Tracking Mondial
+        this.renderView('tracking');
+
+        // Attendre que la carte soit initialisée et que renderTracking ait fini ses fetches
+        setTimeout(() => {
+            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+            const shipment = shipments.find(s => s.id === shipmentId);
+
+            if (shipment && shipment.currentLat && shipment.currentLng && this.mapTracking) {
+                this.mapTracking.setView([shipment.currentLat, shipment.currentLng], 12);
+                this.showToast(`🛳️ Zoom sur le navire : ${shipment.carrier || 'Navire'}`, "info");
+            } else {
+                this.showToast("Détails du suivi non disponibles pour cette expédition.", "warning");
+            }
+        }, 1500);
+    },
+
+    renderCash(query = '', filter = 'all', showroomFilter = '') {
+        let cash = StorageService.get(STORAGE_KEYS.CASH);
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+
+        // Apply query filter
+        if (query) {
+            const q = query.toLowerCase();
+            cash = cash.filter(t =>
+                String(t.clientName || '').toLowerCase().includes(q) ||
+                String(t.id || '').toLowerCase().includes(q) ||
+                String(t.orderId || '').toLowerCase().includes(q) ||
+                String(t.description || '').toLowerCase().includes(q) ||
+                String(t.showroom || '').toLowerCase().includes(q)
+            );
+        }
+
+        // Apply tab filter (Type)
+        if (filter === 'in') {
+            cash = cash.filter(t => t.type === 'In');
+        } else if (filter === 'out') {
+            cash = cash.filter(t => t.type === 'Out');
+        }
+
+        // Apply Showroom filter
+        if (showroomFilter) {
+            cash = cash.filter(t => t.showroom === showroomFilter);
+        }
+
+        const totalIn = cash.filter(t => t.type === 'In').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const totalOut = cash.filter(t => t.type === 'Out').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const balance = totalIn - totalOut;
+
+        this.viewContainer.innerHTML = `
                             <div class="view-header">
                                 <div class="header-title-area">
                                     <h1>Gestion de Caisse</h1>
@@ -6236,8 +6245,8 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </thead>
                                     <tbody>
                                         ${cash.map(t => {
-                const isIn = t.type === 'In';
-                return `
+            const isIn = t.type === 'In';
+            return `
                                 <tr>
                                     <td>${new Date(t.date).toLocaleDateString()}</td>
                                     <td><span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">#${t.id}</span></td>
@@ -6274,84 +6283,84 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 </table>
                             </div>
                             `;
-        },
+    },
 
-        exportCashJournalPDF(showroomFilter = '') {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            let cash = StorageService.get(STORAGE_KEYS.CASH);
+    exportCashJournalPDF(showroomFilter = '') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let cash = StorageService.get(STORAGE_KEYS.CASH);
 
-            if (showroomFilter) {
-                cash = cash.filter(t => t.showroom === showroomFilter);
-            }
+        if (showroomFilter) {
+            cash = cash.filter(t => t.showroom === showroomFilter);
+        }
 
-            doc.setFontSize(22);
-            doc.text('Journal de Caisse - GTM AUTO', 14, 22);
+        doc.setFontSize(22);
+        doc.text('Journal de Caisse - GTM AUTO', 14, 22);
 
-            doc.setFontSize(11);
-            doc.setTextColor(100);
-            doc.text(`Document généré le: ${new Date().toLocaleString()}`, 14, 30);
-            if (showroomFilter) {
-                doc.text(`Showroom: ${showroomFilter}`, 14, 36);
-            }
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Document généré le: ${new Date().toLocaleString()}`, 14, 30);
+        if (showroomFilter) {
+            doc.text(`Showroom: ${showroomFilter}`, 14, 36);
+        }
 
-            const tableData = cash.map(t => [
-                new Date(t.date).toLocaleDateString(),
-                t.id,
-                t.clientName || 'N/A',
-                t.showroom || 'N/A',
-                t.type === 'In' ? 'Entrée' : 'Sortie',
-                t.paymentMethod,
-                this.formatCurrency(t.amount, t.currency)
-            ]);
+        const tableData = cash.map(t => [
+            new Date(t.date).toLocaleDateString(),
+            t.id,
+            t.clientName || 'N/A',
+            t.showroom || 'N/A',
+            t.type === 'In' ? 'Entrée' : 'Sortie',
+            t.paymentMethod,
+            this.formatCurrency(t.amount, t.currency)
+        ]);
 
-            doc.autoTable({
-                startY: showroomFilter ? 42 : 40,
-                head: [['Date', 'ID', 'Client/Motif', 'Showroom', 'Type', 'Méthode', 'Montant']],
-                body: tableData,
-                theme: 'striped',
-                headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255], fontStyle: 'bold' },
-                alternateRowStyles: { fillColor: [245, 247, 255] },
-                margin: { top: 40 }
-            });
+        doc.autoTable({
+            startY: showroomFilter ? 42 : 40,
+            head: [['Date', 'ID', 'Client/Motif', 'Showroom', 'Type', 'Méthode', 'Montant']],
+            body: tableData,
+            theme: 'striped',
+            headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 247, 255] },
+            margin: { top: 40 }
+        });
 
-            // Summary at the bottom
-            const finalY = doc.lastAutoTable.finalY + 10;
-            const totalIn = cash.filter(t => t.type === 'In').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-            const totalOut = cash.filter(t => t.type === 'Out').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-            const balance = totalIn - totalOut;
+        // Summary at the bottom
+        const finalY = doc.lastAutoTable.finalY + 10;
+        const totalIn = cash.filter(t => t.type === 'In').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const totalOut = cash.filter(t => t.type === 'Out').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const balance = totalIn - totalOut;
 
-            doc.setFontSize(12);
-            doc.setTextColor(0);
-            doc.text(`Total Entrées: ${this.formatCurrency(totalIn)}`, 14, finalY);
-            doc.text(`Total Sorties: ${this.formatCurrency(totalOut)}`, 14, finalY + 7);
-            doc.setFont(undefined, 'bold');
-            doc.text(`Solde Final: ${this.formatCurrency(balance)}`, 14, finalY + 14);
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text(`Total Entrées: ${this.formatCurrency(totalIn)}`, 14, finalY);
+        doc.text(`Total Sorties: ${this.formatCurrency(totalOut)}`, 14, finalY + 7);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Solde Final: ${this.formatCurrency(balance)}`, 14, finalY + 14);
 
-            const filename = `Journal_Caisse_${showroomFilter ? showroomFilter + '_' : ''}${new Date().toISOString().split('T')[0]}.pdf`;
-            doc.save(filename);
-            this.showToast('Journal de caisse exporté en PDF', 'success');
-        },
+        const filename = `Journal_Caisse_${showroomFilter ? showroomFilter + '_' : ''}${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(filename);
+        this.showToast('Journal de caisse exporté en PDF', 'success');
+    },
 
-        showCashModal(orderId = null) {
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'XAF'];
-            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-            let preSelectedOrder = null;
-            let preSelectedShowroom = null;
+    showCashModal(orderId = null) {
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'XAF'];
+        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+        let preSelectedOrder = null;
+        let preSelectedShowroom = null;
 
-            if (orderId) {
-                preSelectedOrder = orders.find(o => o.id === orderId);
-                if (preSelectedOrder) {
-                    const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
-                    const client = clients.find(c => c.id === preSelectedOrder.clientId);
-                    if (client && client.showroom) {
-                        preSelectedShowroom = client.showroom;
-                    }
+        if (orderId) {
+            preSelectedOrder = orders.find(o => o.id === orderId);
+            if (preSelectedOrder) {
+                const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+                const client = clients.find(c => c.id === preSelectedOrder.clientId);
+                if (client && client.showroom) {
+                    preSelectedShowroom = client.showroom;
                 }
             }
+        }
 
-            const modalHtml = `
+        const modalHtml = `
                             <div class="modal-overlay">
                                 <div class="modal-content glass" style="width: 500px;">
                                     <div class="modal-header">
@@ -6435,26 +6444,26 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                             `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('cash-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData.entries());
-                this.handleCashSubmission(data);
-            });
-        },
+        document.getElementById('cash-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            this.handleCashSubmission(data);
+        });
+    },
 
-        showEditCashModal(id) {
-            const cash = StorageService.get(STORAGE_KEYS.CASH);
-            const transaction = cash.find(t => t.id === id);
-            if (!transaction) return;
+    showEditCashModal(id) {
+        const cash = StorageService.get(STORAGE_KEYS.CASH);
+        const transaction = cash.find(t => t.id === id);
+        if (!transaction) return;
 
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'XAF'];
-            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'XAF'];
+        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
 
-            const modalHtml = `
+        const modalHtml = `
                             <div class="modal-overlay">
                                 <div class="modal-content glass" style="width: 500px;">
                                     <div class="modal-header">
@@ -6540,330 +6549,330 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 </div>
                                 `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('cash-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData.entries());
-                this.handleCashSubmission(data);
-            });
-        },
+        document.getElementById('cash-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            this.handleCashSubmission(data);
+        });
+    },
 
-        handleCashTypeChange(type) {
-            const clientContainer = document.getElementById('client-select-container');
-            const orderContainer = document.getElementById('order-select-container');
-            const labelClientMotif = document.getElementById('label-client-motif');
-            const clientSelect = document.getElementById('cash-client-select');
-            const orderSelect = document.getElementById('cash-order-select');
-            const clientInput = document.getElementById('cash-client-name');
+    handleCashTypeChange(type) {
+        const clientContainer = document.getElementById('client-select-container');
+        const orderContainer = document.getElementById('order-select-container');
+        const labelClientMotif = document.getElementById('label-client-motif');
+        const clientSelect = document.getElementById('cash-client-select');
+        const orderSelect = document.getElementById('cash-order-select');
+        const clientInput = document.getElementById('cash-client-name');
 
-            if (type === 'Out') {
-                clientContainer.style.display = 'none';
-                orderContainer.style.display = 'none';
-                labelClientMotif.innerText = 'Motif / Bénéficiaire';
-                if (clientSelect) clientSelect.value = '';
-                if (orderSelect) {
-                    orderSelect.value = '';
-                    orderSelect.required = false;
-                }
-                if (clientInput) {
-                    clientInput.value = '';
-                    clientInput.readOnly = false;
-                }
-            } else {
-                clientContainer.style.display = 'block';
-                labelClientMotif.innerText = 'Client';
+        if (type === 'Out') {
+            clientContainer.style.display = 'none';
+            orderContainer.style.display = 'none';
+            labelClientMotif.innerText = 'Motif / Bénéficiaire';
+            if (clientSelect) clientSelect.value = '';
+            if (orderSelect) {
+                orderSelect.value = '';
+                orderSelect.required = false;
             }
-        },
-
-        handleClientSelectInCash(clientId) {
-            const orderContainer = document.getElementById('order-select-container');
-            const orderSelect = document.getElementById('cash-order-select');
-            const clientInput = document.getElementById('cash-client-name');
-            const showroomSelect = document.getElementById('cash-showroom-select');
-
-            if (!clientId) {
-                orderContainer.style.display = 'none';
-                if (orderSelect) orderSelect.innerHTML = '<option value="">-- Choisir une commande --</option>';
-                if (clientInput) {
-                    clientInput.value = '';
-                    clientInput.readOnly = false;
-                }
-                return;
+            if (clientInput) {
+                clientInput.value = '';
+                clientInput.readOnly = false;
             }
+        } else {
+            clientContainer.style.display = 'block';
+            labelClientMotif.innerText = 'Client';
+        }
+    },
 
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
-            const client = clients.find(c => c.id === clientId);
-            if (clientInput && client) {
-                clientInput.value = `${client.firstName} ${client.lastName}`;
-                clientInput.readOnly = true;
+    handleClientSelectInCash(clientId) {
+        const orderContainer = document.getElementById('order-select-container');
+        const orderSelect = document.getElementById('cash-order-select');
+        const clientInput = document.getElementById('cash-client-name');
+        const showroomSelect = document.getElementById('cash-showroom-select');
+
+        if (!clientId) {
+            orderContainer.style.display = 'none';
+            if (orderSelect) orderSelect.innerHTML = '<option value="">-- Choisir une commande --</option>';
+            if (clientInput) {
+                clientInput.value = '';
+                clientInput.readOnly = false;
             }
+            return;
+        }
 
-            // Auto-populate showroom if available
-            if (showroomSelect && client && client.showroom) {
-                showroomSelect.value = client.showroom;
-            }
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+        const client = clients.find(c => c.id === clientId);
+        if (clientInput && client) {
+            clientInput.value = `${client.firstName} ${client.lastName}`;
+            clientInput.readOnly = true;
+        }
 
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const clientOrders = orders.filter(o => o.clientId === clientId);
+        // Auto-populate showroom if available
+        if (showroomSelect && client && client.showroom) {
+            showroomSelect.value = client.showroom;
+        }
 
-            // Filter only unpaid orders
-            const unpaidOrders = clientOrders.filter(o => {
-                const paid = this.getPaidAmount(o.id);
-                return paid < o.totalAmount;
-            });
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const clientOrders = orders.filter(o => o.clientId === clientId);
 
-            if (unpaidOrders.length > 0) {
-                orderContainer.style.display = 'block';
-                orderSelect.innerHTML = '<option value="">-- Choisir une commande --</option>' +
-                    unpaidOrders.map(o => `
+        // Filter only unpaid orders
+        const unpaidOrders = clientOrders.filter(o => {
+            const paid = this.getPaidAmount(o.id);
+            return paid < o.totalAmount;
+        });
+
+        if (unpaidOrders.length > 0) {
+            orderContainer.style.display = 'block';
+            orderSelect.innerHTML = '<option value="">-- Choisir une commande --</option>' +
+                unpaidOrders.map(o => `
                                 <option value="${o.id}">
                                     #${o.id} - ${o.vehicleName} (${this.formatCurrency(o.totalAmount)})
                                 </option>
                                 `).join('');
-            } else {
-                orderContainer.style.display = 'none';
-                orderSelect.innerHTML = '<option value="">-- Aucune commande en cours --</option>';
-                this.showToast('Ce client n\'a aucune commande non soldée.', 'info');
+        } else {
+            orderContainer.style.display = 'none';
+            orderSelect.innerHTML = '<option value="">-- Aucune commande en cours --</option>';
+            this.showToast('Ce client n\'a aucune commande non soldée.', 'info');
+        }
+    },
+
+    handleOrderSelectInCash(orderId) {
+        const clientInput = document.getElementById('cash-client-name');
+        const amountInput = document.querySelector('#cash-form input[name="amount"]');
+
+        if (!orderId) {
+            if (clientInput) {
+                clientInput.value = '';
+                clientInput.readOnly = false;
             }
-        },
+            return;
+        }
 
-        handleOrderSelectInCash(orderId) {
-            const clientInput = document.getElementById('cash-client-name');
-            const amountInput = document.querySelector('#cash-form input[name="amount"]');
-
-            if (!orderId) {
-                if (clientInput) {
-                    clientInput.value = '';
-                    clientInput.readOnly = false;
-                }
-                return;
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+            if (clientInput) {
+                clientInput.value = order.clientName;
+                clientInput.readOnly = true;
             }
 
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            const order = orders.find(o => o.id === orderId);
-            if (order) {
-                if (clientInput) {
-                    clientInput.value = order.clientName;
-                    clientInput.readOnly = true;
-                }
-
-                if (amountInput && !amountInput.value) {
-                    const paid = this.getPaidAmount(orderId);
-                    const remaining = Math.max(0, order.totalAmount - paid);
-                    amountInput.value = remaining;
-                }
+            if (amountInput && !amountInput.value) {
+                const paid = this.getPaidAmount(orderId);
+                const remaining = Math.max(0, order.totalAmount - paid);
+                amountInput.value = remaining;
             }
-        },
+        }
+    },
 
-        async handleCashSubmission(data) {
-            try {
-                const cash = StorageService.get(STORAGE_KEYS.CASH);
-                const isUpdate = !!data.id;
-
-                if (isUpdate) {
-                    await StorageService.update(STORAGE_KEYS.CASH, data.id, {
-                        ...data,
-                        amount: Number(data.amount),
-                        showroom: data.showroom || 'Showroom Principal'
-                    });
-                    this.showToast('Transaction mise à jour', 'success');
-                } else {
-                    const newTransaction = {
-                        ...data,
-                        id: `TRX-${Date.now().toString().slice(-6)}`,
-                        date: new Date().toISOString(),
-                        type: data.type || 'In',
-                        amount: Number(data.amount),
-                        showroom: data.showroom || 'Showroom Principal'
-                    };
-
-                    await StorageService.add(STORAGE_KEYS.CASH, newTransaction);
-                    this.showToast('Règlement enregistré avec succès', 'success');
-                }
-
-                // Sync linked order status if necessary
-                if (data.orderId) {
-                    await this.syncOrderStatuses();
-                }
-
-                this.closeModal();
-                // Force re-render of current view to show changes
-                if (this.currentView) {
-                    this.renderView(this.currentView);
-                } else {
-                    this.renderDashboard();
-                }
-            } catch (error) {
-                console.error("Error in handleCashSubmission:", error);
-                this.showToast("Erreur lors de l'enregistrement de la transaction", "error");
-            }
-        },
-
-        async deleteCashTransaction(id) {
-            this.showConfirmModal('Êtes-vous sûr de vouloir supprimer cette transaction ?', async () => {
-                await StorageService.delete(STORAGE_KEYS.CASH, id);
-                this.showToast('Transaction supprimée', 'info');
-                this.renderCash(this.searchQuery);
-            });
-        },
-
-        getPaidAmount(orderId) {
+    async handleCashSubmission(data) {
+        try {
             const cash = StorageService.get(STORAGE_KEYS.CASH);
-            return cash
-                .filter(t => t.orderId === orderId && t.type === 'In')
-                .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-        },
+            const isUpdate = !!data.id;
 
-        deleteShipment(id) {
-            this.showConfirmModal('Êtes-vous sûr de vouloir supprimer cette expédition ?', async () => {
-                const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-                const shipment = shipments.find(s => s.id === id);
+            if (isUpdate) {
+                await StorageService.update(STORAGE_KEYS.CASH, data.id, {
+                    ...data,
+                    amount: Number(data.amount),
+                    showroom: data.showroom || 'Showroom Principal'
+                });
+                this.showToast('Transaction mise à jour', 'success');
+            } else {
+                const newTransaction = {
+                    ...data,
+                    id: `TRX-${Date.now().toString().slice(-6)}`,
+                    date: new Date().toISOString(),
+                    type: data.type || 'In',
+                    amount: Number(data.amount),
+                    showroom: data.showroom || 'Showroom Principal'
+                };
 
-                if (shipment) {
-                    // Unlink vehicles
-                    const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-                    for (const v of vehicles) {
-                        if (v.shipmentId === id) {
-                            v.shipmentId = null;
-                            v.status = v.orderId ? 'Reserved' : 'Available';
-                            await StorageService.update(STORAGE_KEYS.VEHICLES, v.id, v);
-                        }
+                await StorageService.add(STORAGE_KEYS.CASH, newTransaction);
+                this.showToast('Règlement enregistré avec succès', 'success');
+            }
+
+            // Sync linked order status if necessary
+            if (data.orderId) {
+                await this.syncOrderStatuses();
+            }
+
+            this.closeModal();
+            // Force re-render of current view to show changes
+            if (this.currentView) {
+                this.renderView(this.currentView);
+            } else {
+                this.renderDashboard();
+            }
+        } catch (error) {
+            console.error("Error in handleCashSubmission:", error);
+            this.showToast("Erreur lors de l'enregistrement de la transaction", "error");
+        }
+    },
+
+    async deleteCashTransaction(id) {
+        this.showConfirmModal('Êtes-vous sûr de vouloir supprimer cette transaction ?', async () => {
+            await StorageService.delete(STORAGE_KEYS.CASH, id);
+            this.showToast('Transaction supprimée', 'info');
+            this.renderCash(this.searchQuery);
+        });
+    },
+
+    getPaidAmount(orderId) {
+        const cash = StorageService.get(STORAGE_KEYS.CASH);
+        return cash
+            .filter(t => t.orderId === orderId && t.type === 'In')
+            .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    },
+
+    deleteShipment(id) {
+        this.showConfirmModal('Êtes-vous sûr de vouloir supprimer cette expédition ?', async () => {
+            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+            const shipment = shipments.find(s => s.id === id);
+
+            if (shipment) {
+                // Unlink vehicles
+                const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+                for (const v of vehicles) {
+                    if (v.shipmentId === id) {
+                        v.shipmentId = null;
+                        v.status = v.orderId ? 'Reserved' : 'Available';
+                        await StorageService.update(STORAGE_KEYS.VEHICLES, v.id, v);
                     }
                 }
-
-                await StorageService.delete(STORAGE_KEYS.SHIPMENTS, id);
-                this.renderView('shipments');
-            });
-        },
-
-        convertCurrency(amount, fromCurrency, toCurrency, date = new Date()) {
-            if (!amount || isNaN(amount)) return 0;
-            if (fromCurrency === toCurrency) return Number(amount);
-
-            if (!fromCurrency) fromCurrency = 'EUR';
-            if (!toCurrency) toCurrency = 'EUR';
-
-            const rates = StorageService.get(STORAGE_KEYS.EXCHANGE_RATES) || [];
-
-            let rateEntry = rates.find(r => r.fromCurrency === fromCurrency && r.toCurrency === toCurrency);
-
-            let inverse = false;
-            if (!rateEntry) {
-                rateEntry = rates.find(r => r.fromCurrency === toCurrency && r.toCurrency === fromCurrency);
-                inverse = true;
             }
 
-            if (rateEntry) {
-                const rate = Number(rateEntry.rate);
-                return inverse ? amount / rate : amount * rate;
-            }
+            await StorageService.delete(STORAGE_KEYS.SHIPMENTS, id);
+            this.renderView('shipments');
+        });
+    },
 
-            return Number(amount);
-        },
+    convertCurrency(amount, fromCurrency, toCurrency, date = new Date()) {
+        if (!amount || isNaN(amount)) return 0;
+        if (fromCurrency === toCurrency) return Number(amount);
 
-        formatCurrency(amount, type = 'selling') {
-            const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {
-                purchaseCurrency: 'EUR',
-                sellingCurrency: 'EUR'
-            };
+        if (!fromCurrency) fromCurrency = 'EUR';
+        if (!toCurrency) toCurrency = 'EUR';
 
-            // Map type to the correct setting key or use directly if it's a code
-            let currency = settings.sellingCurrency || 'EUR';
-            if (type === 'purchase') {
-                currency = settings.purchaseCurrency || 'EUR';
-            } else if (type && type.length === 3) {
-                // If a 3-letter code is passed directly
-                currency = type;
-            }
+        const rates = StorageService.get(STORAGE_KEYS.EXCHANGE_RATES) || [];
 
-            const numAmount = Number(amount);
-            if (isNaN(numAmount)) return amount;
+        let rateEntry = rates.find(r => r.fromCurrency === fromCurrency && r.toCurrency === toCurrency);
 
-            try {
-                return new Intl.NumberFormat('fr-FR', {
-                    style: 'currency',
-                    currency: currency,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                }).format(numAmount);
-            } catch (e) {
-                return `${numAmount.toLocaleString('fr-FR')} ${currency} `;
-            }
-        },
+        let inverse = false;
+        if (!rateEntry) {
+            rateEntry = rates.find(r => r.fromCurrency === toCurrency && r.toCurrency === fromCurrency);
+            inverse = true;
+        }
 
-        renderAlerts() {
-            this.currentView = 'alerts';
+        if (rateEntry) {
+            const rate = Number(rateEntry.rate);
+            return inverse ? amount / rate : amount * rate;
+        }
 
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-            const now = new Date();
-            const tenDaysFromNow = new Date();
-            tenDaysFromNow.setDate(now.getDate() + 10);
+        return Number(amount);
+    },
 
-            const alerts = [];
+    formatCurrency(amount, type = 'selling') {
+        const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {
+            purchaseCurrency: 'EUR',
+            sellingCurrency: 'EUR'
+        };
 
-            // 1. Ships arriving within 10 days
-            shipments.forEach(s => {
-                if (s.arrivalDate && s.status !== 'Arrivé') {
-                    const arrival = new Date(s.arrivalDate);
-                    if (arrival > now && arrival <= tenDaysFromNow) {
-                        alerts.push({
-                            type: 'info',
-                            icon: 'fa-ship',
-                            title: `Arrivée Imminente : ${s.shipName || s.shippingLine}`,
-                            message: `Le navire est attendu le ${arrival.toLocaleDateString()} (dans moins de 10 jours).`,
-                            date: s.arrivalDate
-                        });
-                    }
-                }
-            });
+        // Map type to the correct setting key or use directly if it's a code
+        let currency = settings.sellingCurrency || 'EUR';
+        if (type === 'purchase') {
+            currency = settings.purchaseCurrency || 'EUR';
+        } else if (type && type.length === 3) {
+            // If a 3-letter code is passed directly
+            currency = type;
+        }
 
-            // 2. Validated Orders without Vehicle
-            orders.forEach(o => {
-                if (o.isValidated && !o.vehicleId && o.status !== 'ANNULÉE' && o.status !== 'ANNULÉ') {
+        const numAmount = Number(amount);
+        if (isNaN(numAmount)) return amount;
+
+        try {
+            return new Intl.NumberFormat('fr-FR', {
+                style: 'currency',
+                currency: currency,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(numAmount);
+        } catch (e) {
+            return `${numAmount.toLocaleString('fr-FR')} ${currency} `;
+        }
+    },
+
+    renderAlerts() {
+        this.currentView = 'alerts';
+
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const now = new Date();
+        const tenDaysFromNow = new Date();
+        tenDaysFromNow.setDate(now.getDate() + 10);
+
+        const alerts = [];
+
+        // 1. Ships arriving within 10 days
+        shipments.forEach(s => {
+            if (s.arrivalDate && s.status !== 'Arrivé') {
+                const arrival = new Date(s.arrivalDate);
+                if (arrival > now && arrival <= tenDaysFromNow) {
                     alerts.push({
-                        type: 'warning',
-                        icon: 'fa-exclamation-triangle',
-                        title: `Commande Validée sans Véhicule : #${o.id}`,
-                        message: `La commande de ${o.clientName} est validée mais aucun véhicule n'est encore affecté.`,
-                        date: o.date
+                        type: 'info',
+                        icon: 'fa-ship',
+                        title: `Arrivée Imminente : ${s.shipName || s.shippingLine}`,
+                        message: `Le navire est attendu le ${arrival.toLocaleDateString()} (dans moins de 10 jours).`,
+                        date: s.arrivalDate
                     });
                 }
-            });
+            }
+        });
 
-            // 3. Shipped Vehicles without Client
-            vehicles.forEach(v => {
-                if (v.shipmentId && !v.orderId && !v.archived) {
-                    alerts.push({
-                        type: 'danger',
-                        icon: 'fa-user-slash',
-                        title: `Véhicule Expédié Non Affecté : #${v.id}`,
-                        message: `Le véhicule ${v.brand} ${v.model || ''} est en cours d'expédition mais n'est lié à aucun client.`,
-                        date: v.updatedAt || v.createdAt
-                    });
-                }
-            });
+        // 2. Validated Orders without Vehicle
+        orders.forEach(o => {
+            if (o.isValidated && !o.vehicleId && o.status !== 'ANNULÉE' && o.status !== 'ANNULÉ') {
+                alerts.push({
+                    type: 'warning',
+                    icon: 'fa-exclamation-triangle',
+                    title: `Commande Validée sans Véhicule : #${o.id}`,
+                    message: `La commande de ${o.clientName} est validée mais aucun véhicule n'est encore affecté.`,
+                    date: o.date
+                });
+            }
+        });
 
-            // 4. Outdated Tracking (merged from old Tracking Alerts)
-            shipments.forEach(s => {
-                if (!s.isArchived && this.isOutdated(s.lastUpdate)) {
-                    alerts.push({
-                        type: 'danger',
-                        icon: 'fa-sync-alt',
-                        title: `Mise à jour requise : ${s.containerNumber || s.id}`,
-                        message: `Dernière mise à jour il y a plus de 24h pour le voyage ${s.voyage || 'N/A'}.`,
-                        date: s.lastUpdate || s.createdAt
-                    });
-                }
-            });
+        // 3. Shipped Vehicles without Client
+        vehicles.forEach(v => {
+            if (v.shipmentId && !v.orderId && !v.archived) {
+                alerts.push({
+                    type: 'danger',
+                    icon: 'fa-user-slash',
+                    title: `Véhicule Expédié Non Affecté : #${v.id}`,
+                    message: `Le véhicule ${v.brand} ${v.model || ''} est en cours d'expédition mais n'est lié à aucun client.`,
+                    date: v.updatedAt || v.createdAt
+                });
+            }
+        });
 
-            // Sort by date descending
-            alerts.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // 4. Outdated Tracking (merged from old Tracking Alerts)
+        shipments.forEach(s => {
+            if (!s.isArchived && this.isOutdated(s.lastUpdate)) {
+                alerts.push({
+                    type: 'danger',
+                    icon: 'fa-sync-alt',
+                    title: `Mise à jour requise : ${s.containerNumber || s.id}`,
+                    message: `Dernière mise à jour il y a plus de 24h pour le voyage ${s.voyage || 'N/A'}.`,
+                    date: s.lastUpdate || s.createdAt
+                });
+            }
+        });
 
-            this.viewContainer.innerHTML = `
+        // Sort by date descending
+        alerts.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <h1><i class="fas fa-bell"></i> Alertes</h1>
                     <p class="subtitle">Suivi des alertes système et notifications critiques</p>
@@ -6891,25 +6900,25 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     `).join('')}
                 </div>
             `;
-        },
+    },
 
-        async renderPurchases(query = '') {
-            this.currentView = 'purchases';
-            this.searchQuery = query;
+    async renderPurchases(query = '') {
+        this.currentView = 'purchases';
+        this.searchQuery = query;
 
-            try {
-                const response = await ApiService.getPurchaseOrders();
-                let purchases = response.data || [];
+        try {
+            const response = await ApiService.getPurchaseOrders();
+            let purchases = response.data || [];
 
-                if (query) {
-                    const q = query.toLowerCase();
-                    purchases = purchases.filter(p =>
-                        p.supplierName.toLowerCase().includes(q) ||
-                        (p.orderId && p.orderId.toLowerCase().includes(q))
-                    );
-                }
+            if (query) {
+                const q = query.toLowerCase();
+                purchases = purchases.filter(p =>
+                    p.supplierName.toLowerCase().includes(q) ||
+                    (p.orderId && p.orderId.toLowerCase().includes(q))
+                );
+            }
 
-                this.viewContainer.innerHTML = `
+            this.viewContainer.innerHTML = `
                     <div class="view-header">
                         <div>
                             <h1><i class="fas fa-shopping-cart"></i> Commandes d'Achat</h1>
@@ -6940,7 +6949,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </thead>
                             <tbody>
                                 ${purchases.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 40px;">Aucune commande d\'achat trouvée</td></tr>' :
-                        purchases.map(p => `
+                    purchases.map(p => `
                                     <tr>
                                         <td><strong>#${p.id}</strong></td>
                                         <td>#${p.orderId} ${p.order?.clientName || ''}</td>
@@ -6960,29 +6969,29 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         </table>
                     </div>
                 `;
-            } catch (err) {
-                console.error("Error rendering purchases:", err);
-                this.showToast("Erreur lors du chargement des achats", "error");
+        } catch (err) {
+            console.error("Error rendering purchases:", err);
+            this.showToast("Erreur lors du chargement des achats", "error");
+        }
+    },
+
+    async renderSuppliers(query = '') {
+        this.currentView = 'suppliers';
+        this.searchQuery = query;
+
+        try {
+            const response = await ApiService.getSuppliers();
+            let suppliers = response.data || [];
+
+            if (query) {
+                const q = query.toLowerCase();
+                suppliers = suppliers.filter(s =>
+                    s.name.toLowerCase().includes(q) ||
+                    s.code.toLowerCase().includes(q)
+                );
             }
-        },
 
-        async renderSuppliers(query = '') {
-            this.currentView = 'suppliers';
-            this.searchQuery = query;
-
-            try {
-                const response = await ApiService.getSuppliers();
-                let suppliers = response.data || [];
-
-                if (query) {
-                    const q = query.toLowerCase();
-                    suppliers = suppliers.filter(s =>
-                        s.name.toLowerCase().includes(q) ||
-                        s.code.toLowerCase().includes(q)
-                    );
-                }
-
-                this.viewContainer.innerHTML = `
+            this.viewContainer.innerHTML = `
                     < div class="view-header" >
                         <div>
                             <h1><i class="fas fa-truck-field"></i> Fournisseurs</h1>
@@ -7008,7 +7017,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 </thead>
                 <tbody>
                     ${suppliers.length === 0 ? '<tr><td colspan="5" style="text-align: center; padding: 40px;">Aucun fournisseur trouvé</td></tr>' :
-                        suppliers.map(s => `
+                    suppliers.map(s => `
                                     <tr>
                                         <td><strong>${s.code}</strong></td>
                                         <td>${s.name}</td>
@@ -7026,20 +7035,20 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             </table>
         </div>
     `;
-            } catch (err) {
-                console.error("Error rendering suppliers:", err);
-                this.showToast("Erreur lors du chargement des fournisseurs", "error");
-            }
-        },
+        } catch (err) {
+            console.error("Error rendering suppliers:", err);
+            this.showToast("Erreur lors du chargement des fournisseurs", "error");
+        }
+    },
 
-        async showSupplierModal(id = null) {
-            let supplier = null;
-            if (id) {
-                const response = await ApiService.getSuppliers();
-                supplier = response.data.find(s => s.id == id);
-            }
+    async showSupplierModal(id = null) {
+        let supplier = null;
+        if (id) {
+            const response = await ApiService.getSuppliers();
+            supplier = response.data.find(s => s.id == id);
+        }
 
-            const modalHtml = `
+        const modalHtml = `
         < div id = "modal-overlay" class="modal-overlay" >
             <div class="modal glass" style="max-width: 500px; width: 95%;">
                 <div class="modal-header">
@@ -7076,64 +7085,64 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             </div >
         `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('supplier-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData.entries());
+        document.getElementById('supplier-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
 
-                try {
-                    if (id) {
-                        await ApiService.updateSupplier(id, data);
-                        this.showToast("Fournisseur mis à jour", "success");
-                    } else {
-                        await ApiService.createSupplier(data);
-                        this.showToast("Fournisseur créé avec succès", "success");
-                    }
-                    document.getElementById('modal-overlay').remove();
-                    this.renderSuppliers();
-                } catch (err) {
-                    this.showToast(err.message, "error");
+            try {
+                if (id) {
+                    await ApiService.updateSupplier(id, data);
+                    this.showToast("Fournisseur mis à jour", "success");
+                } else {
+                    await ApiService.createSupplier(data);
+                    this.showToast("Fournisseur créé avec succès", "success");
                 }
-            });
-        },
-
-        async deleteSupplier(id) {
-            if (confirm("Êtes-vous sûr de vouloir supprimer ce fournisseur ?")) {
-                try {
-                    await ApiService.deleteSupplier(id);
-                    this.showToast("Fournisseur supprimé", "info");
-                    this.renderSuppliers();
-                } catch (err) {
-                    this.showToast("Erreur lors de la suppression", "error");
-                }
+                document.getElementById('modal-overlay').remove();
+                this.renderSuppliers();
+            } catch (err) {
+                this.showToast(err.message, "error");
             }
-        },
+        });
+    },
 
-        async showPurchaseOrderModal(id = null) {
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-            const response = await ApiService.getPurchaseOrders();
-            const existingPOs = response.data || [];
-            const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
-            const colors = StorageService.get(STORAGE_KEYS.COLORS) || [];
-
-            let po = id ? existingPOs.find(p => p.id === id) : null;
-
-            // Filter for creation: Validated AND NOT Cancelled AND NOT linked to a vehicle AND NOT already having a PO
-            const eligibleOrders = orders.filter(o =>
-                o.isValidated &&
-                !['ANNULÉE', 'ANNULÉ'].includes(o.status) &&
-                !o.vehicleId &&
-                (!existingPOs.find(p => p.orderId === o.id) || (po && po.orderId === o.id))
-            );
-
-            if (!eligibleOrders.length && !id) {
-                this.showToast("Aucune commande client validée et non affectée disponible pour un achat.", "warning");
-                return;
+    async deleteSupplier(id) {
+        if (confirm("Êtes-vous sûr de vouloir supprimer ce fournisseur ?")) {
+            try {
+                await ApiService.deleteSupplier(id);
+                this.showToast("Fournisseur supprimé", "info");
+                this.renderSuppliers();
+            } catch (err) {
+                this.showToast("Erreur lors de la suppression", "error");
             }
+        }
+    },
 
-            const modalHtml = `
+    async showPurchaseOrderModal(id = null) {
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+        const response = await ApiService.getPurchaseOrders();
+        const existingPOs = response.data || [];
+        const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
+        const colors = StorageService.get(STORAGE_KEYS.COLORS) || [];
+
+        let po = id ? existingPOs.find(p => p.id === id) : null;
+
+        // Filter for creation: Validated AND NOT Cancelled AND NOT linked to a vehicle AND NOT already having a PO
+        const eligibleOrders = orders.filter(o =>
+            o.isValidated &&
+            !['ANNULÉE', 'ANNULÉ'].includes(o.status) &&
+            !o.vehicleId &&
+            (!existingPOs.find(p => p.orderId === o.id) || (po && po.orderId === o.id))
+        );
+
+        if (!eligibleOrders.length && !id) {
+            this.showToast("Aucune commande client validée et non affectée disponible pour un achat.", "warning");
+            return;
+        }
+
+        const modalHtml = `
         < div id = "modal-overlay" class="modal-overlay" >
             <div class="modal glass" style="max-width: 900px; width: 95%;">
                 <div class="modal-header">
@@ -7195,9 +7204,9 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             <div class="form-group">
                                 <label>Véhicule</label>
                                 <input type="text" value="${(() => {
-                    const o = orders.find(ord => ord.id === po.orderId);
-                    return o ? `${o.requestedBrand} ${o.requestedModel || ''}` : 'N/A';
-                })()}" disabled class="code-input">
+                const o = orders.find(ord => ord.id === po.orderId);
+                return o ? `${o.requestedBrand} ${o.requestedModel || ''}` : 'N/A';
+            })()}" disabled class="code-input">
                             </div>
                         </div>
                         `}
@@ -7240,101 +7249,101 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             </div >
         `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            // Select all functionality
-            const selectAll = document.getElementById('select-all-po-orders');
-            if (selectAll) {
-                selectAll.addEventListener('change', (e) => {
-                    document.querySelectorAll('.po-order-checkbox').forEach(cb => cb.checked = e.target.checked);
-                });
-            }
-
-            document.getElementById('po-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const baseData = {
-                    supplierId: formData.get('supplierId'),
-                    status: formData.get('status'),
-                    purchaseDate: formData.get('purchaseDate'),
-                    notes: formData.get('notes')
-                };
-
-                if (!id) {
-                    const selectedCheckboxes = document.querySelectorAll('.po-order-checkbox:checked');
-                    if (selectedCheckboxes.length === 0) {
-                        this.showToast("Veuillez sélectionner au moins une commande.", "warning");
-                        return;
-                    }
-
-                    const loadingToast = this.showToast("Création des commandes d'achat en cours...", "info", 0);
-                    let successCount = 0;
-                    let errorCount = 0;
-
-                    for (const cb of selectedCheckboxes) {
-                        const orderId = cb.value;
-                        const tr = cb.closest('tr');
-                        const color = tr.querySelector('.color-select').value;
-                        const category = tr.querySelector('.category-select').value;
-
-                        const data = {
-                            ...baseData,
-                            id: `PO - ${Date.now()} -${orderId} `,
-                            orderId: orderId,
-                            notes: (baseData.notes ? baseData.notes + "\n" : "") + `Couleur: ${color || 'N/A'}, Catégorie: ${category || 'N/A'} `
-                        };
-
-                        try {
-                            await ApiService.createPurchaseOrder(data);
-                            // Also optionally update the order/vehicle with color/category if we had a vehicle, 
-                            // but here vehicle is not created yet. 
-                            // We might want to pass these to the creation of the vehicle later.
-                            successCount++;
-                        } catch (err) {
-                            console.error(`Error creating PO for order ${orderId}: `, err);
-                            errorCount++;
-                        }
-                    }
-
-                    if (loadingToast && loadingToast.remove) loadingToast.remove();
-
-                    if (errorCount === 0) {
-                        this.showToast(`${successCount} commande(s) d'achat créée(s) avec succès`, "success");
-                    } else {
-                        this.showToast(`${successCount} succès, ${errorCount} erreurs lors de la création`, "warning");
-                    }
-                } else {
-                    try {
-                        await ApiService.updatePurchaseOrder(id, baseData);
-                        this.showToast("Commande d'achat mise à jour", "success");
-                    } catch (err) {
-                        this.showToast(err.message, "error");
-                        return;
-                    }
-                }
-
-                document.getElementById('modal-overlay').remove();
-                this.renderPurchases(this.searchQuery);
+        // Select all functionality
+        const selectAll = document.getElementById('select-all-po-orders');
+        if (selectAll) {
+            selectAll.addEventListener('change', (e) => {
+                document.querySelectorAll('.po-order-checkbox').forEach(cb => cb.checked = e.target.checked);
             });
-        },
+        }
 
-        async deletePurchaseOrder(id) {
-            if (confirm("Êtes-vous sûr de vouloir supprimer cette commande d'achat ?")) {
+        document.getElementById('po-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const baseData = {
+                supplierId: formData.get('supplierId'),
+                status: formData.get('status'),
+                purchaseDate: formData.get('purchaseDate'),
+                notes: formData.get('notes')
+            };
+
+            if (!id) {
+                const selectedCheckboxes = document.querySelectorAll('.po-order-checkbox:checked');
+                if (selectedCheckboxes.length === 0) {
+                    this.showToast("Veuillez sélectionner au moins une commande.", "warning");
+                    return;
+                }
+
+                const loadingToast = this.showToast("Création des commandes d'achat en cours...", "info", 0);
+                let successCount = 0;
+                let errorCount = 0;
+
+                for (const cb of selectedCheckboxes) {
+                    const orderId = cb.value;
+                    const tr = cb.closest('tr');
+                    const color = tr.querySelector('.color-select').value;
+                    const category = tr.querySelector('.category-select').value;
+
+                    const data = {
+                        ...baseData,
+                        id: `PO - ${Date.now()} -${orderId} `,
+                        orderId: orderId,
+                        notes: (baseData.notes ? baseData.notes + "\n" : "") + `Couleur: ${color || 'N/A'}, Catégorie: ${category || 'N/A'} `
+                    };
+
+                    try {
+                        await ApiService.createPurchaseOrder(data);
+                        // Also optionally update the order/vehicle with color/category if we had a vehicle, 
+                        // but here vehicle is not created yet. 
+                        // We might want to pass these to the creation of the vehicle later.
+                        successCount++;
+                    } catch (err) {
+                        console.error(`Error creating PO for order ${orderId}: `, err);
+                        errorCount++;
+                    }
+                }
+
+                if (loadingToast && loadingToast.remove) loadingToast.remove();
+
+                if (errorCount === 0) {
+                    this.showToast(`${successCount} commande(s) d'achat créée(s) avec succès`, "success");
+                } else {
+                    this.showToast(`${successCount} succès, ${errorCount} erreurs lors de la création`, "warning");
+                }
+            } else {
                 try {
-                    await ApiService.deletePurchaseOrder(id);
-                    this.showToast("Commande d'achat supprimée", "info");
-                    this.renderPurchases(this.searchQuery);
+                    await ApiService.updatePurchaseOrder(id, baseData);
+                    this.showToast("Commande d'achat mise à jour", "success");
                 } catch (err) {
-                    this.showToast("Erreur lors de la suppression", "error");
+                    this.showToast(err.message, "error");
+                    return;
                 }
             }
-        },
+
+            document.getElementById('modal-overlay').remove();
+            this.renderPurchases(this.searchQuery);
+        });
+    },
+
+    async deletePurchaseOrder(id) {
+        if (confirm("Êtes-vous sûr de vouloir supprimer cette commande d'achat ?")) {
+            try {
+                await ApiService.deletePurchaseOrder(id);
+                this.showToast("Commande d'achat supprimée", "info");
+                this.renderPurchases(this.searchQuery);
+            } catch (err) {
+                this.showToast("Erreur lors de la suppression", "error");
+            }
+        }
+    },
 
 
-        renderVerification() {
-            const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES);
+    renderVerification() {
+        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES);
 
-            const viewHtml = `
+        const viewHtml = `
                 <div class="view-header">
                     <h1><i class="fas fa-file-contract"></i> Vérification Papier</h1>
                     <p class="subtitle">Analyse et vérification automatique des documents de transport (BL)</p>
@@ -7483,371 +7492,371 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 </div>
             `;
 
-            document.getElementById('view-container').innerHTML = viewHtml;
+        document.getElementById('view-container').innerHTML = viewHtml;
 
-            // Event Listeners for File Upload
-            const dropZone = document.getElementById('drop-zone');
-            const fileInput = document.getElementById('bl-input');
+        // Event Listeners for File Upload
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('bl-input');
 
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = 'var(--primary)';
-                dropZone.style.background = 'rgba(255,255,255,0.05)';
-            });
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--primary)';
+            dropZone.style.background = 'rgba(255,255,255,0.05)';
+        });
 
-            dropZone.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
-                dropZone.style.background = 'transparent';
-            });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
+            dropZone.style.background = 'transparent';
+        });
 
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
-                dropZone.style.background = 'transparent';
-                if (e.dataTransfer.files.length > 0) {
-                    this.handleBLUpload(e.dataTransfer.files[0]);
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
+            dropZone.style.background = 'transparent';
+            if (e.dataTransfer.files.length > 0) {
+                this.handleBLUpload(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.handleBLUpload(e.target.files[0]);
+            }
+        });
+    },
+
+    async handleBLUpload(file) {
+        const statusDiv = document.getElementById('processing-status');
+        const progressBar = document.getElementById('ocr-progress');
+        const statusText = document.getElementById('status-text');
+        const templateId = document.getElementById('bl-template').value;
+
+        statusDiv.style.display = 'block';
+        document.getElementById('verification-empty').style.display = 'none';
+        document.getElementById('verification-results').style.display = 'none';
+        document.querySelector('.upload-section').style.pointerEvents = 'none';
+        document.querySelector('.upload-section').style.opacity = '0.5';
+
+        try {
+            let imageUrl;
+            let extractedText = '';
+            let useOCR = true;
+
+            if (file.type === 'application/pdf') {
+                statusText.innerText = "Analyse du PDF...";
+                const pdfUrl = URL.createObjectURL(file);
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdf = await loadingTask.promise;
+
+                // Try native text extraction first
+                statusText.innerText = "Extraction du texte...";
+                extractedText = await this.extractTextFromPdf(pdf);
+
+                // Check if text is sufficient (not just empty or whitespace)
+                if (extractedText && extractedText.trim().length > 50) {
+                    console.log("Native PDF text extracted:", extractedText.length, "chars");
+                    useOCR = false;
+                    statusText.innerText = "Texte extrait avec succès !";
+                    progressBar.style.width = '100%';
+
+                    // Clean up URL object
+                    URL.revokeObjectURL(pdfUrl);
+                } else {
+                    console.log("Insufficient text in PDF, falling back to OCR");
+                    statusText.innerText = "PDF scanné détecté. Conversion en image...";
+                    imageUrl = await this.convertPdfToImage(pdf);
+                    // URL of PDF no longer needed if we have the image
+                    URL.revokeObjectURL(pdfUrl);
                 }
-            });
+            } else {
+                imageUrl = URL.createObjectURL(file);
+            }
 
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    this.handleBLUpload(e.target.files[0]);
+            if (useOCR) {
+                // Initialize Worker with English + French + Chinese
+                const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1, {
+                    logger: m => {
+                        console.log(m);
+                        if (m.status === 'loading tesseract core') {
+                            statusText.innerText = `Chargement du coeur OCR... ${Math.round((m.progress || 0) * 100)}%`;
+                            progressBar.style.width = `${(m.progress || 0) * 30}%`;
+                        } else if (m.status === 'initializing tesseract') {
+                            statusText.innerText = `Initialisation OCR...`;
+                        } else if (m.status === 'loading language traineddata') {
+                            statusText.innerText = `Téléchargement du modèle de langue... ${Math.round((m.progress || 0) * 100)}%`;
+                            progressBar.style.width = `${30 + ((m.progress || 0) * 30)}%`;
+                        } else {
+                            statusText.innerText = `${m.status}...`;
+                        }
+                    }
+                });
+
+                statusText.innerText = "Lecture du document...";
+
+                const { data: { text } } = await worker.recognize(imageUrl, {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            progressBar.style.width = `${60 + ((m.progress || 0) * 40)}%`;
+                            statusText.innerText = `Analyse en cours... ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                });
+
+                extractedText = text;
+                await worker.terminate();
+
+                if (file.type !== 'application/pdf') {
+                    URL.revokeObjectURL(imageUrl);
                 }
-            });
-        },
+            }
 
-        async handleBLUpload(file) {
-            const statusDiv = document.getElementById('processing-status');
-            const progressBar = document.getElementById('ocr-progress');
-            const statusText = document.getElementById('status-text');
-            const templateId = document.getElementById('bl-template').value;
+            // Process Data
+            statusText.innerText = "Terminé !";
+            progressBar.style.width = '100%';
 
-            statusDiv.style.display = 'block';
-            document.getElementById('verification-empty').style.display = 'none';
-            document.getElementById('verification-results').style.display = 'none';
-            document.querySelector('.upload-section').style.pointerEvents = 'none';
-            document.querySelector('.upload-section').style.opacity = '0.5';
+            setTimeout(() => {
+                try {
+                    console.log("Processing extracted text:", extractedText.substring(0, 100) + "...");
+                    // Pass file so processOCRData can do zonal OCR if needed
+                    this.processOCRData(extractedText, templateId, file);
+                } catch (error) {
+                    console.error("Error processing data:", error);
+                    this.showToast("Erreur lors de l'affichage des résultats: " + error.message, "error");
+                }
+            }, 500);
+
+        } catch (error) {
+            console.error("Analysis Error:", error);
+            this.showToast("Erreur analyse: " + (error.message || error), "error");
+            statusDiv.style.display = 'none';
+        } finally {
+            document.querySelector('.upload-section').style.pointerEvents = 'auto';
+            document.querySelector('.upload-section').style.opacity = '1';
+        }
+    },
+
+    // Helper to extract text usage PDF.js (No OCR)
+    async extractTextFromPdf(pdf) {
+        let fullText = '';
+        // Limit to first 2 pages for performance
+        const numPages = Math.min(pdf.numPages, 2);
+        for (let i = 1; i <= numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n';
+        }
+        return fullText;
+    },
+
+    async convertPdfToImage(pdf) {
+        const page = await pdf.getPage(1); // Get first page
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        return canvas.toDataURL('image/png');
+    },
+
+    async processOCRData(text, templateId, file = null) {
+        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
+        let template = null;
+
+        if (!text) {
+            console.warn("No text provided to processOCRData");
+            text = "";
+        }
+
+        if (templateId) {
+            template = templates.find(t => t.id === templateId);
+        } else {
+            // Auto-detect template
+            if (templates && templates.length > 0) {
+                for (const t of templates) {
+                    if (t.keywords && t.keywords.some(k => text.toUpperCase().includes(k.toUpperCase()))) {
+                        template = t;
+                        break;
+                    }
+                }
+            }
+            if (!template) template = templates.find(t => t.id === 'tmpl_generic');
+        }
+
+        // Extract using patterns
+        const extraction = {
+            booking: 'Non trouvé',
+            container: 'Non trouvé',
+            chassis: 'Non trouvé',
+            clientName: 'Non trouvé',
+            passportNumber: 'Non trouvé',
+            nin: 'Non trouvé',
+            vehicleName: 'Non trouvé',
+            portOfLoading: 'Non trouvé',
+            portOfDestination: 'Non trouvé',
+            shippingLine: 'Non trouvé',
+            loadingDate: 'Non trouvé',
+            rawText: text
+        };
+
+        const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+
+        // AI Mode Branch
+        if (settings.useAiExtraction && text.length > 20) {
+            this.showToast("Analyse intelligente par IA...", "info");
+            try {
+                const aiData = await this.callGeminiAI(text);
+                console.log("AI Extraction Result:", aiData);
+
+                extraction.booking = aiData.bookingNumber || 'Non trouvé';
+                extraction.container = aiData.containerNumber || 'Non trouvé';
+                extraction.chassis = aiData.chassisNumber || 'Non trouvé';
+                extraction.clientName = aiData.clientName || 'Non trouvé';
+                extraction.passportNumber = aiData.passportNumber || 'Non trouvé';
+                extraction.nin = aiData.nin || 'Non trouvé';
+                extraction.vehicleName = aiData.vehicleName || 'Non trouvé';
+                extraction.portOfLoading = aiData.portOfLoading || 'Non trouvé';
+                extraction.portOfDestination = aiData.portOfDestination || 'Non trouvé';
+                extraction.shippingLine = aiData.shippingLine || 'Non trouvé';
+                extraction.loadingDate = aiData.loadingDate || 'Non trouvé';
+
+                this.showToast("Extraction IA terminée", "success");
+                this.displayVerificationResults(extraction);
+                return;
+            } catch (aiError) {
+                console.error("Gemini Error:", aiError);
+                this.showToast("L'IA a échoué: " + aiError.message, "warning");
+                // Fall through to standard extraction
+            }
+        }
+
+        // Zonal Mode: If template uses zones and we have the file
+        if (template && template.useZonal && template.zones && file) {
+            this.showToast("Analyse des zones du masque...", "info");
 
             try {
-                let imageUrl;
-                let extractedText = '';
-                let useOCR = true;
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
 
+                // Render document to canvas for cropping
                 if (file.type === 'application/pdf') {
-                    statusText.innerText = "Analyse du PDF...";
                     const pdfUrl = URL.createObjectURL(file);
-                    const loadingTask = pdfjsLib.getDocument(pdfUrl);
-                    const pdf = await loadingTask.promise;
-
-                    // Try native text extraction first
-                    statusText.innerText = "Extraction du texte...";
-                    extractedText = await this.extractTextFromPdf(pdf);
-
-                    // Check if text is sufficient (not just empty or whitespace)
-                    if (extractedText && extractedText.trim().length > 50) {
-                        console.log("Native PDF text extracted:", extractedText.length, "chars");
-                        useOCR = false;
-                        statusText.innerText = "Texte extrait avec succès !";
-                        progressBar.style.width = '100%';
-
-                        // Clean up URL object
-                        URL.revokeObjectURL(pdfUrl);
-                    } else {
-                        console.log("Insufficient text in PDF, falling back to OCR");
-                        statusText.innerText = "PDF scanné détecté. Conversion en image...";
-                        imageUrl = await this.convertPdfToImage(pdf);
-                        // URL of PDF no longer needed if we have the image
-                        URL.revokeObjectURL(pdfUrl);
-                    }
+                    const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+                    const page = await pdf.getPage(1);
+                    const viewport = page.getViewport({ scale: 2.0 }); // High res for OCR
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                    URL.revokeObjectURL(pdfUrl);
                 } else {
-                    imageUrl = URL.createObjectURL(file);
-                }
-
-                if (useOCR) {
-                    // Initialize Worker with English + French + Chinese
-                    const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1, {
-                        logger: m => {
-                            console.log(m);
-                            if (m.status === 'loading tesseract core') {
-                                statusText.innerText = `Chargement du coeur OCR... ${Math.round((m.progress || 0) * 100)}%`;
-                                progressBar.style.width = `${(m.progress || 0) * 30}%`;
-                            } else if (m.status === 'initializing tesseract') {
-                                statusText.innerText = `Initialisation OCR...`;
-                            } else if (m.status === 'loading language traineddata') {
-                                statusText.innerText = `Téléchargement du modèle de langue... ${Math.round((m.progress || 0) * 100)}%`;
-                                progressBar.style.width = `${30 + ((m.progress || 0) * 30)}%`;
-                            } else {
-                                statusText.innerText = `${m.status}...`;
-                            }
-                        }
+                    const img = await new Promise(r => {
+                        const i = new Image();
+                        i.onload = () => r(i);
+                        i.src = URL.createObjectURL(file);
                     });
-
-                    statusText.innerText = "Lecture du document...";
-
-                    const { data: { text } } = await worker.recognize(imageUrl, {
-                        logger: m => {
-                            if (m.status === 'recognizing text') {
-                                progressBar.style.width = `${60 + ((m.progress || 0) * 40)}%`;
-                                statusText.innerText = `Analyse en cours... ${Math.round(m.progress * 100)}%`;
-                            }
-                        }
-                    });
-
-                    extractedText = text;
-                    await worker.terminate();
-
-                    if (file.type !== 'application/pdf') {
-                        URL.revokeObjectURL(imageUrl);
-                    }
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    URL.revokeObjectURL(img.src);
                 }
 
-                // Process Data
-                statusText.innerText = "Terminé !";
-                progressBar.style.width = '100%';
+                // For each zone, crop and OCR (Support French, English, and Chinese)
+                const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1);
 
-                setTimeout(() => {
-                    try {
-                        console.log("Processing extracted text:", extractedText.substring(0, 100) + "...");
-                        // Pass file so processOCRData can do zonal OCR if needed
-                        this.processOCRData(extractedText, templateId, file);
-                    } catch (error) {
-                        console.error("Error processing data:", error);
-                        this.showToast("Erreur lors de l'affichage des résultats: " + error.message, "error");
-                    }
-                }, 500);
+                for (const [fieldId, zone] of Object.entries(template.zones)) {
+                    const cropCanvas = document.createElement('canvas');
+                    const cCtx = cropCanvas.getContext('2d');
 
-            } catch (error) {
-                console.error("Analysis Error:", error);
-                this.showToast("Erreur analyse: " + (error.message || error), "error");
-                statusDiv.style.display = 'none';
-            } finally {
-                document.querySelector('.upload-section').style.pointerEvents = 'auto';
-                document.querySelector('.upload-section').style.opacity = '1';
-            }
-        },
+                    const sx = (zone.x / 100) * canvas.width;
+                    const sy = (zone.y / 100) * canvas.height;
+                    const sw = (zone.w / 100) * canvas.width;
+                    const sh = (zone.h / 100) * canvas.height;
 
-        // Helper to extract text usage PDF.js (No OCR)
-        async extractTextFromPdf(pdf) {
-            let fullText = '';
-            // Limit to first 2 pages for performance
-            const numPages = Math.min(pdf.numPages, 2);
-            for (let i = 1; i <= numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map(item => item.str).join(' ');
-                fullText += pageText + '\n';
-            }
-            return fullText;
-        },
+                    cropCanvas.width = sw;
+                    cropCanvas.height = sh;
+                    cCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
-        async convertPdfToImage(pdf) {
-            const page = await pdf.getPage(1); // Get first page
-            const viewport = page.getViewport({ scale: 2.0 });
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+                    const { data: { text: zoneText } } = await worker.recognize(cropCanvas);
+                    const cleanText = zoneText.trim().replace(/\n/g, ' ');
 
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
-            return canvas.toDataURL('image/png');
-        },
-
-        async processOCRData(text, templateId, file = null) {
-            const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-            let template = null;
-
-            if (!text) {
-                console.warn("No text provided to processOCRData");
-                text = "";
-            }
-
-            if (templateId) {
-                template = templates.find(t => t.id === templateId);
-            } else {
-                // Auto-detect template
-                if (templates && templates.length > 0) {
-                    for (const t of templates) {
-                        if (t.keywords && t.keywords.some(k => text.toUpperCase().includes(k.toUpperCase()))) {
-                            template = t;
-                            break;
-                        }
-                    }
+                    if (fieldId === 'bookingNumber') extraction.booking = cleanText;
+                    else if (fieldId === 'containerNumber') extraction.container = cleanText;
+                    else if (fieldId === 'chassisNumber') extraction.chassis = cleanText;
+                    else if (fieldId === 'clientName') extraction.clientName = cleanText;
+                    else if (fieldId === 'passportNumber') extraction.passportNumber = cleanText;
+                    else if (fieldId === 'nin') extraction.nin = cleanText;
+                    else if (fieldId === 'vehicleName') extraction.vehicleName = cleanText;
+                    else if (fieldId === 'portOfLoading') extraction.portOfLoading = cleanText;
+                    else if (fieldId === 'portOfDestination') extraction.portOfDestination = cleanText;
+                    else if (fieldId === 'shippingLine') extraction.shippingLine = cleanText;
+                    else if (fieldId === 'loadingDate') extraction.loadingDate = cleanText;
                 }
-                if (!template) template = templates.find(t => t.id === 'tmpl_generic');
-            }
 
-            // Extract using patterns
-            const extraction = {
-                booking: 'Non trouvé',
-                container: 'Non trouvé',
-                chassis: 'Non trouvé',
-                clientName: 'Non trouvé',
-                passportNumber: 'Non trouvé',
-                nin: 'Non trouvé',
-                vehicleName: 'Non trouvé',
-                portOfLoading: 'Non trouvé',
-                portOfDestination: 'Non trouvé',
-                shippingLine: 'Non trouvé',
-                loadingDate: 'Non trouvé',
-                rawText: text
+                await worker.terminate();
+            } catch (zError) {
+                console.error("Zonal OCR Error:", zError);
+                this.showToast("Erreur lors de l'extraction par zone", "warning");
+            }
+        } else {
+            // Regex Mode (Fallback)
+            const patterns = template ? template.patterns : {};
+
+            const safeMatch = (patternString) => {
+                if (!patternString) return null;
+                try {
+                    const regex = new RegExp(patternString, 'i');
+                    return text.match(regex);
+                } catch (e) {
+                    return null;
+                }
             };
 
-            const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+            const matchBooking = safeMatch(patterns.bookingNumber);
+            if (matchBooking) extraction.booking = matchBooking[1];
 
-            // AI Mode Branch
-            if (settings.useAiExtraction && text.length > 20) {
-                this.showToast("Analyse intelligente par IA...", "info");
-                try {
-                    const aiData = await this.callGeminiAI(text);
-                    console.log("AI Extraction Result:", aiData);
+            const matchContainer = safeMatch(patterns.containerNumber);
+            if (matchContainer) extraction.container = matchContainer[1];
 
-                    extraction.booking = aiData.bookingNumber || 'Non trouvé';
-                    extraction.container = aiData.containerNumber || 'Non trouvé';
-                    extraction.chassis = aiData.chassisNumber || 'Non trouvé';
-                    extraction.clientName = aiData.clientName || 'Non trouvé';
-                    extraction.passportNumber = aiData.passportNumber || 'Non trouvé';
-                    extraction.nin = aiData.nin || 'Non trouvé';
-                    extraction.vehicleName = aiData.vehicleName || 'Non trouvé';
-                    extraction.portOfLoading = aiData.portOfLoading || 'Non trouvé';
-                    extraction.portOfDestination = aiData.portOfDestination || 'Non trouvé';
-                    extraction.shippingLine = aiData.shippingLine || 'Non trouvé';
-                    extraction.loadingDate = aiData.loadingDate || 'Non trouvé';
+            const matchChassis = safeMatch(patterns.chassisNumber);
+            if (matchChassis) extraction.chassis = matchChassis[1] || matchChassis[2];
 
-                    this.showToast("Extraction IA terminée", "success");
-                    this.displayVerificationResults(extraction);
-                    return;
-                } catch (aiError) {
-                    console.error("Gemini Error:", aiError);
-                    this.showToast("L'IA a échoué: " + aiError.message, "warning");
-                    // Fall through to standard extraction
-                }
-            }
+            const matchClient = safeMatch(patterns.clientName);
+            if (matchClient) extraction.clientName = matchClient[1];
 
-            // Zonal Mode: If template uses zones and we have the file
-            if (template && template.useZonal && template.zones && file) {
-                this.showToast("Analyse des zones du masque...", "info");
+            const matchPassport = safeMatch(patterns.passportNumber);
+            if (matchPassport) extraction.passportNumber = matchPassport[1];
 
-                try {
-                    let canvas = document.createElement('canvas');
-                    let ctx = canvas.getContext('2d');
+            const matchNin = safeMatch(patterns.nin);
+            if (matchNin) extraction.nin = matchNin[1];
 
-                    // Render document to canvas for cropping
-                    if (file.type === 'application/pdf') {
-                        const pdfUrl = URL.createObjectURL(file);
-                        const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-                        const page = await pdf.getPage(1);
-                        const viewport = page.getViewport({ scale: 2.0 }); // High res for OCR
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
-                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                        URL.revokeObjectURL(pdfUrl);
-                    } else {
-                        const img = await new Promise(r => {
-                            const i = new Image();
-                            i.onload = () => r(i);
-                            i.src = URL.createObjectURL(file);
-                        });
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        ctx.drawImage(img, 0, 0);
-                        URL.revokeObjectURL(img.src);
-                    }
+            const matchVehicle = safeMatch(patterns.vehicleName);
+            if (matchVehicle) extraction.vehicleName = matchVehicle[1];
 
-                    // For each zone, crop and OCR (Support French, English, and Chinese)
-                    const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1);
+            const matchPortLoading = safeMatch(patterns.portOfLoading);
+            if (matchPortLoading) extraction.portOfLoading = matchPortLoading[1];
 
-                    for (const [fieldId, zone] of Object.entries(template.zones)) {
-                        const cropCanvas = document.createElement('canvas');
-                        const cCtx = cropCanvas.getContext('2d');
+            const matchPortDestination = safeMatch(patterns.portOfDestination);
+            if (matchPortDestination) extraction.portOfDestination = matchPortDestination[1];
 
-                        const sx = (zone.x / 100) * canvas.width;
-                        const sy = (zone.y / 100) * canvas.height;
-                        const sw = (zone.w / 100) * canvas.width;
-                        const sh = (zone.h / 100) * canvas.height;
+            const matchShippingLine = safeMatch(patterns.shippingLine);
+            if (matchShippingLine) extraction.shippingLine = matchShippingLine[1];
 
-                        cropCanvas.width = sw;
-                        cropCanvas.height = sh;
-                        cCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            const matchLoadingDate = safeMatch(patterns.loadingDate);
+            if (matchLoadingDate) extraction.loadingDate = matchLoadingDate[1];
+        }
 
-                        const { data: { text: zoneText } } = await worker.recognize(cropCanvas);
-                        const cleanText = zoneText.trim().replace(/\n/g, ' ');
+        this.displayVerificationResults(extraction);
+    },
 
-                        if (fieldId === 'bookingNumber') extraction.booking = cleanText;
-                        else if (fieldId === 'containerNumber') extraction.container = cleanText;
-                        else if (fieldId === 'chassisNumber') extraction.chassis = cleanText;
-                        else if (fieldId === 'clientName') extraction.clientName = cleanText;
-                        else if (fieldId === 'passportNumber') extraction.passportNumber = cleanText;
-                        else if (fieldId === 'nin') extraction.nin = cleanText;
-                        else if (fieldId === 'vehicleName') extraction.vehicleName = cleanText;
-                        else if (fieldId === 'portOfLoading') extraction.portOfLoading = cleanText;
-                        else if (fieldId === 'portOfDestination') extraction.portOfDestination = cleanText;
-                        else if (fieldId === 'shippingLine') extraction.shippingLine = cleanText;
-                        else if (fieldId === 'loadingDate') extraction.loadingDate = cleanText;
-                    }
+    // --- Template Management System ---
 
-                    await worker.terminate();
-                } catch (zError) {
-                    console.error("Zonal OCR Error:", zError);
-                    this.showToast("Erreur lors de l'extraction par zone", "warning");
-                }
-            } else {
-                // Regex Mode (Fallback)
-                const patterns = template ? template.patterns : {};
+    showTemplateManagerModal() {
+        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
 
-                const safeMatch = (patternString) => {
-                    if (!patternString) return null;
-                    try {
-                        const regex = new RegExp(patternString, 'i');
-                        return text.match(regex);
-                    } catch (e) {
-                        return null;
-                    }
-                };
-
-                const matchBooking = safeMatch(patterns.bookingNumber);
-                if (matchBooking) extraction.booking = matchBooking[1];
-
-                const matchContainer = safeMatch(patterns.containerNumber);
-                if (matchContainer) extraction.container = matchContainer[1];
-
-                const matchChassis = safeMatch(patterns.chassisNumber);
-                if (matchChassis) extraction.chassis = matchChassis[1] || matchChassis[2];
-
-                const matchClient = safeMatch(patterns.clientName);
-                if (matchClient) extraction.clientName = matchClient[1];
-
-                const matchPassport = safeMatch(patterns.passportNumber);
-                if (matchPassport) extraction.passportNumber = matchPassport[1];
-
-                const matchNin = safeMatch(patterns.nin);
-                if (matchNin) extraction.nin = matchNin[1];
-
-                const matchVehicle = safeMatch(patterns.vehicleName);
-                if (matchVehicle) extraction.vehicleName = matchVehicle[1];
-
-                const matchPortLoading = safeMatch(patterns.portOfLoading);
-                if (matchPortLoading) extraction.portOfLoading = matchPortLoading[1];
-
-                const matchPortDestination = safeMatch(patterns.portOfDestination);
-                if (matchPortDestination) extraction.portOfDestination = matchPortDestination[1];
-
-                const matchShippingLine = safeMatch(patterns.shippingLine);
-                if (matchShippingLine) extraction.shippingLine = matchShippingLine[1];
-
-                const matchLoadingDate = safeMatch(patterns.loadingDate);
-                if (matchLoadingDate) extraction.loadingDate = matchLoadingDate[1];
-            }
-
-            this.displayVerificationResults(extraction);
-        },
-
-        // --- Template Management System ---
-
-        showTemplateManagerModal() {
-            const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-
-            const modalHtml = `
+        const modalHtml = `
             <div id="modal-overlay" class="modal-overlay" onclick="app.closeModal()">
                 <div class="modal glass" onclick="event.stopPropagation()">
                     <div class="modal-header">
@@ -7897,33 +7906,33 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             </div>
             `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        },
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
 
-        showEditTemplateModal(id = null) {
-            this.closeModal(); // Close manager to open edit, or stack them? Stacking is harder, lets close for now or replace content.
-            // Better: Close manager, open edit. On save/cancel, reopen manager.
+    showEditTemplateModal(id = null) {
+        this.closeModal(); // Close manager to open edit, or stack them? Stacking is harder, lets close for now or replace content.
+        // Better: Close manager, open edit. On save/cancel, reopen manager.
 
-            const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-            const template = id ? templates.find(t => t.id === id) : {
-                name: '',
-                keywords: [],
-                patterns: {
-                    bookingNumber: '',
-                    containerNumber: '',
-                    chassisNumber: '',
-                    clientName: '',
-                    passportNumber: '',
-                    nin: '',
-                    vehicleName: '',
-                    portOfLoading: '',
-                    portOfDestination: '',
-                    shippingLine: '',
-                    loadingDate: ''
-                }
-            };
+        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
+        const template = id ? templates.find(t => t.id === id) : {
+            name: '',
+            keywords: [],
+            patterns: {
+                bookingNumber: '',
+                containerNumber: '',
+                chassisNumber: '',
+                clientName: '',
+                passportNumber: '',
+                nin: '',
+                vehicleName: '',
+                portOfLoading: '',
+                portOfDestination: '',
+                shippingLine: '',
+                loadingDate: ''
+            }
+        };
 
-            const modalHtml = `
+        const modalHtml = `
             <div id="modal-overlay" class="modal-overlay">
                 <div class="modal glass" onclick="event.stopPropagation()">
                     <div class="modal-header">
@@ -8013,165 +8022,165 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             </div>
             `;
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            document.getElementById('template-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
+        document.getElementById('template-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
 
-                const newTemplate = {
-                    id: id || `tmpl_${Date.now()}`,
-                    name: formData.get('name'),
-                    keywords: formData.get('keywords').split(',').map(k => k.trim()).filter(k => k),
-                    patterns: {
-                        bookingNumber: formData.get('pattern_booking'),
-                        containerNumber: formData.get('pattern_container'),
-                        chassisNumber: formData.get('pattern_chassis'),
-                        clientName: formData.get('pattern_client'),
-                        passportNumber: formData.get('pattern_passport'),
-                        nin: formData.get('pattern_nin'),
-                        vehicleName: formData.get('pattern_vehicle'),
-                        portOfLoading: formData.get('pattern_port_loading'),
-                        portOfDestination: formData.get('pattern_port_destination'),
-                        shippingLine: formData.get('pattern_shipping_line'),
-                        loadingDate: formData.get('pattern_loading_date')
-                    },
-                    // Preserve existing zones if editing, otherwise initialize empty
-                    zones: templateId ? (currentTemplates.find(t => t.id === templateId)?.zones || {}) : {}
-                };
-
-                if (templateId) { // Use templateId here
-                    const index = currentTemplates.findIndex(t => t.id === templateId); // Use templateId here
-                    if (index !== -1) currentTemplates[index] = newTemplate;
-                } else {
-                    currentTemplates.push(newTemplate);
-                }
-
-                await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, currentTemplates);
-                this.showToast('Modèle enregistré avec succès', 'success');
-
-                document.getElementById('modal-overlay').remove();
-                this.showTemplateManagerModal();
-
-                // Refresh dropdown in main view if needed
-                this.renderVerification();
-            });
-        },
-
-        async deleteTemplate(id) {
-            this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce modèle ?', async () => {
-                await StorageService.delete(STORAGE_KEYS.BL_TEMPLATES, id);
-                this.showToast('Modèle supprimé', 'info');
-                // Refresh modal
-                const overlay = document.getElementById('modal-overlay');
-                if (overlay) overlay.remove();
-                this.showTemplateManagerModal();
-                this.renderVerification();
-            });
-        },
-
-        displayVerificationResults(data) {
-            document.getElementById('processing-status').style.display = 'none';
-            document.getElementById('verification-results').style.display = 'block';
-
-            // Fill Extracted Data
-            document.getElementById('res-booking').innerText = data.booking;
-            document.getElementById('res-container').innerText = data.container;
-            document.getElementById('res-chassis').innerText = data.chassis;
-            document.getElementById('res-client').innerText = data.clientName || 'Non trouvé';
-            document.getElementById('res-passport').innerText = (data.passportNumber || data.nin) ? `${data.passportNumber || ''} ${data.nin ? '/ ' + data.nin : ''}` : 'Non trouvé';
-            document.getElementById('res-vehicle').innerText = data.vehicleName || 'Non trouvé';
-            document.getElementById('res-port-loading').innerText = data.portOfLoading || 'Non trouver';
-            document.getElementById('res-port-destination').innerText = data.portOfDestination || 'Non trouver';
-            document.getElementById('res-shipping-line').innerText = data.shippingLine || 'Non trouver';
-            document.getElementById('res-loading-date').innerText = data.loadingDate || 'Non trouver';
-            document.getElementById('raw-text').innerText = data.rawText;
-
-            // Database Lookup
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-
-            let vehicleMatch = null;
-            let orderMatch = null;
-            let status = 'MISMATCH';
-
-            // Find Vehicle by Chassis (allow partial match last 6 digits if full fails)
-            if (data.chassis !== 'Non trouvé') {
-                vehicleMatch = vehicles.find(v => v.chassisNumber && (v.chassisNumber.includes(data.chassis) || data.chassis.includes(v.chassisNumber)));
-            }
-
-            // Find Order
-            if (vehicleMatch && vehicleMatch.orderId) {
-                orderMatch = orders.find(o => o.id === vehicleMatch.orderId);
-            }
-
-            // Update UI
-            const dbVehicleEl = document.getElementById('db-vehicle');
-            const dbClientEl = document.getElementById('db-client');
-            const dbStatusEl = document.getElementById('db-status');
-            const badgeEl = document.getElementById('verification-badge');
-
-            if (vehicleMatch) {
-                dbVehicleEl.innerText = `[#${vehicleMatch.id}] ${vehicleMatch.brand} ${vehicleMatch.model || ''}`;
-                dbVehicleEl.classList.add('success');
-                status = 'MATCH';
-
-                if (orderMatch) {
-                    dbClientEl.innerText = orderMatch.clientName;
-                } else {
-                    dbClientEl.innerText = "Non alloué";
-                    status = 'PARTIAL';
-                }
-
-                dbStatusEl.innerText = vehicleMatch.status || 'En Stock';
-            } else {
-                dbVehicleEl.innerText = "Non trouvé en base";
-                dbVehicleEl.classList.add('danger');
-                dbClientEl.innerText = "-";
-                dbStatusEl.innerText = "-";
-                status = 'NOT_FOUND';
-            }
-
-            badgeEl.style.display = 'block';
-            if (status === 'MATCH') {
-                badgeEl.className = 'status-badge success';
-                badgeEl.innerText = 'CONFORME';
-            } else if (status === 'PARTIAL') {
-                badgeEl.className = 'status-badge warning';
-                badgeEl.innerText = 'VÉHICULE TROUVÉ (LIBRE)';
-            } else {
-                badgeEl.className = 'status-badge danger';
-                badgeEl.innerText = 'NON TROUVÉ / PROBLÈME';
-            }
-        },
-
-
-        // --- Visual Mapping System (Zonal OCR) ---
-
-        startVisualMapping(templateId) {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'application/pdf,image/*';
-            input.onchange = (e) => {
-                if (e.target.files.length > 0) {
-                    this.showVisualEditor(e.target.files[0], templateId);
-                }
+            const newTemplate = {
+                id: id || `tmpl_${Date.now()}`,
+                name: formData.get('name'),
+                keywords: formData.get('keywords').split(',').map(k => k.trim()).filter(k => k),
+                patterns: {
+                    bookingNumber: formData.get('pattern_booking'),
+                    containerNumber: formData.get('pattern_container'),
+                    chassisNumber: formData.get('pattern_chassis'),
+                    clientName: formData.get('pattern_client'),
+                    passportNumber: formData.get('pattern_passport'),
+                    nin: formData.get('pattern_nin'),
+                    vehicleName: formData.get('pattern_vehicle'),
+                    portOfLoading: formData.get('pattern_port_loading'),
+                    portOfDestination: formData.get('pattern_port_destination'),
+                    shippingLine: formData.get('pattern_shipping_line'),
+                    loadingDate: formData.get('pattern_loading_date')
+                },
+                // Preserve existing zones if editing, otherwise initialize empty
+                zones: templateId ? (currentTemplates.find(t => t.id === templateId)?.zones || {}) : {}
             };
-            input.click();
-        },
 
-        async showVisualEditor(file, templateId) {
-            // Close existing modals
-            const existingModal = document.getElementById('modal-overlay');
-            if (existingModal) existingModal.remove();
+            if (templateId) { // Use templateId here
+                const index = currentTemplates.findIndex(t => t.id === templateId); // Use templateId here
+                if (index !== -1) currentTemplates[index] = newTemplate;
+            } else {
+                currentTemplates.push(newTemplate);
+            }
 
-            const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-            const template = templates.find(t => t.id === templateId);
-            if (!template) return;
+            await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, currentTemplates);
+            this.showToast('Modèle enregistré avec succès', 'success');
 
-            this.showToast("Chargement de l'éditeur...", "info");
+            document.getElementById('modal-overlay').remove();
+            this.showTemplateManagerModal();
 
-            const editorHtml = `
+            // Refresh dropdown in main view if needed
+            this.renderVerification();
+        });
+    },
+
+    async deleteTemplate(id) {
+        this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce modèle ?', async () => {
+            await StorageService.delete(STORAGE_KEYS.BL_TEMPLATES, id);
+            this.showToast('Modèle supprimé', 'info');
+            // Refresh modal
+            const overlay = document.getElementById('modal-overlay');
+            if (overlay) overlay.remove();
+            this.showTemplateManagerModal();
+            this.renderVerification();
+        });
+    },
+
+    displayVerificationResults(data) {
+        document.getElementById('processing-status').style.display = 'none';
+        document.getElementById('verification-results').style.display = 'block';
+
+        // Fill Extracted Data
+        document.getElementById('res-booking').innerText = data.booking;
+        document.getElementById('res-container').innerText = data.container;
+        document.getElementById('res-chassis').innerText = data.chassis;
+        document.getElementById('res-client').innerText = data.clientName || 'Non trouvé';
+        document.getElementById('res-passport').innerText = (data.passportNumber || data.nin) ? `${data.passportNumber || ''} ${data.nin ? '/ ' + data.nin : ''}` : 'Non trouvé';
+        document.getElementById('res-vehicle').innerText = data.vehicleName || 'Non trouvé';
+        document.getElementById('res-port-loading').innerText = data.portOfLoading || 'Non trouver';
+        document.getElementById('res-port-destination').innerText = data.portOfDestination || 'Non trouver';
+        document.getElementById('res-shipping-line').innerText = data.shippingLine || 'Non trouver';
+        document.getElementById('res-loading-date').innerText = data.loadingDate || 'Non trouver';
+        document.getElementById('raw-text').innerText = data.rawText;
+
+        // Database Lookup
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+
+        let vehicleMatch = null;
+        let orderMatch = null;
+        let status = 'MISMATCH';
+
+        // Find Vehicle by Chassis (allow partial match last 6 digits if full fails)
+        if (data.chassis !== 'Non trouvé') {
+            vehicleMatch = vehicles.find(v => v.chassisNumber && (v.chassisNumber.includes(data.chassis) || data.chassis.includes(v.chassisNumber)));
+        }
+
+        // Find Order
+        if (vehicleMatch && vehicleMatch.orderId) {
+            orderMatch = orders.find(o => o.id === vehicleMatch.orderId);
+        }
+
+        // Update UI
+        const dbVehicleEl = document.getElementById('db-vehicle');
+        const dbClientEl = document.getElementById('db-client');
+        const dbStatusEl = document.getElementById('db-status');
+        const badgeEl = document.getElementById('verification-badge');
+
+        if (vehicleMatch) {
+            dbVehicleEl.innerText = `[#${vehicleMatch.id}] ${vehicleMatch.brand} ${vehicleMatch.model || ''}`;
+            dbVehicleEl.classList.add('success');
+            status = 'MATCH';
+
+            if (orderMatch) {
+                dbClientEl.innerText = orderMatch.clientName;
+            } else {
+                dbClientEl.innerText = "Non alloué";
+                status = 'PARTIAL';
+            }
+
+            dbStatusEl.innerText = vehicleMatch.status || 'En Stock';
+        } else {
+            dbVehicleEl.innerText = "Non trouvé en base";
+            dbVehicleEl.classList.add('danger');
+            dbClientEl.innerText = "-";
+            dbStatusEl.innerText = "-";
+            status = 'NOT_FOUND';
+        }
+
+        badgeEl.style.display = 'block';
+        if (status === 'MATCH') {
+            badgeEl.className = 'status-badge success';
+            badgeEl.innerText = 'CONFORME';
+        } else if (status === 'PARTIAL') {
+            badgeEl.className = 'status-badge warning';
+            badgeEl.innerText = 'VÉHICULE TROUVÉ (LIBRE)';
+        } else {
+            badgeEl.className = 'status-badge danger';
+            badgeEl.innerText = 'NON TROUVÉ / PROBLÈME';
+        }
+    },
+
+
+    // --- Visual Mapping System (Zonal OCR) ---
+
+    startVisualMapping(templateId) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/pdf,image/*';
+        input.onchange = (e) => {
+            if (e.target.files.length > 0) {
+                this.showVisualEditor(e.target.files[0], templateId);
+            }
+        };
+        input.click();
+    },
+
+    async showVisualEditor(file, templateId) {
+        // Close existing modals
+        const existingModal = document.getElementById('modal-overlay');
+        if (existingModal) existingModal.remove();
+
+        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
+        const template = templates.find(t => t.id === templateId);
+        if (!template) return;
+
+        this.showToast("Chargement de l'éditeur...", "info");
+
+        const editorHtml = `
             <div id="modal-overlay" class="modal-overlay" style="background: rgba(0,0,0,0.9);">
                 <div class="visual-editor-container" style="width: 95vw; height: 90vh; background: #1a1a1a; display: flex; flex-direction: column; color: white;">
                     <div class="modal-header" style="background: #252525; padding: 15px;">
@@ -8188,18 +8197,18 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             <h4 style="margin-bottom: 15px; color: var(--primary);">Champs à maper</h4>
                             <div id="zone-selectors" style="display: flex; flex-direction: column; gap: 10px;">
                                 ${[
-                    { id: 'bookingNumber', label: 'N° Booking' },
-                    { id: 'containerNumber', label: 'N° Conteneur' },
-                    { id: 'chassisNumber', label: 'N° Châssis (VIN)' },
-                    { id: 'clientName', label: 'Nom du Client' },
-                    { id: 'passportNumber', label: 'N° Passeport' },
-                    { id: 'nin', label: 'NIN' },
-                    { id: 'vehicleName', label: 'Nom du Véhicule' },
-                    { id: 'portOfLoading', label: 'Port de Chargement' },
-                    { id: 'portOfDestination', label: 'Port de Destination' },
-                    { id: 'shippingLine', label: 'Compagnie Maritime' },
-                    { id: 'loadingDate', label: 'Date de Chargement' }
-                ].map(f => `
+                { id: 'bookingNumber', label: 'N° Booking' },
+                { id: 'containerNumber', label: 'N° Conteneur' },
+                { id: 'chassisNumber', label: 'N° Châssis (VIN)' },
+                { id: 'clientName', label: 'Nom du Client' },
+                { id: 'passportNumber', label: 'N° Passeport' },
+                { id: 'nin', label: 'NIN' },
+                { id: 'vehicleName', label: 'Nom du Véhicule' },
+                { id: 'portOfLoading', label: 'Port de Chargement' },
+                { id: 'portOfDestination', label: 'Port de Destination' },
+                { id: 'shippingLine', label: 'Compagnie Maritime' },
+                { id: 'loadingDate', label: 'Date de Chargement' }
+            ].map(f => `
                                     <div class="zone-item" id="zone-item-${f.id}" onclick="app.setActiveZone('${f.id}')" style="padding: 12px; background: #333; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span>${f.label}</span>
@@ -8226,367 +8235,367 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             </div>
             `;
 
-            document.body.insertAdjacentHTML('beforeend', editorHtml);
+        document.body.insertAdjacentHTML('beforeend', editorHtml);
 
-            // Initialize State
-            this.activeZone = 'bookingNumber';
-            this.zones = template.zones || {};
-            this.setActiveZone('bookingNumber', false);
+        // Initialize State
+        this.activeZone = 'bookingNumber';
+        this.zones = template.zones || {};
+        this.setActiveZone('bookingNumber', false);
 
-            const docCanvas = document.getElementById('doc-canvas');
-            const drawCanvas = document.getElementById('draw-canvas');
-            const wrapper = document.getElementById('canvas-wrapper');
-            const ctx = docCanvas.getContext('2d', { alpha: false });
-            const dCtx = drawCanvas.getContext('2d');
+        const docCanvas = document.getElementById('doc-canvas');
+        const drawCanvas = document.getElementById('draw-canvas');
+        const wrapper = document.getElementById('canvas-wrapper');
+        const ctx = docCanvas.getContext('2d', { alpha: false });
+        const dCtx = drawCanvas.getContext('2d');
 
-            try {
-                let docWidth, docHeight;
-                if (file.type === 'application/pdf') {
-                    const pdfUrl = URL.createObjectURL(file);
-                    const loadingTask = pdfjsLib.getDocument(pdfUrl);
-                    const pdf = await loadingTask.promise;
-                    const page = await pdf.getPage(1);
-                    const viewport = page.getViewport({ scale: 1.5 });
-                    docWidth = viewport.width;
-                    docHeight = viewport.height;
-                    docCanvas.width = docWidth;
-                    docCanvas.height = docHeight;
-                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                    URL.revokeObjectURL(pdfUrl);
-                } else {
-                    const img = await new Promise((resolve) => {
-                        const i = new Image();
-                        i.onload = () => resolve(i);
-                        i.src = URL.createObjectURL(file);
-                    });
-                    const scale = Math.min(1200 / img.width, 1);
-                    docWidth = img.width * scale;
-                    docHeight = img.height * scale;
-                    docCanvas.width = docWidth;
-                    docCanvas.height = docHeight;
-                    ctx.drawImage(img, 0, 0, docWidth, docHeight);
-                    URL.revokeObjectURL(img.src);
+        try {
+            let docWidth, docHeight;
+            if (file.type === 'application/pdf') {
+                const pdfUrl = URL.createObjectURL(file);
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdf = await loadingTask.promise;
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 1.5 });
+                docWidth = viewport.width;
+                docHeight = viewport.height;
+                docCanvas.width = docWidth;
+                docCanvas.height = docHeight;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                URL.revokeObjectURL(pdfUrl);
+            } else {
+                const img = await new Promise((resolve) => {
+                    const i = new Image();
+                    i.onload = () => resolve(i);
+                    i.src = URL.createObjectURL(file);
+                });
+                const scale = Math.min(1200 / img.width, 1);
+                docWidth = img.width * scale;
+                docHeight = img.height * scale;
+                docCanvas.width = docWidth;
+                docCanvas.height = docHeight;
+                ctx.drawImage(img, 0, 0, docWidth, docHeight);
+                URL.revokeObjectURL(img.src);
+            }
+
+            // Sync sizes
+            drawCanvas.width = docWidth;
+            drawCanvas.height = docHeight;
+            wrapper.style.width = docWidth + 'px';
+            wrapper.style.height = docHeight + 'px';
+
+            // Drawing/Editing Logic
+            let isDragging = false;
+            let startX, startY;
+            let dragMode = 'draw'; // 'draw', 'move', 'resize'
+            let handleId = null; // 'tl', 'tr', 'bl', 'br', 'center'
+
+            const getHandleAt = (x, y) => {
+                const z = this.zones[this.activeZone];
+                if (!z) return null;
+                const zX = (z.x / 100) * drawCanvas.width;
+                const zY = (z.y / 100) * drawCanvas.height;
+                const zW = (z.w / 100) * drawCanvas.width;
+                const zH = (z.h / 100) * drawCanvas.height;
+                const hSize = 10;
+
+                if (Math.abs(x - zX) < hSize && Math.abs(y - zY) < hSize) return 'tl';
+                if (Math.abs(x - (zX + zW)) < hSize && Math.abs(y - zY) < hSize) return 'tr';
+                if (Math.abs(x - zX) < hSize && Math.abs(y - (zY + zH)) < hSize) return 'bl';
+                if (Math.abs(x - (zX + zW)) < hSize && Math.abs(y - (zY + zH)) < hSize) return 'br';
+                if (x > zX && x < zX + zW && y > zY && y < zY + zH) return 'center';
+                return null;
+            };
+
+            drawCanvas.onmousedown = (e) => {
+                const rect = drawCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                handleId = getHandleAt(x, y);
+                if (handleId === 'center') dragMode = 'move';
+                else if (handleId) dragMode = 'resize';
+                else dragMode = 'draw';
+
+                isDragging = true;
+                startX = x;
+                startY = y;
+
+                if (dragMode === 'draw') {
+                    this.zones[this.activeZone] = { x: (x / drawCanvas.width) * 100, y: (y / drawCanvas.height) * 100, w: 0, h: 0 };
+                }
+            };
+
+            drawCanvas.onmousemove = (e) => {
+                const rect = drawCanvas.getBoundingClientRect();
+                const curX = e.clientX - rect.left;
+                const curY = e.clientY - rect.top;
+
+                // Update cursor
+                const h = getHandleAt(curX, curY);
+                if (h === 'tl' || h === 'br') drawCanvas.style.cursor = 'nwse-resize';
+                else if (h === 'tr' || h === 'bl') drawCanvas.style.cursor = 'nesw-resize';
+                else if (h === 'center') drawCanvas.style.cursor = 'move';
+                else drawCanvas.style.cursor = 'crosshair';
+
+                if (!isDragging) return;
+
+                const dx = ((curX - startX) / drawCanvas.width) * 100;
+                const dy = ((curY - startY) / drawCanvas.height) * 100;
+                const z = this.zones[this.activeZone];
+
+                if (dragMode === 'draw') {
+                    z.w = ((curX / drawCanvas.width) * 100) - z.x;
+                    z.h = ((curY / drawCanvas.height) * 100) - z.y;
+                } else if (dragMode === 'move') {
+                    z.x += dx;
+                    z.y += dy;
+                    startX = curX;
+                    startY = curY;
+                } else if (dragMode === 'resize') {
+                    if (handleId === 'tl') { z.x += dx; z.y += dy; z.w -= dx; z.h -= dy; }
+                    else if (handleId === 'tr') { z.y += dy; z.w += dx; z.h -= dy; }
+                    else if (handleId === 'bl') { z.x += dx; z.w -= dx; z.h += dy; }
+                    else if (handleId === 'br') { z.w += dx; z.h += dy; }
+                    startX = curX;
+                    startY = curY;
                 }
 
-                // Sync sizes
-                drawCanvas.width = docWidth;
-                drawCanvas.height = docHeight;
-                wrapper.style.width = docWidth + 'px';
-                wrapper.style.height = docHeight + 'px';
-
-                // Drawing/Editing Logic
-                let isDragging = false;
-                let startX, startY;
-                let dragMode = 'draw'; // 'draw', 'move', 'resize'
-                let handleId = null; // 'tl', 'tr', 'bl', 'br', 'center'
-
-                const getHandleAt = (x, y) => {
-                    const z = this.zones[this.activeZone];
-                    if (!z) return null;
-                    const zX = (z.x / 100) * drawCanvas.width;
-                    const zY = (z.y / 100) * drawCanvas.height;
-                    const zW = (z.w / 100) * drawCanvas.width;
-                    const zH = (z.h / 100) * drawCanvas.height;
-                    const hSize = 10;
-
-                    if (Math.abs(x - zX) < hSize && Math.abs(y - zY) < hSize) return 'tl';
-                    if (Math.abs(x - (zX + zW)) < hSize && Math.abs(y - zY) < hSize) return 'tr';
-                    if (Math.abs(x - zX) < hSize && Math.abs(y - (zY + zH)) < hSize) return 'bl';
-                    if (Math.abs(x - (zX + zW)) < hSize && Math.abs(y - (zY + zH)) < hSize) return 'br';
-                    if (x > zX && x < zX + zW && y > zY && y < zY + zH) return 'center';
-                    return null;
-                };
-
-                drawCanvas.onmousedown = (e) => {
-                    const rect = drawCanvas.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-
-                    handleId = getHandleAt(x, y);
-                    if (handleId === 'center') dragMode = 'move';
-                    else if (handleId) dragMode = 'resize';
-                    else dragMode = 'draw';
-
-                    isDragging = true;
-                    startX = x;
-                    startY = y;
-
-                    if (dragMode === 'draw') {
-                        this.zones[this.activeZone] = { x: (x / drawCanvas.width) * 100, y: (y / drawCanvas.height) * 100, w: 0, h: 0 };
-                    }
-                };
-
-                drawCanvas.onmousemove = (e) => {
-                    const rect = drawCanvas.getBoundingClientRect();
-                    const curX = e.clientX - rect.left;
-                    const curY = e.clientY - rect.top;
-
-                    // Update cursor
-                    const h = getHandleAt(curX, curY);
-                    if (h === 'tl' || h === 'br') drawCanvas.style.cursor = 'nwse-resize';
-                    else if (h === 'tr' || h === 'bl') drawCanvas.style.cursor = 'nesw-resize';
-                    else if (h === 'center') drawCanvas.style.cursor = 'move';
-                    else drawCanvas.style.cursor = 'crosshair';
-
-                    if (!isDragging) return;
-
-                    const dx = ((curX - startX) / drawCanvas.width) * 100;
-                    const dy = ((curY - startY) / drawCanvas.height) * 100;
-                    const z = this.zones[this.activeZone];
-
-                    if (dragMode === 'draw') {
-                        z.w = ((curX / drawCanvas.width) * 100) - z.x;
-                        z.h = ((curY / drawCanvas.height) * 100) - z.y;
-                    } else if (dragMode === 'move') {
-                        z.x += dx;
-                        z.y += dy;
-                        startX = curX;
-                        startY = curY;
-                    } else if (dragMode === 'resize') {
-                        if (handleId === 'tl') { z.x += dx; z.y += dy; z.w -= dx; z.h -= dy; }
-                        else if (handleId === 'tr') { z.y += dy; z.w += dx; z.h -= dy; }
-                        else if (handleId === 'bl') { z.x += dx; z.w -= dx; z.h += dy; }
-                        else if (handleId === 'br') { z.w += dx; z.h += dy; }
-                        startX = curX;
-                        startY = curY;
-                    }
-
-                    this.updateZoneUI(this.activeZone);
-                    this.redrawZones(drawCanvas, dCtx);
-                };
-
-                drawCanvas.onmouseup = (e) => {
-                    if (!isDragging) return;
-                    isDragging = false;
-
-                    const z = this.zones[this.activeZone];
-                    if (z.w < 0) { z.x += z.w; z.w = Math.abs(z.w); }
-                    if (z.h < 0) { z.y += z.h; z.h = Math.abs(z.h); }
-
-                    this.updateZoneUI(this.activeZone);
-                    this.redrawZones(drawCanvas, dCtx);
-                };
-
-                // Add initial zones if any
-                Object.keys(this.zones).forEach(zId => this.updateZoneUI(zId));
+                this.updateZoneUI(this.activeZone);
                 this.redrawZones(drawCanvas, dCtx);
+            };
 
-            } catch (err) {
-                console.error("Editor Error:", err);
-                this.showToast("Erreur chargement document", "error");
+            drawCanvas.onmouseup = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+
+                const z = this.zones[this.activeZone];
+                if (z.w < 0) { z.x += z.w; z.w = Math.abs(z.w); }
+                if (z.h < 0) { z.y += z.h; z.h = Math.abs(z.h); }
+
+                this.updateZoneUI(this.activeZone);
+                this.redrawZones(drawCanvas, dCtx);
+            };
+
+            // Add initial zones if any
+            Object.keys(this.zones).forEach(zId => this.updateZoneUI(zId));
+            this.redrawZones(drawCanvas, dCtx);
+
+        } catch (err) {
+            console.error("Editor Error:", err);
+            this.showToast("Erreur chargement document", "error");
+        }
+    },
+
+    setActiveZone(fieldId, animate = true) {
+        this.activeZone = fieldId;
+        document.querySelectorAll('.zone-item').forEach(el => {
+            el.style.background = '#333';
+            el.style.border = 'none';
+        });
+        const activeEl = document.getElementById(`zone-item-${fieldId}`);
+        if (activeEl) {
+            activeEl.style.background = 'rgba(99, 102, 241, 0.2)';
+            activeEl.style.borderLeft = '4px solid var(--primary)';
+        }
+        // Redraw to show handles on active zone
+        const drawCanvas = document.getElementById('draw-canvas');
+        if (drawCanvas) this.redrawZones(drawCanvas, drawCanvas.getContext('2d'));
+    },
+
+    redrawZones(canvas, ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw already defined zones
+        Object.entries(this.zones).forEach(([id, z]) => {
+            const isActive = id === this.activeZone;
+            const x = (z.x / 100) * canvas.width;
+            const y = (z.y / 100) * canvas.height;
+            const w = (z.w / 100) * canvas.width;
+            const h = (z.h / 100) * canvas.height;
+
+            ctx.strokeStyle = isActive ? '#6366f1' : '#4CAF50';
+            ctx.lineWidth = isActive ? 3 : 1;
+            ctx.setLineDash(isActive ? [] : [2, 2]);
+            ctx.strokeRect(x, y, w, h);
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = isActive ? 'rgba(99, 102, 241, 0.1)' : 'rgba(76, 175, 80, 0.05)';
+            ctx.fillRect(x, y, w, h);
+
+            // Label
+            ctx.fillStyle = isActive ? '#6366f1' : '#4CAF50';
+            ctx.font = 'bold 10px Inter, sans-serif';
+            ctx.fillText(id.replace('Number', ''), x, y - 5);
+
+            // Draw handles for active zone
+            if (isActive) {
+                const hSize = 8;
+                ctx.fillStyle = '#6366f1';
+                [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([hx, hy]) => {
+                    ctx.fillRect(hx - hSize / 1, hy - hSize / 1, hSize, hSize);
+                });
             }
-        },
+        });
+    },
 
-        setActiveZone(fieldId, animate = true) {
-            this.activeZone = fieldId;
-            document.querySelectorAll('.zone-item').forEach(el => {
-                el.style.background = '#333';
-                el.style.border = 'none';
-            });
-            const activeEl = document.getElementById(`zone-item-${fieldId}`);
-            if (activeEl) {
-                activeEl.style.background = 'rgba(99, 102, 241, 0.2)';
-                activeEl.style.borderLeft = '4px solid var(--primary)';
-            }
-            // Redraw to show handles on active zone
-            const drawCanvas = document.getElementById('draw-canvas');
-            if (drawCanvas) this.redrawZones(drawCanvas, drawCanvas.getContext('2d'));
-        },
+    updateZoneUI(fieldId) {
+        const z = this.zones[fieldId];
+        if (!z) return;
 
-        redrawZones(canvas, ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const statusIcon = document.getElementById(`status-${fieldId}`);
+        if (statusIcon) statusIcon.style.color = '#6366f1';
 
-            // Draw already defined zones
-            Object.entries(this.zones).forEach(([id, z]) => {
-                const isActive = id === this.activeZone;
-                const x = (z.x / 100) * canvas.width;
-                const y = (z.y / 100) * canvas.height;
-                const w = (z.w / 100) * canvas.width;
-                const h = (z.h / 100) * canvas.height;
+        const coordSpan = document.getElementById(`coord-${fieldId}`);
+        if (coordSpan) coordSpan.innerText = `Pos: ${Math.round(z.x)}%, ${Math.round(z.y)}% | Taille: ${Math.round(z.w)}x${Math.round(z.h)}%`;
+    },
 
-                ctx.strokeStyle = isActive ? '#6366f1' : '#4CAF50';
-                ctx.lineWidth = isActive ? 3 : 1;
-                ctx.setLineDash(isActive ? [] : [2, 2]);
-                ctx.strokeRect(x, y, w, h);
-                ctx.setLineDash([]);
+    async saveVisualZones(templateId) {
+        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
+        const index = templates.findIndex(t => t.id === templateId);
+        if (index === -1) return;
 
-                ctx.fillStyle = isActive ? 'rgba(99, 102, 241, 0.1)' : 'rgba(76, 175, 80, 0.05)';
-                ctx.fillRect(x, y, w, h);
+        templates[index].zones = this.zones;
+        // Mark as using zonal if zones exist
+        templates[index].useZonal = true;
 
-                // Label
-                ctx.fillStyle = isActive ? '#6366f1' : '#4CAF50';
-                ctx.font = 'bold 10px Inter, sans-serif';
-                ctx.fillText(id.replace('Number', ''), x, y - 5);
+        await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, templates);
+        this.showToast("Zones enregistrées avec succès", "success");
+        const overlay = document.getElementById('modal-overlay');
+        if (overlay) overlay.remove();
+        this.showTemplateManagerModal();
+    },
 
-                // Draw handles for active zone
-                if (isActive) {
-                    const hSize = 8;
-                    ctx.fillStyle = '#6366f1';
-                    [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([hx, hy]) => {
-                        ctx.fillRect(hx - hSize / 1, hy - hSize / 1, hSize, hSize);
+    async toggleAiExtraction() {
+        const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+
+        // If trying to enable but no key
+        if (!settings.useAiExtraction && !settings.geminiApiKey) {
+            this.showToast("Merci de configurer votre clé API Gemini dans les Paramètres avant d'activer l'IA.", "warning");
+            return; // BLOCK TOGGLE
+        }
+
+        settings.useAiExtraction = !settings.useAiExtraction;
+        await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
+
+        const btn = document.getElementById('ai-toggle-btn');
+        if (btn) {
+            btn.style.background = settings.useAiExtraction ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.05)';
+            btn.style.color = settings.useAiExtraction ? 'var(--primary)' : 'inherit';
+        }
+
+        this.showToast(settings.useAiExtraction ? "Mode IA Activé" : "Mode IA Désactivé", "info");
+    },
+
+    async testGeminiConnection() {
+        const key = document.getElementById('settings-gemini-key').value.trim();
+        if (!key) {
+            this.showToast("Veuillez saisir une clé API à tester.", "warning");
+            return;
+        }
+
+        this.showToast("Démarrage de l'auto-découverte du modèle...", "info");
+
+        try {
+            // 1. Get all available models
+            const listResp = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
+            if (!listResp.ok) throw new Error("Impossible de lister les modèles (Clé invalide ?)");
+
+            const listData = await listResp.json();
+            // Filter models that support generateContent and are not specifically skipped
+            const potentialModels = listData.models
+                .filter(m => m.supportedGenerationMethods.includes('generateContent'))
+                .map(m => m.name.replace('models/', ''));
+
+            if (potentialModels.length === 0) throw new Error("Aucun modèle 'generateContent' trouvé pour cette clé.");
+
+            console.log("Discovery: Testing these models:", potentialModels);
+
+            let workingModel = null;
+            let quotaErrorCount = 0;
+
+            // 2. Test each model until one works (not 404 and not 429)
+            for (const model of potentialModels) {
+                console.log(`Auto-discovery: Testing ${model}...`);
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: "Reponds 'OK' en un mot." }] }]
+                        })
                     });
+
+                    if (response.ok) {
+                        workingModel = model;
+                        break;
+                    } else if (response.status === 429) {
+                        quotaErrorCount++;
+                        console.warn(`Model ${model} has no quota (429).`);
+                    } else {
+                        console.warn(`Model ${model} returned ${response.status}.`);
+                    }
+                } catch (e) {
+                    console.error(`Error testing ${model}:`, e);
                 }
-            });
-        },
-
-        updateZoneUI(fieldId) {
-            const z = this.zones[fieldId];
-            if (!z) return;
-
-            const statusIcon = document.getElementById(`status-${fieldId}`);
-            if (statusIcon) statusIcon.style.color = '#6366f1';
-
-            const coordSpan = document.getElementById(`coord-${fieldId}`);
-            if (coordSpan) coordSpan.innerText = `Pos: ${Math.round(z.x)}%, ${Math.round(z.y)}% | Taille: ${Math.round(z.w)}x${Math.round(z.h)}%`;
-        },
-
-        async saveVisualZones(templateId) {
-            const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-            const index = templates.findIndex(t => t.id === templateId);
-            if (index === -1) return;
-
-            templates[index].zones = this.zones;
-            // Mark as using zonal if zones exist
-            templates[index].useZonal = true;
-
-            await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, templates);
-            this.showToast("Zones enregistrées avec succès", "success");
-            const overlay = document.getElementById('modal-overlay');
-            if (overlay) overlay.remove();
-            this.showTemplateManagerModal();
-        },
-
-        async toggleAiExtraction() {
-            const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-
-            // If trying to enable but no key
-            if (!settings.useAiExtraction && !settings.geminiApiKey) {
-                this.showToast("Merci de configurer votre clé API Gemini dans les Paramètres avant d'activer l'IA.", "warning");
-                return; // BLOCK TOGGLE
             }
 
-            settings.useAiExtraction = !settings.useAiExtraction;
-            await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
+            if (workingModel) {
+                // Save the working model to settings
+                const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+                settings.activeModel = workingModel;
+                settings.geminiApiKey = key; // Update key if changed in input
+                await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
 
-            const btn = document.getElementById('ai-toggle-btn');
-            if (btn) {
-                btn.style.background = settings.useAiExtraction ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.05)';
-                btn.style.color = settings.useAiExtraction ? 'var(--primary)' : 'inherit';
+                this.showToast(`Connexion RÉUSSIE ! Modèle sélectionné : ${workingModel}`, "success");
+            } else if (quotaErrorCount > 0) {
+                this.showToast("Tous les modèles disponibles ont dépassé leur quota ou sont limités.", "warning");
+            } else {
+                this.showToast("Aucun modèle fonctionnel n'a été trouvé pour cette clé.", "danger");
             }
 
-            this.showToast(settings.useAiExtraction ? "Mode IA Activé" : "Mode IA Désactivé", "info");
-        },
+        } catch (err) {
+            this.showToast("Erreur d'auto-découverte : " + err.message, "danger");
+        }
+    },
 
-        async testGeminiConnection() {
-            const key = document.getElementById('settings-gemini-key').value.trim();
-            if (!key) {
-                this.showToast("Veuillez saisir une clé API à tester.", "warning");
-                return;
-            }
+    async listGeminiModels() {
+        const key = document.getElementById('settings-gemini-key').value.trim();
+        if (!key) {
+            this.showToast("Veuillez saisir une clé API pour lister les modèles.", "warning");
+            return;
+        }
 
-            this.showToast("Démarrage de l'auto-découverte du modèle...", "info");
-
-            try {
-                // 1. Get all available models
-                const listResp = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
-                if (!listResp.ok) throw new Error("Impossible de lister les modèles (Clé invalide ?)");
-
-                const listData = await listResp.json();
-                // Filter models that support generateContent and are not specifically skipped
-                const potentialModels = listData.models
+        this.showToast("Récupération de la liste des modèles...", "info");
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
+            if (response.ok) {
+                const data = await response.json();
+                const modelNames = data.models
                     .filter(m => m.supportedGenerationMethods.includes('generateContent'))
                     .map(m => m.name.replace('models/', ''));
 
-                if (potentialModels.length === 0) throw new Error("Aucun modèle 'generateContent' trouvé pour cette clé.");
+                const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
+                settings.availableGeminiModels = modelNames;
+                await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
 
-                console.log("Discovery: Testing these models:", potentialModels);
-
-                let workingModel = null;
-                let quotaErrorCount = 0;
-
-                // 2. Test each model until one works (not 404 and not 429)
-                for (const model of potentialModels) {
-                    console.log(`Auto-discovery: Testing ${model}...`);
-                    try {
-                        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                contents: [{ parts: [{ text: "Reponds 'OK' en un mot." }] }]
-                            })
-                        });
-
-                        if (response.ok) {
-                            workingModel = model;
-                            break;
-                        } else if (response.status === 429) {
-                            quotaErrorCount++;
-                            console.warn(`Model ${model} has no quota (429).`);
-                        } else {
-                            console.warn(`Model ${model} returned ${response.status}.`);
-                        }
-                    } catch (e) {
-                        console.error(`Error testing ${model}:`, e);
-                    }
-                }
-
-                if (workingModel) {
-                    // Save the working model to settings
-                    const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-                    settings.activeModel = workingModel;
-                    settings.geminiApiKey = key; // Update key if changed in input
-                    await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
-
-                    this.showToast(`Connexion RÉUSSIE ! Modèle sélectionné : ${workingModel}`, "success");
-                } else if (quotaErrorCount > 0) {
-                    this.showToast("Tous les modèles disponibles ont dépassé leur quota ou sont limités.", "warning");
-                } else {
-                    this.showToast("Aucun modèle fonctionnel n'a été trouvé pour cette clé.", "danger");
-                }
-
-            } catch (err) {
-                this.showToast("Erreur d'auto-découverte : " + err.message, "danger");
+                this.showToast(`${modelNames.length} modèles récupérés et enregistrés.`, "success");
+                this.renderSettings(); // Refresh UI to show models in dropdown
+            } else {
+                const err = await response.json();
+                this.showToast("Erreur lors de la récupération : " + (err.error?.message || "Inconnue"), "danger");
             }
-        },
+        } catch (err) {
+            this.showToast("Erreur réseau : " + err.message, "danger");
+        }
+    },
 
-        async listGeminiModels() {
-            const key = document.getElementById('settings-gemini-key').value.trim();
-            if (!key) {
-                this.showToast("Veuillez saisir une clé API pour lister les modèles.", "warning");
-                return;
-            }
+    async callGeminiAI(text) {
+        const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+        if (!settings.geminiApiKey) {
+            throw new Error("Clé API Gemini manquante. Veuillez la configurer dans les paramètres.");
+        }
 
-            this.showToast("Récupération de la liste des modèles...", "info");
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    const modelNames = data.models
-                        .filter(m => m.supportedGenerationMethods.includes('generateContent'))
-                        .map(m => m.name.replace('models/', ''));
-
-                    const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
-                    settings.availableGeminiModels = modelNames;
-                    await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
-
-                    this.showToast(`${modelNames.length} modèles récupérés et enregistrés.`, "success");
-                    this.renderSettings(); // Refresh UI to show models in dropdown
-                } else {
-                    const err = await response.json();
-                    this.showToast("Erreur lors de la récupération : " + (err.error?.message || "Inconnue"), "danger");
-                }
-            } catch (err) {
-                this.showToast("Erreur réseau : " + err.message, "danger");
-            }
-        },
-
-        async callGeminiAI(text) {
-            const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-            if (!settings.geminiApiKey) {
-                throw new Error("Clé API Gemini manquante. Veuillez la configurer dans les paramètres.");
-            }
-
-            const prompt = `Extrais les informations suivantes de ce texte de Bill of Lading (BL) et retourne UNIQUEMENT un objet JSON valide avec ces clés : 
+        const prompt = `Extrais les informations suivantes de ce texte de Bill of Lading (BL) et retourne UNIQUEMENT un objet JSON valide avec ces clés : 
             "bookingNumber", "containerNumber", "chassisNumber", "clientName", "passportNumber", "nin", "vehicleName", "portOfLoading", "portOfDestination", "shippingLine", "loadingDate". 
             Si une information est absente, mets "Non trouvé".
             Le numéro de châssis est souvent appelé VIN. 
@@ -8595,101 +8604,172 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             ${text}
             ---`;
 
-            // Use selected model, cached working model, or fallback strategy
-            let modelToUse = settings.geminiModel || settings.activeModel || 'gemini-1.5-flash';
-            const modelsToTry = [modelToUse, 'gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+        // Use selected model, cached working model, or fallback strategy
+        let modelToUse = settings.geminiModel || settings.activeModel || 'gemini-1.5-flash';
+        const modelsToTry = [modelToUse, 'gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
 
-            // Remove duplicates while keeping order
-            const uniqueModels = [...new Set(modelsToTry)];
+        // Remove duplicates while keeping order
+        const uniqueModels = [...new Set(modelsToTry)];
 
-            let lastResponse = null;
+        let lastResponse = null;
 
-            let lastErrorStatus = null;
+        let lastErrorStatus = null;
 
-            for (const model of uniqueModels) {
-                console.log(`Attempting extraction with ${model}...`);
-                try {
-                    const body = {
-                        contents: [{ parts: [{ text: prompt }] }]
-                    };
+        for (const model of uniqueModels) {
+            console.log(`Attempting extraction with ${model}...`);
+            try {
+                const body = {
+                    contents: [{ parts: [{ text: prompt }] }]
+                };
 
-                    // Only add response_mime_type for newer models (1.5+ or 2.0+)
-                    if (model.includes('1.5') || model.includes('2.0') || model.includes('latest')) {
-                        body.generationConfig = { response_mime_type: "application/json" };
-                    }
-
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${settings.geminiApiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
-
-                    if (response.ok) {
-                        lastResponse = await response.json();
-                        // Update active model if it changed/was discovered
-                        if (model !== settings.activeModel) {
-                            settings.activeModel = model;
-                            await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
-                        }
-                        console.log(`Success with ${model}`);
-                        break;
-                    } else {
-                        lastErrorStatus = response.status;
-                        console.warn(`Model ${model} failed (${response.status}), trying next...`);
-
-                        if (response.status !== 404 && response.status !== 429) {
-                            const errBody = await response.json();
-                            const errMsg = errBody.error?.message || "";
-                            if (errMsg) console.warn("API Error Detail:", errMsg);
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Error with ${model}:`, err);
+                // Only add response_mime_type for newer models (1.5+ or 2.0+)
+                if (model.includes('1.5') || model.includes('2.0') || model.includes('latest')) {
+                    body.generationConfig = { response_mime_type: "application/json" };
                 }
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${settings.geminiApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (response.ok) {
+                    lastResponse = await response.json();
+                    // Update active model if it changed/was discovered
+                    if (model !== settings.activeModel) {
+                        settings.activeModel = model;
+                        await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
+                    }
+                    console.log(`Success with ${model}`);
+                    break;
+                } else {
+                    lastErrorStatus = response.status;
+                    console.warn(`Model ${model} failed (${response.status}), trying next...`);
+
+                    if (response.status !== 404 && response.status !== 429) {
+                        const errBody = await response.json();
+                        const errMsg = errBody.error?.message || "";
+                        if (errMsg) console.warn("API Error Detail:", errMsg);
+                    }
+                }
+            } catch (err) {
+                console.error(`Error with ${model}:`, err);
             }
+        }
 
-            if (!lastResponse) {
-                throw new Error(`Aucun modèle Gemini fonctionnel n'a pu être contacté. (Code: ${lastErrorStatus}). Veuillez vérifier la clé API et les quotas.`);
-            }
+        if (!lastResponse) {
+            throw new Error(`Aucun modèle Gemini fonctionnel n'a pu être contacté. (Code: ${lastErrorStatus}). Veuillez vérifier la clé API et les quotas.`);
+        }
 
-            const result = lastResponse;
-            let jsonText = result.candidates[0].content.parts[0].text;
+        const result = lastResponse;
+        let jsonText = result.candidates[0].content.parts[0].text;
 
-            // Clean markdown formatting if present
-            if (jsonText.includes('```')) {
-                jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-            }
+        // Clean markdown formatting if present
+        if (jsonText.includes('```')) {
+            jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
 
-            console.log("Gemini Raw Response:", jsonText);
+        console.log("Gemini Raw Response:", jsonText);
 
-            try {
-                return JSON.parse(jsonText);
-            } catch (pErr) {
-                console.error("AI JSON Parse Error:", pErr, "Raw Text:", jsonText);
-                // Last ditch effort: try to find anything between { and }
-                const match = jsonText.match(/\{[\s\S]*\}/);
-                if (match) return JSON.parse(match[0]);
-                throw pErr;
-            }
-        },
-
-
-        async showLiveVoyageTracking(voyageName) {
-            this.showToast(`Recherche de la position du voyage ${voyageName}...`, "info");
-            try {
-                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
-                const result = await response.json();
-                if (!result.success) throw new Error(result.message || "Impossible de localiser le voyage");
-                this.showTrackingModal(result.data, `Suivi Voyage: ${voyageName}`);
-            } catch (error) {
-                console.error("Voyage Tracking Error:", error);
-                this.showToast(error.message, "danger");
-            }
-        },
+        try {
+            return JSON.parse(jsonText);
+        } catch (pErr) {
+            console.error("AI JSON Parse Error:", pErr, "Raw Text:", jsonText);
+            // Last ditch effort: try to find anything between { and }
+            const match = jsonText.match(/\{[\s\S]*\}/);
+            if (match) return JSON.parse(match[0]);
+            throw pErr;
+        }
+    },
 
 
-        async renderAudit() {
-            this.viewContainer.innerHTML = `
+    async showLiveVoyageTracking(voyageName) {
+        this.showToast(`Recherche de la position du voyage ${voyageName}...`, "info");
+        try {
+            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || "Impossible de localiser le voyage");
+            app.showTrackingModal(result.data, `Suivi Voyage: ${voyageName}`);
+        } catch (error) {
+            console.error("Voyage Tracking Error:", error);
+            this.showToast(error.message, "danger");
+        }
+    },
+
+    showTrackingModal(data, title = "Détails du Suivi") {
+        const events = data.events || [];
+        const location = data.location || { name: 'Inconnu', lat: 0, lng: 0 };
+
+        const modalHtml = `
+                <div class="modal-overlay" onclick="app.closeModal()">
+                    <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 700px; max-width: 95vw;">
+                        <div class="modal-header">
+                            <div>
+                                <h2>${title}</h2>
+                                <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;">
+                                    Navire: ${data.vesselName || 'Inconnu'} | Statut: ${data.status || 'N/A'}
+                                </p>
+                            </div>
+                            <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                        </div>
+                        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                            <!-- Map Container for specific tracking -->
+                            <div id="modal-tracking-map" style="height: 200px; width: 100%; border-radius: 8px; margin-bottom: 20px;"></div>
+
+                            <div class="tracking-timeline" style="padding: 10px 0;">
+                                ${events.length > 0 ? events.map((event, index) => `
+                                    <div class="timeline-item" style="display: flex; gap: 20px; margin-bottom: 25px; position: relative;">
+                                        ${index !== events.length - 1 ? `<div style="position: absolute; left: 14px; top: 30px; bottom: -20px; width: 2px; background: var(--border-glass);"></div>` : ''}
+                                        <div class="timeline-marker" style="width: 30px; height: 30px; border-radius: 50%; background: ${event.isActual ? 'var(--success)' : 'var(--border-glass)'}; display: flex; align-items: center; justify-content: center; z-index: 1; flex-shrink: 0; box-shadow: ${event.isActual ? '0 0 10px rgba(34, 197, 94, 0.4)' : 'none'};">
+                                            <i class="fas ${event.isActual ? 'fa-check' : 'fa-clock'}" style="font-size: 0.8rem; color: ${event.isActual ? 'white' : 'var(--text-dim)'};"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <div style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">
+                                                ${new Date(event.date).toLocaleDateString()} ${new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                            <div style="font-weight: 700; font-size: 1rem; margin: 4px 0;">${event.description}</div>
+                                            <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                                <i class="fas fa-map-marker-alt" style="font-size: 0.7rem;"></i> ${event.location || 'En transit'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('') : `
+                                    <div style="text-align: center; padding: 20px; color: var(--text-dim);">Aucun événement récent.</div>
+                                `}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Initialize Mini Map if coordinates exist
+        if (window.L && location.lat && location.lng) {
+            setTimeout(() => {
+                const map = L.map('modal-tracking-map', { zoomControl: false }).setView([location.lat, location.lng], 4);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; CARTO'
+                }).addTo(map);
+
+                const icon = L.divIcon({
+                    html: '<i class="fas fa-ship" style="font-size: 24px; color: #4ade80;"></i>',
+                    className: 'ship-marker-modal',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                L.marker([location.lat, location.lng], { icon: icon }).addTo(map)
+                    .bindPopup(`<b>${data.vesselName}</b><br>${location.name}`).openPopup();
+            }, 100);
+        }
+    },
+
+
+    async renderAudit() {
+        this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div>
                         <h1>Journal d'Activité</h1>
@@ -8703,20 +8783,20 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 </div>
             `;
 
-            try {
-                const response = await ApiService.getAuditLogs();
-                const container = document.getElementById('audit-timeline');
+        try {
+            const response = await ApiService.getAuditLogs();
+            const container = document.getElementById('audit-timeline');
 
-                if (!response.success || response.data.length === 0) {
-                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Aucune activité enregistrée.</p>';
-                    return;
-                }
+            if (!response.success || response.data.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Aucune activité enregistrée.</p>';
+                return;
+            }
 
-                container.innerHTML = response.data.map(log => {
-                    const date = new Date(log.createdAt);
-                    const actionClass = log.action.toLowerCase();
+            container.innerHTML = response.data.map(log => {
+                const date = new Date(log.createdAt);
+                const actionClass = log.action.toLowerCase();
 
-                    return `
+                return `
                         <div class="audit-item" style="display: flex; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-glass);">
                             <div class="audit-icon ${actionClass}" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(99, 102, 241, 0.1); flex-shrink: 0;">
                                 <i class="fas ${this.getAuditIcon(log.action)}"></i>
@@ -8745,26 +8825,26 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                         </div>
                     `;
-                }).join('');
+            }).join('');
 
-            } catch (error) {
-                console.error("Error rendering audit logs:", error);
-                this.showToast("Erreur lors du chargement des journaux", "error");
-            }
-        },
+        } catch (error) {
+            console.error("Error rendering audit logs:", error);
+            this.showToast("Erreur lors du chargement des journaux", "error");
+        }
+    },
 
-        getAuditIcon(action) {
-            switch (action) {
-                case 'CREATE': return 'fa-plus-circle';
-                case 'UPDATE': return 'fa-edit';
-                case 'DELETE': return 'fa-trash-alt';
-                case 'LOGIN': return 'fa-sign-in-alt';
-                default: return 'fa-info-circle';
-            }
-        },
+    getAuditIcon(action) {
+        switch (action) {
+            case 'CREATE': return 'fa-plus-circle';
+            case 'UPDATE': return 'fa-edit';
+            case 'DELETE': return 'fa-trash-alt';
+            case 'LOGIN': return 'fa-sign-in-alt';
+            default: return 'fa-info-circle';
+        }
+    },
 
-        renderGlobalTracking() {
-            this.viewContainer.innerHTML = `
+    renderGlobalTracking() {
+        this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div class="header-info">
                         <h1>Carte Mondiale du Suivi</h1>
@@ -8777,114 +8857,143 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 </div>
             `;
 
-            const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
-                .filter(s => s.currentLat && s.currentLng && !s.isArchived);
+        const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+            .filter(s => s.currentLat && s.currentLng && !s.isArchived);
 
-            if (window.L) {
-                setTimeout(() => {
-                    const map = L.map('global-map', { zoomControl: false }).setView([20, 0], 2);
-                    L.control.zoom({ position: 'topright' }).addTo(map);
+        if (window.L) {
+            setTimeout(() => {
+                const map = L.map('global-map', { zoomControl: false }).setView([20, 0], 2);
+                L.control.zoom({ position: 'topright' }).addTo(map);
 
-                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                        attribution: '&copy; CARTO'
-                    }).addTo(map);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; CARTO'
+                }).addTo(map);
 
-                    shipments.forEach(s => {
-                        const icon = L.divIcon({
-                            html: '<i class="fas fa-ship" style="font-size: 20px; color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);"></i>',
-                            className: 'global-ship-marker',
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        });
+                shipments.forEach(s => {
+                    const icon = L.divIcon({
+                        html: '<i class="fas fa-ship" style="font-size: 20px; color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);"></i>',
+                        className: 'global-ship-marker',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    });
 
-                        L.marker([s.currentLat, s.currentLng], { icon: icon })
-                            .addTo(map)
-                            .bindPopup(`
+                    const hasHistory = s.trackingHistory && s.trackingHistory.length > 20;
+                    const safeId = s.id ? s.id.replace(/'/g, "\\'") : '';
+                    const safeVoyage = s.voyage ? s.voyage.replace(/'/g, "\\'") : '';
+                    const action = hasHistory ? `app.showLocalTracking('${safeId}')` : `app.showLiveVoyageTracking('${safeVoyage}')`;
+                    const actionText = hasHistory ? 'Voir Historique' : 'Localiser (Sat)';
+                    const actionColor = hasHistory ? '#10b981' : '#6366f1';
+
+                    L.marker([s.currentLat, s.currentLng], { icon: icon })
+                        .addTo(map)
+                        .bindPopup(`
                                 <div style="color: #333; min-width: 150px;">
                                     <div style="font-weight: bold; font-size: 1rem; margin-bottom: 5px;">${s.vesselName || s.carrier || 'Navire'}</div>
                                     <div style="font-size: 0.85rem; margin-bottom: 3px;">Voyage: <b>${s.voyage || 'N/A'}</b></div>
                                     <div style="font-size: 0.85rem; margin-bottom: 3px;">Statut: <span style="color: #059669; font-weight: 600;">${s.status}</span></div>
                                     <div style="font-size: 0.85rem;">Conteneur: ${s.containerNumber || 'N/A'}</div>
                                     <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;">
-                                    <button onclick="app.showLiveVoyageTracking('${s.voyage}')" style="width: 100%; border: none; background: #6366f1; color: white; padding: 5px; border-radius: 4px; cursor: pointer;">Voir Détails</button>
+                                    <button onclick="${action}" style="width: 100%; border: none; background: ${actionColor}; color: white; padding: 5px; border-radius: 4px; cursor: pointer;">
+                                        ${actionText}
+                                    </button>
                                 </div>
                             `);
-                    });
-                }, 100);
-            }
-        },
-
-
-
-        async toggleVoyageTracking(voyageName, active) {
-            try {
-                this.showToast(`Mise à jour du tracking pour ${voyageName}...`, "info");
-                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}/toggle`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ active })
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.showToast(res.message, "success");
-                    await StorageService.syncAll();
-                    this.renderView(this.currentView);
-                } else {
-                    throw new Error(res.message);
-                }
-            } catch (error) {
-                console.error("Toggle error:", error);
-                this.showToast("Erreur lors du changement de statut", "error");
+            }, 100);
+        }
+    },
+
+    showLocalTracking(shipmentId) {
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const shipment = shipments.find(s => s.id === shipmentId);
+        if (shipment && shipment.trackingHistory) {
+            try {
+                const events = JSON.parse(shipment.trackingHistory);
+                const data = {
+                    events: events,
+                    location: {
+                        lat: shipment.currentLat,
+                        lng: shipment.currentLng,
+                        name: 'Dernière position connue'
+                    },
+                    vesselName: shipment.shipStatus || shipment.vesselName || 'Navire',
+                    status: shipment.status
+                };
+                app.showTrackingModal(data, `Détails Navire: ${shipment.vesselName}`);
+            } catch (e) {
+                console.error("Local tracking parse error", e);
+                this.showToast("Erreur de données locales", "error");
+            }
+        } else {
+            this.showToast("Pas d'historique local disponible", "warning");
+        }
+    },
+
+    async toggleVoyageTracking(voyageName, active) {
+        try {
+            this.showToast(`Mise à jour du tracking pour ${voyageName}...`, "info");
+            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}/toggle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active })
+            });
+            const res = await response.json();
+            if (res.success) {
+                this.showToast(res.message, "success");
+                await StorageService.syncAll();
                 this.renderView(this.currentView);
+            } else {
+                throw new Error(res.message);
             }
-        },
+        } catch (error) {
+            console.error("Toggle error:", error);
+            this.showToast("Erreur lors du changement de statut", "error");
+            this.renderView(this.currentView);
+        }
+    },
 
 
-        showVoyageTrackingHistory(voyageName) {
-            const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
-                .filter(s => s.voyage === voyageName && !s.isArchived);
+    showVoyageTrackingHistory(voyageName) {
+        const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+            .filter(s => s.voyage === voyageName && !s.isArchived);
 
-            if (shipments.length === 0) {
-                this.showToast("Aucune expédition trouvée pour ce voyage", "warning");
-                return;
+        if (shipments.length === 0) {
+            this.showToast("Aucune expédition trouvée pour ce voyage", "warning");
+            return;
+        }
+
+        // Find a shipment with history
+        const shipmentWithHistory = shipments.find(s => s.trackingHistory && s.trackingHistory.length > 5);
+        let events = [];
+
+        if (shipmentWithHistory) {
+            try {
+                events = JSON.parse(shipmentWithHistory.trackingHistory);
+                if (!Array.isArray(events)) events = [];
+            } catch (e) {
+                console.error("Failed to parse tracking history", e);
+                events = [];
             }
+        }
 
-            // Find a shipment with history
-            const shipmentWithHistory = shipments.find(s => s.trackingHistory);
-            let events = [];
+        const source = shipmentWithHistory && shipmentWithHistory.shipStatus ? shipmentWithHistory.shipStatus : 'Données Satellite';
+        const count = shipments.length;
 
-            if (shipmentWithHistory) {
-                try {
-                    events = JSON.parse(shipmentWithHistory.trackingHistory);
-                } catch (e) {
-                    console.error("Failed to parse tracking history", e);
-                }
-            }
-
-            if (events.length === 0) {
-                // No history, offer to refresh
-                const confirmRefresh = confirm("Aucun historique stocké pour ce voyage. Voulez-vous lancer un suivi satellite maintenant ?");
-                if (confirmRefresh) {
-                    this.trackVoyage(voyageName);
-                }
-                return;
-            }
-
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay" onclick="app.closeModal()">
                     <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 700px; max-width: 95vw;">
                         <div class="modal-header">
                             <div>
                                 <h2>Historique de Tracking: ${voyageName}</h2>
                                 <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;">
-                                    Source: ${shipmentWithHistory.shipStatus || 'Navire inconnu'} | ${shipments.length} conteneur(s)
+                                    Source: ${source} | ${count} conteneur(s)
                                 </p>
                             </div>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
                             <div class="tracking-timeline" style="padding: 20px 0;">
-                                ${events.map((event, index) => `
+                                ${events.length > 0 ? events.map((event, index) => `
                                     <div class="timeline-item" style="display: flex; gap: 20px; margin-bottom: 25px; position: relative;">
                                         ${index !== events.length - 1 ? `<div style="position: absolute; left: 14px; top: 30px; bottom: -20px; width: 2px; background: var(--border-glass);"></div>` : ''}
                                         <div class="timeline-marker" style="width: 30px; height: 30px; border-radius: 50%; background: ${event.isActual ? 'var(--success)' : 'var(--border-glass)'}; display: flex; align-items: center; justify-content: center; z-index: 1; flex-shrink: 0; box-shadow: ${event.isActual ? '0 0 10px rgba(34, 197, 94, 0.4)' : 'none'};">
@@ -8900,12 +9009,18 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             </div>
                                         </div>
                                     </div>
-                                `).join('')}
+                                `).join('') : `
+                                    <div style="text-align: center; padding: 40px; color: var(--text-dim);">
+                                        <i class="fas fa-satellite-dish" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                                        <p>Aucun historique de suivi disponible.</p>
+                                        <p style="font-size: 0.85rem;">Cliquez sur "Rafraîchir Satellite" pour lancer une recherche.</p>
+                                    </div>
+                                `}
                             </div>
                         </div>
                         <div class="modal-footer" style="padding-top: 20px; border-top: 1px solid var(--border-glass);">
                             <div style="flex: 1; font-size: 0.75rem; color: var(--text-dim);">
-                                <i class="fas fa-info-circle"></i> Données stockées localement. Cliquez sur <i class="fas fa-satellite-dish"></i> pour rafraîchir.
+                                <i class="fas fa-info-circle"></i> Données fournies par Sinay/Safecube.
                             </div>
                             <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
                             <button class="btn-primary" onclick="app.trackVoyage('${voyageName.replace(/'/g, "\\'")}')">
@@ -8915,40 +9030,40 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        },
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
 
-        async trackVoyage(voyageName) {
-            this.showToast(`Mise à jour du suivi satellite pour ${voyageName}...`, "info");
-            try {
-                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
-                const res = await response.json();
-                if (res.success) {
-                    this.showToast("Données satellite récupérées avec succès", "success");
-                    await StorageService.syncAll();
-                    this.renderView(this.currentView);
-                    this.closeModal();
-                    setTimeout(() => this.showVoyageTrackingHistory(voyageName), 500);
-                } else {
-                    throw new Error(res.message);
-                }
-            } catch (err) {
-                console.error("Voyage tracking error:", err);
-                this.showToast("Erreur API Satellite: " + err.message, "danger");
+    async trackVoyage(voyageName) {
+        this.showToast(`Mise à jour du suivi satellite pour ${voyageName}...`, "info");
+        try {
+            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
+            const res = await response.json();
+            if (res.success) {
+                this.showToast("Données satellite récupérées avec succès", "success");
+                await StorageService.syncAll();
+                this.renderView(this.currentView);
+                this.closeModal();
+                setTimeout(() => this.showVoyageTrackingHistory(voyageName), 500);
+            } else {
+                throw new Error(res.message);
             }
-        },
+        } catch (err) {
+            console.error("Voyage tracking error:", err);
+            this.showToast("Erreur API Satellite: " + err.message, "danger");
+        }
+    },
 
-    };
+};
 
-    try {
-        await app.init();
-        window.app = app;
-    } catch (err) {
-        console.error('Critical Error during App Init:', err);
-        document.body.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif;">
+try {
+    await app.init();
+    window.app = app;
+} catch (err) {
+    console.error('Critical Error during App Init:', err);
+    document.body.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif;">
             <h1>Erreur Critique</h1>
             <p>L'application n'a pas pu démarrer.</p>
             <pre>${err.message}\n${err.stack}</pre>
         </div>`;
-    }
-});
+}
+// End of App Logic
