@@ -153,6 +153,8 @@ class ContainerTrackingService {
             events: mappedEvents,
             etd: data.route?.pol?.date || null,
             eta: data.route?.pod?.date || metadata.updatedAt,
+            loadingPort: data.route?.pol?.location?.name || null,
+            unloadingPort: data.route?.pod?.location?.name || null,
             vesselName: vesselName,
             voyage: 'N/A',
             provider: 'Sinay V2'

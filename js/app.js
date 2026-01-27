@@ -1288,6 +1288,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 case 'voyages':
                     this.renderVoyages();
                     break;
+                case 'global-tracking':
+                    this.renderGlobalTracking();
+                    break;
                 default:
                     this.renderDashboard();
             }
@@ -4893,14 +4896,17 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                         <td><span class="status-badge ${v.status.toLowerCase()}">${v.status}</span></td>
                                         <td>
                                             <div class="table-actions">
+                                                <button class="btn-action" onclick="app.showVoyageShipmentsModal('${v.name}')" title="Détails Expéditions / Clients">
+                                                    <i class="fas fa-users-cog"></i>
+                                                </button>
+                                                <button class="btn-action" onclick="app.showVoyageTracking('${v.name}')" title="Historique & Tracking (API)">
+                                                    <i class="fas fa-history" style="color: var(--success);"></i>
+                                                </button>
                                                 ${v.name !== 'SANS VOYAGE' ? `
                                                     <button class="btn-action" onclick="app.showEditVoyageModal('${v.name}')" title="Modifier tout le voyage">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
                                                 ` : ''}
-                                                <button class="btn-action" onclick="app.switchView('shipments')" title="Voir détails containers">
-                                                    <i class="fas fa-list-ul"></i>
-                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -8845,6 +8851,123 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 case 'LOGIN': return 'fa-sign-in-alt';
                 default: return 'fa-info-circle';
             }
+        },
+
+        renderGlobalTracking() {
+            this.viewContainer.innerHTML = `
+                <div class="view-header">
+                    <div class="header-info">
+                        <h1>Carte Mondiale du Suivi</h1>
+                        <p>Visualisation en temps réel de tous les navires en cours</p>
+                    </div>
+                </div>
+                
+                <div class="glass" style="height: calc(100vh - 200px); position: relative; border-radius: 15px; overflow: hidden; margin-top: 20px;">
+                    <div id="global-map" style="width: 100%; height: 100%;"></div>
+                </div>
+            `;
+
+            const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+                .filter(s => s.currentLat && s.currentLng && !s.isArchived);
+
+            if (window.L) {
+                setTimeout(() => {
+                    const map = L.map('global-map', { zoomControl: false }).setView([20, 0], 2);
+                    L.control.zoom({ position: 'topright' }).addTo(map);
+
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; CARTO'
+                    }).addTo(map);
+
+                    shipments.forEach(s => {
+                        const icon = L.divIcon({
+                            html: '<i class="fas fa-ship" style="font-size: 20px; color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);"></i>',
+                            className: 'global-ship-marker',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        });
+
+                        L.marker([s.currentLat, s.currentLng], { icon: icon })
+                            .addTo(map)
+                            .bindPopup(`
+                                <div style="color: #333; min-width: 150px;">
+                                    <div style="font-weight: bold; font-size: 1rem; margin-bottom: 5px;">${s.vesselName || s.carrier || 'Navire'}</div>
+                                    <div style="font-size: 0.85rem; margin-bottom: 3px;">Voyage: <b>${s.voyage || 'N/A'}</b></div>
+                                    <div style="font-size: 0.85rem; margin-bottom: 3px;">Statut: <span style="color: #059669; font-weight: 600;">${s.status}</span></div>
+                                    <div style="font-size: 0.85rem;">Conteneur: ${s.containerNumber || 'N/A'}</div>
+                                    <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;">
+                                    <button onclick="app.showVoyageTracking('${s.voyage}')" style="width: 100%; border: none; background: #6366f1; color: white; padding: 5px; border-radius: 4px; cursor: pointer;">Voir Détails</button>
+                                </div>
+                            `);
+                    });
+                }, 100);
+            }
+        },
+
+        async showVoyageShipmentsModal(voyageName) {
+            const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || []).filter(s => s.voyage === voyageName);
+            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+            const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+            const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+
+            const modalHtml = `
+                <div class="modal-overlay">
+                    <div class="modal-content glass" style="width: 900px; max-width: 95vw;">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-ship"></i> Voyage: ${voyageName}</h2>
+                            <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                        </div>
+                        <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                            <div class="data-table-container">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>BL / Conteneur</th>
+                                            <th>Véhicules</th>
+                                            <th>Clients</th>
+                                            <th>Destination</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${shipments.map(s => {
+                const shipmentVehicles = vehicles.filter(v => v.shipmentId === s.id);
+                return `
+                                                <tr>
+                                                    <td>
+                                                        <div style="font-weight: bold;">${s.blNumber || 'N/A'}</div>
+                                                        <div style="font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase;">${s.containerNumber || 'N/A'}</div>
+                                                    </td>
+                                                    <td>
+                                                        ${shipmentVehicles.map(v => `<div style="font-size: 0.85rem;"><i class="fas fa-car" style="color: var(--primary);"></i> ${v.brand} ${v.model || ''}</div>`).join('')}
+                                                    </td>
+                                                    <td>
+                                                        ${shipmentVehicles.map(v => {
+                    const order = orders.find(o => o.id === v.orderId);
+                    const client = order ? clients.find(c => c.id === order.clientId) : null;
+                    return `<div style="font-size: 0.85rem;"><i class="fas fa-user" style="color: var(--accent-blue);"></i> ${client ? client.firstName + ' ' + client.lastName : 'N/A'}</div>`;
+                }).join('')}
+                                                    </td>
+                                                    <td>${s.destination || '-'}</td>
+                                                    <td>
+                                                        <button class="btn-action" onclick="app.showEditShipmentModal('${s.id}')">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            `;
+            }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
         },
 
     };
