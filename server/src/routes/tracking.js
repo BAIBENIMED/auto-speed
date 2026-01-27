@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const containerTrackingService = require('../services/containerTrackingService');
 const { Shipment, Vehicle } = require('../models');
+const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 
 // Track a specific container or BL
 router.get('/container/:number', async (req, res) => {
@@ -56,6 +57,11 @@ router.get('/voyage/:voyageName', async (req, res) => {
                 lastUpdate: new Date()
             })));
 
+            // Sync status to orders
+            if (trackingInfo.status) {
+                await Promise.all(shipments.map(s => syncShipmentStatusToOrders(s.id, trackingInfo.status)));
+            }
+
             return res.json({ success: true, data: { ...trackingInfo, voyageName } });
         }
 
@@ -99,6 +105,11 @@ router.post('/:id/refresh', async (req, res) => {
             shipStatus: trackingData.vesselName || shipment.shipStatus,
             lastUpdate: new Date()
         });
+
+        // Sync status to orders
+        if (trackingData.status) {
+            await syncShipmentStatusToOrders(shipment.id, trackingData.status);
+        }
 
         res.json({ success: true, data: trackingData });
     } catch (error) {

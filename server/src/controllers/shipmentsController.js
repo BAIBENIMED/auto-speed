@@ -1,4 +1,5 @@
 const { Shipment, Vehicle, Order } = require('../models');
+const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 
 
 const shipmentsController = {
@@ -77,7 +78,11 @@ const shipmentsController = {
                 return res.status(404).json({ success: false, message: 'Expédition non trouvée' });
             }
             await shipment.update(req.body);
-            // Handle vehicle updates if necessary
+
+            // Sync status to orders if updated
+            if (req.body.status) {
+                await syncShipmentStatusToOrders(shipment.id, req.body.status);
+            }
 
             // Trigger tracking refresh
 
