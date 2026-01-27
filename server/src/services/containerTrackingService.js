@@ -151,6 +151,7 @@ class ContainerTrackingService {
                 name: locationName
             },
             events: mappedEvents,
+            etd: data.route?.pol?.date || null,
             eta: data.route?.pod?.date || metadata.updatedAt,
             vesselName: vesselName,
             voyage: 'N/A',
