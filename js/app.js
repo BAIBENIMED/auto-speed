@@ -526,6 +526,9 @@ const app = {
         categoryFilter.addEventListener('change', refreshVehicles);
         showroomFilter.addEventListener('change', refreshVehicles);
 
+        // Initial population of vehicles
+        refreshVehicles();
+
         document.getElementById('order-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleOrderSubmission(new FormData(e.target));
@@ -906,7 +909,13 @@ const app = {
                                 ` : ''}
                                 <select name="vehicleId" class="glass-select" ${!order.isValidated ? 'disabled' : ''}>
                                     <option value="">[SANS VÉHICULE EN STOCK]</option>
-                                    ${vehicles.map(v => `<option value="${v.id}" ${v.id === order.vehicleId ? 'selected' : ''}>[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}</option>`).join('')}
+                                    ${vehicles.map(v => {
+            const vin = v.chassisNumber ? `VIN: ${v.chassisNumber}` : 'VIN: N/A';
+            const color = v.color ? `${v.color}` : 'N/A';
+            const km = v.mileage ? `${v.mileage.toLocaleString()} km` : '0 km';
+            const category = v.category || v.condition || 'N/A';
+            return `<option value="${v.id}" ${v.id === order.vehicleId ? 'selected' : ''}>[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) | ${vin} | ${color} | ${km} | ${category} - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}</option>`;
+        }).join('')}
                                 </select>
                             </div>
                             
