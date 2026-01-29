@@ -1457,7 +1457,7 @@ const app = {
             this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div class="header-title-area">
-                        <h1>Tableau de Bord Analytique</h1>
+                        <h1>Dashboard</h1>
                         <p class="subtitle">Analyse globale de l'activité, du stock et de la trésorerie</p>
                     </div>
                     <div class="header-filters glass" style="display: flex; gap: 1rem; padding: 0.75rem 1.25rem; border-radius: 12px; align-items: center;">
@@ -1487,57 +1487,55 @@ const app = {
 
                 <!-- Logistics Stats Section -->
                 <div class="section-header">
-                    <h2>Logistique & Stock</h2>
+                    <h2>Logistique & État du Stock</h2>
                 </div>
-                <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 30px;">
-                    <div class="stat-card glass" onclick="app.switchView('vehicles')" style="cursor: pointer;">
-                        <div class="stat-icon" style="background: rgba(34, 197, 94, 0.2); color: var(--success);">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>Véhicules Disponibles</h3>
-                            <p class="stat-value">${availableVehiclesCount}</p>
-                            <span class="stat-change positive">Prêts à la vente</span>
+                <div class="dashboard-grid" style="grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 30px; align-items: stretch;">
+                    <div class="stat-card glass" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+                        <h3 style="margin-bottom: 15px; text-align: center;"><i class="fas fa-chart-pie"></i> Répartition du Stock</h3>
+                        <div style="position: relative; height: 200px; width: 100%;">
+                            <canvas id="stockStatusChart"></canvas>
                         </div>
                     </div>
-                    <div class="stat-card glass" onclick="app.switchView('vehicles')" style="cursor: pointer;">
-                        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue);">
-                            <i class="fas fa-car-side"></i>
+                    <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                        <div class="stat-card glass" onclick="app.switchView('vehicles')" style="cursor: pointer; padding: 15px;">
+                            <div class="stat-icon" style="background: rgba(34, 197, 94, 0.2); color: var(--success); width: 40px; height: 40px; margin-bottom: 10px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 style="font-size: 0.9rem;">Disponibles</h3>
+                                <p class="stat-value" style="font-size: 1.5rem;">${availableVehiclesCount}</p>
+                                <span class="stat-change positive" style="font-size: 0.7rem;">Prêts à la vente</span>
+                            </div>
                         </div>
-                        <div class="stat-info">
-                            <h3>Non Affectés</h3>
-                            <p class="stat-value" style="color: var(--accent-blue);">${unassignedVehiclesCount}</p>
-                            <span class="stat-change">En stock libre</span>
+                        <div class="stat-card glass" onclick="app.switchView('vehicles')" style="cursor: pointer; padding: 15px;">
+                            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); width: 40px; height: 40px; margin-bottom: 10px;">
+                                <i class="fas fa-car-side"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 style="font-size: 0.9rem;">Libres</h3>
+                                <p class="stat-value" style="font-size: 1.5rem; color: var(--accent-blue);">${unassignedVehiclesCount}</p>
+                                <span class="stat-change" style="font-size: 0.7rem;">Non affectés</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="stat-card glass">
-                        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--warning);">
-                            <i class="fas fa-clock"></i>
+                        <div class="stat-card glass" style="padding: 15px;">
+                            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--warning); width: 40px; height: 40px; margin-bottom: 10px;">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 style="font-size: 0.9rem;">Réservés</h3>
+                                <p class="stat-value" style="font-size: 1.5rem;">${reservedCount}</p>
+                                <span class="stat-change warning" style="font-size: 0.7rem;">En attente</span>
+                            </div>
                         </div>
-                        <div class="stat-info">
-                            <h3>Véhicules Réservés</h3>
-                            <p class="stat-value">${reservedCount}</p>
-                            <span class="stat-change warning">En attente expédition</span>
-                        </div>
-                    </div>
-                    <div class="stat-card glass">
-                        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue);">
-                            <i class="fas fa-shipping-fast"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>En Expédition</h3>
-                            <p class="stat-value">${inTransitCount}</p>
-                            <span class="stat-change">Préparation / En mer</span>
-                        </div>
-                    </div>
-                    <div class="stat-card glass">
-                        <div class="stat-icon" style="background: rgba(194, 161, 94, 0.1); color: var(--primary);">
-                            <i class="fas fa-dolly"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>Véhicules Arrivés</h3>
-                            <p class="stat-value">${arrivedCount}</p>
-                            <span class="stat-change">Au port / En douane</span>
+                        <div class="stat-card glass" style="padding: 15px;">
+                            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); width: 40px; height: 40px; margin-bottom: 10px;">
+                                <i class="fas fa-shipping-fast"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 style="font-size: 0.9rem;">Transit/Arrivés</h3>
+                                <p class="stat-value" style="font-size: 1.5rem;">${inTransitCount + arrivedCount}</p>
+                                <span class="stat-change" style="font-size: 0.7rem;">Logistique active</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1690,6 +1688,38 @@ const app = {
 
             // --- Initialize Charts ---
             setTimeout(() => {
+                // 0. Stock Status Chart
+                const canvasStock = document.getElementById('stockStatusChart');
+                const ctxStock = canvasStock?.getContext('2d');
+                if (ctxStock) {
+                    const existingChart = Chart.getChart(canvasStock);
+                    if (existingChart) existingChart.destroy();
+
+                    const stockData = [availableVehiclesCount, reservedCount, inTransitCount, arrivedCount];
+
+                    new Chart(ctxStock, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Disponible', 'Réservé', 'En Transit', 'Arrivé'],
+                            datasets: [{
+                                data: stockData,
+                                backgroundColor: ['#22c55e', '#f59e0b', '#3b82f6', '#6366f1'],
+                                borderWidth: 0,
+                                hoverOffset: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false // Key values are shown in stat cards
+                                }
+                            }
+                        }
+                    });
+                }
+
                 // 1. Order Status Chart
                 const canvasOrders = document.getElementById('ordersChart');
                 const ctxOrders = canvasOrders?.getContext('2d');
