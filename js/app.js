@@ -1713,7 +1713,14 @@ const app = {
                             maintainAspectRatio: false,
                             plugins: {
                                 legend: {
-                                    display: false // Key values are shown in stat cards
+                                    display: true,
+                                    position: 'bottom',
+                                    labels: {
+                                        color: '#9ca3af',
+                                        font: { family: 'Outfit', size: 10 },
+                                        usePointStyle: true,
+                                        padding: 10
+                                    }
                                 }
                             }
                         }
@@ -1728,8 +1735,28 @@ const app = {
                     const existingChart = Chart.getChart(canvasOrders);
                     if (existingChart) existingChart.destroy();
 
-                    const statusLabels = ['EN ATTENTE DE VALIDATION', 'ATTENTE AFFECTATION VÉHICULE', 'ARRIVÉE', 'LIVRÉE', 'ANNULÉE'];
-                    const displayLabels = ['E.A. Validation', 'Attente Véhicule', 'Arrivée', 'Livrée', 'Annulée'];
+                    const statusLabels = [
+                        'EN ATTENTE DE VALIDATION',
+                        'ATTENTE AFFECTATION VÉHICULE',
+                        'ATTENTE EXPÉDITION',
+                        'A BORD',
+                        'EN MER',
+                        'ARRIVÉE',
+                        'ENLEVÉE',
+                        'LIVRÉE',
+                        'ANNULÉE'
+                    ];
+                    const displayLabels = [
+                        'E.A. Validation',
+                        'Attente Véhicule',
+                        'Attente Expéd.',
+                        'A Bord',
+                        'En Mer',
+                        'Arrivée',
+                        'Enlevée',
+                        'Livrée',
+                        'Annulée'
+                    ];
                     const orderStatusData = statusLabels.map(s => statusCounts[s] || 0);
 
                     new Chart(ctxOrders, {
@@ -1738,7 +1765,17 @@ const app = {
                             labels: displayLabels,
                             datasets: [{
                                 data: orderStatusData,
-                                backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ef4444'],
+                                backgroundColor: [
+                                    '#f59e0b', // Validation
+                                    '#3b82f6', // Affectation
+                                    '#6366f1', // Attente Expéd
+                                    '#8b5cf6', // A Bord
+                                    '#0ea5e9', // En Mer
+                                    '#c2a15e', // Arrivée
+                                    '#10b981', // Enlevée
+                                    '#059669', // Livrée
+                                    '#ef4444'  // Annulée
+                                ],
                                 borderWidth: 0,
                                 hoverOffset: 4
                             }]
