@@ -6761,6 +6761,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                 <input type="number" name="amount" step="1" value="${orderId ? Math.max(0, preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) : ''}" required>
                                             </div>
                                             <div class="form-group">
+                                                <label>Date d'opération</label>
+                                                <input type="date" name="date" value="${new Date().toISOString().split('T')[0]}" required class="glass-input">
+                                            </div>
+                                            <div class="form-group">
                                                 <label>Devise</label>
                                                 <input type="text" value="${StorageService.get(STORAGE_KEYS.SETTINGS)?.sellingCurrency || 'EUR'}" readonly class="glass-input" style="background: rgba(255,255,255,0.05);">
                                                     <input type="hidden" name="currency" value="${StorageService.get(STORAGE_KEYS.SETTINGS)?.sellingCurrency || 'EUR'}">
@@ -6864,6 +6868,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                 <div class="form-group">
                                                     <label>Montant</label>
                                                     <input type="number" name="amount" step="1" value="${transaction.amount}" required>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Date d'opération</label>
+                                                    <input type="date" name="date" value="${transaction.date ? transaction.date.split('T')[0] : new Date().toISOString().split('T')[0]}" required class="glass-input">
                                                 </div>
                                                 <div class="form-group">
                                                     <label>Devise</label>
@@ -7027,7 +7035,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 const newTransaction = {
                     ...data,
                     id: `TRX-${Date.now().toString().slice(-6)}`,
-                    date: new Date().toISOString(),
+                    date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
                     type: data.type || 'In',
                     amount: Number(data.amount),
                     showroom: data.showroom || 'Showroom Principal'
