@@ -4790,85 +4790,68 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             </div>
                         </div>
 
-                        <!-- AllForward Search Section -->
+                        <!-- AllForward Creation Section -->
                         <div class="logistics-search-container">
                             <h2 class="search-title">NOUVELLE EXPÉDITION</h2>
                             
-                            <div class="logistics-tabs">
-                                <div class="logistics-tab active" onclick="app.switchLogisticsTab('ocean', this)">
-                                    <i class="fas fa-ship"></i> OCEAN
-                                </div>
-                                <div class="logistics-tab" onclick="app.switchLogisticsTab('air', this)">
-                                    <i class="fas fa-plane"></i> AIR
-                                </div>
-                                <div class="logistics-tab" onclick="app.switchLogisticsTab('schedule', this)">
-                                    <i class="fas fa-calendar-alt"></i> SCHEDULE
-                                </div>
-                                <div class="logistics-tab" onclick="app.switchLogisticsTab('history', this)">
-                                    <i class="fas fa-history"></i> HISTORY
-                                </div>
-                            </div>
-
-                            <div class="search-options-grid" id="logistics-search-fields">
+                            <div class="search-options-grid" id="shipment-inline-form">
                                 <div class="option-group">
-                                    <label>Pick up from</label>
+                                    <label>Date d'Expédition</label>
                                     <div class="option-input-wrapper">
-                                        <i class="fas fa-map-marker-alt"></i>
-                                        <input type="text" placeholder="Port of Loading" id="logistic-from">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        <input type="date" id="inline-shipment-date" value="${new Date().toISOString().split('T')[0]}">
                                     </div>
                                 </div>
                                 <div class="option-group">
-                                    <label>Deliver to</label>
+                                    <label>Port de Chargement</label>
                                     <div class="option-input-wrapper">
-                                        <i class="fas fa-warehouse"></i>
-                                        <select id="logistic-to">
-                                            <option value="">Destination Port</option>
-                                            <option value="Dakar">Dakar, Sénégal</option>
-                                            <option value="Abidjan">Abidjan, Côte d'Ivoire</option>
-                                            <option value="Lomé">Lomé, Togo</option>
-                                            <option value="Cotonou">Cotonou, Bénin</option>
-                                        </select>
+                                        <i class="fas fa-ship"></i>
+                                        <input type="text" id="inline-loading-port" placeholder="ex: Marseille">
                                     </div>
                                 </div>
                                 <div class="option-group">
-                                    <label>Ready Date</label>
+                                    <label>Port de Destination</label>
                                     <div class="option-input-wrapper">
-                                        <i class="fas fa-calendar-day"></i>
-                                        <input type="date" id="logistic-date">
+                                        <i class="fas fa-anchor"></i>
+                                        <input type="text" id="inline-destination-port" placeholder="ex: Cotonou">
                                     </div>
                                 </div>
                                 <div class="option-group">
-                                    <label>Package Type</label>
+                                    <label>N° Conteneur</label>
                                     <div class="option-input-wrapper">
                                         <i class="fas fa-box"></i>
-                                        <select id="logistic-package">
-                                            <option value="LCL">BOXES (LCL)</option>
-                                            <option value="FCL">CONTAINER (FCL)</option>
-                                            <option value="RORO">RORO (Vehicle)</option>
-                                        </select>
+                                        <input type="text" id="inline-container" placeholder="ex: CONT1234567">
                                     </div>
                                 </div>
                                 <div class="option-group">
-                                    <label>Container Type</label>
+                                    <label>N° de BL</label>
                                     <div class="option-input-wrapper">
-                                        <i class="fas fa-truck-container"></i>
-                                        <select id="logistic-container">
-                                            <option value="40HC">40' High Cube</option>
-                                            <option value="20GP">20' Standard</option>
-                                            <option value="40GP">40' Standard</option>
-                                        </select>
+                                        <i class="fas fa-file-invoice"></i>
+                                        <input type="text" id="inline-bl" placeholder="ex: BL987654">
                                     </div>
                                 </div>
                                 <div class="option-group">
-                                    <label># of Units</label>
+                                    <label>Nom du Voyage</label>
                                     <div class="option-input-wrapper">
-                                        <i class="fas fa-sort-numeric-up"></i>
-                                        <input type="number" value="1" min="1" id="logistic-units">
+                                        <i class="fas fa-route"></i>
+                                        <input type="text" id="inline-voyage" placeholder="ex: VESSEL-01-MARS">
                                     </div>
                                 </div>
 
-                                <div class="search-btn-container" style="grid-column: span 3; display: flex; gap: 15px; justify-content: center; margin-top: 10px;">
-                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px;" onclick="app.showShipmentModal()">
+                                <!-- Vehicle Selection Area -->
+                                <div class="option-group" style="grid-column: span 3; margin-top: 20px;">
+                                    <label style="color: var(--primary); font-weight: 600;">Sélection des Véhicules (Filtre: Client, VIN, Commande)</label>
+                                    <div class="option-input-wrapper" style="margin-bottom: 10px;">
+                                        <i class="fas fa-search"></i>
+                                        <input type="text" id="inline-vehicle-search" placeholder="Rechercher un véhicule...">
+                                    </div>
+                                    <div id="inline-vehicle-list" class="glass-scroll" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; border: 1px solid var(--border-glass);">
+                                        <!-- Dynamique -->
+                                    </div>
+                                </div>
+
+                                <div class="search-btn-container" style="grid-column: span 3; display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px;" onclick="app.handleInlineShipmentCreation()">
                                         CRÉER L'EXPÉDITION <i class="fas fa-plus" style="margin-left: 10px;"></i>
                                     </button>
                                     <button class="btn-search-logistic" style="flex: 1; max-width: 300px; background: var(--secondary);" onclick="app.showShipmentBLUploadModal()">
@@ -4995,12 +4978,113 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         }
     },
 
-    switchLogisticsTab(mode, el) {
+    initInlineShipmentForm() {
+        const searchInput = document.getElementById('inline-vehicle-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.updateInlineVehicleList(e.target.value);
+            });
+            this.updateInlineVehicleList();
+        }
+    },
+
+    updateInlineVehicleList(searchTerm = '') {
+        const list = document.getElementById('inline-vehicle-list');
+        if (!list) return;
+
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+
+        const availableVehicles = vehicles.filter(v => !v.shipmentId && !v.isArchived);
+
+        const term = searchTerm.toLowerCase();
+        const filtered = availableVehicles.filter(v => {
+            const order = orders.find(o => o.id === v.orderId);
+            const client = order ? clients.find(c => c.id === order.clientId) : null;
+
+            return v.brand.toLowerCase().includes(term) ||
+                v.model.toLowerCase().includes(term) ||
+                v.chassisNumber.toLowerCase().includes(term) ||
+                (client && client.name.toLowerCase().includes(term)) ||
+                (v.orderId && v.orderId.toString().includes(term));
+        });
+
+        list.innerHTML = filtered.map(v => {
+            const order = orders.find(o => o.id === v.orderId);
+            const client = order ? clients.find(c => c.id === order.clientId) : null;
+            return `
+                <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                    <input type="checkbox" name="inline-vehicle-ids" value="${v.id}" style="width: 18px; height: 18px; cursor: pointer;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.9rem; font-weight: 500;">${v.brand} ${v.model}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-dim);">
+                            VIN: <span style="color: var(--primary);">${v.chassisNumber}</span> | 
+                            Client: <span style="color: var(--text-main);">${client ? client.name : 'N/A'}</span> | 
+                            Cmd: <span style="color: var(--text-main);">${v.orderId || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('') || '<p style="text-align: center; color: var(--text-dim); padding: 20px;">Aucun véhicule disponible pour l\'expédition</p>';
+    },
+
+    handleInlineShipmentCreation() {
+        const date = document.getElementById('inline-shipment-date').value;
+        const loadingPort = document.getElementById('inline-loading-port').value;
+        const destination = document.getElementById('inline-destination-port').value;
+        const container = document.getElementById('inline-container').value;
+        const bl = document.getElementById('inline-bl').value;
+        const voyage = document.getElementById('inline-voyage').value;
+
+        const selectedCheckboxes = document.querySelectorAll('input[name="inline-vehicle-ids"]:checked');
+        const vehicleIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+        if (!container) {
+            this.showToast("Le numéro de conteneur est obligatoire", "danger");
+            return;
+        }
+
+        if (vehicleIds.length === 0) {
+            this.showToast("Veuillez sélectionner au moins un véhicule", "warning");
+            return;
+        }
+
+        const newShipment = {
+            id: Date.now().toString(),
+            containerNumber: container,
+            blNumber: bl,
+            voyage: voyage,
+            shipmentDate: date,
+            loadingPort: loadingPort,
+            destination: destination,
+            status: 'En attente',
+            lastUpdate: new Date().toISOString(),
+            isArchived: false
+        };
+
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
+        shipments.push(newShipment);
+        StorageService.save(STORAGE_KEYS.SHIPMENTS, shipments);
+
+        // Mettre à jour les véhicules
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        vehicles.forEach(v => {
+            if (vehicleIds.includes(v.id)) {
+                v.shipmentId = newShipment.id;
+                v.status = 'Expédié';
+            }
+        });
+        StorageService.save(STORAGE_KEYS.VEHICLES, vehicles);
+
+        this.showToast("Expédition créée avec succès", "success");
+        this.renderShipments();
+    },
+
+    switchLogisticsTab(tab, el) {
         // Update UI
         document.querySelectorAll('.logistics-tab').forEach(tab => tab.classList.remove('active'));
         el.classList.add('active');
-
-        // Change fields based on mode if needed
         const fieldsContainer = document.getElementById('logistics-search-fields');
         if (mode === 'ocean') {
             // Standard ocean fields (already there)
