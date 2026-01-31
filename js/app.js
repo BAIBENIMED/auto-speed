@@ -4840,21 +4840,31 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
                                 <!-- Vehicle Selection Area -->
                                 <div class="option-group" style="grid-column: span 3; margin-top: 20px;">
-                                    <label style="color: var(--primary); font-weight: 600;">Sélection des Véhicules (Filtre: Client, VIN, Commande)</label>
-                                    <div class="option-input-wrapper" style="margin-bottom: 10px;">
-                                        <i class="fas fa-search"></i>
-                                        <input type="text" id="inline-vehicle-search" placeholder="Rechercher un véhicule...">
+                                    <label style="color: var(--primary); font-weight: 600;">Sélection des Véhicules</label>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                        <div class="option-input-wrapper">
+                                            <i class="fas fa-user"></i>
+                                            <input type="text" id="inline-filter-client" placeholder="Filtre Client...">
+                                        </div>
+                                        <div class="option-input-wrapper">
+                                            <i class="fas fa-car"></i>
+                                            <input type="text" id="inline-filter-vehicle" placeholder="Filtre Véhicule...">
+                                        </div>
+                                        <div class="option-input-wrapper">
+                                            <i class="fas fa-fingerprint"></i>
+                                            <input type="text" id="inline-filter-vin" placeholder="Filtre VIN...">
+                                        </div>
                                     </div>
-                                    <div id="inline-vehicle-list" class="glass-scroll" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; border: 1px solid var(--border-glass);">
+                                    <div id="inline-vehicle-list" class="glass-scroll" style="max-height: 250px; overflow-y: auto; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; border: 1px solid var(--border-glass);">
                                         <!-- Dynamique -->
                                     </div>
                                 </div>
 
-                                <div class="search-btn-container" style="grid-column: span 3; display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
-                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px;" onclick="app.handleInlineShipmentCreation()">
+                                <div class="search-btn-container" style="grid-column: span 3; display: flex; gap: 15px; justify-content: center; margin-top: 20px; z-index: 10;">
+                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px; min-width: 200px; display: flex; align-items: center; justify-content: center;" onclick="app.handleInlineShipmentCreation()">
                                         CRÉER L'EXPÉDITION <i class="fas fa-plus" style="margin-left: 10px;"></i>
                                     </button>
-                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px; background: var(--secondary);" onclick="app.showShipmentBLUploadModal()">
+                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px; min-width: 200px; background: var(--secondary); display: flex !important; align-items: center; justify-content: center;" onclick="app.showShipmentBLUploadModal()">
                                         CRÉER VIA BL <i class="fas fa-magic" style="margin-left: 10px;"></i>
                                     </button>
                                 </div>
@@ -4864,7 +4874,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         <div class="section-header" style="margin-top: 40px;">
                             <h2>LISTE DES EXPÉDITIONS</h2>
                         </div>
-                        <div class="glass filter-bar" style="margin-bottom: 20px; padding: 15px; display: flex; align-items: center; justify-content: flex-end;">
+                        <div class="glass filter-bar" style="margin-bottom: 20px; padding: 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px;">
+                             <div class="search-box" style="flex: 1; max-width: 500px; position: relative;">
+                                <i class="fas fa-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
+                                <input type="text" id="shipment-table-search" class="glass-input" placeholder="Rechercher Client, Expé, Voyage, VIN..." style="padding-left: 45px; width: 100%;">
+                             </div>
                              <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
                                 <input type="checkbox" id="filter-shipment-archived" ${this.shipmentFilters.showArchived ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
                                 <label for="filter-shipment-archived" style="font-size: 0.85rem; cursor: pointer; margin: 0;">Voir les archives</label>
@@ -4979,18 +4993,28 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
     },
 
     initInlineShipmentForm() {
-        const searchInput = document.getElementById('inline-vehicle-search');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.updateInlineVehicleList(e.target.value);
-            });
-            this.updateInlineVehicleList();
+        ['inline-filter-client', 'inline-filter-vehicle', 'inline-filter-vin'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => this.updateInlineVehicleList());
+            }
+        });
+
+        const tableSearch = document.getElementById('shipment-table-search');
+        if (tableSearch) {
+            tableSearch.addEventListener('input', (e) => this.handleShipmentTableSearch(e.target.value));
         }
+
+        this.updateInlineVehicleList();
     },
 
-    updateInlineVehicleList(searchTerm = '') {
+    updateInlineVehicleList() {
         const list = document.getElementById('inline-vehicle-list');
         if (!list) return;
+
+        const clientTerm = document.getElementById('inline-filter-client')?.value.toLowerCase() || '';
+        const vehicleTerm = document.getElementById('inline-filter-vehicle')?.value.toLowerCase() || '';
+        const vinTerm = document.getElementById('inline-filter-vin')?.value.toLowerCase() || '';
 
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
         const orders = StorageService.get(STORAGE_KEYS.ORDERS);
@@ -4998,16 +5022,16 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
         const availableVehicles = vehicles.filter(v => !v.shipmentId && !v.isArchived);
 
-        const term = searchTerm.toLowerCase();
         const filtered = availableVehicles.filter(v => {
             const order = orders.find(o => o.id === v.orderId);
             const client = order ? clients.find(c => c.id === order.clientId) : null;
+            const fullClientName = client ? `${client.firstName} ${client.lastName}`.toLowerCase() : '';
 
-            return v.brand.toLowerCase().includes(term) ||
-                v.model.toLowerCase().includes(term) ||
-                v.chassisNumber.toLowerCase().includes(term) ||
-                (client && client.name.toLowerCase().includes(term)) ||
-                (v.orderId && v.orderId.toString().includes(term));
+            const matchClient = fullClientName.includes(clientTerm);
+            const matchVehicle = v.brand.toLowerCase().includes(vehicleTerm) || v.model.toLowerCase().includes(vehicleTerm);
+            const matchVin = v.chassisNumber.toLowerCase().includes(vinTerm);
+
+            return matchClient && matchVehicle && matchVin;
         });
 
         list.innerHTML = filtered.map(v => {
@@ -5079,6 +5103,17 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
         this.showToast("Expédition créée avec succès", "success");
         this.renderShipments();
+    },
+
+    handleShipmentTableSearch(term) {
+        const searchTerm = term.toLowerCase();
+        const rows = document.querySelectorAll('.data-table tbody tr');
+
+        rows.forEach(row => {
+            if (row.querySelector('td[colspan]')) return; // Gérer le cas "Aucun véhicule"
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
     },
 
     switchLogisticsTab(tab, el) {
