@@ -1878,8 +1878,7 @@ const app = {
         // Filter active shipments with coordinates
         const activeShipments = shipments.filter(s =>
             s.currentLat && s.currentLng &&
-            !s.isArchived &&
-            ['En mer', 'Préparation', 'Arrivé'].includes(s.status)
+            !s.isArchived
         );
 
         if (activeShipments.length === 0) {
