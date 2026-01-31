@@ -4793,6 +4793,103 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 <button class="btn-primary" onclick="app.showShipmentModal()"><i class="fas fa-plus"></i> Nouvelle Expédition</button>
                             </div>
                         </div>
+
+                        <!-- AllForward Search Section -->
+                        <div class="logistics-search-container">
+                            <h2 class="search-title">Search a Quote</h2>
+                            
+                            <div class="logistics-tabs">
+                                <div class="logistics-tab active" onclick="app.switchLogisticsTab('ocean', this)">
+                                    <i class="fas fa-ship"></i> OCEAN
+                                </div>
+                                <div class="logistics-tab" onclick="app.switchLogisticsTab('air', this)">
+                                    <i class="fas fa-plane"></i> AIR
+                                </div>
+                                <div class="logistics-tab" onclick="app.switchLogisticsTab('schedule', this)">
+                                    <i class="fas fa-calendar-alt"></i> SCHEDULE
+                                </div>
+                                <div class="logistics-tab" onclick="app.switchLogisticsTab('history', this)">
+                                    <i class="fas fa-history"></i> HISTORY
+                                </div>
+                            </div>
+
+                            <div class="search-options-grid" id="logistics-search-fields">
+                                <div class="option-group">
+                                    <label>Pick up from</label>
+                                    <div class="option-input-wrapper">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <input type="text" placeholder="Port of Loading" id="logistic-from">
+                                    </div>
+                                </div>
+                                <div class="option-group">
+                                    <label>Deliver to</label>
+                                    <div class="option-input-wrapper">
+                                        <i class="fas fa-warehouse"></i>
+                                        <select id="logistic-to">
+                                            <option value="">Destination Port</option>
+                                            <option value="Dakar">Dakar, Sénégal</option>
+                                            <option value="Abidjan">Abidjan, Côte d'Ivoire</option>
+                                            <option value="Lomé">Lomé, Togo</option>
+                                            <option value="Cotonou">Cotonou, Bénin</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="option-group">
+                                    <label>Ready Date</label>
+                                    <div class="option-input-wrapper">
+                                        <i class="fas fa-calendar-day"></i>
+                                        <input type="date" id="logistic-date">
+                                    </div>
+                                </div>
+                                <div class="option-group">
+                                    <label>Package Type</label>
+                                    <div class="option-input-wrapper">
+                                        <i class="fas fa-box"></i>
+                                        <select id="logistic-package">
+                                            <option value="LCL">BOXES (LCL)</option>
+                                            <option value="FCL">CONTAINER (FCL)</option>
+                                            <option value="RORO">RORO (Vehicle)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="option-group">
+                                    <label>Container Type</label>
+                                    <div class="option-input-wrapper">
+                                        <i class="fas fa-truck-container"></i>
+                                        <select id="logistic-container">
+                                            <option value="40HC">40' High Cube</option>
+                                            <option value="20GP">20' Standard</option>
+                                            <option value="40GP">40' Standard</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="option-group">
+                                    <label># of Units</label>
+                                    <div class="option-input-wrapper">
+                                        <i class="fas fa-sort-numeric-up"></i>
+                                        <input type="number" value="1" min="1" id="logistic-units">
+                                    </div>
+                                </div>
+
+                                <div class="search-btn-container">
+                                    <button class="btn-search-logistic" onclick="app.performLogisticsSearch()">
+                                        SEARCH <i class="fas fa-search" style="margin-left: 10px;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Special Offers Section -->
+                        <div class="special-offers-section">
+                            <h2 style="margin-bottom: 20px; font-weight: 700;">SPECIAL OFFERS</h2>
+                            <div class="offers-grid" id="special-offers-container">
+                                ${this.renderSpecialOffers()}
+                            </div>
+                        </div>
+
+                        <div class="section-header" style="margin-top: 40px;">
+                            <h2>LISTE DES EXPÉDITIONS</h2>
+                        </div>
                         <div class="glass filter-bar" style="margin-bottom: 20px; padding: 15px; display: flex; align-items: center; justify-content: flex-end;">
                              <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
                                 <input type="checkbox" id="filter-shipment-archived" ${this.shipmentFilters.showArchived ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
@@ -4905,6 +5002,83 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 this.renderView('shipments'); // Refresh with current query
             });
         }
+    },
+
+    switchLogisticsTab(mode, el) {
+        // Update UI
+        document.querySelectorAll('.logistics-tab').forEach(tab => tab.classList.remove('active'));
+        el.classList.add('active');
+
+        // Change fields based on mode if needed
+        const fieldsContainer = document.getElementById('logistics-search-fields');
+        if (mode === 'ocean') {
+            // Standard ocean fields (already there)
+        } else if (mode === 'air') {
+            // Simplified air fields
+            this.showToast("Mode Aérien sélectionné (Simulé)", "info");
+        }
+    },
+
+    performLogisticsSearch() {
+        const from = document.getElementById('logistic-from').value;
+        const to = document.getElementById('logistic-to').value;
+
+        if (!from || !to) {
+            this.showToast("Veuillez saisir un port de départ et une destination.", "warning");
+            return;
+        }
+
+        this.showToast(`Recherche de devis de ${from} vers ${to}...`, "info");
+
+        // Simulate search delay
+        const container = document.getElementById('special-offers-container');
+        container.innerHTML = '<div style="grid-column: span 3; text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i><p style="margin-top: 10px; color: #64748b;">Analyse des meilleurs tarifs en cours...</p></div>';
+
+        setTimeout(() => {
+            // Update with "found" offers (randomized for demo)
+            container.innerHTML = this.renderSpecialOffers(from, to);
+        }, 1500);
+    },
+
+    renderSpecialOffers(from = 'Antwerp/Zeebrugge', to = 'Dakar, Sénégal') {
+        const offers = [
+            { carrier: 'Grimaldi Lines', vessel: 'Grande Luanda', time: '14 Days', price: '1,250', type: 'RORO', date: 'Feb 15' },
+            { carrier: 'MSC', vessel: 'MSC Eloane', time: '21 Days', price: '2,100', type: '40HC Container', date: 'Feb 12' },
+            { carrier: 'Maersk', vessel: 'Maersk Garonne', time: '18 Days', price: '1,850', type: '20GP Container', date: 'Feb 18' }
+        ];
+
+        return offers.map(offer => `
+            <div class="offer-card">
+                <div class="offer-header">
+                    <div class="route-info">
+                        <span class="port-name">${from.split('/')[0]}</span>
+                        <i class="fas fa-long-arrow-alt-right route-arrow"></i>
+                        <span class="port-name">${to.split(',')[0]}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); font-size: 0.6rem;">${offer.type}</span>
+                    </div>
+                </div>
+                <div class="offer-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Carrier</span>
+                        <span class="detail-value">${offer.carrier}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Vessel</span>
+                        <span class="detail-value">${offer.vessel}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Transit</span>
+                        <span class="detail-value"><i class="fas fa-clock"></i> ${offer.time}</span>
+                    </div>
+                </div>
+                <div class="offer-footer">
+                    <div class="offer-price">$${offer.price} <small>/ Unit</small></div>
+                    <button class="btn-see-offer" onclick="app.showToast('Redirection vers la réservation...', 'success')">SEE OFFER</button>
+                </div>
+            </div>
+        `).join('');
     },
 
     renderVoyages() {
