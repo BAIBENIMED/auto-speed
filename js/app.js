@@ -1317,8 +1317,12 @@ const app = {
             const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
             const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
             let cash = StorageService.get(STORAGE_KEYS.CASH);
+            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
 
-            // Apply global search query if any
+            // Sort orders by date desc for the timeline
+            orders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // --- 1. DATA PREPARATION ---
             if (this.searchQuery) {
                 const q = this.searchQuery.toLowerCase();
                 orders = orders.filter(o =>
@@ -1332,11 +1336,8 @@ const app = {
                 );
             }
 
-            // Apply Filters
             if (this.dashboardFilters.showroom) {
-                // Filter orders by showroom
                 orders = orders.filter(o => o.showroom === this.dashboardFilters.showroom);
-                // Filter cash transactions by showroom
                 cash = cash.filter(t => t.showroom === this.dashboardFilters.showroom);
             }
 
@@ -1353,62 +1354,34 @@ const app = {
                 cash = cash.filter(t => new Date(t.date) <= end);
             }
 
-            // Financial Calculations
+            // Financial & Stat Calculations
             const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
             const reportingCurrency = settings.sellingCurrency || 'EUR';
 
-            // Calculate Unpaid from Orders (Converted)
-            const unpaidAmount = orders.reduce((sum, order) => {
-                const paid = this.getPaidAmount(order.id); // In order currency
-                const balance = Math.max(0, order.totalAmount - paid);
-                // Convert balance to reporting currency
-                return sum + this.convertCurrency(balance, order.currency, reportingCurrency, order.date);
-            }, 0);
-
-            // Calculate Total Sales (Converted)
-            const totalSales = orders.reduce((sum, order) => {
-                return sum + this.convertCurrency(order.totalAmount, order.currency, reportingCurrency, order.date);
-            }, 0);
-
-            // Calculate Total Paid / Cash Flow (Converted)
-            // optimize: getPaidAmount does database lookups. Better to aggregate cash once.
-            const allCash = StorageService.get(STORAGE_KEYS.CASH) || [];
+            const totalSales = orders.reduce((sum, o) => sum + this.convertCurrency(o.totalAmount, o.currency, reportingCurrency, o.date), 0);
             const totalInflow = cash.filter(t => t.type === 'In').reduce((sum, t) => sum + this.convertCurrency(Number(t.amount), t.currency, reportingCurrency, t.date), 0);
             const totalOutflow = cash.filter(t => t.type === 'Out').reduce((sum, t) => sum + this.convertCurrency(Number(t.amount), t.currency, reportingCurrency, t.date), 0);
             const netCashBalance = totalInflow - totalOutflow;
 
-            // Logistics & Stock Calculations
-            let dashboardVehicles = vehicles;
-            if (this.dashboardFilters.showroom) {
-                const allOrders = StorageService.get(STORAGE_KEYS.ORDERS);
-                dashboardVehicles = vehicles.filter(v => {
-                    const vShowroom = v.showroom || (v.orderId ? allOrders.find(o => o.id === v.orderId)?.showroom : null);
-                    return vShowroom === this.dashboardFilters.showroom;
-                });
-            }
+            const unpaidAmount = orders.reduce((sum, order) => {
+                const paid = this.getPaidAmount(order.id);
+                const balance = Math.max(0, (order.totalAmount || 0) - paid);
+                return sum + this.convertCurrency(balance, order.currency, reportingCurrency, order.date);
+            }, 0);
 
-            // Stock Value (Converted - Asset Value)
-            const availableVehicles = dashboardVehicles.filter(v => v.status === 'Available');
-            const stockValue = availableVehicles.reduce((sum, v) => {
+            const stockValue = vehicles.filter(v => v.status === 'Available').reduce((sum, v) => {
                 return sum + this.convertCurrency(Number(v.purchasePrice || 0), v.purchaseCurrency || 'EUR', reportingCurrency);
             }, 0);
 
-            const pendingOrders = orders.filter(o => o.status === 'Processing' || o.status === 'Pending').length;
             const statusCounts = orders.reduce((acc, order) => {
                 acc[order.status] = (acc[order.status] || 0) + 1;
                 return acc;
             }, {});
 
-            // Logistics Calculations
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-
-            // DATA INTEGRITY CHECK (Self-Repair)
-            // Ensure vehicle statuses are consistent with their links
+            // --- DATA INTEGRITY CHECK (Self-Repair) ---
             let dataChanged = false;
             vehicles.forEach(v => {
                 const originalStatus = v.status;
-
-                // 1. Check Shipment Link
                 if (v.shipmentId) {
                     const shipment = shipments.find(s => s.id === v.shipmentId);
                     if (shipment) {
@@ -1420,22 +1393,15 @@ const app = {
                             v.status = 'Sold';
                         }
                     } else {
-                        // Orphaned shipment ID?
                         v.shipmentId = null;
                     }
                 }
-
-                // 2. Check Order Link (if not shipped/arrived/sold)
                 if (!v.shipmentId && v.orderId) {
-                    // Vehicle is ordered but not shipped -> Reserved
                     v.status = 'Reserved';
                 }
-
-                // 3. Fallback to Available
                 if (!v.shipmentId && !v.orderId && !['In Transit', 'Arrived', 'Sold', 'Reserved'].includes(v.status)) {
                     v.status = 'Available';
                 }
-
                 if (v.status !== originalStatus) dataChanged = true;
             });
 
@@ -1443,472 +1409,282 @@ const app = {
                 await StorageService.save(STORAGE_KEYS.VEHICLES, vehicles);
             }
 
-            // Strict Status Counting (Mutually Exclusive)
-            const availableVehiclesCount = dashboardVehicles.filter(v => v.status === 'Available').length;
-            const reservedCount = dashboardVehicles.filter(v => v.status === 'Reserved').length;
-            const inTransitCount = dashboardVehicles.filter(v => v.status === 'In Transit').length;
-            const arrivedCount = dashboardVehicles.filter(v => v.status === 'Arrived').length;
-            const unassignedVehiclesCount = dashboardVehicles.filter(v => !v.orderId).length;
-            const unvalidatedOrdersCount = orders.filter(o => !o.isValidated).length;
+            // Alert Calculations
+            const today = new Date();
+            const nextWeek = new Date();
+            nextWeek.setDate(today.getDate() + 7);
 
+            const arrivingSoonAlerts = shipments.filter(s => {
+                if (!s.eta) return false;
+                const eta = new Date(s.eta);
+                return eta >= today && eta <= nextWeek;
+            });
 
+            const outdatedVoyages = shipments.filter(s => {
+                if (s.status === 'Arrivé' || s.status === 'Livré') return false;
+                return this.isOutdated(s.updatedAt || s.date);
+            });
 
-            // Finance grid
+            const missingDocsAlerts = orders.filter(o => {
+                if (!o.vehicleId || !o.isValidated) return false;
+                const v = vehicles.find(veh => veh.id === o.vehicleId);
+                if (!v || !v.shipmentId) return false;
+                const s = shipments.find(sh => sh.id === v.shipmentId);
+                if (!s || !s.eta) return false;
+
+                const eta = new Date(s.eta);
+                const isArrivingSoon = eta >= today && eta <= nextWeek;
+                const hasDocs = o.bolReceived || o.docsReceived; // Generic docs check
+                return isArrivingSoon && !hasDocs;
+            });
+
+            // --- 2. RENDER HTML ---
             this.viewContainer.innerHTML = `
-                <div class="view-header">
-                    <div class="header-title-area">
-                        <h1>Dashboard</h1>
-                        <p class="subtitle">Analyse globale de l'activité, du stock et de la trésorerie</p>
+                <div class="preview-container">
+                    <!-- Hero Banner -->
+                    <div class="hero-banner glass animate">
+                        <div class="hero-content">
+                            <h1>Bonjour, ${StorageService.get(STORAGE_KEYS.CURRENT_USER)?.name || 'Admin'}</h1>
+                            <p>Voici l'état actuel de votre parc automobile et de votre trésorerie.</p>
+                        </div>
+                        <div class="hero-stats">
+                            <div class="hero-stat-item">
+                                <div class="hero-stat-label">Chiffre d'Affaires</div>
+                                <div class="hero-stat-value">${this.formatCurrency(totalSales, reportingCurrency)}</div>
+                            </div>
+                            <div class="hero-stat-item">
+                                <div class="hero-stat-label">Date du Jour</div>
+                                <div class="hero-stat-value" style="font-size: 1.2rem;">${today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="header-filters glass" style="display: flex; gap: 1rem; padding: 0.75rem 1.25rem; border-radius: 12px; align-items: center;">
-                        <div class="filter-group">
-                            <label style="font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 2px;">Showroom</label>
-                            <select id="dash-filter-showroom" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; min-width: 150px;">
-                                <option value="">Tous les showrooms</option>
-                                ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${this.dashboardFilters.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label style="font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 2px;">Date Début</label>
-                            <input type="date" id="dash-filter-start" class="glass-input" style="padding: 4px 8px; font-size: 0.85rem;" value="${this.dashboardFilters.startDate}">
-                        </div>
-                        <div class="filter-group">
-                            <label style="font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 2px;">Date Fin</label>
-                            <input type="date" id="dash-filter-end" class="glass-input" style="padding: 4px 8px; font-size: 0.85rem;" value="${this.dashboardFilters.endDate}">
-                        </div>
-                        <button class="btn-icon glass" id="btn-reset-filters" title="Réinitialiser" style="margin-top: 15px;">
-                            <i class="fas fa-undo"></i>
-                        </button>
-                        <button class="btn-primary" id="btn-sync-dashboard" title="Synchroniser les données" style="margin-top: 15px; margin-left: 10px; display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-sync-alt"></i> <span>Actualiser</span>
-                        </button>
-                    </div>
-                </div>
 
-                <!-- Logistics Stats Section -->
-                <div class="section-header">
-                    <h2>Logistique & État du Stock</h2>
-                </div>
-                <div class="dashboard-grid" style="grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 30px; align-items: stretch;">
-                    <div class="stat-card glass" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
-                        <h3 style="margin-bottom: 15px; text-align: center;"><i class="fas fa-chart-pie"></i> Répartition du Stock</h3>
-                        <div style="position: relative; height: 200px; width: 100%;">
-                            <canvas id="stockStatusChart"></canvas>
+                    <!-- KPI Grid -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card glass animate delay-1" onclick="app.switchView('orders')">
+                            <div class="kpi-icon"><i class="fas fa-shopping-bag" style="color: var(--primary);"></i></div>
+                            <div class="kpi-label">Ventes Globales</div>
+                            <div class="kpi-value">${this.formatCurrency(totalSales, reportingCurrency)}</div>
+                            <div class="kpi-trend trend-up"><i class="fas fa-arrow-up"></i> ${orders.length} commandes</div>
+                        </div>
+                        <div class="kpi-card glass animate delay-1" onclick="app.switchView('cash')">
+                            <div class="kpi-icon"><i class="fas fa-wallet" style="color: var(--success);"></i></div>
+                            <div class="kpi-label">Trésorerie Nette</div>
+                            <div class="kpi-value">${this.formatCurrency(netCashBalance, reportingCurrency)}</div>
+                            <div class="kpi-trend ${netCashBalance >= 0 ? 'trend-up' : 'trend-down'}">Flux de caisse global</div>
+                        </div>
+                        <div class="kpi-card glass animate delay-2" onclick="app.switchView('vehicles')">
+                            <div class="kpi-icon"><i class="fas fa-car" style="color: var(--accent-blue);"></i></div>
+                            <div class="kpi-label">Valeur du Stock</div>
+                            <div class="kpi-value">${this.formatCurrency(stockValue, reportingCurrency)}</div>
+                            <div class="kpi-trend">Véhicules disponibles</div>
+                        </div>
+                        <div class="kpi-card glass animate delay-2" onclick="app.switchView('orders')">
+                            <div class="kpi-icon"><i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i></div>
+                            <div class="kpi-label">Impayés Clients</div>
+                            <div class="kpi-value">${this.formatCurrency(unpaidAmount, reportingCurrency)}</div>
+                            <div class="kpi-trend trend-down">Balance à recouvrer</div>
                         </div>
                     </div>
-                    <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-                        <div class="stat-card glass" onclick="app.switchView('vehicles')" style="cursor: pointer; padding: 15px;">
-                            <div class="stat-icon" style="background: rgba(34, 197, 94, 0.2); color: var(--success); width: 40px; height: 40px; margin-bottom: 10px;">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div class="stat-info">
-                                <h3 style="font-size: 0.9rem;">Disponibles</h3>
-                                <p class="stat-value" style="font-size: 1.5rem;">${availableVehiclesCount}</p>
-                                <span class="stat-change positive" style="font-size: 0.7rem;">Prêts à la vente</span>
-                            </div>
-                        </div>
-                        <div class="stat-card glass" onclick="app.switchView('vehicles')" style="cursor: pointer; padding: 15px;">
-                            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); width: 40px; height: 40px; margin-bottom: 10px;">
-                                <i class="fas fa-car-side"></i>
-                            </div>
-                            <div class="stat-info">
-                                <h3 style="font-size: 0.9rem;">Libres</h3>
-                                <p class="stat-value" style="font-size: 1.5rem; color: var(--accent-blue);">${unassignedVehiclesCount}</p>
-                                <span class="stat-change" style="font-size: 0.7rem;">Non affectés</span>
-                            </div>
-                        </div>
-                        <div class="stat-card glass" style="padding: 15px;">
-                            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--warning); width: 40px; height: 40px; margin-bottom: 10px;">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div class="stat-info">
-                                <h3 style="font-size: 0.9rem;">Réservés</h3>
-                                <p class="stat-value" style="font-size: 1.5rem;">${reservedCount}</p>
-                                <span class="stat-change warning" style="font-size: 0.7rem;">En attente</span>
-                            </div>
-                        </div>
-                        <div class="stat-card glass" style="padding: 15px;">
-                            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); width: 40px; height: 40px; margin-bottom: 10px;">
-                                <i class="fas fa-shipping-fast"></i>
-                            </div>
-                            <div class="stat-info">
-                                <h3 style="font-size: 0.9rem;">Transit/Arrivés</h3>
-                                <p class="stat-value" style="font-size: 1.5rem;">${inTransitCount + arrivedCount}</p>
-                                <span class="stat-change" style="font-size: 0.7rem;">Logistique active</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="section-header">
-                    <h2>Finance & Activité</h2>
-                </div>
+                    <!-- Charts Section -->
+                    <div class="main-grid">
+                        <div class="chart-section glass animate delay-3">
+                            <div class="section-title">
+                                <h2><i class="fas fa-chart-line"></i> Performance Showrooms</h2>
+                                <button class="btn-primary" onclick="app.renderView('dashboard')" style="padding: 5px 15px; font-size: 0.8rem;">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="caChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-section glass animate delay-3">
+                            <div class="section-title">
+                                <h2><i class="fas fa-chart-pie"></i> État du Stock</h2>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="stockStatusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                    <div class="stat-card glass">
-                        <div class="stat-icon" style="background: rgba(194, 161, 94, 0.1); color: var(--primary);">
-                            <i class="fas fa-shopping-cart"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>Volume Ventes</h3>
-                            <p class="stat-value">${this.formatCurrency(totalSales, reportingCurrency)}</p>
-                            <span class="stat-change positive">${orders.length} commandes</span>
-                        </div>
-                    </div>
-                    <div class="stat-card glass" onclick="app.switchView('orders')" style="cursor: pointer;">
-                        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--warning);">
-                            <i class="fas fa-exclamation-circle"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>Non Validées</h3>
-                            <p class="stat-value" style="color: var(--warning);">${unvalidatedOrdersCount}</p>
-                            <span class="stat-change warning">En attente admin</span>
-                        </div>
-                    </div>
-                    <div class="stat-card glass">
-                        <div class="stat-icon" style="background: rgba(34, 197, 94, 0.2); color: var(--success);">
-                            <i class="fas fa-wallet"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>Trésorerie Nette</h3>
-                            <p class="stat-value ${netCashBalance >= 0 ? 'success' : 'danger'}">${this.formatCurrency(netCashBalance, reportingCurrency)}</p>
-                            <span class="stat-change" style="font-size: 0.75rem;">Bal. In/Out</span>
-                        </div>
-                    </div>
-                    <div class="stat-card glass">
-                        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.2); color: var(--danger);">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h3>À Recouvrer</h3>
-                            <p class="stat-value danger">${this.formatCurrency(unpaidAmount, reportingCurrency)}</p>
-                            <span class="stat-change">Balance clients</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="dashboard-content-grid">
-                    <section class="recent-orders-section glass">
-                        <div class="section-header">
-                            <h2><i class="fas fa-history"></i> Commandes Récentes</h2>
-                            <button class="btn-text" onclick="app.switchView('orders')">Voir tout</button>
-                        </div>
-                        <div class="data-table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px;">N° BC</th>
-                                    <th>Client</th>
-                                    <th>Véhicule</th>
-                                    <th style="text-align: center;">Statut</th>
-                                    <th>Solde</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${orders.slice(0, 5).map(order => {
-                const paid = this.getPaidAmount(order.id);
-                const balance = Math.max(0, order.totalAmount - paid);
-                // Assuming 'vehicles' array is available in this scope and 'order.vehicleId' exists
-                const vehicle = vehicles.find(v => v.id === order.vehicleId);
-                return `
-                                    <tr>
-                                        <td style="font-weight: 600; color: var(--primary);">#${order.id}</td>
-                                        <td>${order.clientName}</td>
-                                        <td>${vehicle ? vehicle.year : order.vehicleName}</td>
-                                        <td style="text-align: center;"><span class="status-badge ${(vehicle && vehicle.status ? vehicle.status : 'Available').toLowerCase().replace(/\s+/g, '-')}">${vehicle && vehicle.status ? vehicle.status : 'Available'}</span></td>
-                                        <td><span class="value ${balance === 0 ? 'success' : 'danger'}">${this.formatCurrency(balance)}</span></td>
-                                    </tr>
-                                    `;
-            }).join('')}
-                                ${orders.length === 0 ? '<tr><td colspan="5" style="text-align: center; padding: 2rem;">Aucune commande.</td></tr>' : ''}
-                            </tbody>
-                        </table>
-                        </div>
-                    </section>
-
-                    <section class="recent-orders-section glass">
-                        <div class="section-header">
-                            <h2><i class="fas fa-exchange-alt"></i> Flux de Caisse</h2>
-                            <button class="btn-text" onclick="app.switchView('cash')">Gérer</button>
-                        </div>
-                        <div class="data-table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Motif</th>
-                                    <th>Showroom</th>
-                                    <th>Type</th>
-                                    <th>Montant</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${cash.slice(0, 5).map(t => `
-                                    <tr>
-                                        <td>${new Date(t.date).toLocaleDateString()}</td>
-                                        <td style="font-size: 0.85rem;">${t.clientName || t.description || 'N/A'}</td>
-                                        <td><span class="badge-pill" style="background: rgba(194, 161, 94, 0.1); color: var(--primary); font-size: 0.7rem;">${(t.showroom && t.showroom !== 'N/A') ? t.showroom : 'Principal'}</span></td>
-                                        <td><span class="badge-outline ${t.type === 'In' ? 'success' : 'danger'}">${t.type === 'In' ? 'IN' : 'OUT'}</span></td>
-                                        <td class="${t.type === 'In' ? 'success' : 'danger'}" style="font-weight: 600;">
-                                            ${t.type === 'In' ? '+' : '-'} ${this.formatCurrency(t.amount)}
-                                        </td>
-                                    </tr>
+                    <!-- Tracking & Activity Section -->
+                    <div class="main-grid" style="margin-top: 30px;">
+                        <div class="chart-section glass animate delay-3">
+                            <div class="section-title">
+                                <h2><i class="fas fa-map-marked-alt"></i> Suivi Maritime en Direct</h2>
+                                <button class="btn-primary" onclick="app.switchView('tracking')" style="padding: 5px 15px; font-size: 0.8rem;">Mapper</button>
+                            </div>
+                            <div class="map-wrapper">
+                                <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&q=80&w=1000" class="map-placeholder" alt="World Map">
+                                ${shipments.filter(s => s.status === 'En mer').map((_, i) => `
+                                    <div class="vessel-dot" style="top: ${30 + (i * 15)}%; left: ${20 + (i * 25)}%;"></div>
                                 `).join('')}
-                                ${cash.length === 0 ? '<tr><td colspan="5" style="text-align: center; padding: 2rem;">Aucun flux.</td></tr>' : ''}
-                            </tbody>
-                        </table>
+                            </div>
                         </div>
-                    </section>
-                </div>
-
-                <div class="dashboard-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 1.5rem;">
-                    <div class="stat-card glass">
-                        <h3><i class="fas fa-chart-pie"></i> Répartition des Commandes</h3>
-                        <div style="position: relative; height: 250px; width: 100%;">
-                            <canvas id="ordersChart"></canvas>
+                        <div class="chart-section glass animate delay-3">
+                            <div class="section-title">
+                                <h2><i class="fas fa-stream"></i> Flux d'Activité Live</h2>
+                            </div>
+                            <div class="activity-timeline glass-scroll">
+                                ${orders.slice(0, 8).map(o => `
+                                    <div class="timeline-item">
+                                        <div class="item-icon"><i class="fas fa-shopping-cart"></i></div>
+                                        <div class="item-content">
+                                            <div class="item-header">
+                                                <span class="item-title">Commande #${o.id}</span>
+                                                <span class="item-time">${new Date(o.date).toLocaleDateString()}</span>
+                                            </div>
+                                            <div class="item-desc">${o.clientName} - ${o.vehicleName}</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                ${orders.length === 0 ? '<p style="text-align: center; color: var(--text-dim);">Aucune activité récente</p>' : ''}
+                            </div>
                         </div>
                     </div>
 
-                    <div class="stat-card glass">
-                        <h3><i class="fas fa-chart-bar"></i> Trésorerie par Showroom</h3>
-                        <div style="position: relative; height: 250px; width: 100%;">
-                            <canvas id="revenueChart"></canvas>
+                    <!-- Alert Center (Last Section) -->
+                    <div class="chart-section glass animate delay-3" style="margin-top: 30px;">
+                        <div class="section-title">
+                            <h2><i class="fas fa-bell"></i> Centre d'Alertes</h2>
+                            <button class="btn-primary" onclick="app.switchView('alerts')" style="padding: 8px 20px; font-size: 0.9rem;">
+                                <i class="fas fa-external-link-alt"></i> Mes Alertes
+                            </button>
                         </div>
-                    </div>
+                        <div class="alert-grid" id="alert-items-container">
+                            <!-- Ships Arriving This Week -->
+                            <div class="alert-card animate">
+                                <div class="alert-icon bg-info-soft"><i class="fas fa-ship"></i></div>
+                                <div class="alert-content">
+                                    <div class="alert-title">
+                                        Navires en Arrivée
+                                        <span class="alert-badge bg-info-soft">${arrivingSoonAlerts.length}</span>
+                                    </div>
+                                    <div class="alert-desc">
+                                        ${arrivingSoonAlerts.length > 0
+                    ? `${arrivingSoonAlerts.length} navire(s) attendu(s) au port d'ici 7 jours.`
+                    : "Aucune arrivée prévue cette semaine."}
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="stat-card glass" style="grid-column: span 2;">
-                        <h3><i class="fas fa-chart-line"></i> Chiffre d'Affaires par Showroom</h3>
-                        <div style="position: relative; height: 250px; width: 100%;">
-                            <canvas id="caChart"></canvas>
+                            <!-- Outdated Journeys -->
+                            <div class="alert-card animate">
+                                <div class="alert-icon bg-warning-soft"><i class="fas fa-clock"></i></div>
+                                <div class="alert-content">
+                                    <div class="alert-title">
+                                        Voyages Immobiles
+                                        <span class="alert-badge bg-warning-soft">${outdatedVoyages.length}</span>
+                                    </div>
+                                    <div class="alert-desc">
+                                        ${outdatedVoyages.length > 0
+                    ? `${outdatedVoyages.length} suivi(s) n'ayant pas été actualisés depuis plus de 24h.`
+                    : "Tous les suivis sont à jour."}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Missing Documents -->
+                            <div class="alert-card animate">
+                                <div class="alert-icon bg-danger-soft"><i class="fas fa-file-invoice"></i></div>
+                                <div class="alert-content">
+                                    <div class="alert-title">
+                                        Documents Urgents
+                                        <span class="alert-badge bg-danger-soft">${missingDocsAlerts.length}</span>
+                                    </div>
+                                    <div class="alert-desc">
+                                        ${missingDocsAlerts.length > 0
+                    ? `${missingDocsAlerts.length} commande(s) arrivant bientôt avec documents manquants.`
+                    : "Aucun document manquant pour les arrivées proches."}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
+
             this.attachDashboardListeners();
 
-            // --- Initialize Charts ---
+            // --- 3. INITIALIZE CHARTS ---
             setTimeout(() => {
-                // 0. Stock Status Chart
-                const canvasStock = document.getElementById('stockStatusChart');
-                const ctxStock = canvasStock?.getContext('2d');
-                if (ctxStock) {
-                    const existingChart = Chart.getChart(canvasStock);
-                    if (existingChart) existingChart.destroy();
-
-                    const stockData = [availableVehiclesCount, reservedCount, inTransitCount, arrivedCount];
-
-                    new Chart(ctxStock, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Disponible', 'Réservé', 'En Transit', 'Arrivé'],
-                            datasets: [{
-                                data: stockData,
-                                backgroundColor: ['#22c55e', '#f59e0b', '#3b82f6', '#6366f1'],
-                                borderWidth: 0,
-                                hoverOffset: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    display: true,
-                                    position: 'bottom',
-                                    labels: {
-                                        color: '#9ca3af',
-                                        font: { family: 'Outfit', size: 10 },
-                                        usePointStyle: true,
-                                        padding: 10
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // 1. Order Status Chart
-                const canvasOrders = document.getElementById('ordersChart');
-                const ctxOrders = canvasOrders?.getContext('2d');
-                if (ctxOrders) {
-                    // Destroy existing instance if any
-                    const existingChart = Chart.getChart(canvasOrders);
-                    if (existingChart) existingChart.destroy();
-
-                    const statusLabels = [
-                        'EN ATTENTE DE VALIDATION',
-                        'ATTENTE AFFECTATION VÉHICULE',
-                        'ATTENTE EXPÉDITION',
-                        'A BORD',
-                        'EN MER',
-                        'ARRIVÉE',
-                        'ENLEVÉE',
-                        'LIVRÉE',
-                        'ANNULÉE'
-                    ];
-                    const displayLabels = [
-                        'E.A. Validation',
-                        'Attente Véhicule',
-                        'Attente Expéd.',
-                        'A Bord',
-                        'En Mer',
-                        'Arrivée',
-                        'Enlevée',
-                        'Livrée',
-                        'Annulée'
-                    ];
-                    const orderStatusData = statusLabels.map(s => statusCounts[s] || 0);
-
-                    new Chart(ctxOrders, {
-                        type: 'doughnut',
-                        data: {
-                            labels: displayLabels,
-                            datasets: [{
-                                data: orderStatusData,
-                                backgroundColor: [
-                                    '#f59e0b', // Validation
-                                    '#3b82f6', // Affectation
-                                    '#6366f1', // Attente Expéd
-                                    '#8b5cf6', // A Bord
-                                    '#0ea5e9', // En Mer
-                                    '#c2a15e', // Arrivée
-                                    '#10b981', // Enlevée
-                                    '#059669', // Livrée
-                                    '#ef4444'  // Annulée
-                                ],
-                                borderWidth: 0,
-                                hoverOffset: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'right',
-                                    labels: {
-                                        color: '#9ca3af',
-                                        font: { family: 'Outfit', size: 11 },
-                                        padding: 15,
-                                        usePointStyle: true
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // 2. Revenue Chart
-                const canvasRevenue = document.getElementById('revenueChart');
-                const ctxRevenue = canvasRevenue?.getContext('2d');
-                if (ctxRevenue) {
-                    const existingChart = Chart.getChart(canvasRevenue);
-                    if (existingChart) existingChart.destroy();
-
-                    const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-                    const revenues = showrooms.map(s => {
-                        const sCash = cash.filter(t => t.showroom === s && t.type === 'In');
-                        return sCash.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-                    });
-
-                    new Chart(ctxRevenue, {
-                        type: 'bar',
-                        data: {
-                            labels: showrooms.length ? showrooms : ['Aucun'],
-                            datasets: [{
-                                label: 'Encaissements',
-                                data: revenues.length ? revenues : [0],
-                                backgroundColor: '#10b981',
-                                borderRadius: 6
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false },
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                                    ticks: { color: '#9ca3af' }
-                                },
-                                x: {
-                                    grid: { display: false },
-                                    ticks: { color: '#9ca3af' }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // 3. CA par Showroom Chart
-                const canvasCA = document.getElementById('caChart');
-                const ctxCA = canvasCA?.getContext('2d');
-                if (ctxCA) {
-                    const existingChart = Chart.getChart(canvasCA);
-                    if (existingChart) existingChart.destroy();
-
-                    const showrooms = [...(StorageService.get(STORAGE_KEYS.SHOWROOMS) || [])];
-                    // Add "Principal" if there are orders without a designated showroom
-                    if (orders.some(o => !o.showroom || o.showroom === 'N/A' || o.showroom === 'null')) {
-                        if (!showrooms.includes('Principal')) showrooms.push('Principal');
-                    }
-
-                    const caData = showrooms.map(s => {
-                        const sOrders = orders.filter(o => {
-                            const orderShowroom = (!o.showroom || o.showroom === 'N/A' || o.showroom === 'null') ? 'Principal' : o.showroom;
-                            return orderShowroom === s && o.isValidated;
-                        });
-                        return sOrders.reduce((sum, o) => sum + this.convertCurrency(Number(o.totalAmount || 0), o.currency, reportingCurrency, o.date), 0);
-                    });
-
-                    new Chart(ctxCA, {
-                        type: 'bar',
-                        data: {
-                            labels: showrooms.length ? showrooms : ['Aucun'],
-                            datasets: [{
-                                label: 'Chiffre d\'Affaires (Ventes Validées)',
-                                data: caData.length ? caData : [0],
-                                backgroundColor: '#6366f1',
-                                borderRadius: 6
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: {
-                                    callbacks: {
-                                        label: (context) => {
-                                            return this.formatCurrency(context.raw, reportingCurrency);
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                                    ticks: {
-                                        color: '#9ca3af',
-                                        callback: (value) => this.formatCurrency(value, reportingCurrency)
-                                    }
-                                },
-                                x: {
-                                    grid: { display: false },
-                                    ticks: { color: '#9ca3af' }
-                                }
-                            }
-                        }
-                    });
-                }
+                this.initDashboardCharts(orders, vehicles, cash, reportingCurrency);
             }, 300);
+
         } catch (err) {
             console.error("Dashboard Render Error:", err);
             this.viewContainer.innerHTML = `<div style="padding: 2rem; color: red;">Erreur lors de l'affichage du dashboard: ${err.message}</div>`;
+        }
+    },
+
+    initDashboardCharts(orders, vehicles, cash, reportingCurrency) {
+        // Stock Chart
+        const canvasStock = document.getElementById('stockStatusChart');
+        if (canvasStock) {
+            const ctx = canvasStock.getContext('2d');
+            const availableCount = vehicles.filter(v => v.status === 'Available').length;
+            const reservedCount = vehicles.filter(v => v.status === 'Reserved').length;
+            const inTransitCount = vehicles.filter(v => v.status === 'In Transit').length;
+            const arrivedCount = vehicles.filter(v => v.status === 'Arrived').length;
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Disponible', 'Réservé', 'Transit', 'Arrivé'],
+                    datasets: [{
+                        data: [availableCount, reservedCount, inTransitCount, arrivedCount],
+                        backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#9ca3af', usePointStyle: true, padding: 20 } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // CA Chart
+        const canvasCA = document.getElementById('caChart');
+        if (canvasCA) {
+            const ctx = canvasCA.getContext('2d');
+            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+
+            const caData = showrooms.map(s => {
+                const sOrders = orders.filter(o => o.showroom === s && o.isValidated);
+                return sOrders.reduce((sum, o) => sum + this.convertCurrency(o.totalAmount, o.currency, reportingCurrency, o.date), 0);
+            });
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: showrooms,
+                    datasets: [{
+                        label: 'Chiffre d\'Affaires',
+                        data: caData,
+                        backgroundColor: '#c2a15e',
+                        borderRadius: 8,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } },
+                        x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
+                    }
+                }
+            });
         }
     },
 
@@ -9471,6 +9247,13 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         }
     },
 
+    isOutdated(dateString) {
+        if (!dateString) return true;
+        const lastUpdate = new Date(dateString);
+        const now = new Date();
+        const diffInHours = (now - lastUpdate) / (1000 * 60 * 60);
+        return diffInHours > 24;
+    }
 };
 
 // Initialize App
