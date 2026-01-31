@@ -1648,21 +1648,19 @@ textarea.glass-input {
 
 .logistics-search-container {
     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    padding: 20px;
-    border-radius: 16px;
-    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 15px;
     color: white;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .search-title {
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: 700;
-    margin-bottom: 15px;
-    letter-spacing: 0.5px;
-    text-align: left;
-    text-transform: uppercase;
+    margin-bottom: 10px;
     color: var(--primary);
+    text-transform: uppercase;
 }
 
 .logistics-tabs {
@@ -1695,13 +1693,78 @@ textarea.glass-input {
 }
 
 .search-options-grid {
-    background: white;
-    padding: 25px;
-    border-radius: 0 12px 12px 12px;
+    background: transparent;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+}
+
+.search-options-grid .option-group label {
+    font-size: 0.7rem;
+    margin-bottom: 3px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.search-options-grid .option-input-wrapper {
+    height: 35px;
+}
+
+.search-options-grid .option-input-wrapper input {
+    font-size: 0.8rem;
+}
+
+.inline-vehicle-selection {
+    grid-column: span 6;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 5px;
+}
+
+.inline-vehicle-filters {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    color: #334155;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.inline-vehicle-list-compact {
+    max-height: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 5px;
+}
+
+.vehicle-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.vehicle-pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.vehicle-pill input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--primary);
+}
+
+.vehicle-pill.selected {
+    border-color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.1);
 }
 
 .option-group {
