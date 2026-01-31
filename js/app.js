@@ -5059,6 +5059,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
     },
 
     async handleInlineShipmentCreation() {
+        const btn = document.querySelector('.btn-search-logistic');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = 'EN COURS... <i class="fas fa-spinner fa-spin"></i>';
+        }
+
         const date = document.getElementById('inline-shipment-date').value;
         const loadingPort = document.getElementById('inline-loading-port').value;
         const destination = document.getElementById('inline-destination-port').value;
@@ -5071,11 +5077,19 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
         if (!container) {
             this.showToast("Le numéro de conteneur est obligatoire", "danger");
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'CRÉER EXPÉDITION <i class="fas fa-plus" style="margin-left: 5px;"></i>';
+            }
             return;
         }
 
         if (vehicleIds.length === 0) {
             this.showToast("Veuillez sélectionner au moins un véhicule", "warning");
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'CRÉER EXPÉDITION <i class="fas fa-plus" style="margin-left: 5px;"></i>';
+            }
             return;
         }
 
@@ -5111,6 +5125,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         } catch (error) {
             console.error("Erreur lors de la création de l'expédition:", error);
             this.showToast("Erreur lors de l'enregistrement de l'expédition", "danger");
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'CRÉER EXPÉDITION <i class="fas fa-plus" style="margin-left: 5px;"></i>';
+            }
         }
     },
 
@@ -7062,6 +7080,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
     },
 
     async handleCashSubmission(data) {
+        const form = document.getElementById('cash-form');
+        const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+        if (submitBtn) submitBtn.disabled = true;
+
         try {
             const cash = StorageService.get(STORAGE_KEYS.CASH);
             const isUpdate = !!data.id;
@@ -7102,6 +7124,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         } catch (error) {
             console.error("Error in handleCashSubmission:", error);
             this.showToast("Erreur lors de l'enregistrement de la transaction", "error");
+            if (submitBtn) submitBtn.disabled = false;
         }
     },
 
