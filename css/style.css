@@ -140,12 +140,12 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url('https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?q=80&w=2070&auto=format&fit=crop');
+    background-image: url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=2070&auto=format&fit=crop');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.5;
-    /* 50% transparency */
+    opacity: 0.2;
+    /* 80% transparency */
     z-index: 0;
 }
 
@@ -1713,21 +1713,7 @@ textarea.glass-input {
     background: var(--primary);
     color: white;
     border-color: var(--primary);
-}
-
-font-weight: 600;
-font-size: 0.9rem;
-transition: var(--transition);
-display: flex;
-align-items: center;
-gap: 8px;
-border-bottom: 3px solid transparent;
-}
-
-.logistics-tab.active {
-    background: white;
-    color: #1e293b;
-    border-bottom: 3px solid var(--primary);
+    font-weight: 600;
 }
 
 .search-options-grid {
