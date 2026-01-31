@@ -1541,15 +1541,15 @@ const app = {
                         <div class="chart-section glass animate delay-3">
                             <div class="section-title">
                                 <h2><i class="fas fa-globe-africa"></i> Suivi Maritime en Direct</h2>
-                                <button class="btn-primary" onclick="app.switchView('tracking')" style="padding: 5px 15px; font-size: 0.8rem;">Mapper</button>
+                                <button class="btn-primary" onclick="app.renderView('global-tracking')" style="padding: 5px 15px; font-size: 0.8rem;">Mapper</button>
                             </div>
-                            <div class="map-wrapper">
-                                <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&q=80&w=1000" class="map-placeholder" alt="World Map">
-                                ${shipments.filter(s => s.status === 'En mer').map((_, i) => `
-                                    <div class="vessel-dot" style="top: ${30 + (i * 15)}%; left: ${20 + (i * 25)}%;"></div>
-                                `).join('')}
-                                <div style="position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: var(--primary);">Positions temps réel</div>
+                            <div class="map-wrapper" style="height: 350px; overflow: hidden; border-radius: 12px; position: relative;">
+                                <div id="dashboard-map" style="width: 100%; height: 100%; z-index: 1;"></div>
+                                <div class="map-overlay" style="position: absolute; bottom: 10px; right: 10px; z-index: 400; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; color: #fff;">
+                                    <i class="fas fa-circle" style="color: #4ade80; font-size: 6px;"></i> Live Updates
+                                </div>
                             </div>
+
                         </div>
                         <div class="chart-section glass animate delay-3">
                             <div class="section-title">
@@ -1655,6 +1655,7 @@ const app = {
             // --- 3. INITIALIZE CHARTS ---
             setTimeout(() => {
                 this.initDashboardCharts(orders, vehicles, cash, reportingCurrency);
+                this.initDashboardMap(shipments);
             }, 300);
 
         } catch (err) {
@@ -1854,6 +1855,60 @@ const app = {
                     caChart.update();
                 });
             }
+        }
+    },
+
+    initDashboardMap(shipments) {
+        if (!window.L) return;
+
+        const mapContainer = document.getElementById('dashboard-map');
+        if (!mapContainer) return;
+
+        // Clean up existing map if any (though usually we clear innerHTML so it's gone)
+        // Initialize Map
+        const map = L.map('dashboard-map', {
+            zoomControl: false,
+            attributionControl: false
+        }).setView([20, 0], 2);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 18
+        }).addTo(map);
+
+        // Filter active shipments with coordinates
+        const activeShipments = shipments.filter(s =>
+            s.currentLat && s.currentLng &&
+            !s.isArchived &&
+            ['En mer', 'Préparation', 'Arrivé'].includes(s.status)
+        );
+
+        if (activeShipments.length === 0) {
+            // If no shipments, just show a default view or a message?
+            // For now, default view is fine.
+        }
+
+        activeShipments.forEach(s => {
+            const icon = L.divIcon({
+                html: '<div style="background: #4ade80; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px rgba(74, 222, 128, 0.6); border: 2px solid rgba(255,255,255,0.8);"></div>',
+                className: 'dash-ship-marker',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+
+            L.marker([s.currentLat, s.currentLng], { icon: icon })
+                .addTo(map)
+                .bindPopup(`
+                    <div style="color: #333; font-size: 0.8rem; padding: 5px;">
+                        <strong>${s.vesselName || s.carrier || 'Navire'}</strong><br>
+                        <span style="color: #666;">${s.containerNumber || ''}</span>
+                    </div>
+                `);
+        });
+
+        // Fit bounds if we have shipments
+        if (activeShipments.length > 0) {
+            const bounds = activeShipments.map(s => [s.currentLat, s.currentLng]);
+            map.fitBounds(bounds, { padding: [30, 30], maxZoom: 5 });
         }
     },
 
