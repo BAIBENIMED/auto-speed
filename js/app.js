@@ -5015,7 +5015,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         }
     },
 
-    handleInlineShipmentCreation() {
+    async handleInlineShipmentCreation() {
         const date = document.getElementById('inline-shipment-date').value;
         const loadingPort = document.getElementById('inline-loading-port').value;
         const destination = document.getElementById('inline-destination-port').value;
@@ -5024,6 +5024,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         const voyage = document.getElementById('inline-voyage').value;
 
         const select = document.getElementById('inline-vehicle-ids');
+        if (!select) return;
         const vehicleIds = Array.from(select.selectedOptions).map(opt => opt.value);
 
         if (!container) {
@@ -5049,23 +5050,27 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             isArchived: false
         };
 
-        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-        shipments.push(newShipment);
-        StorageService.save(STORAGE_KEYS.SHIPMENTS, shipments);
+        try {
+            // Créer l'expédition via le service (qui gère local + API)
+            await StorageService.add(STORAGE_KEYS.SHIPMENTS, newShipment);
 
-        // Mettre à jour les véhicules
-        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-        vehicles.forEach(v => {
-            if (vehicleIds.includes(v.id)) {
-                v.shipmentId = newShipment.id;
-                v.status = 'Expédié';
+            // Mettre à jour les véhicules un par un pour garantir la synchro API
+            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+            for (const v of vehicles) {
+                if (vehicleIds.includes(String(v.id))) {
+                    v.shipmentId = newShipment.id;
+                    v.status = 'Expédié';
+                    await StorageService.update(STORAGE_KEYS.VEHICLES, v.id, v);
+                }
             }
-        });
-        StorageService.save(STORAGE_KEYS.VEHICLES, vehicles);
 
-        this.showToast("Expédition créée avec succès", "success");
-        this.renderShipments();
-    },
+            this.showToast("Expédition créée avec succès", "success");
+            this.renderShipments();
+        } catch (error) {
+            console.error("Erreur lors de la création de l'expédition:", error);
+            this.showToast("Erreur lors de l'enregistrement de l'expédition", "danger");
+        }
+    }
 
     handleShipmentTableSearch(term) {
         const searchTerm = term.toLowerCase();
