@@ -1440,12 +1440,24 @@ const app = {
 
             // --- 2. RENDER HTML ---
             this.viewContainer.innerHTML = `
+                <div class="view-header">
+                    <h2>Tableau de Bord Premium</h2>
+                    <div class="header-filters glass">
+                        <select id="dash-showroom" onchange="app.setDashboardFilter('showroom', this.value)">
+                            <option value="">Tous les showrooms</option>
+                            ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map(s => `<option value="${s}" ${this.dashboardFilters.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        </select>
+                        <input type="date" value="${this.dashboardFilters.startDate || ''}" onchange="app.setDashboardFilter('startDate', this.value)">
+                        <input type="date" value="${this.dashboardFilters.endDate || ''}" onchange="app.setDashboardFilter('endDate', this.value)">
+                    </div>
+                </div>
+
                 <div class="preview-container">
                     <!-- Hero Banner -->
                     <div class="hero-banner glass animate">
                         <div class="hero-content">
                             <h1>Bonjour, ${StorageService.get(STORAGE_KEYS.CURRENT_USER)?.name || 'Admin'}</h1>
-                            <p>Voici l'état actuel de votre parc automobile et de votre trésorerie.</p>
+                            <p>Voici l'état actuel de votre business aujourd'hui.</p>
                         </div>
                         <div class="hero-stats">
                             <div class="hero-stat-item">
@@ -1453,8 +1465,8 @@ const app = {
                                 <div class="hero-stat-value">${this.formatCurrency(totalSales, reportingCurrency)}</div>
                             </div>
                             <div class="hero-stat-item">
-                                <div class="hero-stat-label">Date du Jour</div>
-                                <div class="hero-stat-value" style="font-size: 1.2rem;">${today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                                <div class="hero-stat-label">Objectif Semaine</div>
+                                <div class="hero-stat-value" style="color: var(--accent-blue);">85%</div>
                             </div>
                         </div>
                     </div>
@@ -1480,10 +1492,10 @@ const app = {
                             <div class="kpi-trend">Véhicules disponibles</div>
                         </div>
                         <div class="kpi-card glass animate delay-2" onclick="app.switchView('orders')">
-                            <div class="kpi-icon"><i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i></div>
-                            <div class="kpi-label">Impayés Clients</div>
+                            <div class="kpi-icon"><i class="fas fa-hand-holding-usd" style="color: var(--danger);"></i></div>
+                            <div class="kpi-label">À Recouvrer</div>
                             <div class="kpi-value">${this.formatCurrency(unpaidAmount, reportingCurrency)}</div>
-                            <div class="kpi-trend trend-down">Balance à recouvrer</div>
+                            <div class="kpi-trend trend-up" style="color: var(--danger); font-weight: 600;">Balance à recouvrer</div>
                         </div>
                     </div>
 
@@ -1491,21 +1503,35 @@ const app = {
                     <div class="main-grid">
                         <div class="chart-section glass animate delay-3">
                             <div class="section-title">
-                                <h2><i class="fas fa-chart-line"></i> Performance Showrooms</h2>
+                                <h2><i class="fas fa-chart-line"></i> Comparatif Performance par Showroom</h2>
                                 <button class="btn-primary" onclick="app.renderView('dashboard')" style="padding: 5px 15px; font-size: 0.8rem;">
                                     <i class="fas fa-sync"></i>
                                 </button>
                             </div>
+                            
+                            <div class="chart-controls">
+                                <label class="control-item"><input type="checkbox" id="perf-global" checked> Global</label>
+                                ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map((s, i) => `
+                                    <label class="control-item"><input type="checkbox" class="perf-showroom" data-index="${i + 1}" checked> ${s}</label>
+                                `).join('')}
+                            </div>
+
                             <div class="chart-container">
-                                <canvas id="caChart"></canvas>
+                                <canvas id="performanceChart"></canvas>
                             </div>
                         </div>
                         <div class="chart-section glass animate delay-3">
                             <div class="section-title">
-                                <h2><i class="fas fa-chart-pie"></i> État du Stock</h2>
+                                <h2><i class="fas fa-chart-bar"></i> CA par Showroom (Valeur & Qté)</h2>
                             </div>
+                            
+                            <div class="chart-controls">
+                                <label class="control-item"><input type="checkbox" id="ca-val" checked> Valeur (${reportingCurrency})</label>
+                                <label class="control-item"><input type="checkbox" id="ca-qty" checked> Quantité (Véhicules)</label>
+                            </div>
+
                             <div class="chart-container">
-                                <canvas id="stockStatusChart"></canvas>
+                                <canvas id="stockPieChart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -1514,7 +1540,7 @@ const app = {
                     <div class="main-grid" style="margin-top: 30px;">
                         <div class="chart-section glass animate delay-3">
                             <div class="section-title">
-                                <h2><i class="fas fa-map-marked-alt"></i> Suivi Maritime en Direct</h2>
+                                <h2><i class="fas fa-globe-africa"></i> Suivi Maritime en Direct</h2>
                                 <button class="btn-primary" onclick="app.switchView('tracking')" style="padding: 5px 15px; font-size: 0.8rem;">Mapper</button>
                             </div>
                             <div class="map-wrapper">
@@ -1522,6 +1548,7 @@ const app = {
                                 ${shipments.filter(s => s.status === 'En mer').map((_, i) => `
                                     <div class="vessel-dot" style="top: ${30 + (i * 15)}%; left: ${20 + (i * 25)}%;"></div>
                                 `).join('')}
+                                <div style="position: absolute; bottom: 10px; right: 10px; font-size: 0.7rem; color: var(--primary);">Positions temps réel</div>
                             </div>
                         </div>
                         <div class="chart-section glass animate delay-3">
@@ -1531,7 +1558,9 @@ const app = {
                             <div class="activity-timeline glass-scroll">
                                 ${orders.slice(0, 8).map(o => `
                                     <div class="timeline-item">
-                                        <div class="item-icon"><i class="fas fa-shopping-cart"></i></div>
+                                        <div class="item-icon" style="color: ${o.isValidated ? 'var(--success)' : 'var(--warning)'};">
+                                            <i class="fas ${o.isValidated ? 'fa-check-circle' : 'fa-clock'}"></i>
+                                        </div>
                                         <div class="item-content">
                                             <div class="item-header">
                                                 <span class="item-title">Commande #${o.id}</span>
@@ -1546,59 +1575,73 @@ const app = {
                         </div>
                     </div>
 
-                    <!-- Alert Center (Last Section) -->
-                    <div class="chart-section glass animate delay-3" style="margin-top: 30px;">
+                    <!-- Alert Center -->
+                    <div class="chart-section glass animate delay-3" style="margin-top: 30px; margin-bottom: 30px;">
                         <div class="section-title">
                             <h2><i class="fas fa-bell"></i> Centre d'Alertes</h2>
                             <button class="btn-primary" onclick="app.switchView('alerts')" style="padding: 8px 20px; font-size: 0.9rem;">
                                 <i class="fas fa-external-link-alt"></i> Mes Alertes
                             </button>
                         </div>
-                        <div class="alert-grid" id="alert-items-container">
+                        <div class="alert-grid">
                             <!-- Ships Arriving This Week -->
                             <div class="alert-card animate">
                                 <div class="alert-icon bg-info-soft"><i class="fas fa-ship"></i></div>
                                 <div class="alert-content">
                                     <div class="alert-title">
                                         Navires en Arrivée
-                                        <span class="alert-badge bg-info-soft">${arrivingSoonAlerts.length}</span>
+                                        <span class="alert-badge bg-info-soft">Cette Semaine</span>
                                     </div>
                                     <div class="alert-desc">
                                         ${arrivingSoonAlerts.length > 0
-                    ? `${arrivingSoonAlerts.length} navire(s) attendu(s) au port d'ici 7 jours.`
+                    ? `<strong>${arrivingSoonAlerts.length} navire(s)</strong> attendu(s) au port d'ici 7 jours.`
                     : "Aucune arrivée prévue cette semaine."}
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Outdated Journeys -->
-                            <div class="alert-card animate">
-                                <div class="alert-icon bg-warning-soft"><i class="fas fa-clock"></i></div>
+                            <div class="alert-card animate" style="border-left: 4px solid var(--warning);">
+                                <div class="alert-icon bg-warning-soft"><i class="fas fa-sync-alt"></i></div>
                                 <div class="alert-content">
                                     <div class="alert-title">
                                         Voyages Immobiles
-                                        <span class="alert-badge bg-warning-soft">${outdatedVoyages.length}</span>
+                                        <span class="alert-badge bg-warning-soft">> 24 Heures</span>
                                     </div>
                                     <div class="alert-desc">
                                         ${outdatedVoyages.length > 0
-                    ? `${outdatedVoyages.length} suivi(s) n'ayant pas été actualisés depuis plus de 24h.`
+                    ? `<strong>${outdatedVoyages.length} suivi(s)</strong> n'ayant pas été actualisés depuis plus de 24h.`
                     : "Tous les suivis sont à jour."}
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Missing Documents -->
-                            <div class="alert-card animate">
+                            <div class="alert-card animate" style="border-left: 4px solid var(--danger);">
                                 <div class="alert-icon bg-danger-soft"><i class="fas fa-file-invoice"></i></div>
                                 <div class="alert-content">
                                     <div class="alert-title">
                                         Documents Urgents
-                                        <span class="alert-badge bg-danger-soft">${missingDocsAlerts.length}</span>
+                                        <span class="alert-badge bg-danger-soft">Urgent</span>
                                     </div>
                                     <div class="alert-desc">
                                         ${missingDocsAlerts.length > 0
-                    ? `${missingDocsAlerts.length} commande(s) arrivant bientôt avec documents manquants.`
-                    : "Aucun document manquant pour les arrivées proches."}
+                    ? `<strong>${missingDocsAlerts.length} commande(s)</strong> arrivant bientôt avec documents manquants.`
+                    : "Tous les dossiers documents sont complets."}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Suggested Alert -->
+                            <div class="alert-card animate">
+                                <div class="alert-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);"><i class="fas fa-clock"></i></div>
+                                <div class="alert-content">
+                                    <div class="alert-title">
+                                        Paiements Attendus
+                                        <span class="alert-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">48h+</span>
+                                    </div>
+                                    <div class="alert-desc">
+                                        Vérifiez les virements pour les commandes validées il y a plus de 2 jours.
                                     </div>
                                 </div>
                             </div>
@@ -1621,70 +1664,196 @@ const app = {
     },
 
     initDashboardCharts(orders, vehicles, cash, reportingCurrency) {
-        // Stock Chart
-        const canvasStock = document.getElementById('stockStatusChart');
-        if (canvasStock) {
-            const ctx = canvasStock.getContext('2d');
-            const availableCount = vehicles.filter(v => v.status === 'Available').length;
-            const reservedCount = vehicles.filter(v => v.status === 'Reserved').length;
-            const inTransitCount = vehicles.filter(v => v.status === 'In Transit').length;
-            const arrivedCount = vehicles.filter(v => v.status === 'Arrived').length;
+        // --- 1. PERFORMANCE CHART (Line - Multi Showrooms) ---
+        const perfCanvas = document.getElementById('performanceChart');
+        if (perfCanvas) {
+            const ctx = perfCanvas.getContext('2d');
+            const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
 
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Disponible', 'Réservé', 'Transit', 'Arrivé'],
-                    datasets: [{
-                        data: [availableCount, reservedCount, inTransitCount, arrivedCount],
-                        backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6'],
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
+            // Dummy data for labels (12 months)
+            const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+
+            // Helper to get monthly data for a showroom
+            const getMonthlyData = (showroomName = null) => {
+                const data = new Array(12).fill(0);
+                const currentYear = new Date().getFullYear();
+
+                orders.forEach(o => {
+                    if (!o.date || !o.isValidated) return;
+                    if (showroomName && o.showroom !== showroomName) return;
+
+                    const date = new Date(o.date);
+                    if (date.getFullYear() === currentYear) {
+                        const month = date.getMonth();
+                        data[month] += this.convertCurrency(o.totalAmount, o.currency, reportingCurrency, o.date);
+                    }
+                });
+                return data;
+            };
+
+            const datasets = [];
+
+            // 0. Global Dataset (White/Dash)
+            const globalData = getMonthlyData();
+            const globalGrad = ctx.createLinearGradient(0, 0, 0, 400);
+            globalGrad.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+            globalGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            datasets.push({
+                label: 'Global',
+                data: globalData,
+                borderColor: '#ffffff',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                fill: true,
+                backgroundColor: globalGrad,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 5
+            });
+
+            // 1+. Showroom Datasets
+            const colors = ['#c2a15e', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444'];
+            showrooms.forEach((s, i) => {
+                const sData = getMonthlyData(s);
+                const color = colors[i % colors.length];
+                const grad = ctx.createLinearGradient(0, 0, 0, 400);
+                grad.addColorStop(0, color + '22');
+                grad.addColorStop(1, color + '00');
+
+                datasets.push({
+                    label: s,
+                    data: sData,
+                    borderColor: color,
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: grad,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                });
+            });
+
+            const perfChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: months, datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#9ca3af', usePointStyle: true, padding: 20 } }
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(10, 14, 23, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#9ca3af',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: true,
+                            usePointStyle: true
+                        }
                     },
-                    cutout: '70%'
+                    scales: {
+                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ca3af' } },
+                        x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
+                    }
                 }
+            });
+
+            // Event Listeners for Perf
+            const globalCb = document.getElementById('perf-global');
+            if (globalCb) {
+                globalCb.addEventListener('change', (e) => {
+                    perfChart.setDatasetVisibility(0, e.target.checked);
+                    perfChart.update();
+                });
+            }
+
+            document.querySelectorAll('.perf-showroom').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const idx = parseInt(cb.getAttribute('data-index'));
+                    perfChart.setDatasetVisibility(idx, e.target.checked);
+                    perfChart.update();
+                });
             });
         }
 
-        // CA Chart
-        const canvasCA = document.getElementById('caChart');
-        if (canvasCA) {
-            const ctx = canvasCA.getContext('2d');
+        // --- 2. CA CHART (Bar - Dual Axis: Value vs Qty) ---
+        const caCanvas = document.getElementById('stockPieChart');
+        if (caCanvas) {
+            const ctx = caCanvas.getContext('2d');
             const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
 
-            const caData = showrooms.map(s => {
+            const valueData = showrooms.map(s => {
                 const sOrders = orders.filter(o => o.showroom === s && o.isValidated);
                 return sOrders.reduce((sum, o) => sum + this.convertCurrency(o.totalAmount, o.currency, reportingCurrency, o.date), 0);
             });
 
-            new Chart(ctx, {
+            const qtyData = showrooms.map(s => {
+                return orders.filter(o => o.showroom === s && o.isValidated).length;
+            });
+
+            const caChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: showrooms,
-                    datasets: [{
-                        label: 'Chiffre d\'Affaires',
-                        data: caData,
-                        backgroundColor: '#c2a15e',
-                        borderRadius: 8,
-                        barThickness: 30
-                    }]
+                    datasets: [
+                        {
+                            label: `Valeur (${reportingCurrency})`,
+                            data: valueData,
+                            backgroundColor: '#c2a15e',
+                            borderRadius: 8,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Quantité (Véhicules)',
+                            data: qtyData,
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 8,
+                            yAxisID: 'y1'
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#9ca3af' }
+                        },
                         x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
                     }
                 }
             });
+
+            // Event Listeners for CA
+            const valCb = document.getElementById('ca-val');
+            if (valCb) {
+                valCb.addEventListener('change', (e) => {
+                    caChart.setDatasetVisibility(0, e.target.checked);
+                    caChart.update();
+                });
+            }
+            const qtyCb = document.getElementById('ca-qty');
+            if (qtyCb) {
+                qtyCb.addEventListener('change', (e) => {
+                    caChart.setDatasetVisibility(1, e.target.checked);
+                    caChart.update();
+                });
+            }
         }
     },
 
