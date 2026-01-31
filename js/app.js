@@ -4788,15 +4788,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 <h1>Gestion des Expéditions</h1>
                                 <p>${shipments.length} expédition(s) en cours</p>
                             </div>
-                            <div class="header-actions" style="display: flex; gap: 10px;">
-                                <button class="btn-secondary" onclick="app.showShipmentBLUploadModal()"><i class="fas fa-magic"></i> Créer via BL</button>
-                                <button class="btn-primary" onclick="app.showShipmentModal()"><i class="fas fa-plus"></i> Nouvelle Expédition</button>
-                            </div>
                         </div>
 
                         <!-- AllForward Search Section -->
                         <div class="logistics-search-container">
-                            <h2 class="search-title">Search a Quote</h2>
+                            <h2 class="search-title">NOUVELLE EXPÉDITION</h2>
                             
                             <div class="logistics-tabs">
                                 <div class="logistics-tab active" onclick="app.switchLogisticsTab('ocean', this)">
@@ -4871,19 +4867,14 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </div>
                                 </div>
 
-                                <div class="search-btn-container">
-                                    <button class="btn-search-logistic" onclick="app.performLogisticsSearch()">
-                                        SEARCH <i class="fas fa-search" style="margin-left: 10px;"></i>
+                                <div class="search-btn-container" style="grid-column: span 3; display: flex; gap: 15px; justify-content: center; margin-top: 10px;">
+                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px;" onclick="app.showShipmentModal()">
+                                        CRÉER L'EXPÉDITION <i class="fas fa-plus" style="margin-left: 10px;"></i>
+                                    </button>
+                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px; background: var(--secondary);" onclick="app.showShipmentBLUploadModal()">
+                                        CRÉER VIA BL <i class="fas fa-magic" style="margin-left: 10px;"></i>
                                     </button>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Special Offers Section -->
-                        <div class="special-offers-section">
-                            <h2 style="margin-bottom: 20px; font-weight: 700;">SPECIAL OFFERS</h2>
-                            <div class="offers-grid" id="special-offers-container">
-                                ${this.renderSpecialOffers()}
                             </div>
                         </div>
 
