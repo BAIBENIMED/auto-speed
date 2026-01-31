@@ -1765,6 +1765,22 @@ textarea.glass-input {
     transform: translateY(-2px);
 }
 
+.btn-secondary-logistic {
+    background: #f1f5f9;
+    color: #1e293b;
+    padding: 12px 40px;
+    border-radius: 8px;
+    font-weight: 700;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-secondary-logistic:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+}
+
 .special-offers-section {
     margin-top: 40px;
 }

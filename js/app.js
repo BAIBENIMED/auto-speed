@@ -4864,7 +4864,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     <button class="btn-search-logistic" style="flex: 1; max-width: 300px; min-width: 200px; display: flex; align-items: center; justify-content: center;" onclick="app.handleInlineShipmentCreation()">
                                         CRÉER L'EXPÉDITION <i class="fas fa-plus" style="margin-left: 10px;"></i>
                                     </button>
-                                    <button class="btn-search-logistic" style="flex: 1; max-width: 300px; min-width: 200px; background: var(--secondary); display: flex !important; align-items: center; justify-content: center;" onclick="app.showShipmentBLUploadModal()">
+                                    <button class="btn-secondary-logistic" style="flex: 1; max-width: 300px; min-width: 200px; display: flex; align-items: center; justify-content: center;" onclick="app.showShipmentBLUploadModal()">
                                         CRÉER VIA BL <i class="fas fa-magic" style="margin-left: 10px;"></i>
                                     </button>
                                 </div>
