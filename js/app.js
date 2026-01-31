@@ -4990,6 +4990,9 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 this.renderView('shipments'); // Refresh with current query
             });
         }
+
+        // Initialize inline form (filters and search)
+        this.initInlineShipmentForm();
     },
 
     initInlineShipmentForm() {
@@ -5025,11 +5028,13 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         const filtered = availableVehicles.filter(v => {
             const order = orders.find(o => o.id === v.orderId);
             const client = order ? clients.find(c => c.id === order.clientId) : null;
-            const fullClientName = client ? `${client.firstName} ${client.lastName}`.toLowerCase() : '';
+            const firstName = client?.firstName || '';
+            const lastName = client?.lastName || '';
+            const fullClientName = `${firstName} ${lastName}`.toLowerCase();
 
             const matchClient = fullClientName.includes(clientTerm);
-            const matchVehicle = v.brand.toLowerCase().includes(vehicleTerm) || v.model.toLowerCase().includes(vehicleTerm);
-            const matchVin = v.chassisNumber.toLowerCase().includes(vinTerm);
+            const matchVehicle = (v.brand || '').toLowerCase().includes(vehicleTerm) || (v.model || '').toLowerCase().includes(vehicleTerm);
+            const matchVin = (v.chassisNumber || '').toLowerCase().includes(vinTerm);
 
             return matchClient && matchVehicle && matchVin;
         });
@@ -5041,10 +5046,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
                     <input type="checkbox" name="inline-vehicle-ids" value="${v.id}" style="width: 18px; height: 18px; cursor: pointer;">
                     <div style="flex: 1;">
-                        <div style="font-size: 0.9rem; font-weight: 500;">${v.brand} ${v.model}</div>
+                        <div style="font-size: 0.9rem; font-weight: 500;">${v.brand || 'N/A'} ${v.model || ''}</div>
                         <div style="font-size: 0.75rem; color: var(--text-dim);">
-                            VIN: <span style="color: var(--primary);">${v.chassisNumber}</span> | 
-                            Client: <span style="color: var(--text-main);">${client ? client.name : 'N/A'}</span> | 
+                            VIN: <span style="color: var(--primary);">${v.chassisNumber || 'N/A'}</span> | 
+                            Client: <span style="color: var(--text-main);">${client ? `${client.firstName} ${client.lastName}` : 'N/A'}</span> | 
                             Cmd: <span style="color: var(--text-main);">${v.orderId || 'N/A'}</span>
                         </div>
                     </div>
