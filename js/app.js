@@ -389,7 +389,12 @@ const app = {
                         <form id="order-form">
                             <div class="form-group">
                                 <label>Client</label>
-                                <select name="clientId" required class="glass-select">
+                                <!-- Client Search Input -->
+                                <div style="position: relative; margin-bottom: 5px;">
+                                    <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 0.8rem;"></i>
+                                    <input type="text" id="client-search" class="glass-input" placeholder="Filtrer par nom..." style="padding-left: 30px; font-size: 0.9rem;">
+                                </div>
+                                <select name="clientId" id="client-select" required class="glass-select">
                                     <option value="">Sélectionner un client</option>
                                     ${clients.map(c => `<option value="${c.id}">${c.firstName} ${c.lastName}</option>`).join('')}
                                 </select>
@@ -471,6 +476,27 @@ const app = {
                 </div>
             `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // --- CLIENT SEARCH LOGIC ---
+        const clientSearch = document.getElementById('client-search');
+        const clientSelect = document.getElementById('client-select');
+
+        if (clientSearch && clientSelect) {
+            clientSearch.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = clients.filter(c =>
+                    `${c.firstName} ${c.lastName}`.toLowerCase().includes(term) ||
+                    (c.phone || '').includes(term)
+                );
+
+                // Rebuild options
+                let opts = '<option value="">Sélectionner un client</option>';
+                opts += filtered.map(c => `<option value="${c.id}">${c.firstName} ${c.lastName}</option>`).join('');
+
+                clientSelect.innerHTML = opts;
+            });
+        }
+        // ---------------------------
 
         const brandFilter = document.getElementById('filter-brand');
         const modelFilter = document.getElementById('filter-model');
