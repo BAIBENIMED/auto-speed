@@ -1148,7 +1148,7 @@ const app = {
                                 <h3><i class="fas fa-cogs"></i> Spécifications</h3>
                                 <p><strong>Motorisation:</strong> ${vehicle.motorization || 'N/A'}</p>
                                 <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
-                                <p><strong>État:</strong> ${vehicle.condition || 'N/A'}</p>
+
                                 <p><strong>Kilométrage:</strong> ${vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : 'N/A'}</p>
                             </div>
 
@@ -2605,13 +2605,7 @@ const app = {
                                             ${(StorageService.get(STORAGE_KEYS.COLORS) || []).map(c => `<option value="${c}">${c}</option>`).join('')}
                                         </select>
                                     </div>
-                                    <div class="form-group">
-                                        <label>État</label>
-                                        <select name="condition" class="glass-select">
-                                            <option value="Neuf">Neuf</option>
-                                            <option value="Occasion">Occasion</option>
-                                        </select>
-                                    </div>
+
                                     <div class="form-group">
                                         <label>Année</label>
                                         <input type="number" name="year" class="glass-input" placeholder="${new Date().getFullYear()}">
@@ -2971,13 +2965,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                     ${StorageService.get(STORAGE_KEYS.COLORS).map(c => `<option value="${c}" ${vehicle.color === c ? 'selected' : ''}>${c}</option>`).join('')}
                                                 </select>
                                             </div>
-                                            <div class="form-group">
-                                                <label>État</label>
-                                                <select name="condition" class="glass-select">
-                                                    <option value="Neuf" ${vehicle.condition === 'Neuf' ? 'selected' : ''}>Neuf</option>
-                                                    <option value="Occasion" ${vehicle.condition === 'Occasion' ? 'selected' : ''}>Occasion</option>
-                                                </select>
-                                            </div>
+
                                             <div class="form-group">
                                                 <label>Année</label>
                                                 <input type="number" name="year" value="${vehicle.year || ''}" class="glass-input">
