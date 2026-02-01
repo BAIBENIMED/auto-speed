@@ -23,7 +23,8 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             cashTransactions,
             attributes,
             purchaseOrders,
-            suppliers
+            suppliers,
+            notifications
         ] = await Promise.all([
             models.Role.findAll(),
             models.User.findAll({ include: [{ model: models.Role, as: 'role' }] }),
@@ -38,7 +39,8 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             models.CashTransaction.findAll(),
             models.DynamicAttribute.findAll({ order: [['sortOrder', 'ASC']] }),
             models.PurchaseOrder.findAll(),
-            models.Supplier.findAll()
+            models.Supplier.findAll(),
+            models.Notification.findAll({ order: [['createdAt', 'DESC']], limit: 100 })
         ]);
 
         const syncData = {
@@ -62,7 +64,8 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             cashTransactions,
             attributes,
             purchaseOrders,
-            suppliers
+            suppliers,
+            notifications
         };
 
         console.log('✅ Sync data prepared:', {

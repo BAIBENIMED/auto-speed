@@ -15,6 +15,7 @@ const Showroom = require('./Showroom');
 const AuditLog = require('./AuditLog');
 const PurchaseOrder = require('./PurchaseOrder');
 const Supplier = require('./Supplier');
+const Notification = require('./Notification');
 const attachAuditLog = require('../utils/auditLogger');
 
 // Define relationships
@@ -73,7 +74,8 @@ module.exports = {
     Showroom,
     AuditLog,
     PurchaseOrder,
-    Supplier
+    Supplier,
+    Notification
 };
 
 // Audit Log associations

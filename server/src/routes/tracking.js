@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const containerTrackingService = require('../services/containerTrackingService');
-const { Shipment, Vehicle } = require('../models');
+const { Shipment, Vehicle, Notification } = require('../models');
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 
 // Track a specific container or BL
@@ -45,18 +45,38 @@ router.get('/voyage/:voyageName', async (req, res) => {
             const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL);
 
             // CASCADE UPDATE: Update ALL shipments in this voyage with the new data
-            await Promise.all(shipments.map(s => s.update({
-                status: trackingInfo.status || s.status,
-                etd: trackingInfo.etd || s.etd,
-                eta: trackingInfo.eta || s.eta,
-                loadingPort: trackingInfo.loadingPort || s.loadingPort,
-                destination: trackingInfo.unloadingPort || s.destination,
-                currentLat: trackingInfo.location?.lat || s.currentLat,
-                currentLng: trackingInfo.location?.lng || s.currentLng,
-                shipStatus: trackingInfo.vesselName || s.shipStatus,
-                trackingHistory: trackingInfo.events ? JSON.stringify(trackingInfo.events) : s.trackingHistory,
-                lastUpdate: new Date()
-            })));
+            await Promise.all(shipments.map(async (s) => {
+                // Check for Date Changes (ETA)
+                if (trackingInfo.eta && s.eta) {
+                    const oldDate = new Date(s.eta);
+                    const newDate = new Date(trackingInfo.eta);
+                    const diffTime = Math.abs(newDate - oldDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (diffDays > 1) { // If changed by more than 1 day
+                        await Notification.create({
+                            type: 'WARNING', // Use 'WARNING' from ENUM 'INFO','WARNING','ERROR','SUCCESS'
+                            title: 'Changement de date d\'arrivée',
+                            message: `La date d'arrivée prévue (ETA) pour le voyage ${s.voyage || 'Inconnu'} a changé de ${oldDate.toLocaleDateString()} à ${newDate.toLocaleDateString()}.`,
+                            entityType: 'Shipment',
+                            entityId: s.id
+                        });
+                    }
+                }
+
+                await s.update({
+                    status: trackingInfo.status || s.status,
+                    etd: trackingInfo.etd || s.etd,
+                    eta: trackingInfo.eta || s.eta,
+                    loadingPort: trackingInfo.loadingPort || s.loadingPort,
+                    destination: trackingInfo.unloadingPort || s.destination,
+                    currentLat: trackingInfo.location?.lat || s.currentLat,
+                    currentLng: trackingInfo.location?.lng || s.currentLng,
+                    shipStatus: trackingInfo.vesselName || s.shipStatus,
+                    trackingHistory: trackingInfo.events ? JSON.stringify(trackingInfo.events) : s.trackingHistory,
+                    lastUpdate: new Date()
+                });
+            }));
 
             // Sync status to orders
             if (trackingInfo.status) {
@@ -93,6 +113,24 @@ router.post('/:id/refresh', async (req, res) => {
         console.log(`[Tracking] Syncing shipment ${id} via ${identifier}`);
 
         const trackingData = await containerTrackingService.trackContainer(identifier, isBL);
+
+        // Check for ETA change logic
+        if (trackingData.eta && shipment.eta) {
+            const oldDate = new Date(shipment.eta);
+            const newDate = new Date(trackingData.eta);
+            const diffTime = Math.abs(newDate - oldDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays > 1) {
+                await Notification.create({
+                    type: 'WARNING',
+                    title: 'Changement de date d\'arrivée',
+                    message: `La date d'arrivée prévue (ETA) pour l'expédition ${shipment.containerNumber || shipment.id} a changé de ${oldDate.toLocaleDateString()} à ${newDate.toLocaleDateString()}.`,
+                    entityType: 'Shipment',
+                    entityId: shipment.id
+                });
+            }
+        }
 
         // Update Shipment in DB
         await shipment.update({

@@ -25,7 +25,8 @@ const STORAGE_KEYS = {
     BL_TEMPLATES: 'gtm_bl_templates',
     PURCHASE_ORDERS: 'tib_purchase_orders',
     CATEGORIES: 'gtm_categories',
-    SUPPLIERS: 'tib_suppliers'
+    SUPPLIERS: 'tib_suppliers',
+    NOTIFICATIONS: 'tib_notifications'
 };
 
 const StorageService = {
@@ -376,6 +377,7 @@ const StorageService = {
                 if (data.roles) localStorage.setItem(STORAGE_KEYS.ROLES, JSON.stringify(data.roles));
                 if (data.purchaseOrders) localStorage.setItem(STORAGE_KEYS.PURCHASE_ORDERS, JSON.stringify(data.purchaseOrders));
                 if (data.suppliers) localStorage.setItem(STORAGE_KEYS.SUPPLIERS, JSON.stringify(data.suppliers));
+                if (data.notifications) localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(data.notifications));
 
                 // Settings (don't overwrite with empty)
                 if (data.settings && Object.keys(data.settings).length > 0) {
