@@ -9637,6 +9637,106 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         return diffInHours > 24;
     },
 
+    // --- CLIENT IMPORT FEATURE ---
+
+    downloadClientCSVTemplate() {
+        // Updated header to match Client structure more closely, using French labels
+        const headers = ["Reference;Prenom;Nom;Email;Telephone;Adresse;Entreprise;Passeport;NIN"];
+        // Providing 2 examples
+        const example1 = "CL-AUTO-1;Jean;Dupont;jean.dupont@email.com;0600000000;123 Rue Exemple;Dupont SARL;AB123456;123456789";
+        const example2 = "CL-AUTO-2;Marie;Curie;marie.curie@email.com;0700000000;456 Avenue Science;;CD789012;";
+
+        const csvContent = [headers, example1, example2].join("\n");
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        this._triggerDownload(blob, "modele_import_clients.csv");
+    },
+
+    async handleClientImport(inputElement) {
+        const file = inputElement.files[0];
+        if (!file) return;
+
+        if (!file.name.endsWith('.csv')) {
+            this.showToast("Veuillez sélectionner un fichier .csv valide", "error");
+            inputElement.value = ''; // Reset
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const text = e.target.result;
+            const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+
+            if (lines.length < 2) {
+                this.showToast("Le fichier semble vide ou ne contient pas d'entêtes.", "warning");
+                return;
+            }
+
+            const headers = lines[0].split(';').map(h => h.trim().toLowerCase());
+            // Basic validation of headers
+            if (!headers.includes('prenom') || !headers.includes('nom')) {
+                this.showToast("Format CSV invalide. Utilisez le modèle.", "error");
+                return;
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+            const existingClients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(';');
+                if (cols.length < 3) continue; // Skip malformed lines
+
+                // Helper to safely get value by header index
+                const getVal = (headerPartial) => {
+                    const idx = headers.findIndex(h => h.includes(headerPartial));
+                    return idx !== -1 && cols[idx] ? cols[idx].trim() : '';
+                };
+
+                const email = getVal('email');
+                const firstName = getVal('prenom');
+                const lastName = getVal('nom');
+
+                // Skip duplicate emails if present
+                if (email && existingClients.some(c => c.email && c.email.toLowerCase() === email.toLowerCase())) {
+                    console.log(`Skipping duplicate email: ${email}`);
+                    errorCount++; // Count as error/skip
+                    continue;
+                }
+
+                const newClient = {
+                    id: `c-imp-${Date.now()}-${i}`,
+                    reference: getVal('reference') || `CL-IMP-${Date.now()}-${i}`,
+                    firstName: firstName || 'Inconnu',
+                    lastName: lastName || 'Inconnu',
+                    email: email || '',
+                    phone: getVal('telephone') || '',
+                    address: getVal('adresse') || '',
+                    company: getVal('entreprise') || '',
+                    passportNumber: getVal('passeport') || '',
+                    nin: getVal('nin') || '',
+                    showroom: 'Showroom Principal', // Default
+                    archived: false
+                };
+
+                try {
+                    await StorageService.add(STORAGE_KEYS.CLIENTS, newClient);
+                    successCount++;
+                } catch (err) {
+                    console.error('Import error row ' + i, err);
+                    errorCount++;
+                }
+            }
+
+            inputElement.value = ''; // Reset input
+            this.showToast(`Import terminé : ${successCount} ajoutés, ${errorCount} ignorés/erreurs.`, successCount > 0 ? "success" : "warning");
+
+            // If we are on settings page, no need to rerender everything immediately, but good practice to sync
+            await StorageService.syncAll();
+        };
+
+        reader.readAsText(file);
+    },
+
     // --- REPORTS & EXPORTS FEATURE ---
 
     showReportsModal() {
