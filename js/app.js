@@ -4803,13 +4803,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </div>
                                 </div>
                                 <!-- Main Fields Row (6 Columns) -->
-                                <div class="option-group">
-                                    <label>Date</label>
-                                    <div class="option-input-wrapper">
-                                        <i class="fas fa-calendar-alt"></i>
-                                        <input type="date" id="inline-shipment-date" value="${new Date().toISOString().split('T')[0]}">
-                                    </div>
-                                </div>
+
                                 <div class="option-group">
                                     <label>Chargement</label>
                                     <div class="option-input-wrapper">
