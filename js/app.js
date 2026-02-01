@@ -1671,22 +1671,35 @@ const app = {
             const ctx = perfCanvas.getContext('2d');
             const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
 
-            // Dummy data for labels (12 months)
-            const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+            // Dynamic Rolling 12 Months (current month + previous 11)
+            const months = [];
+            const monthKeys = []; // To store "YYYY-MM" for easy data matching
+            const today = new Date();
+
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const shortMonth = d.toLocaleString('fr-FR', { month: 'short' });
+                const shortYear = d.getFullYear().toString().slice(-2);
+                months.push(`${shortMonth} ${shortYear}`); // e.g., "Jan 25"
+                monthKeys.push({ year: d.getFullYear(), month: d.getMonth() });
+            }
 
             // Helper to get monthly data for a showroom
             const getMonthlyData = (showroomName = null) => {
                 const data = new Array(12).fill(0);
-                const currentYear = new Date().getFullYear();
 
                 orders.forEach(o => {
                     if (!o.date || !o.isValidated) return;
                     if (showroomName && o.showroom !== showroomName) return;
 
                     const date = new Date(o.date);
-                    if (date.getFullYear() === currentYear) {
-                        const month = date.getMonth();
-                        data[month] += this.convertCurrency(o.totalAmount, o.currency, reportingCurrency, o.date);
+                    const oYear = date.getFullYear();
+                    const oMonth = date.getMonth();
+
+                    // Find matching bucket
+                    const index = monthKeys.findIndex(k => k.year === oYear && k.month === oMonth);
+                    if (index !== -1) {
+                        data[index] += this.convertCurrency(o.totalAmount, o.currency, reportingCurrency, o.date);
                     }
                 });
                 return data;
