@@ -5027,6 +5027,61 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             tableSearch.addEventListener('input', (e) => this.handleShipmentTableSearch(e.target.value));
         }
 
+        // --- DRAFT AUTO-SAVE ---
+        const formFields = [
+            'inline-shipment-date', 'inline-loading-port', 'inline-destination-port',
+            'inline-container', 'inline-bl', 'inline-voyage'
+        ];
+
+        // 1. Restore Draft
+        const draft = JSON.parse(localStorage.getItem('shipment_draft') || '{}');
+        if (draft) {
+            if (draft.shipmentDate) document.getElementById('inline-shipment-date').value = draft.shipmentDate;
+            if (draft.loadingPort) document.getElementById('inline-loading-port').value = draft.loadingPort;
+            if (draft.destination) document.getElementById('inline-destination-port').value = draft.destination;
+            if (draft.container) document.getElementById('inline-container').value = draft.container;
+            if (draft.bl) document.getElementById('inline-bl').value = draft.bl;
+            if (draft.voyage) document.getElementById('inline-voyage').value = draft.voyage;
+        }
+
+        // 2. Auto-Save Listeners
+        const saveDraft = () => {
+            const currentDraft = JSON.parse(localStorage.getItem('shipment_draft') || '{}');
+            const newData = {
+                ...currentDraft,
+                shipmentDate: document.getElementById('inline-shipment-date').value,
+                loadingPort: document.getElementById('inline-loading-port').value,
+                destination: document.getElementById('inline-destination-port').value,
+                container: document.getElementById('inline-container').value,
+                bl: document.getElementById('inline-bl').value,
+                voyage: document.getElementById('inline-voyage').value,
+                // We also need to save selected vehicles, but they are dynamic. 
+                // We'll update vehicleIds in draft whenever a checkbox changes.
+                // For now, rely on updateInlineVehicleList checking checkboxes.
+                // BUT, we need a listener on the container to capture clicks.
+            };
+            localStorage.setItem('shipment_draft', JSON.stringify(newData));
+        };
+
+        formFields.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', saveDraft);
+        });
+
+        // Delegate listener for vehicle checkboxes
+        const vehicleList = document.getElementById('inline-vehicle-list');
+        if (vehicleList) {
+            vehicleList.addEventListener('change', (e) => {
+                if (e.target.name === 'inline-vehicle-ids') {
+                    const currentDraft = JSON.parse(localStorage.getItem('shipment_draft') || '{}');
+                    const selected = Array.from(document.querySelectorAll('input[name="inline-vehicle-ids"]:checked')).map(cb => cb.value);
+                    currentDraft.vehicleIds = selected;
+                    localStorage.setItem('shipment_draft', JSON.stringify(currentDraft));
+                }
+            });
+        }
+        // -----------------------
+
         this.updateInlineVehicleList();
     },
 
@@ -5061,9 +5116,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             const client = order ? clients.find(c => c.id === order.clientId) : null;
             const clientName = client ? `${client.firstName} ${client.lastName}` : 'N/A';
 
+            const draft = JSON.parse(localStorage.getItem('shipment_draft') || '{}');
+            const isChecked = (draft.vehicleIds || []).includes(String(v.id));
+
             return `
-                <label class="vehicle-pill">
-                    <input type="checkbox" name="inline-vehicle-ids" value="${v.id}" onchange="this.parentElement.classList.toggle('selected', this.checked)">
+                <label class="vehicle-pill ${isChecked ? 'selected' : ''}">
+                    <input type="checkbox" name="inline-vehicle-ids" value="${v.id}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.classList.toggle('selected', this.checked)">
                     <span>${v.brand || 'N/A'} ${v.model || ''} (${v.chassisNumber ? v.chassisNumber.slice(-6) : 'N/A'}) <small style="opacity: 0.6; margin-left: 5px;">- ${clientName}</small></span>
                 </label>
             `;
@@ -5133,6 +5191,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             }
 
             this.showToast("Expédition créée avec succès", "success");
+            localStorage.removeItem('shipment_draft'); // Clear draft on success
             this.renderShipments();
         } catch (error) {
             console.error("Erreur lors de la création de l'expédition:", error);
