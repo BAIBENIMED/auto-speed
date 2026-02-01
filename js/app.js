@@ -5355,7 +5355,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             <tr>
                                 <th>Voyage & Navires</th>
                                 <th>Logistique (POL <i class="fas fa-arrow-right"></i> POD)</th>
-                                <th>Transitaire</th>
+
                                 <th style="text-align: center;">Cargaison</th>
                                 <th>Statut & MàJ</th>
                                 <th>Actions</th>
@@ -5408,9 +5408,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                 <i class="far fa-calendar-check"></i> ETA: ${v.eta ? new Date(v.eta).toLocaleDateString() : '-'}
                                             </div>
                                         </td>
-                                        <td>
-                                            <div style="font-weight: 600; font-size: 0.85rem;">${Array.from(v.forwarders).join(', ') || 'Direct'}</div>
-                                        </td>
+
                                         <td style="text-align: center;">
                                             <div style="margin-bottom: 5px;">
                                                 <span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); cursor: pointer;" onclick="app.showVoyageShipmentsModal('${safeName}')">
