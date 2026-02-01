@@ -152,7 +152,7 @@ const app = {
                             <div style="color: #ff0000; font-size: 0.7rem; font-weight: 800; letter-spacing: 5px; margin-top: -5px; text-transform: uppercase;">CHINA CARS</div>
                         </div>
                         
-                        <form id="login-form">
+                        <form id="login-form" autocomplete="off">
                             <div class="form-group">
                                 <label><i class="fas fa-user"></i> Identifiant</label>
                                 <input type="text" id="login-username" class="glass-input" placeholder="Nom d'utilisateur" required>
@@ -389,13 +389,13 @@ const app = {
                             <h2>Nouvelle Commande</h2>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
-                        <form id="order-form">
+                        <form id="order-form" autocomplete="off">
                             <div class="form-group">
                                 <label>Client</label>
                                 <!-- Client Search Input -->
                                 <div style="position: relative; margin-bottom: 5px;">
                                     <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 0.8rem;"></i>
-                                    <input type="text" id="client-search" class="glass-input" placeholder="Filtrer par nom..." style="padding-left: 30px; font-size: 0.9rem;">
+                                    <input type="text" id="client-search" class="glass-input" placeholder="Filtrer par nom..." style="padding-left: 30px; font-size: 0.9rem;" autocomplete="off">
                                 </div>
                                 <select name="clientId" id="client-select" required class="glass-select">
                                     <option value="">Sélectionner un client</option>
@@ -2239,7 +2239,7 @@ const app = {
                             <h2>Nouveau Client</h2>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
-                        <form id="client-form">
+                        <form id="client-form" autocomplete="off">
                             <div class="form-group">
                                 <label>Référence Client</label>
                                 <input type="text" name="reference" value="CL-${String((StorageService.get(STORAGE_KEYS.CLIENTS) || []).length + 1).padStart(4, '0')}" class="glass-input" required>
@@ -3592,7 +3592,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                         `).join('')}
                                     </div>
                                     <div class="add-config-form" style="display: flex; gap: 0.5rem;">
-                                        <input type="text" id="input-model-${brand.replace(/\s/g, '_')}" placeholder="Ajouter un modèle..." class="glass-input" style="flex: 1;">
+                                        <input type="text" id="input-model-${brand.replace(/\s/g, '_')}" placeholder="Ajouter un modèle..." class="glass-input" style="flex: 1;" autocomplete="off">
                                         <button type="button" class="btn-primary" onclick="app.addBrandModel('${brand.replace(/'/g, "\\'")}')">Ajouter</button>
                                     </div>
                                 </div>
@@ -3851,7 +3851,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         </table>
                     </div>
                     <div class="add-config-form">
-                        <input type="text" id="input-SHOWROOMS" placeholder="Ajouter un showroom..." class="glass-input">
+                        <input type="text" id="input-SHOWROOMS" placeholder="Ajouter un showroom..." class="glass-input" autocomplete="off">
                         <button type="button" class="btn-primary" onclick="app.addConfigItem('SHOWROOMS')">Ajouter rapide</button>
                     </div>
                 </div>
@@ -3870,7 +3870,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             <h2>Modifier le Showroom</h2>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
-                        <form id="edit-showroom-form">
+                        <form id="edit-showroom-form" autocomplete="off">
                             <input type="hidden" name="id" value="${showroom.id}">
                             <div class="form-group">
                                 <label>Nom</label>
@@ -3971,7 +3971,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         </table>
                     </div>
                     <div class="add-config-form">
-                        <input type="text" id="input-BRANDS" placeholder="Ajouter une marque..." class="glass-input">
+                        <input type="text" id="input-BRANDS" placeholder="Ajouter une marque..." class="glass-input" autocomplete="off">
                         <button type="button" class="btn-primary" onclick="app.addConfigItem('BRANDS')">Ajouter</button>
                     </div>
                 </div>
@@ -3990,7 +3990,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             <h2>Modifier la Marque</h2>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
-                        <form id="edit-brand-form">
+                        <form id="edit-brand-form" autocomplete="off">
                             <input type="hidden" name="id" value="${brand.id}">
                             <div class="form-group">
                                 <label>Nom</label>
@@ -4133,17 +4133,17 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 <div class="form-row" style="margin-top: 10px;">
                                     <div class="form-group">
                                         <label>Nom Complet</label>
-                                        <input type="text" id="user-name" class="glass-input" placeholder="ex: John Doe">
+                                        <input type="text" id="user-name" class="glass-input" placeholder="ex: John Doe" autocomplete="off">
                                     </div>
                                     <div class="form-group">
                                         <label>Identifiant</label>
-                                        <input type="text" id="user-username" class="glass-input" placeholder="Nom d'utilisateur">
+                                        <input type="text" id="user-username" class="glass-input" placeholder="Nom d'utilisateur" autocomplete="off">
                                     </div>
                                 </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Mot de passe</label>
-                                        <input type="password" id="user-password" class="glass-input" placeholder="Saisir un mot de passe">
+                                        <input type="password" id="user-password" class="glass-input" placeholder="Saisir un mot de passe" autocomplete="off">
                                     </div>
                                     <div class="form-group">
                                         <label>Rôle</label>
@@ -4201,7 +4201,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     <h2>Modifier l'Utilisateur</h2>
                                     <button class="btn-close" onclick="app.closeModal()">&times;</button>
                                 </div>
-                                <form id="edit-user-form">
+                                <form id="edit-user-form" autocomplete="off">
                                     <input type="hidden" name="id" value="${user.id}">
                                         <div class="form-group">
                                             <label>Nom Complet</label>
