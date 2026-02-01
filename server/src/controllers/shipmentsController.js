@@ -77,6 +77,19 @@ const shipmentsController = {
             if (!shipment) {
                 return res.status(404).json({ success: false, message: 'Expédition non trouvée' });
             }
+
+            // RESTRICT BL MODIFICATION
+            // If Trying to change BL AND BL already exists AND New BL is different
+            if (req.body.blNumber && shipment.blNumber && req.body.blNumber.trim() !== shipment.blNumber) {
+                // Check if user is admin
+                if (!req.user || req.user.roleId !== 'admin') {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'Modification interdite : Seul un administrateur peut modifier le BL de suivi une fois défini.'
+                    });
+                }
+            }
+
             await shipment.update(req.body);
 
             // Sync status to orders if updated

@@ -26,7 +26,8 @@ router.get('/voyage/:voyageName', async (req, res) => {
             where: {
                 voyage: voyageName,
                 isArchived: false
-            }
+            },
+            order: [['createdAt', 'ASC']] // STABLE TRACKING: Use oldest shipment as source of truth
         });
 
         if (!shipments || shipments.length === 0) {
