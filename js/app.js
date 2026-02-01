@@ -285,9 +285,12 @@ const app = {
         }
 
         // "Nouvelle Commande" button
-        document.getElementById('btn-new-order').addEventListener('click', () => {
-            this.showOrderModal();
-        });
+        const btnNewOrder = document.getElementById('btn-new-order');
+        if (btnNewOrder) {
+            btnNewOrder.addEventListener('click', () => {
+                this.showOrderModal();
+            });
+        }
 
         // Handle modal closing
         document.addEventListener('click', (e) => {
@@ -9570,6 +9573,61 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         } catch (err) {
             console.error("Voyage tracking error:", err);
             this.showToast("Erreur API Satellite: " + err.message, "danger");
+        }
+    },
+
+    async refreshAllVoyages() {
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+
+        // Extract unique, non-empty voyage names
+        const voyageNames = [...new Set(shipments
+            .map(s => s.voyage ? s.voyage.trim() : '')
+            .filter(v => v !== '' && v !== 'SANS VOYAGE')
+        )].sort();
+
+        if (voyageNames.length === 0) {
+            this.showToast("Aucun voyage à actualiser.", "info");
+            return;
+        }
+
+        if (!confirm(`Voulez-vous lancer l'actualisation de ${voyageNames.length} voyages ? Cela peut prendre plusieurs secondes.`)) {
+            return;
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < voyageNames.length; i++) {
+            const vName = voyageNames[i];
+            const progress = `(${i + 1}/${voyageNames.length})`;
+            this.showToast(`Mise à jour du voyage ${progress}: ${vName}...`, "info");
+
+            try {
+                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(vName)}`);
+                const res = await response.json();
+                if (res.success) {
+                    successCount++;
+                } else {
+                    console.warn(`Failed to update ${vName}: ${res.message}`);
+                    failCount++;
+                }
+            } catch (err) {
+                console.error(`Error updating ${vName}:`, err);
+                failCount++;
+            }
+
+            // Small delay to be nice to the server/external API
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        // Final sync and refresh
+        await StorageService.syncAll();
+        this.renderView(this.currentView);
+
+        if (failCount === 0) {
+            this.showToast(`Succès ! ${successCount} voyages actualisés.`, "success");
+        } else {
+            this.showToast(`Terminé. ${successCount} succès, ${failCount} échecs.`, "warning");
         }
     },
 
