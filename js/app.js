@@ -10129,6 +10129,74 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
         this._triggerDownload(blob, `rapport_${type}.csv`);
         this.closeModal();
     }
+    renderBrandModelsSection() {
+        // Basic placeholder to prevent crash
+        const modelsMap = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+
+        return `
+            <div class="settings-section">
+                <h3><i class="fas fa-car-side"></i> Modèles par Marque</h3>
+                <div class="config-grid">
+                    ${brands.map(brand => `
+                        <div class="config-item glass" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                            <div style="font-weight: bold; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">${brand}</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                                ${(modelsMap[brand] || []).map(m => `<span class="badge">${m}</span>`).join('') || '<span style="color:var(--text-dim); font-size:0.8rem;">Aucun modèle</span>'}
+                            </div>
+                            <button class="btn-icon-small" onclick="app.manageModels('${brand.replace(/'/g, "\\'")}')" style="align-self: flex-end; margin-top: 5px;">
+                                <i class="fas fa-cog"></i> Gérer
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    },
+
+    renderUserManagementSection() {
+        const users = StorageService.get(STORAGE_KEYS.USERS) || [];
+        return `
+            <div class="settings-section">
+                <h3><i class="fas fa-users-cog"></i> Gestion des Utilisateurs</h3>
+                <div class="config-grid">
+                    ${users.map(u => `
+                        <div class="config-item glass">
+                            <span>${u.username} (${u.role || 'N/A'})</span>
+                        </div>
+                    `).join('')}
+                </div>
+                 <div class="add-config-form">
+                    <button type="button" class="btn-primary" onclick="app.showAddUserModal()">Ajouter Utilisateur</button>
+                </div>
+            </div>
+        `;
+    },
+
+    renderRoleManagementSection() {
+        const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
+        return `
+            <div class="settings-section">
+                <h3><i class="fas fa-user-shield"></i> Gestion des Rôles</h3>
+                 <div class="config-grid">
+                    ${roles.map(r => `
+                        <div class="config-item glass">
+                            <span>${r.name}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    },
+
+    manageModels(brand) {
+        // Todo: Implement model management modal
+        alert("Gestion des modèles pour " + brand + " à venir.");
+    },
+
+    showAddUserModal() {
+        alert("Ajout utilisateur à venir.");
+    }
 };
 
 // Initialize App
