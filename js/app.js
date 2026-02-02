@@ -101,7 +101,9 @@ const app = {
                     this.checkSession();
                     return; // Stop initialization
                 }
-                // For other errors, we might still want to proceed with local data
+                // For other errors, just warn and proceed with local data
+                console.warn("⚠️ Sync failed, running in OFFLINE mode with local data.", error);
+                this.showToast("Mode Hors-Ligne : Impossible de synchroniser avec le serveur.", "warning");
             }
         }
 
