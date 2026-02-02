@@ -166,6 +166,14 @@ const startServer = async () => {
             }
         }
 
+        // Fail-safe: Ensure specific tables exist (in case global sync failed)
+        try {
+            await models.Notification.sync({ alter: true });
+            console.log('🔧 Table Notification vérifiée/créée (Fail-safe).');
+        } catch (notifErr) {
+            console.error('❌ Echec Fail-safe Notification:', notifErr.message);
+        }
+
         // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
         try {
             const columnsToEnsure = [
