@@ -40,7 +40,11 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             models.DynamicAttribute.findAll({ order: [['sortOrder', 'ASC']] }),
             models.PurchaseOrder.findAll(),
             models.Supplier.findAll(),
-            models.Notification.findAll({ order: [['createdAt', 'DESC']], limit: 100 })
+            models.Supplier.findAll(),
+            models.Notification.findAll({ order: [['createdAt', 'DESC']], limit: 100 }).catch(err => {
+                console.warn('⚠️ Could not fetch notifications (Table missing?):', err.message);
+                return []; // Return empty array on failure
+            })
         ]);
 
         const syncData = {
