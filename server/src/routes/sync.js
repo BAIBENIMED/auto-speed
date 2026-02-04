@@ -24,7 +24,8 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             attributes,
             purchaseOrders,
             suppliers,
-            notifications
+            notifications,
+            voyages
         ] = await Promise.all([
             models.Role.findAll(),
             models.User.findAll({ include: [{ model: models.Role, as: 'role' }] }),
@@ -40,10 +41,13 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             models.DynamicAttribute.findAll({ order: [['sortOrder', 'ASC']] }),
             models.PurchaseOrder.findAll(),
             models.Supplier.findAll(),
-            models.Supplier.findAll(),
             models.Notification.findAll({ order: [['createdAt', 'DESC']], limit: 100 }).catch(err => {
                 console.warn('⚠️ Could not fetch notifications (Table missing?):', err.message);
                 return []; // Return empty array on failure
+            }),
+            models.Voyage.findAll({
+                include: [{ model: models.Shipment, as: 'shipments' }],
+                order: [['createdAt', 'DESC']]
             })
         ]);
 
@@ -69,7 +73,8 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             attributes,
             purchaseOrders,
             suppliers,
-            notifications
+            notifications,
+            voyages
         };
 
         console.log('✅ Sync data prepared:', {

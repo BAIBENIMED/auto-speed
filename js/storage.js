@@ -26,7 +26,8 @@ const STORAGE_KEYS = {
     PURCHASE_ORDERS: 'tib_purchase_orders',
     CATEGORIES: 'gtm_categories',
     SUPPLIERS: 'tib_suppliers',
-    NOTIFICATIONS: 'tib_notifications'
+    NOTIFICATIONS: 'tib_notifications',
+    VOYAGES: 'gtm_voyages'
 };
 
 const StorageService = {
@@ -189,6 +190,9 @@ const StorageService = {
                 case STORAGE_KEYS.SUPPLIERS:
                     await ApiService.createSupplier(item);
                     break;
+                case STORAGE_KEYS.VOYAGES:
+                    await ApiService.createVoyage(item);
+                    break;
             }
 
             // Update raw attributes cache if an attribute was added
@@ -254,6 +258,9 @@ const StorageService = {
                     break;
                 case STORAGE_KEYS.SUPPLIERS:
                     await ApiService.updateSupplier(id, item);
+                    break;
+                case STORAGE_KEYS.VOYAGES:
+                    await ApiService.updateVoyage(id, item);
                     break;
             }
         } catch (e) {
@@ -349,6 +356,9 @@ const StorageService = {
                 case STORAGE_KEYS.SUPPLIERS:
                     await ApiService.deleteSupplier(id);
                     break;
+                case STORAGE_KEYS.VOYAGES:
+                    await ApiService.deleteVoyage(id);
+                    break;
             }
         } catch (e) {
             console.error(`Error deleting ${key} from server:`, e);
@@ -378,6 +388,7 @@ const StorageService = {
                 if (data.purchaseOrders) localStorage.setItem(STORAGE_KEYS.PURCHASE_ORDERS, JSON.stringify(data.purchaseOrders));
                 if (data.suppliers) localStorage.setItem(STORAGE_KEYS.SUPPLIERS, JSON.stringify(data.suppliers));
                 if (data.notifications) localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(data.notifications));
+                if (data.voyages) localStorage.setItem(STORAGE_KEYS.VOYAGES, JSON.stringify(data.voyages));
 
                 // Settings (don't overwrite with empty)
                 if (data.settings && Object.keys(data.settings).length > 0) {

@@ -143,6 +143,12 @@ const ApiService = {
     updateShowroom: (id, data) => ApiService.request(`/showrooms/${id}`, { method: 'PUT', body: data }),
     deleteShowroom: (id) => ApiService.request(`/showrooms/${id}`, { method: 'DELETE' }),
 
+    // Voyages
+    getVoyages: () => ApiService.request('/voyages'),
+    createVoyage: (data) => ApiService.request('/voyages', { method: 'POST', body: data }),
+    updateVoyage: (id, data) => ApiService.request(`/voyages/${id}`, { method: 'PUT', body: data }),
+    deleteVoyage: (id) => ApiService.request(`/voyages/${id}`, { method: 'DELETE' }),
+
     // Users (Admin Only)
     getUsers: () => ApiService.request('/users'),
     createUser: (data) => ApiService.request('/users', { method: 'POST', body: data }),

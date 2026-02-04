@@ -71,6 +71,7 @@ app.use('/api/purchase-orders', require('./src/routes/purchaseOrders'));
 app.use('/api/suppliers', require('./src/routes/suppliers'));
 app.use('/api/upload', require('./src/routes/upload'));
 app.use('/api/tracking', require('./src/routes/tracking'));
+app.use('/api/voyages', require('./src/routes/voyages'));
 
 // Initialize Tracking Service
 

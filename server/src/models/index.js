@@ -16,6 +16,7 @@ const AuditLog = require('./AuditLog');
 const PurchaseOrder = require('./PurchaseOrder');
 const Supplier = require('./Supplier');
 const Notification = require('./Notification');
+const Voyage = require('./Voyage');
 const attachAuditLog = require('../utils/auditLogger');
 
 // Define relationships
@@ -47,6 +48,10 @@ Order.hasMany(CashTransaction, { foreignKey: 'orderId' });
 Brand.hasMany(VehicleModel, { foreignKey: 'brandId', as: 'models', onDelete: 'CASCADE' });
 VehicleModel.belongsTo(Brand, { foreignKey: 'brandId', as: 'brand' });
 
+// Voyage relationships
+Voyage.hasMany(Shipment, { foreignKey: 'voyageId', as: 'shipments' });
+Shipment.belongsTo(Voyage, { foreignKey: 'voyageId', as: 'voyageDetails' });
+
 // Attach Audit Logs
 attachAuditLog(Order, 'Commande');
 attachAuditLog(Vehicle, 'Véhicule');
@@ -57,6 +62,7 @@ attachAuditLog(Settings, 'Paramètres');
 attachAuditLog(PurchaseOrder, 'Commande Achat');
 attachAuditLog(Supplier, 'Fournisseur');
 attachAuditLog(Shipment, 'Expedition');
+attachAuditLog(Voyage, 'Voyage');
 
 module.exports = {
     User,
@@ -75,7 +81,8 @@ module.exports = {
     AuditLog,
     PurchaseOrder,
     Supplier,
-    Notification
+    Notification,
+    Voyage
 };
 
 // Audit Log associations

@@ -5303,19 +5303,53 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
     },
 
     renderVoyages() {
+        const storedVoyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
         const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
 
-        // Group shipments by voyage name
-        const voyageMap = shipments.reduce((acc, s) => {
+        // 1. Process Explicit Voyage Entities
+        const voyageList = storedVoyages.map(v => {
+            const linkedShipments = shipments.filter(s => s.voyageId === v.id);
+            const vessels = new Set([v.vesselName, ...linkedShipments.map(s => s.shipStatus)].filter(n => n && n !== 'N/A'));
+            const carriers = new Set([v.carrier, ...linkedShipments.map(s => s.carrier)].filter(c => c));
+            const ports = new Set([v.loadingPort, ...linkedShipments.map(s => s.loadingPort)].filter(p => p));
+            const destinations = new Set([v.destination, ...linkedShipments.map(s => s.destination)].filter(d => d));
+
+            let lastUpdate = v.updatedAt || v.createdAt;
+            linkedShipments.forEach(s => {
+                if (s.lastUpdate && new Date(s.lastUpdate) > new Date(lastUpdate)) {
+                    lastUpdate = s.lastUpdate;
+                }
+            });
+
+            return {
+                id: v.id,
+                isEntity: true,
+                name: v.name,
+                shipments: linkedShipments,
+                vessels,
+                carriers,
+                ports,
+                destinations,
+                etd: v.etd,
+                eta: v.eta,
+                arrivalDate: v.arrivalDate,
+                status: v.status,
+                lastUpdate
+            };
+        });
+
+        // 2. Process Legacy Shipments (Grouped by string, not linked to VoyageId)
+        const unlinkedShipments = shipments.filter(s => !s.voyageId);
+        const legacyMap = unlinkedShipments.reduce((acc, s) => {
             const voyageName = s.voyage && s.voyage.trim() !== '' ? s.voyage.trim() : 'SANS VOYAGE';
             if (!acc[voyageName]) {
                 acc[voyageName] = {
                     name: voyageName,
+                    isEntity: false,
                     shipments: [],
                     vessels: new Set(),
                     carriers: new Set(),
-                    forwarders: new Set(),
                     ports: new Set(),
                     destinations: new Set(),
                     etd: s.etd,
@@ -5330,14 +5364,13 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 acc[voyageName].lastUpdate = s.lastUpdate;
             }
             if (s.carrier) acc[voyageName].carriers.add(s.carrier);
-            if (s.forwarder) acc[voyageName].forwarders.add(s.forwarder);
             if (s.shipStatus) acc[voyageName].vessels.add(s.shipStatus);
             if (s.loadingPort) acc[voyageName].ports.add(s.loadingPort);
             if (s.destination) acc[voyageName].destinations.add(s.destination);
             return acc;
         }, {});
 
-        const voyages = Object.values(voyageMap).sort((a, b) => {
+        const allVoyages = [...voyageList, ...Object.values(legacyMap)].sort((a, b) => {
             if (a.name === 'SANS VOYAGE') return 1;
             if (b.name === 'SANS VOYAGE') return -1;
             return a.name.localeCompare(b.name);
@@ -5347,12 +5380,14 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 <div class="view-header">
                     <div class="header-info">
                         <h1>Suivi des Voyages</h1>
-                        <p style="display: flex; align-items: center; gap: 15px;">
-                            <span>${voyages.length} voyage(s) identifié(s)</span>
-                            <button class="btn-primary" style="font-size: 0.8rem; padding: 5px 15px;" onclick="app.refreshAllVoyages()">
+                        <div style="display: flex; gap: 15px; margin-top: 10px;">
+                            <button class="btn-primary" onclick="app.showVoyageModal()">
+                                <i class="fas fa-plus"></i> NOUVEAU VOYAGE
+                            </button>
+                            <button class="btn-secondary" onclick="app.refreshAllVoyages()">
                                 <i class="fas fa-sync"></i> ACTUALISER TOUT
                             </button>
-                        </p>
+                        </div>
                     </div>
                 </div>
 
@@ -5361,91 +5396,64 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         <thead>
                             <tr>
                                 <th>Voyage & Navires</th>
-                                <th>Logistique (POL <i class="fas fa-arrow-right"></i> POD)</th>
-
+                                <th>Logistique</th>
                                 <th style="text-align: center;">Cargaison</th>
                                 <th>Statut & MàJ</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${voyages.map(v => {
+                            ${allVoyages.map(v => {
             const totalVehicles = v.shipments.reduce((sum, s) => {
                 return sum + vehicles.filter(veh => veh.shipmentId === s.id).length;
             }, 0);
-
-            const firstShipment = v.shipments.find(s => s.containerNumber);
-            const trackingLink = firstShipment ? this.getTrackingUrl(firstShipment.carrier || '17Track', firstShipment.containerNumber) : null;
             const safeName = v.name.replace(/'/g, "\\'");
-
-            // Smart Satellite Button Logic
             const hasHistory = v.shipments.some(s => s.trackingHistory && s.trackingHistory.length > 20);
-            // If history exists, show it. If not, button triggers a refresh/fetch.
             const satAction = hasHistory ? `app.showVoyageTrackingHistory('${safeName}')` : `app.trackVoyage('${safeName}')`;
             const satColor = hasHistory ? 'var(--success)' : 'var(--text-dim)';
-            const satTitle = hasHistory ? 'Voir Historique Satellite' : 'Lancer Recherche Satellite';
 
             return `
                                     <tr>
                                         <td>
-                                            <div style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">${v.name}</div>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">${v.name}</div>
+                                                ${v.isEntity ? '<span class="badge" style="background: var(--accent-blue);">OFFICIEL</span>' : '<span class="badge">LEGACY</span>'}
+                                            </div>
                                             <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 5px;">
-                                                <i class="fas fa-ship"></i> Navires: ${Array.from(v.vessels).filter(n => n && n !== 'N/A').join(', ') || 'N/A'}
+                                                <i class="fas fa-ship"></i> ${Array.from(v.vessels).join(', ') || 'N/A'}
                                             </div>
-                                            <div style="font-size: 0.75rem; color: var(--text-dim);">
-                                                <i class="fas fa-building"></i> Compagnie: ${Array.from(v.carriers).join(', ') || 'N/A'}
-                                            </div>
-                                            ${trackingLink ? `
-                                                <a href="${trackingLink}" target="_blank" style="font-size: 0.7rem; color: var(--success); text-decoration: none; margin-top: 8px; display: inline-block;">
-                                                    <i class="fas fa-external-link-alt"></i> Suivre ce Voyage
-                                                </a>
-                                            ` : ''}
                                         </td>
                                         <td>
-                                            <div style="font-size: 0.85rem;">
-                                                <span style="color: var(--text-dim);">POL:</span> <strong>${Array.from(v.ports).join(', ') || '-'}</strong>
-                                            </div>
-                                            <div style="font-size: 0.85rem; margin-top: 3px;">
-                                                <span style="color: var(--text-dim);">POD:</span> <strong>${Array.from(v.destinations).join(', ') || '-'}</strong>
-                                            </div>
-                                            <div style="font-size: 0.8rem; color: var(--accent-blue); margin-top: 5px;">
+                                            <div style="font-size: 0.8rem; color: var(--accent-blue);">
                                                 <i class="far fa-calendar-alt"></i> ETD: ${v.etd ? new Date(v.etd).toLocaleDateString() : '-'}
                                             </div>
                                             <div style="font-size: 0.8rem; color: var(--success);">
                                                 <i class="far fa-calendar-check"></i> ETA: ${v.eta ? new Date(v.eta).toLocaleDateString() : '-'}
                                             </div>
                                         </td>
-
                                         <td style="text-align: center;">
-                                            <div style="margin-bottom: 5px;">
-                                                <span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); cursor: pointer;" onclick="app.showVoyageShipmentsModal('${safeName}')">
-                                                    <i class="fas fa-box"></i> ${v.shipments.length} Cont.
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <span class="badge-pill" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
-                                                    <i class="fas fa-car"></i> ${totalVehicles} Véh.
-                                                </span>
-                                            </div>
+                                            <span class="badge-pill" style="cursor: pointer;" onclick="app.showVoyageShipmentsModal('${safeName}')">
+                                                <i class="fas fa-box"></i> ${v.shipments.length} | <i class="fas fa-car"></i> ${totalVehicles}
+                                            </span>
                                         </td>
                                         <td>
-                                            <div style="margin-bottom: 5px;"><span class="status-badge ${v.status.toLowerCase()}">${v.status}</span></div>
-                                            <div style="font-size: 0.7rem; color: ${this.isOutdated(v.lastUpdate) ? 'var(--danger)' : 'var(--text-dim)'}; font-weight: ${this.isOutdated(v.lastUpdate) ? '600' : '400'}">
-                                                <i class="fas fa-history"></i> MàJ: ${v.lastUpdate ? new Date(v.lastUpdate).toLocaleString() : 'Jamais'}
-                                            </div>
-                                            <div style="margin-top: 8px;">
-                                                <label class="switch-container" style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-dim); cursor: pointer;" title="Activer/Désactiver le suivi API">
-                                                    <input type="checkbox" onchange="app.toggleVoyageTracking('${safeName}', this.checked)" ${v.shipments.some(s => s.isTrackingActive) ? 'checked' : ''} style="width: 14px; height: 14px;">
-                                                    <span>Tracking API</span>
-                                                </label>
+                                            <div style="margin-bottom: 5px;"><span class="status-badge ${v.status.toLowerCase().replace(' ', '-')}">${v.status}</span></div>
+                                            <div style="font-size: 0.7rem; color: var(--text-dim)">
+                                                <i class="fas fa-history"></i> ${v.lastUpdate ? new Date(v.lastUpdate).toLocaleString() : 'Jamais'}
                                             </div>
                                         </td>
                                         <td>
                                             <div class="table-actions">
-                                                <button class="btn-action" onclick="app.showEditVoyageModal('${safeName}')" title="Détails & Modification Voyage">
-                                                    <i class="fas fa-users-cog"></i>
-                                                </button>
-                                                <button class="btn-action" onclick="${satAction}" title="${satTitle}">
+                                                ${v.isEntity ? `
+                                                    <button class="btn-action" onclick="app.showVoyageModal('${v.id}')" title="Modifier le Voyage">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                ` : `
+                                                    <button class="btn-action" onclick="app.showLegacyVoyageModal('${safeName}')" title="Détails (Legacy)">
+                                                        <i class="fas fa-users-cog"></i>
+                                                    </button>
+                                                `}
+                                                <button class="btn-action" onclick="${satAction}" title="Satellite">
                                                     <i class="fas fa-satellite-dish" style="color: ${satColor};"></i>
                                                 </button>
                                             </div>
@@ -5459,7 +5467,80 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             `;
     },
 
-    showEditVoyageModal(voyageName) {
+
+
+    showVoyageShipmentsModal(voyageName) {
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+
+        // Find by name (works for both entities and legacy since names match)
+        const voyageEntity = voyages.find(v => v.name === voyageName);
+        const voyageShipments = shipments.filter(s =>
+            (voyageEntity && s.voyageId === voyageEntity.id) ||
+            (s.voyage || '').trim() === voyageName.trim()
+        );
+
+        if (voyageShipments.length === 0) return;
+
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 800px; max-width: 95vw;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-box"></i> Expéditions du Voyage: ${voyageName}</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="data-table-container glass" style="max-height: 60vh; overflow-y: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Conteneur / BL</th>
+                                    <th>Véhicules</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${voyageShipments.map(s => {
+            const sVehicles = vehicles.filter(v => v.shipmentId === s.id);
+            return `
+                                        <tr>
+                                            <td>
+                                                <div style="font-weight: bold;">${s.containerNumber || 'SANS CONT'}</div>
+                                                <div style="font-size: 0.8rem; color: var(--text-dim);">${s.blNumber || 'SANS BL'}</div>
+                                            </td>
+                                            <td>
+                                                ${sVehicles.map(v => {
+                const order = orders.find(o => o.id === v.orderId);
+                const client = order ? clients.find(c => c.id === order.clientId) : null;
+                return `
+                                                        <div style="margin-bottom: 5px; font-size: 0.85rem;">
+                                                            <i class="fas fa-car" style="color: var(--primary);"></i> ${v.brand} ${v.model || ''}
+                                                            <div style="font-size: 0.75rem; color: var(--text-dim);">Client: ${client ? client.firstName + ' ' + client.lastName : 'N/A'}</div>
+                                                        </div>
+                                                    `;
+            }).join('')}
+                                            </td>
+                                            <td>
+                                                <span class="status-badge ${s.status.toLowerCase().replace(' ', '-')}">${s.status}</span>
+                                            </td>
+                                        </tr>
+                                    `;
+        }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    showLegacyVoyageModal(voyageName) {
         const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
         const voyageShipments = shipments.filter(s => (s.voyage || '').trim() === voyageName.trim());
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
@@ -5587,11 +5668,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
         document.getElementById('voyage-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            this.handleVoyageSubmission(new FormData(e.target));
+            this.handleLegacyVoyageSubmission(new FormData(e.target));
         });
     },
 
-    async handleVoyageSubmission(formData) {
+    async handleLegacyVoyageSubmission(formData) {
         const voyageName = formData.get('voyageName');
         const submitBtn = document.querySelector('#voyage-form button[type="submit"]');
 
@@ -6184,8 +6265,13 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </div>
                                     <div class="form-row">
                                         <div class="form-group">
-                                            <label>Voyage (Groupement)</label>
-                                            <input type="text" name="voyage" class="glass-input" placeholder="ex: VOY-JAN-01">
+                                            <label>Voyage (Officiel)</label>
+                                            <select name="voyageId" class="glass-select" id="shipment-voyage-select">
+                                                <option value="">-- Aucun Voyage (Manuel) --</option>
+                                                ${(StorageService.get(STORAGE_KEYS.VOYAGES) || []).map(v => `
+                                                    <option value="${v.id}">${v.name}</option>
+                                                `).join('')}
+                                            </select>
                                         </div>
                                         <div class="form-group">
                                             <label>Date d'expédition</label>
@@ -6271,6 +6357,27 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         </div>
                         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Add Voyage Auto-fill logic
+        const voyageSelect = document.getElementById('shipment-voyage-select');
+        const form = document.getElementById('shipment-form');
+        if (voyageSelect) {
+            voyageSelect.addEventListener('change', (e) => {
+                const voyageId = parseInt(e.target.value);
+                if (voyageId) {
+                    const voyage = (StorageService.get(STORAGE_KEYS.VOYAGES) || []).find(v => v.id === voyageId);
+                    if (voyage) {
+                        if (voyage.loadingPort) form.elements['loadingPort'].value = voyage.loadingPort;
+                        if (voyage.destination) form.elements['destination'].value = voyage.destination;
+                        if (voyage.etd) form.elements['etd'].value = this.formatDateForInput(voyage.etd);
+                        if (voyage.eta) form.elements['eta'].value = this.formatDateForInput(voyage.eta);
+                        if (voyage.arrivalDate) form.elements['arrivalDate'].value = this.formatDateForInput(voyage.arrivalDate);
+                        if (voyage.status) form.elements['status'].value = voyage.status;
+                        if (voyage.carrier) form.elements['carrier'].value = voyage.carrier;
+                    }
+                }
+            });
+        }
 
         // Logic for vehicle search and selection persistence
         const searchInput = document.getElementById('shipment-vehicle-search');
@@ -6365,8 +6472,13 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     </div>
                                     <div class="form-row">
                                         <div class="form-group">
-                                            <label>Voyage (Groupement)</label>
-                                            <input type="text" name="voyage" value="${shipment.voyage || ''}" class="glass-input">
+                                            <label>Voyage (Officiel)</label>
+                                            <select name="voyageId" class="glass-select" id="shipment-voyage-select">
+                                                <option value="">-- Aucun / Legacy (${shipment.voyage || 'SANS NOM'}) --</option>
+                                                ${(StorageService.get(STORAGE_KEYS.VOYAGES) || []).map(v => `
+                                                    <option value="${v.id}" ${shipment.voyageId === v.id ? 'selected' : ''}>${v.name}</option>
+                                                `).join('')}
+                                            </select>
                                         </div>
                                         <div class="form-group">
                                             <label>Date d'expédition</label>
@@ -6475,6 +6587,27 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                             `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // Add Voyage Auto-fill logic
+        const voyageSelect = document.getElementById('shipment-voyage-select');
+        const form = document.getElementById('shipment-form');
+        if (voyageSelect) {
+            voyageSelect.addEventListener('change', (e) => {
+                const voyageId = parseInt(e.target.value);
+                if (voyageId) {
+                    const voyage = (StorageService.get(STORAGE_KEYS.VOYAGES) || []).find(v => v.id === voyageId);
+                    if (voyage) {
+                        if (voyage.loadingPort) form.elements['loadingPort'].value = voyage.loadingPort;
+                        if (voyage.destination) form.elements['destination'].value = voyage.destination;
+                        if (voyage.etd) form.elements['etd'].value = this.formatDateForInput(voyage.etd);
+                        if (voyage.eta) form.elements['eta'].value = this.formatDateForInput(voyage.eta);
+                        if (voyage.arrivalDate) form.elements['arrivalDate'].value = this.formatDateForInput(voyage.arrivalDate);
+                        if (voyage.status) form.elements['status'].value = voyage.status;
+                        if (voyage.carrier) form.elements['carrier'].value = voyage.carrier;
+                    }
+                }
+            });
+        }
+
         document.getElementById('shipment-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleShipmentSubmission(new FormData(e.target));
@@ -6502,6 +6635,15 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
             }
 
             const sanitizeDate = (val) => (val && val.trim() !== '' ? val : null);
+            const voyageId = formData.get('voyageId') ? parseInt(formData.get('voyageId')) : null;
+            let voyageName = '';
+            if (voyageId) {
+                const voyage = (StorageService.get(STORAGE_KEYS.VOYAGES) || []).find(v => v.id === voyageId);
+                if (voyage) voyageName = voyage.name;
+            } else {
+                voyageName = formData.get('voyage') || '';
+            }
+
             const shipmentData = {
                 id: shipmentId || `SHP-${Date.now().toString().slice(-6)}`,
                 containerNumber: formData.get('containerNumber'),
@@ -6516,7 +6658,8 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 carrier: formData.get('carrier'),
                 status: formData.get('status'),
                 forwarder: formData.get('forwarder'),
-                voyage: formData.get('voyage'),
+                voyage: voyageName,
+                voyageId: voyageId,
                 isArchived: formData.get('isArchived') === 'true' || false,
                 arrivalDate: sanitizeDate(formData.get('arrivalDate')),
                 customsClearanceDate: sanitizeDate(formData.get('customsClearanceDate')),
@@ -6583,6 +6726,128 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = shipmentId ? 'Enregistrer les modifications' : "Lancer l'expédition";
             }
+        }
+    },
+
+    showVoyageModal(id = null) {
+        const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
+        const voyage = id ? voyages.find(v => v.id === id || v.id === parseInt(id)) : null;
+
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2>${voyage ? 'Modifier le Voyage' : 'Nouveau Voyage'}</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <form id="voyage-form">
+                        ${voyage ? `<input type="hidden" name="id" value="${voyage.id}">` : ''}
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nom du Voyage (Référence) <span style="color: var(--danger);">*</span></label>
+                                <input type="text" name="name" value="${voyage ? voyage.name : ''}" required class="glass-input" placeholder="ex: FLORENCE-001">
+                            </div>
+                            <div class="form-group">
+                                <label>Navire</label>
+                                <input type="text" name="vesselName" value="${voyage ? voyage.vesselName || '' : ''}" class="glass-input" placeholder="ex: MSC AMBRA">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Compagnie / Transporteur</label>
+                                <input type="text" name="carrier" value="${voyage ? voyage.carrier || '' : ''}" class="glass-input" placeholder="ex: MAERSK">
+                            </div>
+                            <div class="form-group">
+                                <label>Statut</label>
+                                <select name="status" class="glass-select">
+                                    <option value="Planifié" ${voyage?.status === 'Planifié' ? 'selected' : ''}>Planifié</option>
+                                    <option value="En Route" ${voyage?.status === 'En Route' ? 'selected' : ''}>En Route</option>
+                                    <option value="Arrivé" ${voyage?.status === 'Arrivé' ? 'selected' : ''}>Arrivé</option>
+                                    <option value="Terminé" ${voyage?.status === 'Terminé' ? 'selected' : ''}>Terminé</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Port de Chargement</label>
+                                <input type="text" name="loadingPort" value="${voyage ? voyage.loadingPort || '' : ''}" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Port de Destination</label>
+                                <input type="text" name="destination" value="${voyage ? voyage.destination || '' : ''}" class="glass-input">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ETD (Départ)</label>
+                                <input type="date" name="etd" value="${this.formatDateForInput(voyage?.etd)}" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label>ETA (Arrivée prévue)</label>
+                                <input type="date" name="eta" value="${this.formatDateForInput(voyage?.eta)}" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Date Arrivée Réelle</label>
+                                <input type="date" name="arrivalDate" value="${this.formatDateForInput(voyage?.arrivalDate)}" class="glass-input">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Notes / Description</label>
+                            <textarea name="notes" class="glass-input" rows="3">${voyage ? voyage.notes || '' : ''}</textarea>
+                        </div>
+                        ${voyage ? `
+                        <div class="form-group">
+                            <label class="checkbox-item" style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" name="propagateToShipments" value="true" checked>
+                                <span>Mettre à jour les dates/ports de toutes les expéditions liées</span>
+                            </label>
+                        </div>` : ''}
+                        <div class="modal-footer">
+                            <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
+                            <button type="submit" class="btn-primary">${voyage ? 'Enregistrer' : 'Créer le Voyage'}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.getElementById('voyage-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleVoyageSubmission(new FormData(e.target));
+        });
+    },
+
+    async handleVoyageSubmission(formData) {
+        try {
+            const id = formData.get('id');
+            const voyageData = {
+                name: formData.get('name'),
+                vesselName: formData.get('vesselName'),
+                carrier: formData.get('carrier'),
+                loadingPort: formData.get('loadingPort'),
+                destination: formData.get('destination'),
+                etd: formData.get('etd') || null,
+                eta: formData.get('eta') || null,
+                arrivalDate: formData.get('arrivalDate') || null,
+                status: formData.get('status'),
+                notes: formData.get('notes'),
+                propagateToShipments: formData.get('propagateToShipments') === 'true'
+            };
+
+            if (id) {
+                await StorageService.update(STORAGE_KEYS.VOYAGES, parseInt(id), voyageData);
+                this.showToast('Voyage mis à jour', 'success');
+            } else {
+                await StorageService.add(STORAGE_KEYS.VOYAGES, voyageData);
+                this.showToast('Voyage créé avec succès', 'success');
+            }
+
+            this.closeModal();
+            this.renderView(this.currentView);
+        } catch (error) {
+            console.error("Error saving voyage:", error);
+            this.showToast("Erreur lors de l'enregistrement du voyage", "error");
         }
     },
 

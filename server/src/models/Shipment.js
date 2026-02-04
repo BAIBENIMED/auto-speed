@@ -68,7 +68,16 @@ const Shipment = sequelize.define('Shipment', {
         field: 'is_archived'
     },
     voyage: {
-        type: DataTypes.STRING(100)
+        type: DataTypes.STRING(100) // Keeping string for legacy/fallback
+    },
+    voyageId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'voyages',
+            key: 'id'
+        },
+        field: 'voyage_id'
     },
     currentLat: {
         type: DataTypes.DECIMAL(10, 8),
