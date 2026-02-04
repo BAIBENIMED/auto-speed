@@ -6781,7 +6781,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Compagnie / Transporteur</label>
-                                <input type="text" name="carrier" value="${voyage ? voyage.carrier || '' : ''}" class="glass-input" placeholder="ex: MAERSK">
+                                <select name="carrier" class="glass-select">
+                                    <option value="">-- Sélectionner --</option>
+                                    ${StorageService.get(STORAGE_KEYS.CARRIERS).map(c => `
+                                        <option value="${c}" ${voyage?.carrier === c ? 'selected' : ''}>${c}</option>
+                                    `).join('')}
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label>N° de BL (Tracking)</label>
