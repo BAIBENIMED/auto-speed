@@ -126,122 +126,140 @@ app.get('/api/diag', async (req, res) => {
             message: error.message,
             stack: error.stack
         };
-        res.status(500).json(diag);
-    }
-});
+        // Diagnostic endpoint for Database Schema
+        app.get('/api/db-verify', async (req, res) => {
+            try {
+                const [tables] = await sequelize.query("SHOW TABLES");
+                const tableList = tables.map(t => Object.values(t)[0]);
 
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({ success: false, message: 'Route non trouvée' });
-});
+                let schemaInfo = { tables: tableList };
 
-// Error handler
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ success: false, message: 'Erreur serveur' });
-});
-
-// Database sync and server start (Optimized for Cloud)
-const startServer = async () => {
-    // 1. Start listening IMMEDIATELY (Crucial for Render/Cloud health checks)
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`-----------------------------------------\n`);
-
-        // Start Maritime Tracking Service
-
-    });
-
-    // 2. Initialize Database in background (Non-blocking)
-    try {
-        console.log('⏳ Initialisation de la base de données...');
-
-        // Sync models
-        try {
-            await sequelize.sync({ alter: true });
-            console.log('✅ Base de données synchronisée (MODE: ALTER)');
-        } catch (syncError) {
-            if (syncError.name === 'SequelizeDatabaseError' && syncError.parent && syncError.parent.code === 'ER_TOO_MANY_KEYS') {
-                console.warn('⚠️ [DB Warning] Trop d\'index détectés sur certaines tables. La synchronisation automatique a été ignorée pour éviter de bloquer le serveur.');
-            } else {
-                console.error('❌ [DB Error] Erreur de synchronisation schema:', syncError.message);
-            }
-        }
-
-        // Fail-safe: Ensure specific tables exist (in case global sync failed)
-        try {
-            await models.Notification.sync({ alter: true });
-            console.log('🔧 Table Notification vérifiée/créée (Fail-safe).');
-            await models.Voyage.sync({ alter: true });
-            console.log('🔧 Table Voyage vérifiée/créée (Fail-safe).');
-        } catch (syncErr) {
-            console.error('❌ Echec Fail-safe tables:', syncErr.message);
-        }
-
-        // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
-        try {
-            const columnsToEnsure = [
-                { table: 'shipments', name: 'current_lat', def: 'DECIMAL(10, 8)' },
-                { table: 'shipments', name: 'current_lng', def: 'DECIMAL(11, 8)' },
-                { table: 'shipments', name: 'speed', def: 'DECIMAL(5, 2)' },
-                { table: 'shipments', name: 'course', def: 'INTEGER' },
-                { table: 'shipments', name: 'last_update', def: 'DATETIME' },
-                { table: 'shipments', name: 'ship_status', def: 'VARCHAR(100)' },
-                { table: 'shipments', name: 'voyage', def: 'VARCHAR(100)' },
-                { table: 'shipments', name: 'is_tracking_active', def: 'TINYINT(1) DEFAULT 0' },
-                { table: 'shipments', name: 'tracking_history', def: 'LONGTEXT' },
-                { table: 'shipments', name: 'voyage_id', def: 'INTEGER' }
-            ];
-
-            for (const col of columnsToEnsure) {
-                try {
-                    const [results] = await sequelize.query(`SHOW COLUMNS FROM ${col.table} LIKE '${col.name}'`);
-                    if (results.length === 0) {
-                        console.log(`🔧 Adding missing column ${col.name} to ${col.table}...`);
-                        await sequelize.query(`ALTER TABLE ${col.table} ADD COLUMN ${col.name} ${col.def}`);
-                    }
-                } catch (colErr) {
-                    console.error(`⚠️ Could not verify/add column ${col.name}:`, colErr.message);
+                if (tableList.includes('voyages')) {
+                    const [columns] = await sequelize.query("DESCRIBE voyages");
+                    schemaInfo.voyage_columns = columns;
                 }
+
+                const [shipmentCols] = await sequelize.query("DESCRIBE shipments");
+                schemaInfo.shipment_columns = shipmentCols;
+
+                res.json({ success: true, ...schemaInfo });
+            } catch (error) {
+                res.status(500).json({ success: false, error: error.message });
             }
-        } catch (schemaErr) {
-            console.error('❌ Schema fix error:', schemaErr);
-        }
+        });
 
-        // Auto-seed Roles if empty
-        const rolesCount = await models.Role.count();
-        if (rolesCount === 0) {
-            console.log('🌱 Seeding initial roles...');
-            await models.Role.bulkCreate([
-                { id: 'admin', name: 'Administrateur', permissions: ['dashboard', 'clients', 'orders', 'vehicles', 'tracking', 'shipments', 'cash', 'settings', 'verification', 'audit'] },
-                { id: 'manager', name: 'Manager', permissions: ['dashboard', 'clients', 'orders', 'vehicles', 'tracking', 'shipments', 'cash', 'verification'] },
-                { id: 'commercial', name: 'Commercial', permissions: ['dashboard', 'clients', 'orders'] }
-            ]);
-            console.log('✅ Rôles créés avec succès');
-        }
+        // 404 handler
+        app.use((req, res) => {
+            res.status(404).json({ success: false, message: 'Route non trouvée' });
+        });
 
-        // Auto-seed Admin if empty
-        const adminExists = await models.User.findOne({ where: { username: 'admin' } });
-        if (!adminExists) {
-            console.log('🌱 Seeding admin user...');
-            await models.User.create({
-                id: 'admin-' + Date.now(),
-                username: 'admin',
-                password: 'admin123',
-                name: 'Administrateur',
-                roleId: 'admin'
+        // Error handler
+        app.use((err, req, res, next) => {
+            console.error(err.stack);
+            res.status(500).json({ success: false, message: 'Erreur serveur' });
+        });
+
+        // Database sync and server start (Optimized for Cloud)
+        const startServer = async () => {
+            // 1. Start listening IMMEDIATELY (Crucial for Render/Cloud health checks)
+            app.listen(PORT, '0.0.0.0', () => {
+                console.log(`-----------------------------------------\n`);
+
+                // Start Maritime Tracking Service
+
             });
-            console.log('✅ Utilisateur admin créé (Login: admin / admin123)');
-        }
 
-        console.log('🏁 Initialisation terminée et prête.');
+            // 2. Initialize Database in background (Non-blocking)
+            try {
+                console.log('⏳ Initialisation de la base de données...');
 
-    } catch (err) {
-        console.error('❌ ERREUR INITIALISATION BACKGROUND:');
-        console.error(err);
-        // Note: We don't kill the process because Render might still serve static files/health
-    }
-};
+                // Sync models
+                try {
+                    await sequelize.sync({ alter: true });
+                    console.log('✅ Base de données synchronisée (MODE: ALTER)');
+                } catch (syncError) {
+                    if (syncError.name === 'SequelizeDatabaseError' && syncError.parent && syncError.parent.code === 'ER_TOO_MANY_KEYS') {
+                        console.warn('⚠️ [DB Warning] Trop d\'index détectés sur certaines tables. La synchronisation automatique a été ignorée pour éviter de bloquer le serveur.');
+                    } else {
+                        console.error('❌ [DB Error] Erreur de synchronisation schema:', syncError.message);
+                    }
+                }
 
-startServer();
+                // Fail-safe: Ensure specific tables exist (in case global sync failed)
+                try {
+                    await models.Notification.sync({ alter: true });
+                    console.log('🔧 Table Notification vérifiée/créée (Fail-safe).');
+                    await models.Voyage.sync({ alter: true });
+                    console.log('🔧 Table Voyage vérifiée/créée (Fail-safe).');
+                } catch (syncErr) {
+                    console.error('❌ Echec Fail-safe tables:', syncErr.message);
+                }
 
-module.exports = app;
+                // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
+                try {
+                    const columnsToEnsure = [
+                        { table: 'shipments', name: 'current_lat', def: 'DECIMAL(10, 8)' },
+                        { table: 'shipments', name: 'current_lng', def: 'DECIMAL(11, 8)' },
+                        { table: 'shipments', name: 'speed', def: 'DECIMAL(5, 2)' },
+                        { table: 'shipments', name: 'course', def: 'INTEGER' },
+                        { table: 'shipments', name: 'last_update', def: 'DATETIME' },
+                        { table: 'shipments', name: 'ship_status', def: 'VARCHAR(100)' },
+                        { table: 'shipments', name: 'voyage', def: 'VARCHAR(100)' },
+                        { table: 'shipments', name: 'is_tracking_active', def: 'TINYINT(1) DEFAULT 0' },
+                        { table: 'shipments', name: 'tracking_history', def: 'LONGTEXT' },
+                        { table: 'shipments', name: 'voyage_id', def: 'INTEGER' }
+                    ];
+
+                    for (const col of columnsToEnsure) {
+                        try {
+                            const [results] = await sequelize.query(`SHOW COLUMNS FROM ${col.table} LIKE '${col.name}'`);
+                            if (results.length === 0) {
+                                console.log(`🔧 Adding missing column ${col.name} to ${col.table}...`);
+                                await sequelize.query(`ALTER TABLE ${col.table} ADD COLUMN ${col.name} ${col.def}`);
+                            }
+                        } catch (colErr) {
+                            console.error(`⚠️ Could not verify/add column ${col.name}:`, colErr.message);
+                        }
+                    }
+                } catch (schemaErr) {
+                    console.error('❌ Schema fix error:', schemaErr);
+                }
+
+                // Auto-seed Roles if empty
+                const rolesCount = await models.Role.count();
+                if (rolesCount === 0) {
+                    console.log('🌱 Seeding initial roles...');
+                    await models.Role.bulkCreate([
+                        { id: 'admin', name: 'Administrateur', permissions: ['dashboard', 'clients', 'orders', 'vehicles', 'tracking', 'shipments', 'cash', 'settings', 'verification', 'audit'] },
+                        { id: 'manager', name: 'Manager', permissions: ['dashboard', 'clients', 'orders', 'vehicles', 'tracking', 'shipments', 'cash', 'verification'] },
+                        { id: 'commercial', name: 'Commercial', permissions: ['dashboard', 'clients', 'orders'] }
+                    ]);
+                    console.log('✅ Rôles créés avec succès');
+                }
+
+                // Auto-seed Admin if empty
+                const adminExists = await models.User.findOne({ where: { username: 'admin' } });
+                if (!adminExists) {
+                    console.log('🌱 Seeding admin user...');
+                    await models.User.create({
+                        id: 'admin-' + Date.now(),
+                        username: 'admin',
+                        password: 'admin123',
+                        name: 'Administrateur',
+                        roleId: 'admin'
+                    });
+                    console.log('✅ Utilisateur admin créé (Login: admin / admin123)');
+                }
+
+                console.log('🏁 Initialisation terminée et prête.');
+
+            } catch (err) {
+                console.error('❌ ERREUR INITIALISATION BACKGROUND:');
+                console.error(err);
+                // Note: We don't kill the process because Render might still serve static files/health
+            }
+        };
+
+        startServer();
+
+        module.exports = app;
