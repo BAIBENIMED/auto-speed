@@ -39,6 +39,7 @@ exports.updateVoyage = async (req, res) => {
             if (req.body.loadingPort) updates.loadingPort = req.body.loadingPort;
             if (req.body.destination) updates.destination = req.body.destination;
             if (req.body.carrier) updates.carrier = req.body.carrier;
+            if (req.body.blNumber) updates.blNumber = req.body.blNumber;
             // Also update legacy voyage string field
             if (req.body.name) updates.voyage = req.body.name;
 

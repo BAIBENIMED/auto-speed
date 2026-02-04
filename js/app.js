@@ -5339,6 +5339,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 eta: v.eta,
                 arrivalDate: v.arrivalDate,
                 status: v.status,
+                blNumber: v.blNumber,
                 lastUpdate
             };
         });
@@ -5427,6 +5428,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                             <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 5px;">
                                                 <i class="fas fa-ship"></i> ${Array.from(v.vessels).join(', ') || 'N/A'}
                                             </div>
+                                            ${v.blNumber ? `
+                                            <div style="font-size: 0.75rem; color: var(--accent-blue); margin-top: 2px;">
+                                                <i class="fas fa-barcode"></i> BL: ${v.blNumber}
+                                            </div>` : ''}
                                         </td>
                                         <td>
                                             <div style="font-size: 0.8rem; color: var(--accent-blue);">
@@ -6779,6 +6784,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                 <input type="text" name="carrier" value="${voyage ? voyage.carrier || '' : ''}" class="glass-input" placeholder="ex: MAERSK">
                             </div>
                             <div class="form-group">
+                                <label>N° de BL (Tracking)</label>
+                                <input type="text" name="blNumber" value="${voyage ? voyage.blNumber || '' : ''}" class="glass-input" placeholder="ex: BL123456789">
+                            </div>
+                            <div class="form-group">
                                 <label>Statut</label>
                                 <select name="status" class="glass-select">
                                     <option value="Planifié" ${voyage?.status === 'Planifié' ? 'selected' : ''}>Planifié</option>
@@ -6852,6 +6861,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 eta: formData.get('eta') || null,
                 arrivalDate: formData.get('arrivalDate') || null,
                 status: formData.get('status'),
+                blNumber: formData.get('blNumber'),
                 notes: formData.get('notes'),
                 propagateToShipments: formData.get('propagateToShipments') === 'true'
             };

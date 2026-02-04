@@ -199,6 +199,7 @@ const startServer = async () => {
                 CREATE TABLE IF NOT EXISTS voyages (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     name VARCHAR(100) NOT NULL UNIQUE,
+                    bl_number VARCHAR(100),
                     vesselName VARCHAR(100),
                     carrier VARCHAR(100),
                     loadingPort VARCHAR(100),

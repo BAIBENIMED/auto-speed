@@ -12,6 +12,11 @@ const Voyage = sequelize.define('Voyage', {
         allowNull: false,
         unique: true
     },
+    blNumber: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        field: 'bl_number'
+    },
     vesselName: {
         type: DataTypes.STRING(100),
         allowNull: true
