@@ -191,7 +191,14 @@ const StorageService = {
                     await ApiService.createSupplier(item);
                     break;
                 case STORAGE_KEYS.VOYAGES:
-                    await ApiService.createVoyage(item);
+                    res = await ApiService.createVoyage(item);
+                    if (res && res.success && res.data) {
+                        const localVoyages = this.get(key);
+                        if (localVoyages.length > 0 && localVoyages[0].name === item.name) {
+                            localVoyages[0] = res.data;
+                            localStorage.setItem(key, JSON.stringify(localVoyages));
+                        }
+                    }
                     break;
             }
 

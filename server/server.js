@@ -244,7 +244,18 @@ const startServer = async () => {
                 { table: 'shipments', name: 'voyage', def: 'VARCHAR(100)' },
                 { table: 'shipments', name: 'is_tracking_active', def: 'TINYINT(1) DEFAULT 0' },
                 { table: 'shipments', name: 'tracking_history', def: 'LONGTEXT' },
-                { table: 'shipments', name: 'voyage_id', def: 'INTEGER' }
+                { table: 'shipments', name: 'voyage_id', def: 'INTEGER' },
+                { table: 'voyages', name: 'bl_number', def: 'VARCHAR(100)' },
+                { table: 'voyages', name: 'vesselName', def: 'VARCHAR(100)' },
+                { table: 'voyages', name: 'carrier', def: 'VARCHAR(100)' },
+                { table: 'voyages', name: 'loadingPort', def: 'VARCHAR(100)' },
+                { table: 'voyages', name: 'destination', def: 'VARCHAR(100)' },
+                { table: 'voyages', name: 'etd', def: 'DATE' },
+                { table: 'voyages', name: 'eta', def: 'DATE' },
+                { table: 'voyages', name: 'arrivalDate', def: 'DATE' },
+                { table: 'voyages', name: 'notes', def: 'TEXT' },
+                { table: 'voyages', name: 'active', def: 'TINYINT(1) DEFAULT 1' },
+                { table: 'voyages', name: 'status', def: 'VARCHAR(50) DEFAULT "Planifié"' }
             ];
 
             for (const col of columnsToEnsure) {
