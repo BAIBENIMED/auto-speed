@@ -215,6 +215,19 @@ const startServer = async () => {
                 ) ENGINE=InnoDB;
             `);
             console.log('🔧 Table Voyage vérifiée/créée (Raw SQL Fail-safe).');
+
+            // Ensure bl_number exists (for existing tables)
+            try {
+                await sequelize.query(`ALTER TABLE voyages ADD COLUMN bl_number VARCHAR(100) AFTER name;`);
+                console.log('🔧 Colonne bl_number ajoutée à la table voyages.');
+            } catch (alterErr) {
+                // Ignore if column already exists
+                if (alterErr.message.includes('Duplicate column name')) {
+                    console.log('✅ Colonne bl_number déjà présente dans voyages.');
+                } else {
+                    console.warn('⚠️ Erreur lors de la vérification de bl_number:', alterErr.message);
+                }
+            }
         } catch (syncErr) {
             console.error('❌ Echec Fail-safe tables:', syncErr.message);
         }
