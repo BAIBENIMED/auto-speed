@@ -5414,11 +5414,12 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
             return `
                                     <tr>
-                                        <td>
-                                            <div style="display: flex; align-items: center; gap: 8px;">
-                                                <div style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">${v.name}</div>
-                                                ${v.isEntity ? '<span class="badge" style="background: var(--accent-blue);">OFFICIEL</span>' : '<span class="badge">LEGACY</span>'}
-                                            </div>
+                                        <td style="position: relative;">
+                                            <div style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">${v.name}</div>
+                                            ${v.isEntity ?
+                    `<span style="position: absolute; top: 5px; right: 5px; background: var(--accent-blue); color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;">OFFICIEL</span>` :
+                    `<span style="position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid var(--border-glass); font-size: 0.55rem; padding: 1px 4px; border-radius: 3px; font-weight: 600;">LEGACY</span>`
+                }
                                             <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 5px;">
                                                 <i class="fas fa-ship"></i> ${Array.from(v.vessels).join(', ') || 'N/A'}
                                             </div>
