@@ -193,8 +193,27 @@ const startServer = async () => {
         try {
             await models.Notification.sync({ alter: true });
             console.log('🔧 Table Notification vérifiée/créée (Fail-safe).');
-            await models.Voyage.sync({ alter: true });
-            console.log('🔧 Table Voyage vérifiée/créée (Fail-safe).');
+
+            // Raw SQL Fail-safe for Voyages (Sequelize sync might be ignored due to index warnings)
+            await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS voyages (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL UNIQUE,
+                    vesselName VARCHAR(100),
+                    carrier VARCHAR(100),
+                    loadingPort VARCHAR(100),
+                    destination VARCHAR(100),
+                    etd DATE,
+                    eta DATE,
+                    arrivalDate DATE,
+                    status VARCHAR(50) DEFAULT 'Planifié',
+                    active TINYINT(1) DEFAULT 1,
+                    notes TEXT,
+                    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB;
+            `);
+            console.log('🔧 Table Voyage vérifiée/créée (Raw SQL Fail-safe).');
         } catch (syncErr) {
             console.error('❌ Echec Fail-safe tables:', syncErr.message);
         }
