@@ -171,8 +171,10 @@ const startServer = async () => {
         try {
             await models.Notification.sync({ alter: true });
             console.log('🔧 Table Notification vérifiée/créée (Fail-safe).');
-        } catch (notifErr) {
-            console.error('❌ Echec Fail-safe Notification:', notifErr.message);
+            await models.Voyage.sync({ alter: true });
+            console.log('🔧 Table Voyage vérifiée/créée (Fail-safe).');
+        } catch (syncErr) {
+            console.error('❌ Echec Fail-safe tables:', syncErr.message);
         }
 
         // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
