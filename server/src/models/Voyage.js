@@ -41,7 +41,7 @@ const Voyage = sequelize.define('Voyage', {
         allowNull: true
     },
     status: {
-        type: DataTypes.ENUM('Planifié', 'En Route', 'Arrivé', 'Terminé'),
+        type: DataTypes.STRING(50),
         defaultValue: 'Planifié'
     },
     active: {

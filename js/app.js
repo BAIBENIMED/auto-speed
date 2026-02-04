@@ -112,12 +112,16 @@ const app = {
 
         // Periodic background sync (every 60 seconds)
         setInterval(async () => {
-            const session = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-            if (session && session.token && this.appContainer?.style.display !== 'none') {
-                const refreshed = await StorageService.syncAll();
-                if (refreshed && this.currentView !== 'login') {
-                    this.renderView(this.currentView);
+            try {
+                const session = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+                if (session && session.token && this.appContainer?.style.display !== 'none') {
+                    const refreshed = await StorageService.syncAll();
+                    if (refreshed && this.currentView !== 'login') {
+                        this.renderView(this.currentView);
+                    }
                 }
+            } catch (err) {
+                console.warn("Background sync failed:", err.message);
             }
         }, 60000);
     },
@@ -5466,6 +5470,22 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     </table>
                 </div>
             `;
+    },
+
+    async refreshAllVoyages() {
+        this.showToast("Actualisation des voyages en cours...", "info");
+        try {
+            const success = await StorageService.syncAll();
+            if (success) {
+                this.renderView('voyages');
+                this.showToast("Voyages actualisés avec succès.", "success");
+            } else {
+                this.showToast("Échec de l'actualisation.", "warning");
+            }
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur lors de la synchronisation.", "danger");
+        }
     },
 
 

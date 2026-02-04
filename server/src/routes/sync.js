@@ -48,6 +48,9 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             models.Voyage.findAll({
                 include: [{ model: models.Shipment, as: 'shipments' }],
                 order: [['createdAt', 'DESC']]
+            }).catch(err => {
+                console.warn('⚠️ Could not fetch voyages (Table missing?):', err.message);
+                return [];
             })
         ]);
 
