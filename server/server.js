@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cron = require('node-cron');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -304,6 +305,27 @@ const startServer = async () => {
         }
 
         console.log('🏁 Initialisation terminée et prête.');
+
+        // 3. Setup Automation (Cron Jobs)
+        const voyageTrackingService = require('./src/services/voyageTrackingService');
+
+        // Refresh all active voyages every 6 hours
+        // Cron: 0 */6 * * *
+        cron.schedule('0 */6 * * *', () => {
+            voyageTrackingService.refreshAllActive().catch(err => {
+                console.error('[CRON] Voyage Refresh Error:', err.message);
+            });
+        });
+
+        // Check for stale voyages every hour
+        // Cron: 0 * * * *
+        cron.schedule('0 * * * *', () => {
+            voyageTrackingService.checkStaleVoyages().catch(err => {
+                console.error('[CRON] Stale Check Error:', err.message);
+            });
+        });
+
+        console.log('⏰ Tâches automatisées (Cron) activées : Actualisation (6h) + Alerte retards (1h)');
 
     } catch (err) {
         console.error('❌ ERREUR INITIALISATION BACKGROUND:');
