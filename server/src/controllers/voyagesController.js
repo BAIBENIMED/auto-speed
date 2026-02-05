@@ -15,6 +15,15 @@ exports.getAllVoyages = async (req, res) => {
 
 exports.createVoyage = async (req, res) => {
     try {
+        // Check if name already exists
+        const existing = await Voyage.findOne({ where: { name: req.body.name } });
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: `Un voyage nommé "${req.body.name}" existe déjà en base de données.`
+            });
+        }
+
         const voyage = await Voyage.create(req.body);
         res.status(201).json(voyage);
     } catch (error) {
