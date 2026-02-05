@@ -5413,7 +5413,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 return sum + vehicles.filter(veh => veh.shipmentId === s.id).length;
             }, 0);
             const safeName = v.name.replace(/'/g, "\\'");
-            const hasHistory = (v.trackingHistory && v.trackingHistory.length > 20) || v.shipments.some(s => s.trackingHistory && s.trackingHistory.length > 20);
+            const hasHistory = (v.trackingHistory && v.trackingHistory.length > 5) || v.shipments.some(s => s.trackingHistory && s.trackingHistory.length > 5);
             const satAction = `app.trackVoyage('${safeName}')`;
             const histAction = `app.showVoyageTrackingHistory('${safeName}')`;
             const histColor = hasHistory ? 'var(--primary)' : 'var(--text-dim)';
@@ -9787,55 +9787,70 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
 
     showVoyageTrackingHistory(voyageName) {
-        const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
-        const voyageEntity = voyages.find(v => v.name === voyageName);
+        console.log("🔍 Tentative d'affichage de l'historique pour:", voyageName);
+        try {
+            const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
+            const voyageEntity = voyages.find(v => v.name === voyageName || v.id == voyageName);
 
-        const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
-            .filter(s => s.voyage === voyageName && !s.isArchived);
+            const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+                .filter(s => s.voyage === voyageName || (voyageEntity && s.voyageId === voyageEntity.id));
 
-        let events = [];
-        let source = 'Données Satellite';
-        let count = shipments.length;
+            console.log("📊 Données trouvées:", {
+                voyageFound: !!voyageEntity,
+                shipmentsCount: shipments.length
+            });
 
-        // 1. Try to get history from the Voyage Entity itself
-        if (voyageEntity && voyageEntity.trackingHistory) {
-            try {
-                events = JSON.parse(voyageEntity.trackingHistory);
-                if (!Array.isArray(events)) events = [];
-                source = voyageEntity.shipStatus || 'Voyage Officiel';
-            } catch (e) {
-                console.error("Failed to parse voyage tracking history", e);
-            }
-        }
+            let events = [];
+            let source = 'Données Satellite';
+            let count = shipments.length;
 
-        // 2. Fallback to shipments if no events found yet
-        if (events.length === 0 && shipments.length > 0) {
-            const shipmentWithHistory = shipments.find(s => s.trackingHistory && s.trackingHistory.length > 5);
-            if (shipmentWithHistory) {
+            // 1. Try Voyage Entity
+            if (voyageEntity && voyageEntity.trackingHistory) {
                 try {
-                    events = JSON.parse(shipmentWithHistory.trackingHistory);
-                    if (!Array.isArray(events)) events = [];
-                    source = shipmentWithHistory.shipStatus || source;
+                    const parsed = typeof voyageEntity.trackingHistory === 'string' ?
+                        JSON.parse(voyageEntity.trackingHistory) : voyageEntity.trackingHistory;
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        events = parsed;
+                        source = voyageEntity.shipStatus || 'Suivi Voyage';
+                    }
                 } catch (e) {
-                    console.error("Failed to parse shipment tracking history", e);
+                    console.error("❌ Erreur parse voyage history:", e);
                 }
             }
-        }
 
-        const modalHtml = `
+            // 2. Try Shipments if still empty
+            if (events.length === 0) {
+                const shipmentWithHistory = shipments.find(s => s.trackingHistory && s.trackingHistory.length > 5);
+                if (shipmentWithHistory) {
+                    try {
+                        const parsed = typeof shipmentWithHistory.trackingHistory === 'string' ?
+                            JSON.parse(shipmentWithHistory.trackingHistory) : shipmentWithHistory.trackingHistory;
+                        if (Array.isArray(parsed)) {
+                            events = parsed;
+                            source = shipmentWithHistory.shipStatus || source;
+                        }
+                    } catch (e) {
+                        console.error("❌ Erreur parse shipment history:", e);
+                    }
+                }
+            }
+
+            console.log("✅ Événements à afficher:", events.length);
+
+            const modalHtml = `
                 <div class="modal-overlay" onclick="app.closeModal()">
                     <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 700px; max-width: 95vw;">
                         <div class="modal-header">
                             <div>
-                                <h2>Historique de Tracking: ${voyageName}</h2>
+                                <h2 style="margin:0;">Historique: ${voyageName}</h2>
                                 <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;">
                                     Source: ${source} | ${count} conteneur(s)
                                 </p>
                             </div>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
-                        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
-                            <div class="tracking-timeline" style="padding: 20px 0;">
+                        <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 20px;">
+                            <div class="tracking-timeline">
                                 ${events.length > 0 ? events.map((event, index) => `
                                     <div class="timeline-item" style="display: flex; gap: 20px; margin-bottom: 25px; position: relative;">
                                         ${index !== events.length - 1 ? `<div style="position: absolute; left: 14px; top: 30px; bottom: -20px; width: 2px; background: var(--border-glass);"></div>` : ''}
@@ -9856,24 +9871,25 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                     <div style="text-align: center; padding: 40px; color: var(--text-dim);">
                                         <i class="fas fa-satellite-dish" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
                                         <p>Aucun historique de suivi disponible.</p>
-                                        <p style="font-size: 0.85rem;">Cliquez sur "Rafraîchir Satellite" pour lancer une recherche.</p>
+                                        <p style="font-size: 0.85rem;">Cliquez sur "Actualiser" pour récupérer les données.</p>
                                     </div>
                                 `}
                             </div>
                         </div>
-                        <div class="modal-footer" style="padding-top: 20px; border-top: 1px solid var(--border-glass);">
-                            <div style="flex: 1; font-size: 0.75rem; color: var(--text-dim);">
-                                <i class="fas fa-info-circle"></i> Données fournies par Sinay/Safecube.
-                            </div>
+                        <div class="modal-footer" style="padding-top: 20px; border-top: 1px solid var(--border-glass); display: flex; justify-content: flex-end; gap: 10px;">
                             <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
                             <button class="btn-primary" onclick="app.trackVoyage('${voyageName.replace(/'/g, "\\'")}')">
-                                <i class="fas fa-sync"></i> Rafraîchir Satellite
+                                <i class="fas fa-sync"></i> Actualiser
                             </button>
                         </div>
                     </div>
                 </div>
             `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        } catch (err) {
+            console.error("💥 Erreur critique showVoyageTrackingHistory:", err);
+            this.showToast("Erreur d'affichage: " + err.message, "danger");
+        }
     },
 
     async trackVoyage(voyageName) {
