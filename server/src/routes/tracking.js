@@ -5,6 +5,33 @@ const { Shipment, Vehicle, Notification, Voyage } = require('../models');
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 const { Op } = require('sequelize');
 
+/**
+ * Maps raw tracking status to application-defined voyage status
+ */
+function mapTrackingStatus(rawStatus) {
+    if (!rawStatus) return null;
+    const s = rawStatus.toLowerCase();
+
+    // Map "In Transit" aliases
+    if (s.includes('transit') || s.includes('en mer') || s.includes('loaded') ||
+        s.includes('departure') || s.includes('route') || s.includes('sailing')) {
+        return 'En Route';
+    }
+
+    // Map "Arrived" aliases
+    if (s.includes('arriv') || s.includes('unloaded') || s.includes('pod') ||
+        s.includes('gate out') || s.includes('delivered') || s.includes('completed')) {
+        return 'Arrivé';
+    }
+
+    // Map "Planned" aliases
+    if (s.includes('plan') || s.includes('sched') || s.includes('gate in') || s.includes('prep')) {
+        return 'Planifié';
+    }
+
+    return null; // Don't override if unknown
+}
+
 // Track a specific container or BL
 router.get('/container/:number', async (req, res) => {
     try {
@@ -63,11 +90,13 @@ router.get('/voyage/:voyageName', async (req, res) => {
 
         console.log(`[Tracking] Tracking voyage ${voyageName} via ${identifier}`);
         const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL);
+        const mappedStatus = mapTrackingStatus(trackingInfo.status);
+        console.log(`[Tracking] Raw status: ${trackingInfo.status} -> Mapped status: ${mappedStatus}`);
 
         // PERSISTENCE: Save on Voyage Entity if exists
         if (voyageEntity) {
             await voyageEntity.update({
-                status: trackingInfo.status || voyageEntity.status,
+                status: mappedStatus || voyageEntity.status,
                 etd: trackingInfo.etd || voyageEntity.etd,
                 eta: trackingInfo.eta || voyageEntity.eta,
                 loadingPort: trackingInfo.loadingPort || voyageEntity.loadingPort,
@@ -102,7 +131,7 @@ router.get('/voyage/:voyageName', async (req, res) => {
                 }
 
                 await s.update({
-                    status: trackingInfo.status || s.status,
+                    status: mappedStatus || s.status,
                     etd: trackingInfo.etd || s.etd,
                     eta: trackingInfo.eta || s.eta,
                     loadingPort: trackingInfo.loadingPort || s.loadingPort,
@@ -116,8 +145,8 @@ router.get('/voyage/:voyageName', async (req, res) => {
             }));
 
             // Sync status to orders linked to these shipments
-            if (trackingInfo.status) {
-                await Promise.all(shipments.map(s => syncShipmentStatusToOrders(s.id, trackingInfo.status)));
+            if (mappedStatus) {
+                await Promise.all(shipments.map(s => syncShipmentStatusToOrders(s.id, mappedStatus)));
             }
         }
 
