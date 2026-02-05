@@ -5467,8 +5467,8 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                 <button class="btn-action" onclick="${satAction}" title="Démarrer/Rafraîchir Tracking Satellite">
                                                     <i class="fas fa-satellite-dish" style="color: var(--accent-blue);"></i>
                                                 </button>
-                                                <button class="btn-action" onclick="${histAction}" title="Voir l'Historique de Tracking" ${!hasHistory ? 'disabled' : ''}>
-                                                    <i class="fas fa-history" style="color: ${histColor};"></i>
+                                                <button class="btn-action" onclick="${histAction}" title="Voir l'Historique de Tracking">
+                                                    <i class="fas fa-history" style="color: var(--primary);"></i>
                                                 </button>
                                             </div>
                                         </td>
