@@ -5413,9 +5413,10 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 return sum + vehicles.filter(veh => veh.shipmentId === s.id).length;
             }, 0);
             const safeName = v.name.replace(/'/g, "\\'");
-            const hasHistory = v.shipments.some(s => s.trackingHistory && s.trackingHistory.length > 20);
-            const satAction = hasHistory ? `app.showVoyageTrackingHistory('${safeName}')` : `app.trackVoyage('${safeName}')`;
-            const satColor = hasHistory ? 'var(--success)' : 'var(--text-dim)';
+            const hasHistory = (v.trackingHistory && v.trackingHistory.length > 20) || v.shipments.some(s => s.trackingHistory && s.trackingHistory.length > 20);
+            const satAction = `app.trackVoyage('${safeName}')`;
+            const histAction = `app.showVoyageTrackingHistory('${safeName}')`;
+            const histColor = hasHistory ? 'var(--primary)' : 'var(--text-dim)';
 
             return `
                                     <tr>
@@ -5463,8 +5464,11 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                                                         <i class="fas fa-users-cog"></i>
                                                     </button>
                                                 `}
-                                                <button class="btn-action" onclick="${satAction}" title="Satellite">
-                                                    <i class="fas fa-satellite-dish" style="color: ${satColor};"></i>
+                                                <button class="btn-action" onclick="${satAction}" title="Démarrer/Rafraîchir Tracking Satellite">
+                                                    <i class="fas fa-satellite-dish" style="color: var(--accent-blue);"></i>
+                                                </button>
+                                                <button class="btn-action" onclick="${histAction}" title="Voir l'Historique de Tracking" ${!hasHistory ? 'disabled' : ''}>
+                                                    <i class="fas fa-history" style="color: ${histColor};"></i>
                                                 </button>
                                             </div>
                                         </td>
@@ -9783,30 +9787,40 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
 
 
     showVoyageTrackingHistory(voyageName) {
+        const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
+        const voyageEntity = voyages.find(v => v.name === voyageName);
+
         const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
             .filter(s => s.voyage === voyageName && !s.isArchived);
 
-        if (shipments.length === 0) {
-            this.showToast("Aucune expédition trouvée pour ce voyage", "warning");
-            return;
-        }
-
-        // Find a shipment with history
-        const shipmentWithHistory = shipments.find(s => s.trackingHistory && s.trackingHistory.length > 5);
         let events = [];
+        let source = 'Données Satellite';
+        let count = shipments.length;
 
-        if (shipmentWithHistory) {
+        // 1. Try to get history from the Voyage Entity itself
+        if (voyageEntity && voyageEntity.trackingHistory) {
             try {
-                events = JSON.parse(shipmentWithHistory.trackingHistory);
+                events = JSON.parse(voyageEntity.trackingHistory);
                 if (!Array.isArray(events)) events = [];
+                source = voyageEntity.shipStatus || 'Voyage Officiel';
             } catch (e) {
-                console.error("Failed to parse tracking history", e);
-                events = [];
+                console.error("Failed to parse voyage tracking history", e);
             }
         }
 
-        const source = shipmentWithHistory && shipmentWithHistory.shipStatus ? shipmentWithHistory.shipStatus : 'Données Satellite';
-        const count = shipments.length;
+        // 2. Fallback to shipments if no events found yet
+        if (events.length === 0 && shipments.length > 0) {
+            const shipmentWithHistory = shipments.find(s => s.trackingHistory && s.trackingHistory.length > 5);
+            if (shipmentWithHistory) {
+                try {
+                    events = JSON.parse(shipmentWithHistory.trackingHistory);
+                    if (!Array.isArray(events)) events = [];
+                    source = shipmentWithHistory.shipStatus || source;
+                } catch (e) {
+                    console.error("Failed to parse shipment tracking history", e);
+                }
+            }
+        }
 
         const modalHtml = `
                 <div class="modal-overlay" onclick="app.closeModal()">
