@@ -255,7 +255,11 @@ const startServer = async () => {
                 { table: 'voyages', name: 'arrivalDate', def: 'DATE' },
                 { table: 'voyages', name: 'notes', def: 'TEXT' },
                 { table: 'voyages', name: 'active', def: 'TINYINT(1) DEFAULT 1' },
-                { table: 'voyages', name: 'status', def: 'VARCHAR(50) DEFAULT "Planifié"' }
+                { table: 'voyages', name: 'status', def: 'VARCHAR(50) DEFAULT "Planifié"' },
+                { table: 'voyages', name: 'current_lat', def: 'DECIMAL(10, 8)' },
+                { table: 'voyages', name: 'current_lng', def: 'DECIMAL(11, 8)' },
+                { table: 'voyages', name: 'ship_status', def: 'VARCHAR(100)' },
+                { table: 'voyages', name: 'tracking_history', def: 'LONGTEXT' }
             ];
 
             for (const col of columnsToEnsure) {

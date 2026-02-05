@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const containerTrackingService = require('../services/containerTrackingService');
-const { Shipment, Vehicle, Notification } = require('../models');
+const { Shipment, Vehicle, Notification, Voyage } = require('../models');
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
+const { Op } = require('sequelize');
 
 // Track a specific container or BL
 router.get('/container/:number', async (req, res) => {
@@ -21,42 +22,77 @@ router.get('/voyage/:voyageName', async (req, res) => {
     try {
         const { voyageName } = req.params;
 
-        // Find shipments in this voyage
-        const shipments = await Shipment.findAll({
-            where: {
-                voyage: voyageName,
-                isArchived: false
-            },
-            order: [['createdAt', 'ASC']] // STABLE TRACKING: Use oldest shipment as source of truth
+        // Try to find official Voyage entity
+        const voyageEntity = await Voyage.findOne({
+            where: { name: voyageName }
         });
 
-        if (!shipments || shipments.length === 0) {
-            return res.status(404).json({ success: false, message: 'Aucune expédition trouvée pour ce voyage' });
+        // Find shipments in this voyage (Legacy name OR Official ID)
+        const whereClause = { isArchived: false };
+        if (voyageEntity) {
+            whereClause[Op.or] = [
+                { voyage: voyageName },
+                { voyageId: voyageEntity.id }
+            ];
+        } else {
+            whereClause.voyage = voyageName;
         }
 
-        // 1. Try to find a BL number first (more reliable for voyage tracking)
-        const shipmentWithBL = shipments.find(s => s.blNumber && s.blNumber.trim() !== '');
-        const targetShipment = shipmentWithBL || shipments.find(s => s.containerNumber && s.containerNumber.trim() !== '');
+        const shipments = await Shipment.findAll({
+            where: whereClause,
+            order: [['createdAt', 'ASC']]
+        });
 
-        if (targetShipment) {
-            const identifier = targetShipment.blNumber || targetShipment.containerNumber;
-            const isBL = !!targetShipment.blNumber;
+        // Determine tracking identifier (Prioritize Voyage BL, then Shipment BL, then Container)
+        let identifier = voyageEntity ? voyageEntity.blNumber : null;
+        let isBL = true;
 
-            console.log(`[Tracking] Tracking voyage ${voyageName} via ${identifier}`);
-            const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL);
+        if (!identifier || identifier.trim() === '') {
+            const shipmentWithBL = shipments.find(s => s.blNumber && s.blNumber.trim() !== '');
+            const targetShipment = shipmentWithBL || shipments.find(s => s.containerNumber && s.containerNumber.trim() !== '');
 
-            // CASCADE UPDATE: Update ALL shipments in this voyage with the new data
+            if (targetShipment) {
+                identifier = targetShipment.blNumber || targetShipment.containerNumber;
+                isBL = !!targetShipment.blNumber;
+            }
+        }
+
+        if (!identifier || identifier.trim() === '') {
+            return res.status(404).json({ success: false, message: 'Aucun BL ou conteneur trouvé pour ce voyage' });
+        }
+
+        console.log(`[Tracking] Tracking voyage ${voyageName} via ${identifier}`);
+        const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL);
+
+        // PERSISTENCE: Save on Voyage Entity if exists
+        if (voyageEntity) {
+            await voyageEntity.update({
+                status: trackingInfo.status || voyageEntity.status,
+                etd: trackingInfo.etd || voyageEntity.etd,
+                eta: trackingInfo.eta || voyageEntity.eta,
+                loadingPort: trackingInfo.loadingPort || voyageEntity.loadingPort,
+                destination: trackingInfo.unloadingPort || voyageEntity.destination,
+                currentLat: trackingInfo.location?.lat || voyageEntity.currentLat,
+                currentLng: trackingInfo.location?.lng || voyageEntity.currentLng,
+                shipStatus: trackingInfo.vesselName || voyageEntity.shipStatus,
+                trackingHistory: trackingInfo.events ? JSON.stringify(trackingInfo.events) : voyageEntity.trackingHistory,
+                lastUpdate: new Date()
+            });
+        }
+
+        // CASCADE UPDATE: Update ALL shipments linked to this voyage
+        if (shipments.length > 0) {
             await Promise.all(shipments.map(async (s) => {
-                // Check for Date Changes (ETA)
+                // Check for Date Changes (ETA) for notifications
                 if (trackingInfo.eta && s.eta) {
                     const oldDate = new Date(s.eta);
                     const newDate = new Date(trackingInfo.eta);
                     const diffTime = Math.abs(newDate - oldDate);
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                    if (diffDays > 1) { // If changed by more than 1 day
+                    if (diffDays > 1) {
                         await Notification.create({
-                            type: 'WARNING', // Use 'WARNING' from ENUM 'INFO','WARNING','ERROR','SUCCESS'
+                            type: 'WARNING',
                             title: 'Changement de date d\'arrivée',
                             message: `La date d'arrivée prévue (ETA) pour le voyage ${s.voyage || 'Inconnu'} a changé de ${oldDate.toLocaleDateString()} à ${newDate.toLocaleDateString()}.`,
                             entityType: 'Shipment',
@@ -79,15 +115,13 @@ router.get('/voyage/:voyageName', async (req, res) => {
                 });
             }));
 
-            // Sync status to orders
+            // Sync status to orders linked to these shipments
             if (trackingInfo.status) {
                 await Promise.all(shipments.map(s => syncShipmentStatusToOrders(s.id, trackingInfo.status)));
             }
-
-            return res.json({ success: true, data: { ...trackingInfo, voyageName } });
         }
 
-        res.status(404).json({ success: false, message: 'Aucun BL ou conteneur trouvé pour ce voyage' });
+        return res.json({ success: true, data: { ...trackingInfo, voyageName } });
 
     } catch (error) {
         console.error('Voyage tracking error:', error);

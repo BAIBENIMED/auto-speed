@@ -56,6 +56,26 @@ const Voyage = sequelize.define('Voyage', {
     notes: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    currentLat: {
+        type: DataTypes.DECIMAL(10, 8),
+        allowNull: true,
+        field: 'current_lat'
+    },
+    currentLng: {
+        type: DataTypes.DECIMAL(11, 8),
+        allowNull: true,
+        field: 'current_lng'
+    },
+    shipStatus: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        field: 'ship_status'
+    },
+    trackingHistory: {
+        type: DataTypes.TEXT('long'),
+        allowNull: true,
+        field: 'tracking_history'
     }
 }, {
     tableName: 'voyages',
