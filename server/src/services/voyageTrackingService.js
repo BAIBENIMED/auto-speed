@@ -16,8 +16,9 @@ class VoyageTrackingService {
         const s = rawStatus.toLowerCase();
         if (s.includes('transit') || s.includes('en mer') || s.includes('loaded') ||
             s.includes('departure') || s.includes('route') || s.includes('sailing')) return 'En Route';
-        if (s.includes('arriv') || s.includes('unloaded') || s.includes('pod') ||
-            s.includes('gate out') || s.includes('delivered') || s.includes('completed')) return 'Arrivé';
+        // Distinguish between Arrived (at port) and Delivered (to customer)
+        if (s.includes('delivered') || s.includes('gate out') || s.includes('completed')) return 'Livré';
+        if (s.includes('arriv') || s.includes('unloaded') || s.includes('pod') || s.includes('discharge')) return 'Arrivé';
         if (s.includes('plan') || s.includes('sched') || s.includes('gate in') || s.includes('prep')) return 'Planifié';
         return null;
     }
@@ -60,7 +61,7 @@ class VoyageTrackingService {
 
         // 6. Persistence: Voyage
         if (voyageEntity) {
-            await voyageEntity.update({
+            const updateData = {
                 status: mappedStatus || voyageEntity.status,
                 etd: trackingInfo.etd || voyageEntity.etd,
                 eta: trackingInfo.eta || voyageEntity.eta,
@@ -71,27 +72,38 @@ class VoyageTrackingService {
                 shipStatus: trackingInfo.vesselName || voyageEntity.shipStatus,
                 trackingHistory: trackingInfo.events ? JSON.stringify(trackingInfo.events) : voyageEntity.trackingHistory,
                 lastUpdate: new Date()
-            });
+            };
+
+            // Auto-set arrival date when status becomes 'Arrivé'
+            if (mappedStatus === 'Arrivé' && !voyageEntity.arrivalDate) {
+                updateData.arrivalDate = new Date();
+                console.log(`[VoyageTracking] Auto-set arrivalDate for voyage ${voyageName}`);
+            }
+
+            await voyageEntity.update(updateData);
         }
 
         // 7. Cascade to Shipments & Notifications for ETA
         if (shipments.length > 0) {
             await Promise.all(shipments.map(async (s) => {
-                // ETA Notification
+                // ETA Notification - only alert if DELAYED (new ETA is later than old)
                 if (trackingInfo.eta && s.eta) {
-                    const diff = Math.abs(new Date(trackingInfo.eta) - new Date(s.eta));
-                    if (diff > (1000 * 60 * 60 * 24)) { // More than 24h change
+                    const oldEta = new Date(s.eta);
+                    const newEta = new Date(trackingInfo.eta);
+                    const diff = newEta - oldEta; // Positive = delay, Negative = advance
+
+                    if (diff > (1000 * 60 * 60 * 24)) { // More than 24h DELAY
                         await Notification.create({
                             type: 'WARNING',
-                            title: 'Changement ETA',
-                            message: `Nouvelle date d'arrivée pour ${voyageName}: ${new Date(trackingInfo.eta).toLocaleDateString()}`,
+                            title: 'Retard ETA',
+                            message: `Le voyage ${voyageName} est retardé. Nouvelle arrivée: ${newEta.toLocaleDateString()} (au lieu de ${oldEta.toLocaleDateString()})`,
                             entityType: 'Voyage',
                             entityId: voyageEntity ? voyageEntity.id : null
                         });
                     }
                 }
 
-                await s.update({
+                const shipmentUpdate = {
                     status: mappedStatus || s.status,
                     etd: trackingInfo.etd || s.etd,
                     eta: trackingInfo.eta || s.eta,
@@ -102,7 +114,15 @@ class VoyageTrackingService {
                     shipStatus: trackingInfo.vesselName || s.shipStatus,
                     trackingHistory: trackingInfo.events ? JSON.stringify(trackingInfo.events) : s.trackingHistory,
                     lastUpdate: new Date()
-                });
+                };
+
+                // Auto-set arrival date when status becomes 'Arrivé'
+                if (mappedStatus === 'Arrivé' && !s.arrivalDate) {
+                    shipmentUpdate.arrivalDate = new Date();
+                    console.log(`[VoyageTracking] Auto-set arrivalDate for shipment ${s.id}`);
+                }
+
+                await s.update(shipmentUpdate);
             }));
 
             // 8. Sync to Orders

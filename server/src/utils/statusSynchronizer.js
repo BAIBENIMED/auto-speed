@@ -31,14 +31,24 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
         }
 
         // 3. Update all relevant orders
-        // Use the status mapping if needed, or direct mapping if they share the same status names
-        // Most shipment statuses like "En Mer", "Arrivé" are desired for Orders too.
+        // Map shipment status to order status
+        let orderStatus = status;
+
+        // Map specific shipment statuses to order-friendly names
+        if (status === 'En Route' || status === 'En mer') {
+            orderStatus = 'A BORD';
+        } else if (status === 'Arrivé') {
+            orderStatus = 'ARRIVÉE';
+        } else if (status === 'Livré') {
+            orderStatus = 'ENLEVÉE';
+        }
+
         await Order.update(
-            { status: status },
+            { status: orderStatus },
             { where: { id: orderIds } }
         );
 
-        console.log(`[StatusSync] Successfully updated ${orderIds.length} orders for shipment ${shipmentId}`);
+        console.log(`[StatusSync] Successfully updated ${orderIds.length} orders with status "${orderStatus}" for shipment ${shipmentId}`);
     } catch (error) {
         console.error(`[StatusSync] Error syncing shipment status:`, error);
     }

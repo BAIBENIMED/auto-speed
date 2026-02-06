@@ -50,18 +50,17 @@ router.post('/:id/refresh', async (req, res) => {
 
         const trackingData = await containerTrackingService.trackContainer(identifier, isBL);
 
-        // Check for ETA change logic
+        // Check for ETA change logic - only alert if DELAYED
         if (trackingData.eta && shipment.eta) {
             const oldDate = new Date(shipment.eta);
             const newDate = new Date(trackingData.eta);
-            const diffTime = Math.abs(newDate - oldDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffTime = newDate - oldDate; // Positive = delay, Negative = advance
 
-            if (diffDays > 1) {
+            if (diffTime > (1000 * 60 * 60 * 24)) { // More than 24h DELAY
                 await Notification.create({
                     type: 'WARNING',
-                    title: 'Changement de date d\'arrivée',
-                    message: `La date d'arrivée prévue (ETA) pour l'expédition ${shipment.containerNumber || shipment.id} a changé de ${oldDate.toLocaleDateString()} à ${newDate.toLocaleDateString()}.`,
+                    title: 'Retard d\'arrivée',
+                    message: `L'expédition ${shipment.containerNumber || shipment.id} est retardée. Nouvelle arrivée: ${newDate.toLocaleDateString()} (au lieu de ${oldDate.toLocaleDateString()}).`,
                     entityType: 'Shipment',
                     entityId: shipment.id
                 });
@@ -69,7 +68,7 @@ router.post('/:id/refresh', async (req, res) => {
         }
 
         // Update Shipment in DB
-        await shipment.update({
+        const updateData = {
             status: trackingData.status || shipment.status,
             etd: trackingData.etd || shipment.etd,
             eta: trackingData.eta || shipment.eta,
@@ -80,7 +79,15 @@ router.post('/:id/refresh', async (req, res) => {
             shipStatus: trackingData.vesselName || shipment.shipStatus,
             trackingHistory: trackingData.events ? JSON.stringify(trackingData.events) : shipment.trackingHistory,
             lastUpdate: new Date()
-        });
+        };
+
+        // Auto-set arrival date when status becomes 'Arrivé'
+        if (trackingData.status && trackingData.status.toLowerCase().includes('arriv') && !shipment.arrivalDate) {
+            updateData.arrivalDate = new Date();
+            console.log(`[Tracking] Auto-set arrivalDate for shipment ${shipment.id}`);
+        }
+
+        await shipment.update(updateData);
 
         // Sync status to orders
         if (trackingData.status) {
