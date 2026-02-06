@@ -168,27 +168,36 @@ const shipmentsController = {
             const vehicles = await Vehicle.findAll({ where: { shipmentId: shipment.id } });
 
             for (const vehicle of vehicles) {
-                // Update vehicle status based on shipment status
-                let vehicleStatus = 'In Transit';
+                // Update vehicle status based on shipment status to maintain consistency
+                let vehicleStatus = vehicle.status;
                 if (shipment.status === 'Arrivé') {
                     vehicleStatus = 'Arrived';
                 } else if (shipment.status === 'Livré') {
                     vehicleStatus = 'Sold';
+                } else if (shipment.status === 'En mer' || shipment.status === 'En Route') {
+                    vehicleStatus = 'In Transit';
                 }
 
-                await vehicle.update({ status: vehicleStatus });
-                console.log(`[ManualUpdate] Updated vehicle ${vehicle.id} to status: ${vehicleStatus}`);
+                if (vehicle.status !== vehicleStatus) {
+                    await vehicle.update({ status: vehicleStatus });
+                    console.log(`[ManualUpdate] Updated vehicle ${vehicle.id} status to: ${vehicleStatus}`);
+                }
             }
 
+            // Map shipment status for order sync
+            let syncStatus = shipment.status;
+            // Ensure we use the exact strings the synchronizer expects if it was different
+            if (syncStatus === 'Arrivé') syncStatus = 'Arrivé'; // Already correct but for clarity
+
             // Sync to orders using the status synchronizer
-            await syncShipmentStatusToOrders(shipment.id, shipment.status);
+            await syncShipmentStatusToOrders(shipment.id, syncStatus);
 
             // Reload shipment with updated data
             await shipment.reload();
 
             res.json({
                 success: true,
-                message: 'Expédition mise à jour avec succès',
+                message: 'Expédition actualisée avec succès et statuts propagés',
                 data: shipment
             });
         } catch (error) {

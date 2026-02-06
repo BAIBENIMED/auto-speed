@@ -604,10 +604,15 @@ const app = {
 
         if (!shipment) return "ATTENTE EXPÉDITION";
 
-        if (shipment.pickupDate) return 'ENLEVÉE';
-        if (shipment.arrivalDate) return 'ARRIVÉE';
+        if (shipment.pickupDate || shipment.status === 'Livré') return 'ENLEVÉE';
+        if (shipment.arrivalDate || shipment.status === 'Arrivé') return 'ARRIVÉE';
         if (shipment.status === 'En mer') return 'EN MER';
         if (shipment.status === 'Préparation' || shipment.etd) return 'A BORD';
+
+        // Direct mapping fallback for other statuses
+        if (shipment.status === 'A BORD') return 'A BORD';
+        if (shipment.status === 'ARRIVÉE') return 'ARRIVÉE';
+        if (shipment.status === 'ENLEVÉE') return 'ENLEVÉE';
 
         return order.status || 'EN COURS';
     },
@@ -6957,7 +6962,14 @@ const app = {
                     if (vehicle.orderId) {
                         const order = orders.find(o => o.id === vehicle.orderId);
                         if (order) {
-                            order.status = shipmentData.status;
+                            // Map shipment status to order status for direct update
+                            let mappedStatus = shipmentData.status;
+                            if (shipmentData.status === 'Arrivé') mappedStatus = 'ARRIVÉE';
+                            else if (shipmentData.status === 'Livré') mappedStatus = 'ENLEVÉE';
+                            else if (shipmentData.status === 'En mer') mappedStatus = 'EN MER';
+                            else if (shipmentData.status === 'Préparation') mappedStatus = 'A BORD';
+
+                            order.status = mappedStatus;
                             await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
                         }
                     }
