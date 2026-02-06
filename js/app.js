@@ -590,28 +590,29 @@ const app = {
     },
 
     calculateOrderStatus(order) {
+        if (!order) return 'N/A';
         if (order.status === 'ANNULÉE' || order.status === 'LIVRÉE' || order.status === 'ANNULÉ') return order.status;
         if (!order.isValidated) return 'EN ATTENTE DE VALIDATION';
+
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
-        const vehicle = vehicles.find(v => v.id === order.vehicleId || (order.id && v.orderId === order.id));
+        const vehicle = vehicles.find(v => (v.id && order.vehicleId && String(v.id) === String(order.vehicleId)) ||
+            (order.id && v.orderId && String(v.orderId) === String(order.id)));
 
         if (!vehicle) return "ATTENTE AFFECTATION VÉHICULE";
         if (!vehicle.shipmentId) return "ATTENTE EXPÉDITION";
 
-        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
-        const shipment = shipments.find(s => s.id === vehicle.shipmentId);
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const shipment = shipments.find(s => String(s.id) === String(vehicle.shipmentId));
 
         if (!shipment) return "ATTENTE EXPÉDITION";
 
-        if (shipment.pickupDate || shipment.status === 'Livré') return 'ENLEVÉE';
-        if (shipment.arrivalDate || shipment.status === 'Arrivé') return 'ARRIVÉE';
-        if (shipment.status === 'En mer') return 'EN MER';
-        if (shipment.status === 'Préparation' || shipment.etd) return 'A BORD';
+        const shpStatus = (shipment.status || '').toLowerCase().trim();
 
-        // Direct mapping fallback for other statuses
-        if (shipment.status === 'A BORD') return 'A BORD';
-        if (shipment.status === 'ARRIVÉE') return 'ARRIVÉE';
-        if (shipment.status === 'ENLEVÉE') return 'ENLEVÉE';
+        // Priority to pickup/arrival dates if present
+        if (shipment.pickupDate || shpStatus === 'livré' || shpStatus === 'livre' || shpStatus === 'enlevée') return 'ENLEVÉE';
+        if (shipment.arrivalDate || shpStatus === 'arrivé' || shpStatus === 'arrive' || shpStatus === 'arrivée') return 'ARRIVÉE';
+        if (shpStatus === 'en mer' || shpStatus === 'en route') return 'EN MER';
+        if (shpStatus === 'préparation' || shpStatus === 'preparation' || shipment.etd) return 'A BORD';
 
         return order.status || 'EN COURS';
     },
