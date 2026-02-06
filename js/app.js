@@ -833,6 +833,9 @@ const app = {
                                     <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
                                         <strong>Conteneur:</strong> ${shipment.containerNumber} | <strong>Compagnie:</strong> ${shipment.carrier || 'N/A'}
                                     </div>
+                                    <button class="btn btn-primary" style="margin-top: 12px; width: 100%; font-size: 0.85rem;" onclick="app.showShipmentTrackingHistory('${shipment.id}')">
+                                        <i class="fas fa-history"></i> Voir l'historique de tracking
+                                    </button>
                                 </div>
                                 ` : ''}
                                 
@@ -10055,6 +10058,142 @@ const app = {
             console.error("Toggle error:", error);
             this.showToast("Erreur lors du changement de statut", "error");
             this.renderView(this.currentView);
+        }
+    },
+
+    showShipmentTrackingHistory(shipmentId) {
+        console.log("🔍 Affichage de l'historique pour l'expédition:", shipmentId);
+        try {
+            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+            const shipment = shipments.find(s => s.id === shipmentId);
+
+            if (!shipment) {
+                this.showToast("Expédition introuvable", "error");
+                return;
+            }
+
+            console.log("📊 Expédition trouvée:", shipment);
+
+            let events = [];
+            let source = 'Données Locales';
+
+            // Try to get tracking history from shipment
+            if (shipment.trackingHistory) {
+                try {
+                    const parsed = typeof shipment.trackingHistory === 'string' ?
+                        JSON.parse(shipment.trackingHistory) : shipment.trackingHistory;
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        events = parsed;
+                        source = shipment.carrier || 'Transporteur';
+                    }
+                } catch (e) {
+                    console.error("❌ Erreur parse shipment history:", e);
+                }
+            }
+
+            // If no tracking history, create events from shipment data
+            if (events.length === 0) {
+                if (shipment.shipmentDate) {
+                    events.push({
+                        date: shipment.shipmentDate,
+                        description: 'Expédition créée',
+                        location: shipment.loadingPort || 'Port de départ',
+                        isActual: true
+                    });
+                }
+                if (shipment.etd) {
+                    events.push({
+                        date: shipment.etd,
+                        description: 'Départ prévu (ETD)',
+                        location: shipment.loadingPort || 'Port de départ',
+                        isActual: false
+                    });
+                }
+                if (shipment.eta) {
+                    events.push({
+                        date: shipment.eta,
+                        description: 'Arrivée prévue (ETA)',
+                        location: shipment.destination || 'Port de destination',
+                        isActual: false
+                    });
+                }
+                if (shipment.arrivalDate) {
+                    events.push({
+                        date: shipment.arrivalDate,
+                        description: 'Arrivée confirmée',
+                        location: shipment.destination || 'Port de destination',
+                        isActual: true
+                    });
+                }
+                if (shipment.customsClearanceDate) {
+                    events.push({
+                        date: shipment.customsClearanceDate,
+                        description: 'Dédouanement effectué',
+                        location: shipment.destination || 'Douane',
+                        isActual: true
+                    });
+                }
+                if (shipment.pickupDate) {
+                    events.push({
+                        date: shipment.pickupDate,
+                        description: 'Véhicule enlevé',
+                        location: 'Livraison finale',
+                        isActual: true
+                    });
+                }
+
+                // Sort events by date
+                events.sort((a, b) => new Date(a.date) - new Date(b.date));
+            }
+
+            console.log("✅ Événements à afficher:", events.length);
+
+            const modalHtml = `
+                <div class="modal-overlay" onclick="app.closeModal()">
+                    <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 700px; max-width: 95vw;">
+                        <div class="modal-header">
+                            <div>
+                                <h2 style="margin:0;">Historique: ${shipment.containerNumber || shipmentId}</h2>
+                                <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;">
+                                    Source: ${source} | Statut: ${shipment.status || 'N/A'}
+                                </p>
+                            </div>
+                            <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                        </div>
+                        <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 20px;">
+                            <div class="tracking-timeline">
+                                ${events.length > 0 ? events.map((event, index) => `
+                                    <div class="timeline-item" style="display: flex; gap: 20px; margin-bottom: 25px; position: relative;">
+                                        ${index !== events.length - 1 ? `<div style="position: absolute; left: 14px; top: 30px; bottom: -20px; width: 2px; background: var(--border-glass);"></div>` : ''}
+                                        <div class="timeline-marker" style="width: 30px; height: 30px; border-radius: 50%; background: ${event.isActual ? 'var(--success)' : 'var(--border-glass)'}; display: flex; align-items: center; justify-content: center; z-index: 1; flex-shrink: 0; box-shadow: ${event.isActual ? '0 0 10px rgba(34, 197, 94, 0.4)' : 'none'};">
+                                            <i class="fas ${event.isActual ? 'fa-check' : 'fa-clock'}" style="font-size: 0.8rem; color: ${event.isActual ? 'white' : 'var(--text-dim)'};"></i>
+                                        </div >
+    <div class="timeline-content">
+        <div style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">
+            ${new Date(event.date).toLocaleDateString()} ${new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+        <div style="font-weight: 700; font-size: 1rem; margin: 4px 0;">${event.description}</div>
+        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+            <i class="fas fa-map-marker-alt" style="font-size: 0.7rem;"></i> ${event.location || 'En transit'}
+        </div>
+    </div>
+                                    </div >
+    `).join('') : `
+    < div style = "text-align: center; padding: 40px; color: var(--text-dim);" >
+                                        <i class="fas fa-info-circle" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                                        <p>Aucun événement de tracking disponible pour cette expédition.</p>
+                                    </div >
+    `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        } catch (error) {
+            console.error("❌ Erreur affichage historique:", error);
+            this.showToast("Erreur lors de l'affichage de l'historique", "error");
         }
     },
 
