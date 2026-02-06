@@ -6806,8 +6806,9 @@ const app = {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
         }
 
+        let shipmentId;
         try {
-            const shipmentId = formData.get('shipmentId');
+            shipmentId = formData.get('shipmentId');
             const selectedVehicleIds = formData.getAll('vehicleIds');
             const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
             const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
