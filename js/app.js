@@ -1441,11 +1441,14 @@ const app = {
                 if (v.shipmentId) {
                     const shipment = shipments.find(s => s.id === v.shipmentId);
                     if (shipment) {
-                        if (['Préparation', 'En mer'].includes(shipment.status)) {
+                        // Map specific shipment statuses to order-friendly names (Case insensitive)
+                        const normalizedStatus = shipment.status.toLowerCase().trim();
+
+                        if (normalizedStatus === 'en route' || normalizedStatus === 'en mer' || normalizedStatus === 'en-route' || normalizedStatus === 'préparation') {
                             v.status = 'In Transit';
-                        } else if (shipment.status === 'Arrivé') {
+                        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée') {
                             v.status = 'Arrived';
-                        } else if (shipment.status === 'Livré') {
+                        } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée') {
                             v.status = 'Sold';
                         }
                     } else {
@@ -2140,7 +2143,11 @@ const app = {
                                     <td><span style="font-family: monospace; color: var(--text-dim);">#${order.vehicleId || 'N/A'}</span></td>
                                     <td>${vehicleName}</td>
                                     <td>${new Date(order.date).toLocaleDateString()}</td>
-                                    <td style="text-align: center;"><span class="status-badge ${(order.status || 'EN COURS').toLowerCase().replace(/\s+/g, '-')}">${order.status || 'EN COURS'}</span></td>
+                                    <td style="text-align: center;">
+                                        <span class="status-badge ${(this.calculateOrderStatus(order) || 'EN COURS').toLowerCase().replace(/\s+/g, '-')}">
+                                            ${this.calculateOrderStatus(order)}
+                                        </span>
+                                    </td>
                                     <td>
                                         ${order.isValidated ?
                     '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.1); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2);"><i class="fas fa-check-circle"></i> Validée</span>' :

@@ -9,48 +9,57 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
     if (!shipmentId || !status) return;
 
     try {
-        console.log(`[StatusSync] Syncing status "${status}" to orders for shipment ${shipmentId}`);
+        console.log(`[StatusSync] 🔄 Syncing status "${status}" to orders for shipment ${shipmentId}`);
 
         // 1. Find all vehicles linked to this shipment
         const vehicles = await Vehicle.findAll({
             where: { shipmentId },
-            attributes: ['id', 'orderId']
+            attributes: ['id', 'order_id', 'status']
         });
 
         if (!vehicles || vehicles.length === 0) {
-            console.log(`[StatusSync] No vehicles found for shipment ${shipmentId}`);
+            console.log(`[StatusSync] ⚠️ No vehicles found for shipment ${shipmentId}`);
             return;
         }
 
         // 2. Extract unique order IDs
-        const orderIds = [...new Set(vehicles.map(v => v.orderId).filter(id => !!id))];
+        // Support both order_id (DB field) and orderId (Sequelize alias) if necessary
+        const orderIds = [...new Set(vehicles.map(v => v.order_id || v.orderId).filter(id => !!id))];
 
         if (orderIds.length === 0) {
-            console.log(`[StatusSync] No orders linked to vehicles in shipment ${shipmentId}`);
+            console.log(`[StatusSync] ⚠️ No orders linked to the ${vehicles.length} vehicles in shipment ${shipmentId}`);
             return;
         }
 
         // 3. Update all relevant orders
-        // Map shipment status to order status
         let orderStatus = status;
 
-        // Map specific shipment statuses to order-friendly names
-        if (status === 'En Route' || status === 'En mer') {
+        // Map specific shipment statuses to order-friendly names (Case insensitive)
+        const normalizedStatus = status.toLowerCase().trim();
+
+        if (normalizedStatus === 'en route' || normalizedStatus === 'en mer' || normalizedStatus === 'en-route') {
             orderStatus = 'A BORD';
-        } else if (status === 'Arrivé') {
+        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée') {
             orderStatus = 'ARRIVÉE';
-        } else if (status === 'Livré') {
+        } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée') {
             orderStatus = 'ENLEVÉE';
+        } else if (normalizedStatus === 'préparation') {
+            orderStatus = 'A BORD'; // Prep on ship usually means loaded
         }
 
-        await Order.update(
+        console.log(`[StatusSync] 📝 Mapping shipment status "${status}" to order status "${orderStatus}" for Order IDs: ${orderIds.join(', ')}`);
+
+        const [updatedCount] = await Order.update(
             { status: orderStatus },
-            { where: { id: orderIds } }
+            {
+                where: { id: orderIds },
+                individualHooks: true // Ensure hooks trigger if status changes
+            }
         );
 
-        console.log(`[StatusSync] Successfully updated ${orderIds.length} orders with status "${orderStatus}" for shipment ${shipmentId}`);
+        console.log(`[StatusSync] ✅ Successfully updated ${updatedCount} orders with status "${orderStatus}" for shipment ${shipmentId}`);
     } catch (error) {
-        console.error(`[StatusSync] Error syncing shipment status:`, error);
+        console.error(`[StatusSync] ❌ Error syncing shipment status:`, error);
     }
 }
 
