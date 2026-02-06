@@ -1,4 +1,5 @@
 const { Vehicle, Order } = require('../models');
+const { Op } = require('sequelize');
 
 /**
  * Synchronizes a shipment's status to all its linked orders.
@@ -22,12 +23,24 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
             return;
         }
 
-        // 2. Extract unique order IDs
-        // Support both order_id (DB field) and orderId (Sequelize alias) if necessary
-        const orderIds = [...new Set(vehicles.map(v => v.order_id || v.orderId).filter(id => !!id))];
+        const vehicleIds = vehicles.map(v => v.id);
+        const orderIdsFromVehicles = vehicles.map(v => v.order_id || v.orderId).filter(id => !!id);
 
-        if (orderIds.length === 0) {
-            console.log(`[StatusSync] ⚠️ No orders linked to the ${vehicles.length} vehicles in shipment ${shipmentId}`);
+        // 2. Find ALL orders linked to these vehicles (bidirectional check)
+        const orders = await Order.findAll({
+            where: {
+                [Op.or]: [
+                    { id: orderIdsFromVehicles },
+                    { vehicleId: vehicleIds }
+                ]
+            },
+            attributes: ['id']
+        });
+
+        const finalOrderIds = [...new Set(orders.map(o => o.id))];
+
+        if (finalOrderIds.length === 0) {
+            console.log(`[StatusSync] ⚠️ No orders linked to the ${vehicles.length} vehicles in shipment ${shipmentId} (checked both vehicle.orderId and order.vehicleId)`);
             return;
         }
 
@@ -47,12 +60,12 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
             orderStatus = 'A BORD'; // Prep on ship usually means loaded
         }
 
-        console.log(`[StatusSync] 📝 Mapping shipment status "${status}" to order status "${orderStatus}" for Order IDs: ${orderIds.join(', ')}`);
+        console.log(`[StatusSync] 📝 Mapping shipment status "${status}" to order status "${orderStatus}" for Order IDs: ${finalOrderIds.join(', ')}`);
 
         const [updatedCount] = await Order.update(
             { status: orderStatus },
             {
-                where: { id: orderIds },
+                where: { id: finalOrderIds },
                 individualHooks: true // Ensure hooks trigger if status changes
             }
         );
