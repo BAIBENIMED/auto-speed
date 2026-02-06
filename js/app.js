@@ -5079,6 +5079,7 @@ const app = {
                                 <thead>
                                     <tr>
                                         <th>ID</th>
+                                        <th>Voyage</th>
                                         <th>N° Conteneur / Cie</th>
                                         <th>Véhicules & Clients</th>
                                         <th>Logistique (ETD/ETA/Arr)</th>
@@ -5101,6 +5102,10 @@ const app = {
             return `
                             <tr class="${this.isOutdated(s.lastUpdate) ? 'outdated' : ''}">
                                 <td><strong>${s.id}</strong></td>
+                                <td>
+                                    <div style="font-weight: 700; color: var(--primary);">${s.voyage || 'SANS VOYAGE'}</div>
+                                    <div style="font-size: 0.65rem; color: var(--text-dim);">ID: ${s.voyageId || '-'}</div>
+                                </td>
                                 <td>
                                     <div style="font-weight: 500;">${s.containerNumber || 'N/A'}</div>
                             <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px;">
@@ -5881,13 +5886,45 @@ const app = {
                 isTrackingActive: formData.get('isTrackingActive') === 'true'
             };
 
+            let arrivalDate = updates.arrivalDate;
+            if (updates.status === 'Arrivé' && !arrivalDate) {
+                arrivalDate = new Date().toISOString().split('T')[0];
+                updates.arrivalDate = arrivalDate;
+            }
+
             // Update each shipment in the voyage
+            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+            const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+
             for (const shipment of voyageShipments) {
                 await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, {
                     ...shipment,
                     ...updates
                 });
+
+                // Propagate to vehicles and orders
+                const shipmentVehicles = vehicles.filter(v => v.shipmentId === shipment.id);
+                for (const vehicle of shipmentVehicles) {
+                    if (updates.status === 'Arrivé') {
+                        vehicle.status = 'Arrived';
+                    } else if (updates.status === 'Livré') {
+                        vehicle.status = 'Sold';
+                    } else {
+                        vehicle.status = 'In Transit';
+                    }
+                    await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
+
+                    if (vehicle.orderId) {
+                        const order = orders.find(o => o.id === vehicle.orderId);
+                        if (order) {
+                            order.status = updates.status;
+                            await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
+                        }
+                    }
+                }
             }
+
+            await this.syncOrderStatuses();
 
             this.closeModal();
             this.showToast(`Voyage ${voyageName} mis à jour avec succès (${voyageShipments.length} conteneurs)`, 'success');
@@ -6829,6 +6866,11 @@ const app = {
                 voyageName = formData.get('voyage') || '';
             }
 
+            let arrivalDate = sanitizeDate(formData.get('arrivalDate'));
+            if (formData.get('status') === 'Arrivé' && !arrivalDate) {
+                arrivalDate = new Date().toISOString().split('T')[0];
+            }
+
             const shipmentData = {
                 id: shipmentId || `SHP-${Date.now().toString().slice(-6)}`,
                 containerNumber: formData.get('containerNumber'),
@@ -6846,7 +6888,7 @@ const app = {
                 voyage: voyageName,
                 voyageId: voyageId,
                 isArchived: formData.get('isArchived') === 'true' || false,
-                arrivalDate: sanitizeDate(formData.get('arrivalDate')),
+                arrivalDate: arrivalDate,
                 customsClearanceDate: sanitizeDate(formData.get('customsClearanceDate')),
                 pickupDate: sanitizeDate(formData.get('pickupDate'))
             };
@@ -7030,14 +7072,71 @@ const app = {
                 propagateToShipments: formData.get('propagateToShipments') === 'true'
             };
 
+            let arrivalDate = voyageData.arrivalDate;
+            if (voyageData.status === 'Arrivé' && !arrivalDate) {
+                arrivalDate = new Date().toISOString().split('T')[0];
+                voyageData.arrivalDate = arrivalDate;
+            }
+
             if (id) {
                 await StorageService.update(STORAGE_KEYS.VOYAGES, parseInt(id), voyageData);
-                this.showToast('Voyage mis à jour', 'success');
+
+                // Propagate to shipments if requested
+                if (voyageData.propagateToShipments) {
+                    const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+                    const voyageShipments = shipments.filter(s => s.voyageId === parseInt(id));
+
+                    for (const shipment of voyageShipments) {
+                        const updatedShipment = {
+                            ...shipment,
+                            status: voyageData.status,
+                            arrivalDate: voyageData.arrivalDate,
+                            loadingPort: voyageData.loadingPort,
+                            destination: voyageData.destination,
+                            etd: voyageData.etd,
+                            eta: voyageData.eta,
+                            vesselName: voyageData.vesselName,
+                            carrier: voyageData.carrier
+                        };
+
+                        // We need to use handleShipmentSubmission logic to update vehicles/orders
+                        // but since we are in a loop and it's a complex logic, we'll manually call the update
+                        // and then trigger vehicle/order status updates.
+                        await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipment.id, updatedShipment);
+
+                        // Update vehicles linked to this shipment
+                        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+                        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                        const shipmentVehicles = vehicles.filter(v => v.shipmentId === shipment.id);
+
+                        for (const vehicle of shipmentVehicles) {
+                            if (updatedShipment.status === 'Arrivé') {
+                                vehicle.status = 'Arrived';
+                            } else if (updatedShipment.status === 'Livré') {
+                                vehicle.status = 'Sold';
+                            } else {
+                                vehicle.status = 'In Transit';
+                            }
+                            await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
+
+                            if (vehicle.orderId) {
+                                const order = orders.find(o => o.id === vehicle.orderId);
+                                if (order) {
+                                    order.status = updatedShipment.status;
+                                    await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                this.showToast('Voyage mis à jour et propagé', 'success');
             } else {
                 await StorageService.add(STORAGE_KEYS.VOYAGES, voyageData);
                 this.showToast('Voyage créé avec succès', 'success');
             }
 
+            await this.syncOrderStatuses();
             this.closeModal();
             this.renderView(this.currentView);
         } catch (error) {
