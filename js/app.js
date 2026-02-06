@@ -904,7 +904,7 @@ const app = {
                             <div class="details-section">
                                 <h3><i class="fas fa-info-circle"></i> État de la Commande</h3>
                                 <p><strong>Date Bc:</strong> ${new Date(order.date).toLocaleDateString()}</p>
-                                <p><strong>Statut:</strong> <span class="status-badge ${order.status.toLowerCase().replace(/\s+/g, '-')}">${order.status}</span></p>
+                                <p><strong>Statut:</strong> <span class="status-badge ${(order.status || 'N/A').toLowerCase().replace(/\s+/g, '-')}">${order.status || 'N/A'}</span></p>
                                 ${order.remarks ? `<p><strong>Commentaires:</strong> <i style="color: var(--text-dim);">${order.remarks}</i></p>` : ''}
                             </div>
                         </div>
@@ -5154,7 +5154,7 @@ const app = {
                                     <div style="font-size: 0.85rem;"><strong>BL:</strong> ${s.blNumber || '-'}</div>
                                     <div style="font-size: 0.75rem; color: var(--text-dim);">Docs: ${s.docReceptionDate ? new Date(s.docReceptionDate).toLocaleDateString() : 'Non reçus'}</div>
                                 </td>
-                                <td><span class="status-badge ${s.status.toLowerCase()}">${s.status}</span></td>
+                                 <td><span class="status-badge ${(s.status || 'En cours').toLowerCase()}">${s.status || 'En cours'}</span></td>
                                 <td>
                                     <div class="table-actions">
                                         <button class="btn-action" onclick="app.showEditShipmentModal('${s.id}')" title="Modifier">
@@ -5602,7 +5602,7 @@ const app = {
                                             </span>
                                         </td>
                                         <td>
-                                            <div style="margin-bottom: 5px;"><span class="status-badge ${v.status.toLowerCase().replace(' ', '-')}">${v.status}</span></div>
+                                             <div style="margin-bottom: 5px;"><span class="status-badge ${(v.status || 'Planifié').toLowerCase().replace(' ', '-')}">${v.status || 'Planifié'}</span></div>
                                             <div style="font-size: 0.7rem; color: var(--text-dim)">
                                                 <i class="fas fa-history"></i> ${v.lastUpdate ? new Date(v.lastUpdate).toLocaleString() : 'Jamais'}
                                             </div>
@@ -5707,7 +5707,7 @@ const app = {
             }).join('')}
                                             </td>
                                             <td>
-                                                <span class="status-badge ${s.status.toLowerCase().replace(' ', '-')}">${s.status}</span>
+                                                <span class="status-badge ${(s.status || 'In Transit').toLowerCase().replace(' ', '-')}">${s.status || 'In Transit'}</span>
                                             </td>
                                         </tr>
                                     `;
