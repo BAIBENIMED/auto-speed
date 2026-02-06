@@ -2206,7 +2206,14 @@ const app = {
         this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <h1>Base Clients</h1>
-                    <button class="btn-primary" onclick="app.showClientModal()"><i class="fas fa-plus"></i> Nouveau Client</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-primary" onclick="app.showBatchClientModal()" style="background: var(--accent-blue); border-color: var(--accent-blue);">
+                            <i class="fas fa-file-import"></i> Importer (Lot)
+                        </button>
+                        <button class="btn-primary" onclick="app.showClientModal()">
+                            <i class="fas fa-plus"></i> Nouveau Client
+                        </button>
+                    </div>
                 </div>
                 <div class="clients-grid">
                     ${clients.map(client => `
@@ -2353,6 +2360,120 @@ const app = {
         } catch (error) {
             console.error("Error in handleClientSubmission:", error);
             this.showToast(`Erreur lors de l'enregistrement: ${error.message || 'Serveur injoignable'}`, "error");
+        }
+    },
+
+    showBatchClientModal() {
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 90vw; max-width: 1000px;">
+                    <div class="modal-header">
+                        <h2>Importation Clients par Lot</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <form id="batch-client-form">
+                        <div class="form-body" style="padding: 1.5rem;">
+                            <div class="alert info" style="margin-bottom: 1.5rem; background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
+                                <i class="fas fa-info-circle"></i> Copiez et collez vos données depuis Excel. L'ordre des colonnes doit être :<br>
+                                <strong>Référence | Prénom | Nom | Email | Téléphone | Adresse | Passeport | NIN | Showroom | Entreprise</strong>
+                            </div>
+                            <div class="form-group">
+                                <label>Données Clients (Une ligne par client)</label>
+                                <textarea name="batchData" class="glass-input" rows="15" 
+                                    placeholder="REF001	Jean	Dupont	jean@email.com	0601020304	Paris	A1234567	123456789	Showroom A	MaSociété"
+                                    style="font-family: monospace; white-space: pre; overflow-x: auto;"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
+                            <button type="submit" class="btn-primary">Lancer l'importation</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('batch-client-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleBatchClientSubmission(new FormData(e.target));
+        });
+    },
+
+    async handleBatchClientSubmission(formData) {
+        try {
+            const rawData = formData.get('batchData');
+            if (!rawData || !rawData.trim()) {
+                this.showToast("Aucune donnée à importer", "warning");
+                return;
+            }
+
+            const lines = rawData.trim().split('\n');
+            let successCount = 0;
+            let errorCount = 0;
+
+            // Start loading state
+            const submitBtn = document.querySelector('#batch-client-form button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importation...';
+            }
+
+            for (const [index, line] of lines.entries()) {
+                if (!line.trim()) continue;
+
+                // Headers check
+                if (index === 0 && (line.toLowerCase().includes('nom') || line.toLowerCase().includes('prénom') || line.toLowerCase().includes('email'))) {
+                    continue;
+                }
+
+                const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+                if (parts.length < 3) {
+                    errorCount++;
+                    continue;
+                }
+
+                const cleanParts = parts.map(p => p.trim().replace(/^"|"$/g, ''));
+
+                const [
+                    reference, firstName, lastName, email, phone,
+                    address, passport, nin, showroom, company
+                ] = cleanParts;
+
+                if (!firstName || !lastName) {
+                    errorCount++;
+                    continue;
+                }
+
+                const client = {
+                    id: 'CLT' + Date.now() + Math.floor(Math.random() * 1000),
+                    reference: reference || '',
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email || '',
+                    phone: phone || '',
+                    address: address || '',
+                    passportNumber: passport || '',
+                    nin: nin || '',
+                    showroom: showroom || '',
+                    company: company || ''
+                };
+
+                try {
+                    await StorageService.add(STORAGE_KEYS.CLIENTS, client);
+                    successCount++;
+                } catch (err) {
+                    console.error("Single client import error:", err);
+                    errorCount++;
+                }
+            }
+
+            this.closeModal();
+            this.renderView('clients');
+            this.showToast(`${successCount} clients importés avec succès (${errorCount} erreurs)`, successCount > 0 ? 'success' : 'warning');
+        } catch (error) {
+            console.error("Error in handleBatchClientSubmission:", error);
+            this.showToast("Erreur lors de l'importation par lot", "error");
         }
     },
 
@@ -2840,21 +2961,20 @@ const app = {
                                 <form id="batch-vehicle-form">
                                     <div class="form-group">
                                         <label>Données (Copier/Coller depuis Excel)</label>
-                                        <div class="alert info" style="font-size: 0.85rem; margin-bottom: 10px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 8px;">
-                                            <i class="fas fa-info-circle"></i> Respectez l'ordre exact des colonnes ci-dessous :<br>
-                                                <strong>Marque | Modèle/Version | Finition | Année | Mois | Couleur | Kilométrage | État | Châssis | Fournisseur | Statut | Prix Achat | Devise | Prix Vente | Devise | Remarques</strong>
-                                        </div>
-                                        <textarea name="batchData" class="glass-input" rows="15" placeholder="Toyota	Corolla Hybrid	SE	2023	05	Blanc	15000	Occasion	JH123...	AutoHub	Disponible	18000	EUR	22000	EUR	Commande spéciale
-Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	180000	EUR	210000	EUR	Commande spéciale" style="font-family: monospace; white-space: pre; overflow-x: auto;"></textarea>
+                                    <div class="alert info" style="font-size: 0.85rem; margin-bottom: 10px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 8px;">
+                                        <i class="fas fa-info-circle"></i> Respectez l'ordre exact des colonnes ci-dessous :<br>
+                                            <strong>Marque | Modèle | Motorisation | Finition | Année | Mois | Couleur | Kilométrage | État | Châssis | Fournisseur | Statut | Prix Achat | Devise | Prix Vente | Devise | Remarques</strong>
                                     </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
-                                        <button type="submit" class="btn-primary">Importer les véhicules</button>
-                                    </div>
-                                </form>
-                            </div>
+                                    <textarea name="batchData" class="glass-input" rows="15" placeholder="Toyota	Corolla	Hybrid	SE	2023	05	Blanc	15000	Occasion	JH123...	AutoHub	Disponible	18000	EUR	22000	EUR	Commande spéciale" style="font-family: monospace; white-space: pre; overflow-x: auto;"></textarea>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
+                                    <button type="submit" class="btn-primary">Importer les véhicules</button>
+                                </div>
+                            </form>
                         </div>
-                        `;
+                    </div>
+                    `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
         document.getElementById('batch-vehicle-form').addEventListener('submit', (e) => {
@@ -2876,25 +2996,18 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 // Skip empty lines
                 if (!line.trim()) continue;
 
-                // Split by tab (Excel copy) or comma (CSV)
-                const parts = line.includes('\t') ? line.split('\t') : line.split(',');
-
-                // Skip header if it looks like one (contains "Marque" or "Brand")
+                // Headers check
                 if (index === 0 && (line.toLowerCase().includes('marque') || line.toLowerCase().includes('brand'))) continue;
 
-                // Expecting at least 5 columns to be useful
-                if (parts.length < 5) {
-                    console.warn('Skipping invalid line:', line);
-                    errorCount++;
-                    continue;
-                }
+                // Split by tab (Excel copy) or comma (CSV)
+                const parts = line.includes('\t') ? line.split('\t') : line.split(',');
 
                 // Clean data
                 const cleanParts = parts.map(p => p.trim().replace(/^"|"$/g, ''));
 
-                // Mapping all fields (16 columns)
+                // Mapping fields (17 columns now: brand, model, motor, trim, year, month, color, km, cond, chassis, supplier, status, pPrice, pCurr, sPrice, sCurr, remarks)
                 const [
-                    brand, motorization, trim, year, month, color, mileage,
+                    brand, model, motorization, trim, year, month, color, mileage,
                     condition, chassisNumber, supplier, status,
                     pPrice, pCurr, sPrice, sCurr, remarks
                 ] = cleanParts;
@@ -2907,6 +3020,7 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                 const vehicle = {
                     id: this.generateVehicleId(brand),
                     brand: brand,
+                    model: model || '',
                     motorization: motorization || 'Standard',
                     trim: trim || '',
                     year: parseInt(year) || new Date().getFullYear(),
@@ -2925,13 +3039,18 @@ Mercedes	G63 AMG	Full	2024	01	Noir	0	Nouveau	WD123...	Partenaire	Réservé	18000
                     price: parseFloat(sPrice) || 0
                 };
 
-                await StorageService.add(STORAGE_KEYS.VEHICLES, vehicle);
-                successCount++;
+                try {
+                    await StorageService.add(STORAGE_KEYS.VEHICLES, vehicle);
+                    successCount++;
+                } catch (err) {
+                    console.error("Single vehicle import error:", err);
+                    errorCount++;
+                }
             }
 
             this.closeModal();
             this.showToast(`${successCount} véhicules importés avec succès (${errorCount} erreurs)`, successCount > 0 ? 'success' : 'warning');
-            this.renderView('catalog');
+            this.renderView('vehicles');
         } catch (error) {
             console.error("Error in handleBatchVehicleSubmission:", error);
             this.showToast("Erreur lors de l'importation par lot", "error");
