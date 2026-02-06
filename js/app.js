@@ -2374,7 +2374,7 @@ const app = {
                     <form id="batch-client-form">
                         <div class="form-body" style="padding: 1.5rem;">
                             <div class="alert info" style="margin-bottom: 1.5rem; background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
-                                <i class="fas fa-info-circle"></i> Copiez et collez vos données depuis Excel. L'ordre des colonnes doit être :<br>
+                                <i class="fas fa-info-circle"></i> Copiez et collez vos données depuis Excel (ou utilisez le <b>point-virgule ;</b> comme séparateur). L'ordre des colonnes doit être :<br>
                                 <strong>Référence | Prénom | Nom | Email | Téléphone | Adresse | Passeport | NIN | Showroom | Entreprise</strong>
                             </div>
                             <div class="form-group">
@@ -2427,7 +2427,16 @@ const app = {
                     continue;
                 }
 
-                const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+                // Detect delimiter: Tab, Semicolon, or Comma (in that priority)
+                let parts;
+                if (line.includes('\t')) {
+                    parts = line.split('\t');
+                } else if (line.includes(';')) {
+                    parts = line.split(';');
+                } else {
+                    parts = line.split(',');
+                }
+
                 if (parts.length < 3) {
                     errorCount++;
                     continue;
@@ -2962,7 +2971,7 @@ const app = {
                                     <div class="form-group">
                                         <label>Données (Copier/Coller depuis Excel)</label>
                                     <div class="alert info" style="font-size: 0.85rem; margin-bottom: 10px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 8px;">
-                                        <i class="fas fa-info-circle"></i> Respectez l'ordre exact des colonnes ci-dessous :<br>
+                                        <i class="fas fa-info-circle"></i> Respectez l'ordre exact des colonnes ci-dessous (Séparateur: <b>Tabulation</b> ou <b>Point-virgule ;</b>) :<br>
                                             <strong>Marque | Modèle | Motorisation | Finition | Année | Mois | Couleur | Kilométrage | État | Châssis | Fournisseur | Statut | Prix Achat | Devise | Prix Vente | Devise | Remarques</strong>
                                     </div>
                                     <textarea name="batchData" class="glass-input" rows="15" placeholder="Toyota	Corolla	Hybrid	SE	2023	05	Blanc	15000	Occasion	JH123...	AutoHub	Disponible	18000	EUR	22000	EUR	Commande spéciale" style="font-family: monospace; white-space: pre; overflow-x: auto;"></textarea>
@@ -2999,8 +3008,15 @@ const app = {
                 // Headers check
                 if (index === 0 && (line.toLowerCase().includes('marque') || line.toLowerCase().includes('brand'))) continue;
 
-                // Split by tab (Excel copy) or comma (CSV)
-                const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+                // Detect delimiter: Tab, Semicolon, or Comma
+                let parts;
+                if (line.includes('\t')) {
+                    parts = line.split('\t');
+                } else if (line.includes(';')) {
+                    parts = line.split(';');
+                } else {
+                    parts = line.split(',');
+                }
 
                 // Clean data
                 const cleanParts = parts.map(p => p.trim().replace(/^"|"$/g, ''));
