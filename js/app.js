@@ -31,6 +31,20 @@ const app = {
         return newId;
     },
 
+    generateClientReference() {
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        let maxNum = 0;
+
+        clients.forEach(c => {
+            if (c.reference && c.reference.startsWith('CL-')) {
+                const num = parseInt(c.reference.split('-')[1]);
+                if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+        });
+
+        return `CL-${String(maxNum + 1).padStart(4, '0')}`;
+    },
+
     searchQuery: '',
     dashboardFilters: {
         showroom: '',
@@ -2327,7 +2341,7 @@ const app = {
                 address: formData.get('address'),
                 passportNumber: formData.get('passportNumber'),
                 nin: formData.get('nin'),
-                reference: formData.get('reference') || '',
+                reference: formData.get('reference') || this.generateClientReference(),
                 showroom: formData.get('showroom') || 'Showroom Principal'
             };
 
@@ -2467,6 +2481,11 @@ const app = {
                     showroom: showroom || '',
                     company: company || ''
                 };
+
+                // Auto-generate reference if missing
+                if (!client.reference) {
+                    client.reference = this.generateClientReference();
+                }
 
                 try {
                     await StorageService.add(STORAGE_KEYS.CLIENTS, client);
