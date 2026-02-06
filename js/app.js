@@ -3459,6 +3459,21 @@ const app = {
     </div>
                                     </div >
                                 </div >
+                                
+                                <div class="settings-section">
+                                    <h3><i class="fas fa-wrench"></i> Maintenance & Système</h3>
+                                    <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 15px;">
+                                        Utilisez ces outils pour réparer les liens entre les données ou résoudre des problèmes de synchronisation des statuts si des commandes ne sont pas à jour.
+                                    </p>
+                                    <div class="form-row" style="gap: 15px;">
+                                        <button type="button" class="btn-secondary" onclick="app.handleGlobalStatusHeal()" style="display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;">
+                                            <i class="fas fa-magic" style="color: var(--primary);"></i> Réparer les statuts & liens
+                                        </button>
+                                        <button type="button" class="btn-secondary" onclick="app.handleResetData()" style="display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center; border-color: rgba(239, 68, 68, 0.3);">
+                                            <i class="fas fa-sync" style="color: var(--danger);"></i> Réinitialiser le cache
+                                        </button>
+                                    </div>
+                                </div>
 
 
 
@@ -3503,6 +3518,32 @@ const app = {
             console.error("Render Settings Error:", error);
             alert(`Erreur CRITIQUE Paramètres: ${error.message} \n${error.stack} `);
             this.showToast(`Erreur d'affichage des paramètres: ${error.message}`, 'error');
+        }
+    },
+
+    async handleGlobalStatusHeal() {
+        if (!confirm("Voulez-vous lancer la réparation globale des liens et des statuts ? Cette opération va vérifier toutes les expéditions et commandes pour s'assurer qu'elles sont bien synchronisées.")) return;
+
+        const loadingToast = this.showToast('🚀 Réparation globale en cours...', 'info', 0);
+        try {
+            const response = await fetch('/api/maintenance/heal-statuses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+
+            if (loadingToast && loadingToast.remove) loadingToast.remove();
+
+            if (result.success) {
+                this.showToast('✅ Réparation terminée ! Synchronisation finale...', 'success');
+                await this.syncAllData();
+            } else {
+                this.showToast('❌ Échec de la réparation : ' + result.message, 'error');
+            }
+        } catch (error) {
+            if (loadingToast && loadingToast.remove) loadingToast.remove();
+            console.error('Heal error:', error);
+            this.showToast('Erreur lors de la communication avec le serveur', 'error');
         }
     },
 

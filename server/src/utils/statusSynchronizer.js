@@ -15,7 +15,7 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
         // 1. Find all vehicles linked to this shipment
         const vehicles = await Vehicle.findAll({
             where: { shipmentId },
-            attributes: ['id', 'order_id', 'status']
+            attributes: ['id', 'orderId', 'status'] // Use model-defined names
         });
 
         if (!vehicles || vehicles.length === 0) {
@@ -24,14 +24,16 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
         }
 
         const vehicleIds = vehicles.map(v => v.id);
-        const orderIdsFromVehicles = vehicles.map(v => v.order_id || v.orderId).filter(id => !!id);
+        const orderIdsFromVehicles = vehicles.map(v => v.orderId).filter(id => !!id);
+
+        console.log(`[StatusSync] 📍 Found ${vehicles.length} vehicles. Direct linked order IDs: ${orderIdsFromVehicles.join(', ') || 'none'}`);
 
         // 2. Find ALL orders linked to these vehicles (bidirectional check)
         const orders = await Order.findAll({
             where: {
                 [Op.or]: [
-                    { id: orderIdsFromVehicles },
-                    { vehicleId: vehicleIds }
+                    { id: { [Op.in]: orderIdsFromVehicles } },
+                    { vehicleId: { [Op.in]: vehicleIds } }
                 ]
             },
             attributes: ['id']
@@ -70,7 +72,7 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
             }
         );
 
-        console.log(`[StatusSync] ✅ Successfully updated ${updatedCount} orders with status "${orderStatus}" for shipment ${shipmentId}`);
+        console.log(`[StatusSync] ✅ Successfully updated ${updatedCount} orders to "${orderStatus}" for shipment ${shipmentId}`);
     } catch (error) {
         console.error(`[StatusSync] ❌ Error syncing shipment status:`, error);
     }
