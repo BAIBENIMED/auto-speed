@@ -5165,6 +5165,9 @@ const app = {
                                  <td><span class="status-badge ${(s.status || 'En cours').toLowerCase()}">${s.status || 'En cours'}</span></td>
                                 <td>
                                     <div class="table-actions">
+                                        <button class="btn-action primary" onclick="app.handleManualShipmentRefresh('${s.id}')" title="Actualiser">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
                                         <button class="btn-action" onclick="app.showEditShipmentModal('${s.id}')" title="Modifier">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -6973,6 +6976,47 @@ const app = {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = shipmentId ? 'Enregistrer les modifications' : "Lancer l'expédition";
             }
+        }
+    },
+
+    async handleManualShipmentRefresh(shipmentId) {
+        try {
+            const shipment = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || []).find(s => s.id === shipmentId);
+            if (!shipment) {
+                this.showToast('Expédition non trouvée', 'error');
+                return;
+            }
+
+            const confirmed = confirm(`Actualiser l'expédition "${shipment.containerNumber || shipmentId}" ?\n\nCela va :\n- Remplir automatiquement les dates selon le statut\n- Mettre à jour les véhicules et commandes liés`);
+            if (!confirmed) return;
+
+            this.showToast('Actualisation en cours...', 'info');
+
+            const response = await fetch(`${API_BASE_URL}/shipments/${shipmentId}/manual-update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Update local storage with the updated shipment
+                await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipmentId, result.data);
+
+                // Sync all data to get updated vehicles and orders
+                await this.syncOrderStatuses();
+
+                this.showToast('✅ Expédition actualisée avec succès !', 'success');
+                this.renderView(this.currentView);
+            } else {
+                this.showToast(result.message || 'Erreur lors de l\'actualisation', 'error');
+            }
+        } catch (error) {
+            console.error('Error refreshing shipment:', error);
+            this.showToast('Erreur lors de l\'actualisation de l\'expédition', 'error');
         }
     },
 

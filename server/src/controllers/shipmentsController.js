@@ -137,6 +137,66 @@ const shipmentsController = {
         }
     },
 
+    manualUpdate: async (req, res) => {
+        try {
+            const shipment = await Shipment.findByPk(req.params.id);
+            if (!shipment) {
+                return res.status(404).json({ success: false, message: 'Expédition non trouvée' });
+            }
+
+            console.log(`[ManualUpdate] Processing shipment ${shipment.id}, status: ${shipment.status}`);
+
+            // Auto-fill dates based on status
+            const updates = {};
+
+            if (shipment.status === 'Arrivé' && !shipment.arrivalDate) {
+                updates.arrivalDate = new Date();
+                console.log(`[ManualUpdate] Auto-set arrivalDate for shipment ${shipment.id}`);
+            }
+
+            if (shipment.status === 'Livré' && !shipment.pickupDate) {
+                updates.pickupDate = new Date();
+                console.log(`[ManualUpdate] Auto-set pickupDate for shipment ${shipment.id}`);
+            }
+
+            // Update shipment if there are changes
+            if (Object.keys(updates).length > 0) {
+                await shipment.update(updates);
+            }
+
+            // Propagate status to vehicles and orders
+            const vehicles = await Vehicle.findAll({ where: { shipmentId: shipment.id } });
+
+            for (const vehicle of vehicles) {
+                // Update vehicle status based on shipment status
+                let vehicleStatus = 'In Transit';
+                if (shipment.status === 'Arrivé') {
+                    vehicleStatus = 'Arrived';
+                } else if (shipment.status === 'Livré') {
+                    vehicleStatus = 'Sold';
+                }
+
+                await vehicle.update({ status: vehicleStatus });
+                console.log(`[ManualUpdate] Updated vehicle ${vehicle.id} to status: ${vehicleStatus}`);
+            }
+
+            // Sync to orders using the status synchronizer
+            await syncShipmentStatusToOrders(shipment.id, shipment.status);
+
+            // Reload shipment with updated data
+            await shipment.reload();
+
+            res.json({
+                success: true,
+                message: 'Expédition mise à jour avec succès',
+                data: shipment
+            });
+        } catch (error) {
+            console.error('Error in manual update:', error);
+            res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour manuelle' });
+        }
+    },
+
 
 };
 
