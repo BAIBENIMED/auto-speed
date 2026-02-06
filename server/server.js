@@ -309,23 +309,24 @@ const startServer = async () => {
         // 3. Setup Automation (Cron Jobs)
         const voyageTrackingService = require('./src/services/voyageTrackingService');
 
-        // Refresh all active voyages every 6 hours
-        // Cron: 0 */6 * * *
-        cron.schedule('0 */6 * * *', () => {
+        // Refresh all active voyages every hour (was 6 hours)
+        // Cron: 0 * * * * (every hour at minute 0)
+        cron.schedule('0 * * * *', () => {
+            console.log('[CRON] Starting automatic voyage tracking refresh...');
             voyageTrackingService.refreshAllActive().catch(err => {
                 console.error('[CRON] Voyage Refresh Error:', err.message);
             });
         });
 
-        // Check for stale voyages every hour
-        // Cron: 0 * * * *
-        cron.schedule('0 * * * *', () => {
+        // Check for stale voyages every 3 hours
+        // Cron: 0 */3 * * *
+        cron.schedule('0 */3 * * *', () => {
             voyageTrackingService.checkStaleVoyages().catch(err => {
                 console.error('[CRON] Stale Check Error:', err.message);
             });
         });
 
-        console.log('⏰ Tâches automatisées (Cron) activées : Actualisation (6h) + Alerte retards (1h)');
+        console.log('⏰ Tâches automatisées (Cron) activées : Actualisation (1h) + Alerte retards (3h)');
 
     } catch (err) {
         console.error('❌ ERREUR INITIALISATION BACKGROUND:');
