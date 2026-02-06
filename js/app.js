@@ -592,12 +592,11 @@ const app = {
     calculateOrderStatus(order) {
         if (order.status === 'ANNULÉE' || order.status === 'LIVRÉE' || order.status === 'ANNULÉ') return order.status;
         if (!order.isValidated) return 'EN ATTENTE DE VALIDATION';
-        if (!order.vehicleId) return "ATTENTE AFFECTATION VÉHICULE";
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const vehicle = vehicles.find(v => v.id === order.vehicleId || (order.id && v.orderId === order.id));
 
-        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-        const vehicle = vehicles.find(v => v.id === order.vehicleId);
-
-        if (!vehicle || !vehicle.shipmentId) return "ATTENTE EXPÉDITION";
+        if (!vehicle) return "ATTENTE AFFECTATION VÉHICULE";
+        if (!vehicle.shipmentId) return "ATTENTE EXPÉDITION";
 
         const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS);
         const shipment = shipments.find(s => s.id === vehicle.shipmentId);
@@ -7015,14 +7014,9 @@ const app = {
             const result = await response.json();
 
             if (result.success) {
-                // Update local storage with the updated shipment
-                await StorageService.update(STORAGE_KEYS.SHIPMENTS, shipmentId, result.data);
-
-                // Sync all data to get updated vehicles and orders
-                await this.syncOrderStatuses();
-
-                this.showToast('✅ Expédition actualisée avec succès !', 'success');
-                this.renderView(this.currentView);
+                // Perform a full sync to get all propagated changes (vehicles, orders)
+                await this.syncAllData();
+                this.showToast('✅ Expédition et commandes actualisées !', 'success');
             } else {
                 this.showToast(result.message || 'Erreur lors de l\'actualisation', 'error');
             }
