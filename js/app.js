@@ -5887,9 +5887,11 @@ const app = {
             };
 
             let arrivalDate = updates.arrivalDate;
+            console.log('[Legacy Voyage] Status:', updates.status, 'Arrival Date:', arrivalDate);
             if (updates.status === 'Arrivé' && !arrivalDate) {
                 arrivalDate = new Date().toISOString().split('T')[0];
                 updates.arrivalDate = arrivalDate;
+                console.log('[Legacy Voyage] Auto-set arrival date to:', arrivalDate);
             }
 
             // Update each shipment in the voyage
@@ -6662,6 +6664,18 @@ const app = {
             renderVehicleList(e.target.value);
         });
 
+        // Auto-fill arrival date when status changes to "Arrivé"
+        const statusSelect = document.querySelector('select[name="status"]');
+        const arrivalDateInput = document.querySelector('input[name="arrivalDate"]');
+        if (statusSelect && arrivalDateInput) {
+            statusSelect.addEventListener('change', (e) => {
+                if (e.target.value === 'Arrivé' && !arrivalDateInput.value) {
+                    arrivalDateInput.value = new Date().toISOString().split('T')[0];
+                    console.log('[UI] Auto-filled arrival date:', arrivalDateInput.value);
+                }
+            });
+        }
+
         document.getElementById('shipment-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleShipmentSubmission(new FormData(e.target));
@@ -6867,8 +6881,11 @@ const app = {
             }
 
             let arrivalDate = sanitizeDate(formData.get('arrivalDate'));
-            if (formData.get('status') === 'Arrivé' && !arrivalDate) {
+            const status = formData.get('status');
+            console.log('[Shipment] Status:', status, 'Arrival Date:', arrivalDate);
+            if (status === 'Arrivé' && !arrivalDate) {
                 arrivalDate = new Date().toISOString().split('T')[0];
+                console.log('[Shipment] Auto-set arrival date to:', arrivalDate);
             }
 
             const shipmentData = {
@@ -7073,9 +7090,11 @@ const app = {
             };
 
             let arrivalDate = voyageData.arrivalDate;
+            console.log('[Voyage] Status:', voyageData.status, 'Arrival Date:', arrivalDate);
             if (voyageData.status === 'Arrivé' && !arrivalDate) {
                 arrivalDate = new Date().toISOString().split('T')[0];
                 voyageData.arrivalDate = arrivalDate;
+                console.log('[Voyage] Auto-set arrival date to:', arrivalDate);
             }
 
             if (id) {
