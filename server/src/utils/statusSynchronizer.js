@@ -53,6 +53,8 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
         const normalizedStatus = status.toLowerCase().trim();
 
         if (normalizedStatus === 'en route' || normalizedStatus === 'en mer' || normalizedStatus === 'en-route') {
+            orderStatus = 'EN MER';
+        } else if (normalizedStatus === 'loaded' || normalizedStatus === 'departure') {
             orderStatus = 'A BORD';
         } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée') {
             orderStatus = 'ARRIVÉE';
