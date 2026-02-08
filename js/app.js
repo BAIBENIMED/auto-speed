@@ -774,8 +774,8 @@ const app = {
             { id: 'validation', label: 'Validation', icon: 'fa-check-double', completed: order.isValidated },
             { id: 'assignment', label: 'Affectation', icon: 'fa-car', completed: !!order.vehicleId },
             { id: 'shipping', label: 'Expédition', icon: 'fa-shipping-fast', completed: !!shipment },
-            { id: 'onboard', label: 'A Bord', icon: 'fa-ship', completed: shipment && (shipment.status === 'Préparation' || shipment.etd) },
-            { id: 'atsea', label: 'En Mer', icon: 'fa-water', completed: shipment && shipment.status === 'En mer' },
+            { id: 'onboard', label: 'A Bord', icon: 'fa-ship', completed: shipment && (['préparation', 'loaded', 'departure', 'a bord'].includes((shipment.status || '').toLowerCase()) || shipment.etd) },
+            { id: 'atsea', label: 'En Mer', icon: 'fa-water', completed: shipment && ['en mer', 'en route', 'in transit', 'en-route'].includes((shipment.status || '').toLowerCase()) },
             { id: 'arrived', label: 'Arrivée', icon: 'fa-box-open', completed: shipment && (shipment.arrivalDate || shipment.status === 'Arrivée' || shipment.status === 'Arrivé') },
             { id: 'delivered', label: 'Enlevée', icon: 'fa-handshake', completed: shipment && (shipment.pickupDate || shipment.status === 'Livré' || shipment.status === 'Enlevée') }
         ];
@@ -11052,6 +11052,11 @@ const app = {
         const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === shipmentId);
         if (!shipment) return this.showToast("Expédition introuvable", "error");
 
+        // Use coordinates if available, otherwise fallback to Dakar
+        const hasCoords = shipment.currentLat && shipment.currentLng;
+        const locationQuery = hasCoords ? `${shipment.currentLat},${shipment.currentLng}` : 'Dakar, Senegal';
+        const displayLocation = hasCoords ? `Lat: ${shipment.currentLat}, Lng: ${shipment.currentLng}` : (shipment.currentLocation || 'Position non disponible');
+
         const modalHtml = `
             <div class="modal-overlay">
                 <div class="modal-content glass" style="width: 800px; height: 600px; display: flex; flex-direction: column;">
@@ -11064,11 +11069,11 @@ const app = {
                             width="100%" 
                             height="100%" 
                             frameborder="0" 
-                            src="https://maps.google.com/maps?q=${encodeURIComponent(shipment.currentLocation || 'Dakar, Senegal')}&t=&z=13&ie=UTF8&iwloc=&output=embed">
+                            src="https://maps.google.com/maps?q=${encodeURIComponent(locationQuery)}&t=&z=5&ie=UTF8&iwloc=&output=embed">
                         </iframe>
                         <div style="position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; color: white; pointer-events: none;">
                             <div style="font-weight: bold; margin-bottom: 5px;">📍 Position Actuelle</div>
-                            <div>${shipment.currentLocation || 'Position non disponible'}</div>
+                            <div>${displayLocation}</div>
                             <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Mise à jour: ${shipment.lastUpdate ? new Date(shipment.lastUpdate).toLocaleString() : 'Jamais'}</div>
                         </div>
                     </div>
