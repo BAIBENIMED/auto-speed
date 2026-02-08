@@ -838,9 +838,14 @@ const app = {
                                     <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
                                         <strong>Conteneur:</strong> ${shipment.containerNumber} | <strong>Compagnie:</strong> ${shipment.carrier || 'N/A'}
                                     </div>
-                                    <button class="btn btn-primary" style="margin-top: 12px; width: 100%; font-size: 0.85rem;" onclick="app.showShipmentTrackingHistory('${shipment.id}')">
-                                        <i class="fas fa-history"></i> Voir l'historique de tracking
-                                    </button>
+                                    <div style="display: flex; gap: 10px; margin-top: 12px;">
+                                        <button class="btn btn-secondary" style="flex: 1; font-size: 0.85rem;" onclick="app.showShipmentMap('${shipment.id}')">
+                                            <i class="fas fa-map-marked-alt"></i> Voir sur la carte
+                                        </button>
+                                        <button class="btn btn-primary" style="flex: 1; font-size: 0.85rem;" onclick="app.showShipmentTrackingHistory('${shipment.id}')">
+                                            <i class="fas fa-history"></i> Historique
+                                        </button>
+                                    </div>
                                 </div>
                                 ` : ''}
                                 
@@ -11041,6 +11046,77 @@ const app = {
 
     showAddUserModal() {
         alert("Ajout utilisateur à venir.");
+    },
+
+    showShipmentMap(shipmentId) {
+        const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === shipmentId);
+        if (!shipment) return this.showToast("Expédition introuvable", "error");
+
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 800px; height: 600px; display: flex; flex-direction: column;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-map-marked-alt"></i> Localisation: ${shipment.containerNumber}</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="flex: 1; position: relative; padding: 0;">
+                        <iframe 
+                            width="100%" 
+                            height="100%" 
+                            frameborder="0" 
+                            src="https://maps.google.com/maps?q=${encodeURIComponent(shipment.currentLocation || 'Dakar, Senegal')}&t=&z=13&ie=UTF8&iwloc=&output=embed">
+                        </iframe>
+                        <div style="position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; color: white; pointer-events: none;">
+                            <div style="font-weight: bold; margin-bottom: 5px;">📍 Position Actuelle</div>
+                            <div>${shipment.currentLocation || 'Position non disponible'}</div>
+                            <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Mise à jour: ${shipment.lastUpdate ? new Date(shipment.lastUpdate).toLocaleString() : 'Jamais'}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    showShipmentTrackingHistory(shipmentId) {
+        const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === shipmentId);
+        if (!shipment) return this.showToast("Expédition introuvable", "error");
+
+        const events = shipment.trackingHistory || [];
+        // Sort by date desc
+        events.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-history"></i> Historique Tracking</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="overflow-y: auto; padding: 20px;">
+                        ${events.length === 0 ?
+                '<div style="text-align: center; color: var(--text-dim); padding: 20px;">Aucun historique disponible</div>' :
+                `<div class="timeline-vertical">
+                                ${events.map((e, i) => `
+                                    <div class="timeline-item">
+                                        <div class="timeline-marker ${i === 0 ? 'primary' : ''}"></div>
+                                        <div class="timeline-content glass" style="margin-bottom: 15px; padding: 10px;">
+                                            <div style="font-weight: bold; color: ${i === 0 ? 'var(--primary)' : 'inherit'}">${e.status}</div>
+                                            <div style="font-size: 0.85rem; margin-top: 5px;">${e.location || ''}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 5px; display: flex; align-items: center; gap: 5px;">
+                                                <i class="far fa-clock"></i> ${new Date(e.date).toLocaleString()}
+                                            </div>
+                                            ${e.details ? `<div style="font-size: 0.8rem; margin-top: 5px; font-style: italic;">${e.details}</div>` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>`
+            }
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
 };
 
