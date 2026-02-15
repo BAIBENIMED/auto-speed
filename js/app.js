@@ -11042,7 +11042,6 @@ const app = {
     },
 
     renderBrandModelsSection() {
-        // Basic placeholder to prevent crash
         const modelsMap = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
         const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
 
@@ -11051,49 +11050,18 @@ const app = {
                 <h3><i class="fas fa-car-side"></i> Modèles par Marque</h3>
                 <div class="config-grid">
                     ${brands.map(brand => `
-                        <div class="config-item glass" style="flex-direction: column; align-items: flex-start; gap: 5px;">
-                            <div style="font-weight: bold; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">${brand}</div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                                ${(modelsMap[brand] || []).map(m => `<span class="badge">${m}</span>`).join('') || '<span style="color:var(--text-dim); font-size:0.8rem;">Aucun modèle</span>'}
+                        <div class="config-item glass" style="flex-direction: column; align-items: stretch; gap: 10px; height: auto; min-height: 120px; padding: 15px;">
+                            <div style="font-weight: 700; width: 100%; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px; margin-bottom: 5px; color: var(--primary);">
+                                ${brand}
                             </div>
-                            <button class="btn-icon-small" onclick="app.manageModels('${brand.replace(/'/g, "\\'")}')" style="align-self: flex-end; margin-top: 5px;">
-                                <i class="fas fa-cog"></i> Gérer
-                            </button>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    },
-
-    renderUserManagementSection() {
-        const users = StorageService.get(STORAGE_KEYS.USERS) || [];
-        return `
-            <div class="settings-section">
-                <h3><i class="fas fa-users-cog"></i> Gestion des Utilisateurs</h3>
-                <div class="config-grid">
-                    ${users.map(u => `
-                        <div class="config-item glass">
-                            <span>${u.username} (${u.role || 'N/A'})</span>
-                        </div>
-                    `).join('')}
-                </div>
-                 <div class="add-config-form">
-                    <button type="button" class="btn-primary" onclick="app.showAddUserModal()">Ajouter Utilisateur</button>
-                </div>
-            </div>
-        `;
-    },
-
-    renderRoleManagementSection() {
-        const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
-        return `
-            <div class="settings-section">
-                <h3><i class="fas fa-user-shield"></i> Gestion des Rôles</h3>
-                 <div class="config-grid">
-                    ${roles.map(r => `
-                        <div class="config-item glass">
-                            <span>${r.name}</span>
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px; flex-grow: 1;">
+                                ${(modelsMap[brand] || []).map(m => `<span class="model-tag">${m}</span>`).join('') || '<span style="color:var(--text-secondary); font-size:0.8rem; opacity: 0.6;">Aucun modèle</span>'}
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; margin-top: auto;">
+                                <button class="btn-icon-small" onclick="app.manageModels('${brand.replace(/'/g, "\\'")}')" title="Gérer les modèles">
+                                    <i class="fas fa-cog"></i> Gérer
+                                </button>
+                            </div>
                         </div>
                     `).join('')}
                 </div>
@@ -11102,41 +11070,49 @@ const app = {
     },
 
     manageModels(brand) {
-        // Todo: Implement model management modal
-        alert("Gestion des modèles pour " + brand + " à venir.");
-    },
+        // Find brand in BRANDS_RAW to get its ID
+        const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        const brandObj = brandsRaw.find(b => b.name === brand);
 
-    showAddUserModal() {
-        alert("Ajout utilisateur à venir.");
+        if (!brandObj) {
+            return this.showToast("Erreur: Marque introuvable.", "error");
+        }
+
+        // Use the existing logic or placeholder
+        alert("Gestion détaillée des modèles pour " + brand + " (ID: " + brandObj.id + ") à venir.\nEn attendant, vous pouvez ajouter des modèles via le champ 'Ajouter un modèle' ci-dessous dans la vue Configuration.");
     },
 
     showShipmentMap(shipmentId) {
-        const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === shipmentId);
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const shipment = shipments.find(s => s.id === shipmentId);
         if (!shipment) return this.showToast("Expédition introuvable", "error");
 
         // Use coordinates if available, otherwise fallback to Dakar
         const hasCoords = shipment.currentLat && shipment.currentLng;
-        const locationQuery = hasCoords ? `${shipment.currentLat},${shipment.currentLng}` : 'Dakar, Senegal';
+        const locationQuery = hasCoords ? `${shipment.currentLat},${shipment.currentLng}` : (shipment.currentLocation || 'Dakar, Senegal');
         const displayLocation = hasCoords ? `Lat: ${shipment.currentLat}, Lng: ${shipment.currentLng}` : (shipment.currentLocation || 'Position non disponible');
 
         const modalHtml = `
             <div class="modal-overlay">
-                <div class="modal-content glass" style="width: 800px; height: 600px; display: flex; flex-direction: column;">
-                    <div class="modal-header">
-                        <h2><i class="fas fa-map-marked-alt"></i> Localisation: ${shipment.containerNumber}</h2>
+                <div class="modal-content glass" style="width: 90%; max-width: 900px; height: 80vh; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+                    <div class="modal-header" style="padding: 20px;">
+                        <h2><i class="fas fa-map-marked-alt"></i> Localisation: ${shipment.containerNumber || shipment.blNumber}</h2>
                         <button class="btn-close" onclick="app.closeModal()">&times;</button>
                     </div>
-                    <div class="modal-body" style="flex: 1; position: relative; padding: 0;">
+                    <div class="modal-body" style="flex: 1; position: relative; padding: 0; background: #f0f0f0;">
                         <iframe 
                             width="100%" 
                             height="100%" 
                             frameborder="0" 
-                            src="https://maps.google.com/maps?q=${encodeURIComponent(locationQuery)}&t=&z=5&ie=UTF8&iwloc=&output=embed">
+                            style="border:0"
+                            src="https://maps.google.com/maps?q=${encodeURIComponent(locationQuery)}&t=&z=6&ie=UTF8&iwloc=&output=embed">
                         </iframe>
-                        <div style="position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; color: white; pointer-events: none;">
-                            <div style="font-weight: bold; margin-bottom: 5px;">📍 Position Actuelle</div>
-                            <div>${displayLocation}</div>
-                            <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Mise à jour: ${shipment.lastUpdate ? new Date(shipment.lastUpdate).toLocaleString() : 'Jamais'}</div>
+                        <div style="position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px; color: white; pointer-events: none; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1);">
+                            <div style="font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-map-marker-alt" style="color: #ef4444;"></i> Position Actuelle
+                            </div>
+                            <div style="font-size: 0.95rem;">${displayLocation}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">Dernière mise à jour: ${shipment.lastUpdate ? new Date(shipment.lastUpdate).toLocaleString() : 'Non disponible'}</div>
                         </div>
                     </div>
                 </div>
@@ -11146,34 +11122,44 @@ const app = {
     },
 
     showShipmentTrackingHistory(shipmentId) {
-        const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === shipmentId);
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const shipment = shipments.find(s => s.id === shipmentId);
         if (!shipment) return this.showToast("Expédition introuvable", "error");
 
-        const events = shipment.trackingHistory || [];
+        let events = [];
+        try {
+            events = typeof shipment.trackingHistory === 'string' ? JSON.parse(shipment.trackingHistory) : (shipment.trackingHistory || []);
+        } catch (e) {
+            events = [];
+        }
+
         // Sort by date desc
-        events.sort((a, b) => new Date(b.date) - new Date(a.date));
+        events.sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp));
 
         const modalHtml = `
             <div class="modal-overlay">
                 <div class="modal-content glass" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
                     <div class="modal-header">
-                        <h2><i class="fas fa-history"></i> Historique Tracking</h2>
+                        <h2><i class="fas fa-history"></i> Historique du Voyage</h2>
                         <button class="btn-close" onclick="app.closeModal()">&times;</button>
                     </div>
-                    <div class="modal-body" style="overflow-y: auto; padding: 20px;">
+                    <div class="modal-body" style="overflow-y: auto; padding: 25px;">
                         ${events.length === 0 ?
-                '<div style="text-align: center; color: var(--text-dim); padding: 20px;">Aucun historique disponible</div>' :
-                `<div class="timeline-vertical">
+                '<div style="text-align: center; color: var(--text-secondary); padding: 40px; opacity: 0.6;"><i class="fas fa-ghost fa-3x mb-3"></i><br>Aucun historique disponible</div>' :
+                `<div class="timeline-vertical" style="display: flex; flex-direction: column; gap: 20px;">
                                 ${events.map((e, i) => `
-                                    <div class="timeline-item">
-                                        <div class="timeline-marker ${i === 0 ? 'primary' : ''}"></div>
-                                        <div class="timeline-content glass" style="margin-bottom: 15px; padding: 10px;">
-                                            <div style="font-weight: bold; color: ${i === 0 ? 'var(--primary)' : 'inherit'}">${e.status}</div>
-                                            <div style="font-size: 0.85rem; margin-top: 5px;">${e.location || ''}</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 5px; display: flex; align-items: center; gap: 5px;">
-                                                <i class="far fa-clock"></i> ${new Date(e.date).toLocaleString()}
+                                    <div class="timeline-event" style="display: flex; gap: 15px; position: relative;">
+                                        <div class="timeline-line" style="position: absolute; left: 11px; top: 25px; bottom: -20px; width: 2px; background: var(--border-glass); opacity: ${i === events.length - 1 ? 0 : 1}"></div>
+                                        <div class="timeline-dot" style="width: 24px; height: 24px; border-radius: 50%; background: ${i === 0 ? 'var(--primary)' : 'var(--bg-glass)'}; border: 3px solid ${i === 0 ? 'rgba(99,102,241,0.3)' : 'var(--border-glass)'}; flex-shrink: 0; z-index: 1; display: flex; align-items: center; justify-content: center;">
+                                            ${i === 0 ? '<div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>' : ''}
+                                        </div>
+                                        <div class="timeline-item-content" style="flex: 1;">
+                                            <div style="font-weight: 700; color: ${i === 0 ? 'var(--primary)' : 'var(--text-primary)'}; font-size: 0.95rem;">${e.status || e.event}</div>
+                                            <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; margin-top: 2px;">${e.location || 'N/A'}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-secondary); opacity: 0.7; margin-top: 6px; display: flex; align-items: center; gap: 5px;">
+                                                <i class="far fa-clock"></i> ${new Date(e.date || e.timestamp).toLocaleString()}
                                             </div>
-                                            ${e.details ? `<div style="font-size: 0.8rem; margin-top: 5px; font-style: italic;">${e.details}</div>` : ''}
+                                            ${e.details ? `<div style="font-size: 0.8rem; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; font-style: italic; border-left: 3px solid var(--border-glass);">${e.details}</div>` : ''}
                                         </div>
                                     </div>
                                 `).join('')}
@@ -11188,14 +11174,16 @@ const app = {
 };
 
 // Initialize App
-// Initialize App
-window.app = app; // Expose globally immediately
+window.app = app;
 app.init().catch(err => {
     console.error('Critical Error during App Init:', err);
-    document.body.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif;">
-            <h1>Erreur Critique</h1>
-            <p>L'application n'a pas pu démarrer.</p>
-            <pre>${err.message}\n${err.stack}</pre>
+    document.body.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif; background: #fff; height: 100vh;">
+            <h1>Erreur Critique de Chargement</h1>
+            <p>L'application n'a pas pu s'initialiser correctement.</p>
+            <div style="background: #f8f8f8; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px solid #ddd; overflow: auto; max-height: 50vh;">
+                <code style="white-space: pre-wrap;">${err.message}\n${err.stack}</code>
+            </div>
+            <button onclick="window.location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer;">Réessayer</button>
         </div>`;
 });
 // End of App Logic

@@ -690,6 +690,23 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     color: var(--primary);
 }
 
+/* Model tags in settings */
+.model-tag {
+    padding: 4px 10px;
+    background: rgba(var(--primary-rgb, 99, 102, 241), 0.1);
+    border: 1px solid var(--border-glass);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    display: inline-block;
+}
+
+[data-theme="light"] .model-tag {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #475569;
+}
+
 /* View Headers */
 .view-header {
     margin-bottom: 9px;
