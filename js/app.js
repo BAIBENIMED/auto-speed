@@ -1510,7 +1510,7 @@ const app = {
             // --- 2. RENDER HTML ---
             this.viewContainer.innerHTML = `
                 <div class="view-header">
-                    <h2>Tableau de Bord Premium</h2>
+                    <h2>DASHBOARD</h2>
                     <div class="header-filters glass">
                         <select id="dash-showroom" onchange="app.setDashboardFilter('showroom', this.value)">
                             <option value="">Tous les showrooms</option>
