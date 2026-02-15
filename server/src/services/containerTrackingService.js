@@ -8,7 +8,7 @@ class ContainerTrackingService {
     }
 
     async trackContainer(number, isBL = false) {
-        if (!number) return this.simulateTracking('N/A', isBL);
+        if (!number) return { status: 'Numéro manquant', identifier: 'N/A' };
 
         // 1. Try Real API if Key is present
         if (this.apiKey && this.apiKey.trim() !== '' && this.apiKey !== 'your_safecube_key_here') {
@@ -20,15 +20,21 @@ class ContainerTrackingService {
                 if (error.response && error.response.status === 401) {
                     console.warn('[SinayV2] Invalid API Key. Falling back to simulation.');
                 } else {
-                    const sim = this.simulateTracking(number, isBL);
-                    sim.status += ' (Simulé - API HS)';
-                    return sim;
+                    return {
+                        status: 'Erreur API',
+                        identifier: number,
+                        message: error.message
+                    };
                 }
             }
         }
 
-        // 2. Default to Simulation
-        return this.simulateTracking(number, isBL);
+        // 2. Default to Error (No simulation)
+        return {
+            status: 'Tracking Error',
+            identifier: number,
+            message: 'No API Key or Service Unavailable'
+        };
     }
 
     detectSealine(number) {
@@ -97,9 +103,11 @@ class ContainerTrackingService {
             };
         } catch (err) {
             console.error(`[Sinay] Registration failed:`, err.message);
-            const sim = this.simulateTracking(number, isBL);
-            sim.status += ' (Simulé - Droits Insuffisants)';
-            return sim;
+            return {
+                status: 'Tracking Error',
+                identifier: number,
+                message: 'Registration failed: ' + err.message
+            };
         }
     }
 
