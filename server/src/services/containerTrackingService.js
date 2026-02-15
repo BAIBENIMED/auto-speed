@@ -160,45 +160,6 @@ class ContainerTrackingService {
             provider: 'Sinay V2'
         };
     }
-
-    simulateTracking(number, isBL = false) {
-        const hash = number.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const now = Date.now();
-        const progressRaw = (hash + Math.floor(now / 1000000)) % 100;
-
-        let status = 'En mer';
-        if (progressRaw < 10) status = 'Préparation';
-        else if (progressRaw > 90) status = 'Arrivé';
-
-        // Europe to Africa path
-        const startLat = 46.0;
-        const startLng = -1.0;
-        const endLat = 6.0;
-        const endLng = 1.0;
-
-        const p = progressRaw / 100;
-        const currentLat = startLat - ((startLat - endLat) * p);
-        const currentLng = startLng + ((endLng - startLng) * p);
-
-        return {
-            identifier: number,
-            type: isBL ? 'BL' : 'Container',
-            status: status,
-            location: {
-                lat: currentLat + (Math.random() * 0.1 - 0.05),
-                lng: currentLng + (Math.random() * 0.1 - 0.05),
-                name: 'Océan Atlantique (Simulé)'
-            },
-            events: [
-                { date: new Date(now - 86400000 * 2).toISOString(), description: 'Départ du port de chargement', location: 'Le Havre, FR' },
-                { date: new Date(now - 3600000).toISOString(), description: 'Position reçue par satellite', location: 'En mer' }
-            ],
-            eta: new Date(now + 86400000 * 5).toISOString(),
-            vesselName: 'TITAN SIMULATOR',
-            voyage: 'VOY-' + (hash % 1000),
-            provider: 'Simulation'
-        };
-    }
 }
 
 module.exports = new ContainerTrackingService();

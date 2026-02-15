@@ -837,6 +837,7 @@ const app = {
                                     </div>
                                     <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
                                         <strong>Conteneur:</strong> ${shipment.containerNumber} | <strong>Compagnie:</strong> ${shipment.carrier || 'N/A'}
+                                        ${shipment.voyage ? `<br><strong>Voyage:</strong> ${shipment.voyage}` : ''}
                                     </div>
                                     <div style="display: flex; gap: 10px; margin-top: 12px;">
                                         <button class="btn btn-secondary" style="flex: 1; font-size: 0.85rem;" onclick="app.showShipmentMap('${shipment.id}')">
@@ -846,6 +847,9 @@ const app = {
                                             <i class="fas fa-history"></i> Historique
                                         </button>
                                     </div>
+                                    <button class="btn btn-secondary" style="width: 100%; margin-top: 10px; font-size: 0.85rem; background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-color: rgba(59, 130, 246, 0.2);" onclick="app.refreshShipmentTracking('${shipment.id}', this)">
+                                        <i class="fas fa-sync"></i> Actualiser Tracking (Voyage)
+                                    </button>
                                 </div>
                                 ` : ''}
                                 
@@ -1965,8 +1969,14 @@ const app = {
         }
 
         activeShipments.forEach(s => {
+            // Determine if tracking is valid or error
+            // We assume 'Erreur Tracking' or 'No API Key' or 'Tracking Error' in status implies error
+            const isError = s.status === 'Erreur Tracking' || s.status === 'Tracking Error' || s.status === 'No API Key';
+            const color = isError ? '#ef4444' : '#4ade80';
+            const shadowColor = isError ? 'rgba(239, 68, 68, 0.6)' : 'rgba(74, 222, 128, 0.6)';
+
             const icon = L.divIcon({
-                html: '<div style="background: #4ade80; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px rgba(74, 222, 128, 0.6); border: 2px solid rgba(255,255,255,0.8);"></div>',
+                html: `<div style="background: ${color}; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px ${shadowColor}; border: 2px solid rgba(255,255,255,0.8);"></div>`,
                 className: 'dash-ship-marker',
                 iconSize: [14, 14],
                 iconAnchor: [7, 7]
@@ -1978,6 +1988,7 @@ const app = {
                     <div style="color: #333; font-size: 0.8rem; padding: 5px;">
                         <strong>${s.vesselName || s.carrier || 'Navire'}</strong><br>
                         <span style="color: #666;">${s.containerNumber || ''}</span>
+                        ${isError ? '<br><span style="color: #ef4444; font-weight: bold;">⚠️ Tracking Indisponible</span>' : ''}
                     </div>
                 `);
         });
@@ -4672,11 +4683,45 @@ const app = {
             await StorageService.add(STORAGE_KEYS.ROLES, newRole);
             this.renderSettings();
             this.showToast(`Rôle "${name}" créé avec succès`, "success");
+            // Clear inputs
+            document.getElementById('role-id').value = '';
+            document.getElementById('role-name').value = '';
         } catch (error) {
             console.error(error);
             this.showToast("Erreur lors de la création du rôle", "error");
         }
     },
+
+    async refreshShipmentTracking(id, btnElement) {
+        if (!confirm('Voulez-vous actualiser le tracking pour ce voyage ? Cela mettra à jour tous les dossiers liés.')) return;
+
+        const originalText = btnElement ? btnElement.innerHTML : '';
+        if (btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualisation...';
+        }
+
+        try {
+            await ApiService.request(`/shipments/${id}/tracking`, { method: 'POST' });
+            this.showToast('Tracking actualisé avec succès (Données Voyage mises à jour)', 'success');
+            await StorageService.syncAll(); // Sync to get new data
+            this.showOrderDetails(this.currentOrderId); // Refresh view (hacky but works if we store currentOrderId)
+            // Ideally we should just refresh the modal content, but closing and reopening is safer for data consistency
+            this.closeModal();
+            // Re-open if we can, or just let user re-open. Let's just stay on the view.
+            this.renderView('orders');
+        } catch (error) {
+            console.error(error);
+            this.showToast(error.message || "Erreur lors de l'actualisation", "error");
+        } finally {
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerHTML = originalText;
+            }
+        }
+    },
+
+
 
     removeRole(id) {
         this.showConfirmModal(`Supprimer le rôle "${id}" ?`, async () => {
@@ -10083,8 +10128,12 @@ const app = {
                 }).addTo(map);
 
                 shipments.forEach(s => {
+                    const isError = s.status === 'Erreur Tracking' || s.status === 'Tracking Error' || s.status === 'No API Key';
+                    const color = isError ? '#ef4444' : '#4ade80';
+                    const shadowColor = isError ? 'rgba(239, 68, 68, 0.5)' : 'rgba(74, 222, 128, 0.5)';
+
                     const icon = L.divIcon({
-                        html: '<i class="fas fa-ship" style="font-size: 20px; color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);"></i>',
+                        html: `<i class="fas fa-ship" style="font-size: 20px; color: ${color}; text-shadow: 0 0 10px ${shadowColor};"></i>`,
                         className: 'global-ship-marker',
                         iconSize: [20, 20],
                         iconAnchor: [10, 10]
@@ -10103,8 +10152,9 @@ const app = {
                                 <div style="color: #333; min-width: 150px;">
                                     <div style="font-weight: bold; font-size: 1rem; margin-bottom: 5px;">${s.vesselName || s.carrier || 'Navire'}</div>
                                     <div style="font-size: 0.85rem; margin-bottom: 3px;">Voyage: <b>${s.voyage || 'N/A'}</b></div>
-                                    <div style="font-size: 0.85rem; margin-bottom: 3px;">Statut: <span style="color: #059669; font-weight: 600;">${s.status}</span></div>
+                                    <div style="font-size: 0.85rem; margin-bottom: 3px;">Statut: <span style="color: ${isError ? '#ef4444' : '#059669'}; font-weight: 600;">${s.status}</span></div>
                                     <div style="font-size: 0.85rem;">Conteneur: ${s.containerNumber || 'N/A'}</div>
+                                    ${isError ? '<div style="color: #ef4444; font-size: 0.75rem; margin-top: 5px; font-weight: bold;">⚠️ Données non actualisées</div>' : ''}
                                     <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;">
                                     <button onclick="${action}" style="width: 100%; border: none; background: ${actionColor}; color: white; padding: 5px; border-radius: 4px; cursor: pointer;">
                                         ${actionText}
@@ -10114,6 +10164,18 @@ const app = {
                 });
             }, 100);
         }
+    },
+
+    showShipmentMap(id) {
+        // Switch to global tracking and potentially zoom?
+        // Or if there is a specific single shipment map, use it.
+        // For now, let's switch to dashboard or global tracking.
+        // The most logical thing is to switch to dashboard map where we already implemented red markers.
+        this.switchView('dashboard');
+        // Wait for render then zoom
+        setTimeout(() => {
+            this.zoomToShipment(id);
+        }, 500);
     },
 
     showLocalTracking(shipmentId) {

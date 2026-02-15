@@ -54,6 +54,30 @@ class VoyageTrackingService {
 
         // 4. Call Satellite API
         const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL);
+
+        // HANDLE TRACKING ERRORS / NO DATA
+        if (!trackingInfo || trackingInfo.status === 'Tracking Error' || trackingInfo.status === 'No API Key') {
+            console.warn(`[VoyageTracking] Tracking failed for ${voyageName} (${identifier})`);
+
+            // If we have an entity, we might want to flag it as error but KEEP old data
+            // Or set status to 'Erreur Tracking'
+            if (voyageEntity) {
+                await voyageEntity.update({
+                    status: 'Erreur Tracking', // Or keep old status? User wants RED, so error status is good.
+                    lastUpdate: new Date()
+                });
+
+                // Also update shipments to reflect error
+                if (shipments.length > 0) {
+                    await Promise.all(shipments.map(s => s.update({
+                        status: 'Erreur Tracking',
+                        lastUpdate: new Date()
+                    })));
+                }
+            }
+            return { success: false, message: 'Tracking failed', data: trackingInfo };
+        }
+
         const mappedStatus = this.mapTrackingStatus(trackingInfo.status);
 
         // 5. Detect History Changes for Notifications

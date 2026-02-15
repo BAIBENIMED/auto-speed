@@ -17,6 +17,7 @@ router.get('/:id', shipmentsController.getById);
 router.post('/', shipmentsController.create);
 router.put('/:id', shipmentsController.update);
 router.post('/:id/manual-update', shipmentsController.manualUpdate);
+router.post('/:id/tracking', shipmentsController.refreshTracking); // Auto-refresh via Voyage
 router.delete('/:id', shipmentsController.delete);
 
 module.exports = router;

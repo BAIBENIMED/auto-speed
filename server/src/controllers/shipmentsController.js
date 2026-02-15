@@ -206,7 +206,62 @@ const shipmentsController = {
         }
     },
 
+    refreshTracking: async (req, res) => {
+        try {
+            const shipment = await Shipment.findByPk(req.params.id);
+            if (!shipment) {
+                return res.status(404).json({ success: false, message: 'Expédition non trouvée' });
+            }
 
+            const VoyageTrackingService = require('../services/voyageTrackingService');
+
+            // Determine logical voyage name
+            let voyageName = shipment.voyage;
+            if (!voyageName && shipment.voyageId) {
+                const Voyage = require('../models/Voyage');
+                const v = await Voyage.findByPk(shipment.voyageId);
+                if (v) voyageName = v.name;
+            }
+
+            if (!voyageName) {
+                // Fallback: If no voyage linked, try individual tracking (which shouldn't happen much in new logic but safe to have)
+                // OR return error saying "Aucun voyage lié"
+                // Let's try to track individually using the container service directly if no voyage
+                const containerTrackingService = require('../services/containerTrackingService');
+                const result = await containerTrackingService.trackContainer(shipment.blNumber || shipment.containerNumber, !!shipment.blNumber);
+
+                if (!result || result.status === 'Tracking Error' || result.status === 'No API Key') {
+                    return res.status(400).json({ success: false, message: 'Tracking impossible (Pas de voyage ni de tracking direct réussi)' });
+                }
+
+                // Update just this shipment
+                await shipment.update({
+                    currentLat: result.location?.lat,
+                    currentLng: result.location?.lng,
+                    trackingHistory: JSON.stringify(result.events),
+                    lastUpdate: new Date()
+                });
+
+                return res.json({ success: true, message: 'Tracking individuel mis à jour', data: result });
+            }
+
+            // Trigger Voyage Refresh
+            const result = await VoyageTrackingService.refreshVoyage(voyageName);
+
+            if (!result.success) {
+                return res.status(400).json({ success: false, message: 'Erreur lors de l\'actualisation du voyage', details: result });
+            }
+
+            // Reload shipment to get updated data
+            await shipment.reload();
+
+            res.json({ success: true, message: 'Tracking voyage actualisé avec succès', data: shipment });
+
+        } catch (error) {
+            console.error('Error refreshing tracking:', error);
+            res.status(500).json({ success: false, message: 'Erreur serveur lors du tracking' });
+        }
+    }
 };
 
 module.exports = shipmentsController;
