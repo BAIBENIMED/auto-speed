@@ -133,8 +133,13 @@ body {
     display: flex;
     height: 100vh;
     width: 100vw;
-    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.25), transparent 70%),
-        radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.2), transparent 60%),
+    background: radial-gradient(circle at top right, var(--primary), transparent 70%),
+        radial-gradient(circle at bottom left, var(--accent-blue), transparent 60%),
+        var(--bg-dark);
+    /* opacity for background is handled via rgba in variables if needed, 
+       but here we use the variables for better theme compatibility */
+    background-image: radial-gradient(circle at top right, rgba(49, 46, 129, 0.1), transparent 70%),
+        radial-gradient(circle at bottom left, rgba(7, 89, 133, 0.1), transparent 60%),
         var(--bg-dark);
 }
 
