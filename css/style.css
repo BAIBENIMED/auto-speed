@@ -45,14 +45,19 @@
 /* Light Theme (White) */
 [data-theme="light"] {
     --bg-dark: #ffffff;
-    --bg-card: #f8fafc;
+    --bg-card: #f1f5f9;
+    /* Slightly darker for better separation */
     --bg-glass: rgba(255, 255, 255, 0.95);
     --border-glass: rgba(0, 0, 0, 0.1);
     --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --primary: #4f46e5;
-    --accent-blue: #0ea5e9;
-    --accent-purple: #8b5cf6;
+    --text-secondary: #475569;
+    /* Darker Slate for better readability */
+    --primary: #3730a3;
+    /* Darker Indigo */
+    --accent-blue: #0369a1;
+    /* Darker Blue (Sky 700) */
+    --accent-purple: #7c3aed;
+    /* Darker Purple */
 }
 
 /* Ocean Theme */
