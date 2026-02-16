@@ -56,8 +56,11 @@ class VoyageTrackingService {
         const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL);
 
         // HANDLE TRACKING ERRORS / NO DATA
-        if (!trackingInfo || trackingInfo.status === 'Tracking Error' || trackingInfo.status === 'No API Key') {
-            console.warn(`[VoyageTracking] Tracking failed for ${voyageName} (${identifier})`);
+        const isError = !trackingInfo ||
+            ['Tracking Error', 'No API Key', 'Erreur API', 'Numéro manquant'].includes(trackingInfo.status);
+
+        if (isError) {
+            console.warn(`[VoyageTracking] Tracking failed for ${voyageName} (${identifier}): ${trackingInfo?.status}`);
 
             // If we have an entity, we might want to flag it as error but KEEP old data
             // Or set status to 'Erreur Tracking'
