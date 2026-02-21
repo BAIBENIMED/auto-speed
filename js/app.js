@@ -10509,13 +10509,85 @@ const app = {
                 this.closeModal();
                 setTimeout(() => this.showVoyageTrackingHistory(voyageName), 500);
             } else {
-                throw new Error(res.message);
+                // Show carrier links modal if available
+                const carrierInfo = res.data?.carrierInfo;
+                this.closeModal();
+                this.showCarrierLinksModal(voyageName, carrierInfo, res.message);
             }
         } catch (err) {
             console.error("Voyage tracking error:", err);
-            this.showToast("Erreur API Satellite: " + err.message, "danger");
+            this.showCarrierLinksModal(voyageName, null, err.message);
         }
     },
+
+    showCarrierLinksModal(voyageName, carrierInfo, errorMessage) {
+        let linksHtml = '';
+        if (carrierInfo) {
+            const links = carrierInfo.trackingUrls || (carrierInfo.trackingUrl ? [{ label: carrierInfo.carrier, url: carrierInfo.trackingUrl }] : []);
+            if (links.length > 0) {
+                linksHtml = `
+                    <p style="margin-bottom: 15px; color: var(--text-secondary);">Transporteur détecté : <strong>${carrierInfo.carrier}</strong></p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        ${links.map(l => `
+                            <a href="${l.url}" target="_blank" rel="noopener noreferrer"
+                               style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px; text-decoration: none; color: var(--text-primary); transition: all 0.2s;"
+                               onmouseover="this.style.background='rgba(99,102,241,0.18)'" onmouseout="this.style.background='rgba(99,102,241,0.08)'">
+                                <i class="fas fa-external-link-alt" style="color: var(--primary);"></i>
+                                <div>
+                                    <div style="font-weight: 700;">${l.label}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;">Suivre sur le site officiel</div>
+                                </div>
+                            </a>
+                        `).join('')}
+                    </div>`;
+            }
+        }
+
+        if (!linksHtml) {
+            linksHtml = `
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    ${[
+                    { label: 'Grimaldi Lines', url: `https://www.grimaldi-lines.com/ro-ro-cargo/tracking/` },
+                    { label: 'MSC', url: 'https://www.msc.com/track-a-shipment' },
+                    { label: 'Maersk', url: 'https://www.maersk.com/tracking/' },
+                    { label: 'CMA CGM', url: 'https://www.cma-cgm.com/ebusiness/tracking' }
+                ].map(l => `
+                        <a href="${l.url}" target="_blank" rel="noopener noreferrer"
+                           style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px; text-decoration: none; color: var(--text-primary); transition: all 0.2s;"
+                           onmouseover="this.style.background='rgba(99,102,241,0.18)'" onmouseout="this.style.background='rgba(99,102,241,0.08)'">
+                            <i class="fas fa-external-link-alt" style="color: var(--primary);"></i>
+                            <div style="font-weight: 700;">${l.label}</div>
+                        </a>
+                    `).join('')}
+                </div>`;
+        }
+
+        const modalHtml = `
+            <div class="modal-overlay" onclick="app.closeModal()">
+                <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 520px; max-width: 95vw;">
+                    <div class="modal-header">
+                        <div>
+                            <h2 style="margin:0;"><i class="fas fa-satellite-dish" style="color: var(--warning); margin-right: 10px;"></i>Suivi Satellite Indisponible</h2>
+                            <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;">Voyage: ${voyageName}</p>
+                        </div>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        <div style="padding: 12px 16px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; color: var(--warning);">
+                            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                            Le suivi automatique est indisponible. Consultez directement le site du transporteur.
+                        </div>
+                        ${linksHtml}
+                    </div>
+                    <div class="modal-footer" style="padding-top: 15px; border-top: 1px solid var(--border-glass); display: flex; justify-content: flex-end;">
+                        <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+
 
     async refreshAllVoyages() {
         const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];

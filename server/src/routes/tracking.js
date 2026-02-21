@@ -50,13 +50,23 @@ router.post('/:id/refresh', async (req, res) => {
 
         const trackingData = await containerTrackingService.trackContainer(identifier, isBL);
 
+        // If tracking unavailable, return carrierInfo for direct links
+        if (trackingData.status === 'Tracking Non Disponible') {
+            return res.json({
+                success: false,
+                message: trackingData.message,
+                carrierInfo: trackingData.carrierInfo,
+                identifier
+            });
+        }
+
         // Check for ETA change logic - only alert if DELAYED
         if (trackingData.eta && shipment.eta) {
             const oldDate = new Date(shipment.eta);
             const newDate = new Date(trackingData.eta);
-            const diffTime = newDate - oldDate; // Positive = delay, Negative = advance
+            const diffTime = newDate - oldDate;
 
-            if (diffTime > (1000 * 60 * 60 * 24)) { // More than 24h DELAY
+            if (diffTime > (1000 * 60 * 60 * 24)) {
                 await Notification.create({
                     type: 'WARNING',
                     title: 'Retard d\'arrivée',
@@ -81,15 +91,12 @@ router.post('/:id/refresh', async (req, res) => {
             lastUpdate: new Date()
         };
 
-        // Auto-set arrival date when status becomes 'Arrivé'
         if (trackingData.status && trackingData.status.toLowerCase().includes('arriv') && !shipment.arrivalDate) {
             updateData.arrivalDate = new Date();
-            console.log(`[Tracking] Auto-set arrivalDate for shipment ${shipment.id}`);
         }
 
         await shipment.update(updateData);
 
-        // Sync status to orders
         if (trackingData.status) {
             await syncShipmentStatusToOrders(shipment.id, trackingData.status);
         }
@@ -97,9 +104,10 @@ router.post('/:id/refresh', async (req, res) => {
         res.json({ success: true, data: trackingData });
     } catch (error) {
         console.error('Shipment refresh error:', error);
-        res.status(500).json({ success: false, message: 'Erreur lors du rafraîchissement' });
+        res.status(500).json({ success: false, message: 'Erreur: ' + error.message });
     }
 });
+
 
 // Toggle tracking activation for a voyage
 router.post('/voyage/:voyageName/toggle', async (req, res) => {
