@@ -281,17 +281,42 @@ const app = {
     },
 
     setupEventListeners() {
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+
         this.navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const view = link.getAttribute('data-view');
                 if (this.canAccess(view)) {
                     this.switchView(view);
+
+                    // Close mobile menu if open
+                    if (sidebar && sidebar.classList.contains('active')) {
+                        sidebar.classList.remove('active');
+                        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+                    }
                 } else {
                     this.showToast("Accès refusé : vous n'avez pas les droits nécessaires.", "error");
                 }
             });
         });
+
+        // Mobile menu toggle
+        if (mobileMenuBtn) {
+            mobileMenuBtn.onclick = () => {
+                if (sidebar) sidebar.classList.toggle('active');
+                if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
+            };
+        }
+
+        if (sidebarOverlay) {
+            sidebarOverlay.onclick = () => {
+                if (sidebar) sidebar.classList.remove('active');
+                sidebarOverlay.classList.remove('active');
+            };
+        }
 
         // Logout
         const btnLogout = document.getElementById('btn-logout');
@@ -337,12 +362,14 @@ const app = {
 
         // Search functionality
         const searchInput = document.querySelector('.search-container input');
-        searchInput.addEventListener('input', (e) => {
-            this.searchQuery = e.target.value.toLowerCase();
-            // If on dashboard, maybe the user wants to jump to orders if searching?
-            // For now, just re-render the current view
-            this.renderView(this.currentView);
-        });
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                // If on dashboard, maybe the user wants to jump to orders if searching?
+                // For now, just re-render the current view
+                this.renderView(this.currentView);
+            });
+        }
     },
 
     async validateOrder(id) {

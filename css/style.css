@@ -1117,6 +1117,9 @@ textarea.glass-input {
 
     .modal-content {
         padding: 20px;
+        width: 95% !important;
+        max-width: none !important;
+        margin: 10px auto;
     }
 }
 
@@ -2404,4 +2407,171 @@ textarea.glass-input {
 .glass-scroll::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 10px;
+}
+
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVENESS
+   ========================================================================== */
+
+.mobile-menu-btn {
+    display: none;
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    z-index: 999;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Tablet & Large Mobile */
+@media (max-width: 1024px) {
+    .sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        bottom: 0;
+        margin: 0;
+        height: 100vh;
+        z-index: 1000;
+        transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        background: var(--bg-dark);
+        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+
+    .mobile-menu-btn {
+        display: flex;
+        margin-right: 15px;
+    }
+
+    .main-content {
+        padding: 15px;
+    }
+
+    .search-container {
+        width: 100%;
+        max-width: none;
+    }
+
+    .top-bar-actions {
+        gap: 10px;
+    }
+
+    /* Grids */
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .clients-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .catalog-grid {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+
+    /* Hero Banner Mobile */
+    .hero-banner {
+        padding: 30px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .hero-stats {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 25px;
+    }
+
+    .hero-stat-item {
+        text-align: left;
+    }
+}
+
+/* Mobile Small */
+@media (max-width: 650px) {
+    .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-content h1 {
+        font-size: 1.8rem;
+    }
+
+    .top-bar {
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .search-container {
+        order: 3;
+        width: 100%;
+    }
+
+    .top-bar-actions {
+        margin-left: auto;
+    }
+
+    .view-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .view-header .btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Table Responsiveness */
+    .data-table-container {
+        margin: 0 -15px;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+
+    /* Logistics Search */
+    .search-options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .search-btn-container {
+        grid-column: span 1;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn-search-logistic,
+    .btn-secondary-logistic {
+        width: 100%;
+    }
 }
