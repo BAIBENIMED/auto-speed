@@ -74,9 +74,12 @@ class ContainerTrackingService {
                 return result;
             } catch (error) {
                 console.error(`[SinayV2] Tracking failed for ${number}:`, error.message);
-                if (error.response) {
-                    console.error(`[SinayV2] HTTP ${error.response.status}:`, JSON.stringify(error.response.data));
-                }
+                return {
+                    status: 'ERREUR',
+                    identifier: number,
+                    message: `ERREUR TRACKING: ${error.message}`,
+                    details: error.response?.data
+                };
             }
         }
 
@@ -107,7 +110,7 @@ class ContainerTrackingService {
                     'API_KEY': this.apiKey,
                     'Accept': 'application/json'
                 },
-                timeout: 12000
+                timeout: 30000
             });
 
             return this.mapSinayV2Response(response.data, number, isBL);
@@ -118,7 +121,13 @@ class ContainerTrackingService {
                 return await this.createAndTrackLegacy(number, isBL);
             }
             if (error.code === 'ECONNABORTED') {
-                throw new Error('Timeout: le serveur de tracking ne répond pas pour ce numéro.');
+                throw new Error('Timeout: Le serveur Sinay/Safecube est trop lent à répondre (30s).');
+            }
+            if (error.response) {
+                const status = error.response.status;
+                const data = error.response.data;
+                const msg = data?.message || data?.error || error.message;
+                throw new Error(`Erreur API Sinay (${status}): ${msg}`);
             }
             throw error;
         }

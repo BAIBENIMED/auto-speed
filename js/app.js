@@ -4729,17 +4729,23 @@ const app = {
         }
 
         try {
-            await ApiService.request(`/shipments/${id}/tracking`, { method: 'POST' });
-            this.showToast('Tracking actualisé avec succès (Données Voyage mises à jour)', 'success');
+            const response = await ApiService.request(`/shipments/${id}/tracking`, { method: 'POST' });
+
+            if (response.success) {
+                this.showToast('Tracking actualisé avec succès', 'success');
+            } else {
+                // Display the specific error message as requested
+                const errorMsg = response.message || "Erreur de communication avec Safecube";
+                this.showToast(`ERREUR: ${errorMsg}`, "error");
+                console.error("Tracking error details:", response.data);
+            }
+
             await StorageService.syncAll(); // Sync to get new data
-            this.showOrderDetails(this.currentOrderId); // Refresh view (hacky but works if we store currentOrderId)
-            // Ideally we should just refresh the modal content, but closing and reopening is safer for data consistency
-            this.closeModal();
-            // Re-open if we can, or just let user re-open. Let's just stay on the view.
             this.renderView('orders');
+            this.closeModal();
         } catch (error) {
             console.error(error);
-            this.showToast(error.message || "Erreur lors de l'actualisation", "error");
+            this.showToast(`ERREUR: ${error.message || "Impossible de contacter le serveur"}`, "error");
         } finally {
             if (btnElement) {
                 btnElement.disabled = false;

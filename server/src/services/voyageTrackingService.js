@@ -78,7 +78,11 @@ class VoyageTrackingService {
                     })));
                 }
             }
-            return { success: false, message: 'Tracking failed', data: trackingInfo };
+            return {
+                success: false,
+                message: trackingInfo?.message || 'Le tracking a échoué sans message précis.',
+                data: trackingInfo
+            };
         }
 
         const mappedStatus = this.mapTrackingStatus(trackingInfo.status);
