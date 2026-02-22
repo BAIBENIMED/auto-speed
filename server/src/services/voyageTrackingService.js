@@ -81,7 +81,7 @@ class VoyageTrackingService {
             }
             return {
                 success: false,
-                message: trackingInfo?.message || 'Le tracking a échoué sans message précis.',
+                message: trackingInfo?.message || 'Le suivi automatique est indisponible. Consultez directement le site du transporteur.',
                 data: trackingInfo
             };
         }

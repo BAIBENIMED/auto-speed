@@ -87,7 +87,7 @@ class ContainerTrackingService {
         return {
             status: 'Tracking Non Disponible',
             identifier: number,
-            message: 'Le suivi automatique est indisponible. Utilisez les liens directs ci-dessous.',
+            message: 'Le suivi automatique est indisponible. Consultez directement le site du transporteur.',
             carrierInfo: carrierInfo
         };
     }
@@ -213,7 +213,7 @@ class ContainerTrackingService {
             return {
                 status: 'ERREUR',
                 identifier: number,
-                message: 'DONNÉES DE SIMULATION REJETÉES (TITAN SIMULATOR)',
+                message: 'Le suivi automatique est indisponible. Consultez directement le site du transporteur.',
                 provider: 'Sinay V2 (Simulated)'
             };
         }
