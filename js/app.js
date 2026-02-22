@@ -5394,7 +5394,7 @@ const app = {
                                                 ${s.shipStatus ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;"><i class="fas fa-ship" style="margin-right: 4px; color: var(--text-dim);"></i><strong>Navire:</strong> ${s.shipStatus}</div>` : ''}
                                                 ${s.loadingPort ? `<div style="font-size: 0.75rem; color: var(--text-dim);"><i class="fas fa-anchor" style="margin-right: 4px;"></i>Départ: <strong>${s.loadingPort}</strong></div>` : ''}
                                                 ${s.destination ? `<div style="font-size: 0.75rem; color: var(--text-dim);"><i class="fas fa-map-marker-alt" style="margin-right: 4px; color: var(--danger);"></i>Dest: <strong>${s.destination}</strong></div>` : ''}
-                                                ${s.eta ? `<div style="font-size: 0.75rem; margin-top: 4px; color: ${new Date(s.eta) < new Date() ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;"><i class="fas fa-calendar-check" style="margin-right: 4px;"></i>ETA: ${new Date(s.eta).toLocaleDateString('fr-FR')}</div>` : ''}
+                                                ${s.arrivalDate ? `<div style="font-size: 0.75rem; margin-top: 4px; color: var(--success); font-weight: 700;"><i class="fas fa-check-double" style="margin-right: 4px;"></i>Arrivée: ${new Date(s.arrivalDate).toLocaleDateString('fr-FR')}</div>` : (s.eta ? `<div style="font-size: 0.75rem; margin-top: 4px; color: ${new Date(s.eta) < new Date() ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;"><i class="fas fa-calendar-check" style="margin-right: 4px;"></i>ETA: ${new Date(s.eta).toLocaleDateString('fr-FR')}</div>` : '')}
                                                 ${lastEvent ? `<div style="margin-top: 6px; padding: 4px 6px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 0.72rem; color: var(--text-dim);"><i class="fas fa-history" style="margin-right: 4px;"></i>${lastEvent.description || lastEvent.location || 'Dernier événement'}</div>` : ''}
                                                 <div style="display: flex; gap: 4px; margin-top: 6px;">
                                                     <button onclick="app.showTrackingHistoryModal('${s.id}')" style="flex:1; padding: 3px 6px; font-size: 0.7rem; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 4px; color: var(--primary); cursor: pointer;"><i class="fas fa-list"></i> Historique</button>
@@ -5862,9 +5862,13 @@ const app = {
                                             <div style="font-size: 0.8rem; color: var(--accent-blue);">
                                                 <i class="far fa-calendar-alt"></i> ETD: ${v.etd ? new Date(v.etd).toLocaleDateString() : '-'}
                                             </div>
+                                            ${v.arrivalDate ? `
+                                            <div style="font-size: 0.8rem; color: var(--success); font-weight: 700;">
+                                                <i class="fas fa-check-double"></i> Arrivée: ${new Date(v.arrivalDate).toLocaleDateString()}
+                                            </div>` : `
                                             <div style="font-size: 0.8rem; color: var(--success);">
                                                 <i class="far fa-calendar-check"></i> ETA: ${v.eta ? new Date(v.eta).toLocaleDateString() : '-'}
-                                            </div>
+                                            </div>`}
                                         </td>
                                         <td style="text-align: center;">
                                             <span class="badge-pill" style="cursor: pointer;" onclick="app.showVoyageShipmentsModal('${safeName}')">
