@@ -45,8 +45,27 @@ router.post('/:id/refresh', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Aucun BL ou numéro de conteneur' });
         }
 
+        // --- NEW LOGIC: Delegate to VoyageTrackingService if part of a Voyage ---
+        let voyageName = shipment.voyage;
+        if (!voyageName && shipment.voyageId) {
+            const { Voyage } = require('../models');
+            const v = await Voyage.findByPk(shipment.voyageId);
+            if (v) voyageName = v.name;
+        }
+
+        if (voyageName) {
+            console.log(`[Tracking] Shipment ${id} belongs to Voyage '${voyageName}'. Refreshing entire voyage instead.`);
+            const result = await voyageTrackingService.refreshVoyage(voyageName);
+            if (!result.success) {
+                return res.json(result); // Return the detailed error (e.g. from Siney API)
+            }
+            // Add identifier so the frontend modal can display it
+            return res.json({ success: true, data: { ...result.data, identifier } });
+        }
+        // ------------------------------------------------------------------------
+
         const isBL = !!shipment.blNumber;
-        console.log(`[Tracking] Syncing shipment ${id} via ${identifier}`);
+        console.log(`[Tracking] Syncing shipment ${id} via ${identifier} (Individual)`);
 
         const trackingData = await containerTrackingService.trackContainer(identifier, isBL);
 
