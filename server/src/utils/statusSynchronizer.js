@@ -52,13 +52,13 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
         // Map specific shipment statuses to order-friendly names (Case insensitive)
         const normalizedStatus = status.toLowerCase().trim();
 
-        if (normalizedStatus === 'en route' || normalizedStatus === 'en mer' || normalizedStatus === 'en-route') {
+        if (normalizedStatus === 'en route' || normalizedStatus === 'en mer' || normalizedStatus === 'en-route' || normalizedStatus === 'in_transit') {
             orderStatus = 'EN MER';
         } else if (normalizedStatus === 'loaded' || normalizedStatus === 'departure') {
             orderStatus = 'A BORD';
-        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée') {
+        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée' || normalizedStatus === 'arrived') {
             orderStatus = 'ARRIVÉE';
-        } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée') {
+        } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée' || normalizedStatus === 'delivered') {
             orderStatus = 'ENLEVÉE';
         } else if (normalizedStatus === 'préparation') {
             orderStatus = 'A BORD'; // Prep on ship usually means loaded
@@ -66,8 +66,25 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
 
         console.log(`[StatusSync] 📝 Mapping shipment status "${status}" to order status "${orderStatus}" for Order IDs: ${finalOrderIds.join(', ')}`);
 
+        // If the shipment is arrived, we want to force this status on all linked orders
+        const updateData = { status: orderStatus };
+
+        // Let's also enforce it on the Vehicles array we found earlier to ensure complete sync
+        if (orderStatus === 'ARRIVÉE') {
+            await Vehicle.update(
+                { status: 'Arrived' },
+                { where: { id: vehicleIds }, individualHooks: true }
+            );
+            console.log(`[StatusSync] 🚗 Force-updated ${vehicles.length} vehicles to 'Arrived'`);
+        } else if (orderStatus === 'ENLEVÉE') {
+            await Vehicle.update(
+                { status: 'Sold' },
+                { where: { id: vehicleIds }, individualHooks: true }
+            );
+        }
+
         const [updatedCount] = await Order.update(
-            { status: orderStatus },
+            updateData,
             {
                 where: { id: finalOrderIds },
                 individualHooks: true // Ensure hooks trigger if status changes

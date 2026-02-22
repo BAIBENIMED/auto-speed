@@ -2188,9 +2188,31 @@ const app = {
                                     <td>${vehicleName}</td>
                                     <td>${new Date(order.date).toLocaleDateString()}</td>
                                     <td style="text-align: center;">
-                                        <span class="status-badge ${(this.calculateOrderStatus(order) || 'EN COURS').toLowerCase().replace(/\s+/g, '-')}">
-                                            ${this.calculateOrderStatus(order)}
-                                        </span>
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                                            <span class="status-badge ${(this.calculateOrderStatus(order) || 'EN COURS').toLowerCase().replace(/\s+/g, '-')}">
+                                                ${this.calculateOrderStatus(order)}
+                                            </span>
+                                            ${shipment ? (() => {
+                    const apiStatus = shipment.status || 'En cours';
+                    const statusColors = {
+                        'IN_TRANSIT': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
+                        'En mer': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
+                        'En Route': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
+                        'ARRIVED': { bg: 'rgba(34,197,94,0.15)', color: 'var(--success)', icon: 'fa-anchor' },
+                        'Arrivé': { bg: 'rgba(34,197,94,0.15)', color: 'var(--success)', icon: 'fa-anchor' },
+                        'Livré': { bg: 'rgba(34,197,94,0.2)', color: 'var(--success)', icon: 'fa-check-circle' },
+                        'ERREUR': { bg: 'rgba(239,68,68,0.1)', color: 'var(--danger)', icon: 'fa-exclamation-triangle' }
+                    };
+                    const sc = statusColors[apiStatus] || { bg: 'rgba(245,158,11,0.12)', color: 'var(--warning)', icon: 'fa-satellite-dish' };
+                    return `
+                                                    <div style="padding: 2px 8px; background: ${sc.bg}; border: 1px solid ${sc.color}33; border-radius: 12px; font-size: 0.65rem; color: ${sc.color}; display: flex; align-items: center; gap: 4px; cursor: pointer;" 
+                                                         onclick="app.showTrackingHistoryModal('${shipment.id}')" title="Voir l'historique satellite">
+                                                        <i class="fas ${sc.icon}"></i> 
+                                                        ${shipment.shipStatus || apiStatus}
+                                                    </div>
+                                                `;
+                })() : ''}
+                                        </div>
                                     </td>
                                     <td>
                                         ${order.isValidated ?
@@ -2220,7 +2242,10 @@ const app = {
                                             ${canViewFinancials ? `<button class="btn-action" onclick="app.showCashModal('${order.id}')" title="Encaisser" style="color: var(--success); border-color: var(--success);"><i class="fas fa-hand-holding-dollar"></i></button>` : ''}
                                             ${canManageShipment ? (
                     order.vehicleId ? (isShipped ?
-                        `<button class="btn-action" onclick="app.switchView('shipments')" title="Voir l'expédition (Envoyé)" style="color: var(--success); border-color: var(--success);"><i class="fas fa-check-circle"></i></button>` :
+                        `
+                        <button class="btn-action" onclick="app.showTrackingHistoryModal('${shipment.id}')" title="Suivi Satellite" style="color: var(--primary); border-color: var(--primary);"><i class="fas fa-satellite-dish"></i></button>
+                        <button class="btn-action" onclick="app.switchView('shipments')" title="Voir l'expédition (Envoyé)" style="color: var(--success); border-color: var(--success);"><i class="fas fa-check-circle"></i></button>
+                        ` :
                         `<button class="btn-action" onclick="app.showShipmentModal('${order.vehicleId}')" title="Expédier le véhicule"><i class="fas fa-shipping-fast"></i></button>`
                     ) : `<button class="btn-action disabled" title="Aucun véhicule lié" style="opacity: 0.3; cursor: not-allowed;"><i class="fas fa-shipping-fast"></i></button>`
                 ) : ''}
@@ -4756,6 +4781,61 @@ const app = {
 
 
 
+    showTrackingHistoryModal(shipmentId) {
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const s = shipments.find(x => x.id === shipmentId || String(x.id) === String(shipmentId));
+        if (!s) return this.showToast('Expédition introuvable', 'error');
+
+        let events = [];
+        try { events = JSON.parse(s.trackingHistory || '[]'); } catch (e) { events = []; }
+
+        const eventsHtml = events.length > 0 ? events.map((e, i) => `
+            <div style="display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <div style="display: flex; flex-direction: column; align-items: center; width: 24px;">
+                    <i class="fas fa-circle" style="color: ${i === 0 ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}; font-size: ${i === 0 ? '10px' : '7px'}; margin-top: 3px;"></i>
+                    ${i < events.length - 1 ? '<div style="flex: 1; width: 2px; background: rgba(255,255,255,0.1); margin: 4px auto;"></div>' : ''}
+                </div>
+                <div style="flex: 1; padding-bottom: 4px;">
+                    <div style="font-weight: ${i === 0 ? '700' : '500'}; color: ${i === 0 ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-size: 0.85rem;">${e.description || e.eventCode || 'Événement'}</div>
+                    ${e.location ? `<div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;"><i class="fas fa-map-marker-alt" style="margin-right: 4px; color: var(--danger);"></i>${e.location}</div>` : ''}
+                    ${e.date ? `<div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;"><i class="fas fa-clock" style="margin-right: 4px;"></i>${new Date(e.date).toLocaleString('fr-FR')}</div>` : ''}
+                    ${e.isActual === false ? '<span style="font-size: 0.65rem; background: rgba(245,158,11,0.15); color: var(--warning); padding: 1px 5px; border-radius: 3px; display: inline-block; margin-top: 2px;">Prévu</span>' : ''}
+                </div>
+            </div>
+        `).join('') : '<div style="text-align: center; padding: 2rem; color: var(--text-dim);"><i class="fas fa-satellite-dish" style="font-size: 2rem; opacity:0.3; display:block; margin-bottom:8px;"></i>Aucun événement disponible. Cliquez sur Actualiser pour récupérer le tracking.</div>';
+
+        const modalHtml = `
+            <div class="modal-overlay" onclick="app.closeModal()">
+                <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 560px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
+                    <div class="modal-header">
+                        <div>
+                            <h2 style="margin:0;"><i class="fas fa-satellite-dish" style="color: var(--primary); margin-right: 10px;"></i>Historique Tracking</h2>
+                            <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;">
+                                Cont: <strong>${s.containerNumber || 'N/A'}</strong> | BL: <strong>${s.blNumber || 'N/A'}</strong>
+                                ${s.shipStatus ? ` | Navire: <strong>${s.shipStatus}</strong>` : ''}
+                            </p>
+                        </div>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+                            ${s.loadingPort ? `<span style="padding: 4px 10px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3); border-radius: 12px; font-size: 0.75rem; color: var(--primary);"><i class="fas fa-anchor" style="margin-right: 4px;"></i>${s.loadingPort}</span>` : ''}
+                            ${s.destination ? `<span style="padding: 4px 10px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.75rem; color: var(--danger);"><i class="fas fa-map-marker-alt" style="margin-right: 4px;"></i>${s.destination}</span>` : ''}
+                            ${s.eta ? `<span style="padding: 4px 10px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; font-size: 0.75rem; color: var(--success);"><i class="fas fa-calendar-check" style="margin-right: 4px;"></i>ETA: ${new Date(s.eta).toLocaleDateString('fr-FR')}</span>` : ''}
+                        </div>
+                        <div>${eventsHtml}</div>
+                    </div>
+                    <div class="modal-footer" style="padding-top: 15px; border-top: 1px solid var(--border-glass); display: flex; gap: 10px; justify-content: flex-end;">
+                        <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                        <button class="btn-primary" onclick="app.trackShipment('${s.id}'); app.closeModal();">
+                            <i class="fas fa-sync-alt" style="margin-right: 6px;"></i>Actualiser Tracking
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
     removeRole(id) {
         this.showConfirmModal(`Supprimer le rôle "${id}" ?`, async () => {
             try {
@@ -5221,8 +5301,8 @@ const app = {
                                         <th>Voyage</th>
                                         <th>N° Conteneur / Cie</th>
                                         <th>Véhicules & Clients</th>
+                                        <th>Tracking Satellite</th>
                                         <th>Logistique (ETD/ETA/Arr)</th>
-                                        <th>Destination</th>
                                         <th>Documents (BL/Date)</th>
                                         <th>Statut</th>
                                         <th>Actions</th>
@@ -5290,15 +5370,58 @@ const app = {
                                     </div>
                                 </td>
                                 <td>
-                                    <div style="font-size: 0.85rem;"><strong>ETD:</strong> ${s.etd ? new Date(s.etd).toLocaleDateString() : '-'}</div>
-                                    <div style="font-size: 0.85rem;"><strong>ETA:</strong> ${s.eta ? new Date(s.eta).toLocaleDateString() : '-'}</div>
-                                    <div style="font-size: 0.85rem; color: var(--success);"><strong>Arr:</strong> ${s.arrivalDate ? new Date(s.arrivalDate).toLocaleDateString() : '-'}</div>
+                                    ${(() => {
+                    const hasTracking = s.lastUpdate && (s.shipStatus || s.currentLat);
+                    const apiStatus = s.status;
+                    const statusColors = {
+                        'IN_TRANSIT': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship', label: 'En transit' },
+                        'ARRIVED': { bg: 'rgba(34,197,94,0.15)', color: 'var(--success)', icon: 'fa-anchor', label: 'Arrivé' },
+                        'En mer': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship', label: 'En mer' },
+                        'En Route': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship', label: 'En route' },
+                        'Arrivé': { bg: 'rgba(34,197,94,0.15)', color: 'var(--success)', icon: 'fa-anchor', label: 'Arrivé' },
+                        'Livré': { bg: 'rgba(34,197,94,0.2)', color: 'var(--success)', icon: 'fa-check-circle', label: 'Livré' },
+                    };
+                    const sc = statusColors[apiStatus] || { bg: 'rgba(245,158,11,0.12)', color: 'var(--warning)', icon: 'fa-question-circle', label: apiStatus || 'En attente' };
+                    const events = (() => { try { return JSON.parse(s.trackingHistory || '[]'); } catch (e) { return []; } })();
+                    const lastEvent = events[0];
+                    return hasTracking ? `
+                                            <div style="padding: 8px; background: ${sc.bg}; border: 1px solid ${sc.color}33; border-radius: 8px; min-width: 200px;">
+                                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                                    <i class="fas ${sc.icon}" style="color: ${sc.color}; font-size: 1rem;"></i>
+                                                    <span style="font-weight: 700; color: ${sc.color}; font-size: 0.82rem;">${sc.label}</span>
+                                                    <span style="margin-left: auto; font-size: 0.65rem; color: var(--text-dim);">MàJ: ${new Date(s.lastUpdate).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                                ${s.shipStatus ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;"><i class="fas fa-ship" style="margin-right: 4px; color: var(--text-dim);"></i><strong>Navire:</strong> ${s.shipStatus}</div>` : ''}
+                                                ${s.loadingPort ? `<div style="font-size: 0.75rem; color: var(--text-dim);"><i class="fas fa-anchor" style="margin-right: 4px;"></i>Départ: <strong>${s.loadingPort}</strong></div>` : ''}
+                                                ${s.destination ? `<div style="font-size: 0.75rem; color: var(--text-dim);"><i class="fas fa-map-marker-alt" style="margin-right: 4px; color: var(--danger);"></i>Dest: <strong>${s.destination}</strong></div>` : ''}
+                                                ${s.eta ? `<div style="font-size: 0.75rem; margin-top: 4px; color: ${new Date(s.eta) < new Date() ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;"><i class="fas fa-calendar-check" style="margin-right: 4px;"></i>ETA: ${new Date(s.eta).toLocaleDateString('fr-FR')}</div>` : ''}
+                                                ${lastEvent ? `<div style="margin-top: 6px; padding: 4px 6px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 0.72rem; color: var(--text-dim);"><i class="fas fa-history" style="margin-right: 4px;"></i>${lastEvent.description || lastEvent.location || 'Dernier événement'}</div>` : ''}
+                                                <div style="display: flex; gap: 4px; margin-top: 6px;">
+                                                    <button onclick="app.showTrackingHistoryModal('${s.id}')" style="flex:1; padding: 3px 6px; font-size: 0.7rem; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 4px; color: var(--primary); cursor: pointer;"><i class="fas fa-list"></i> Historique</button>
+                                                    <button onclick="app.trackShipment('${s.id}')" style="flex:1; padding: 3px 6px; font-size: 0.7rem; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 4px; color: var(--success); cursor: pointer;"><i class="fas fa-sync-alt"></i> Màj</button>
+                                                </div>
+                                            </div>
+                                        ` : `
+                                            <div style="text-align: center; padding: 10px; color: var(--text-dim); font-size: 0.8rem;">
+                                                <i class="fas fa-satellite-dish" style="font-size: 1.5rem; display: block; margin-bottom: 4px; opacity: 0.4;"></i>
+                                                Pas de tracking
+                                                <div style="margin-top: 4px;">
+                                                    <button onclick="app.trackShipment('${s.id}')" style="padding: 3px 8px; font-size: 0.7rem; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); border-radius: 4px; color: var(--primary); cursor: pointer;"><i class="fas fa-satellite-dish"></i> Activer</button>
+                                                </div>
+                                            </div>
+                                        `;
+                })()}
+                                </td>
+                                <td>
+                                    <div style="font-size: 0.85rem;"><strong>ETD:</strong> ${s.etd ? new Date(s.etd).toLocaleDateString('fr-FR') : '-'}</div>
+                                    <div style="font-size: 0.85rem;"><strong>ETA:</strong> ${s.eta ? new Date(s.eta).toLocaleDateString('fr-FR') : '-'}</div>
+                                    <div style="font-size: 0.85rem; color: var(--success);"><strong>Arr:</strong> ${s.arrivalDate ? new Date(s.arrivalDate).toLocaleDateString('fr-FR') : '-'}</div>
                                 </td>
                                 <td>
                                     <div style="font-size: 0.85rem;"><strong>BL:</strong> ${s.blNumber || '-'}</div>
-                                    <div style="font-size: 0.75rem; color: var(--text-dim);">Docs: ${s.docReceptionDate ? new Date(s.docReceptionDate).toLocaleDateString() : 'Non reçus'}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-dim);">Docs: ${s.docReceptionDate ? new Date(s.docReceptionDate).toLocaleDateString('fr-FR') : 'Non reçus'}</div>
                                 </td>
-                                 <td><span class="status-badge ${(s.status || 'En cours').toLowerCase()}">${s.status || 'En cours'}</span></td>
+                                <td><span class="status-badge ${(s.status || 'en cours').toLowerCase().replace(/\s+/g, '-').replace(/[éè]/g, 'e').replace(/[àâ]/g, 'a')}">${s.status || 'En cours'}</span></td>
                                 <td>
                                     <div class="table-actions">
                                         <button class="btn-action primary" onclick="app.handleManualShipmentRefresh('${s.id}')" title="Actualiser">

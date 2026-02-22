@@ -234,13 +234,38 @@ const shipmentsController = {
                     return res.status(400).json({ success: false, message: 'Tracking impossible (Pas de voyage ni de tracking direct réussi)' });
                 }
 
-                // Update just this shipment
-                await shipment.update({
+                // Determine mapped status
+                const mappedStatus = result.status || shipment.status;
+                const isArrived = mappedStatus === 'Arrivé' || mappedStatus === 'Arrivée';
+
+                // Prepare update object
+                const updateData = {
+                    status: mappedStatus,
+                    shipStatus: result.vesselName || shipment.shipStatus, // vessel name
+                    eta: result.eta || shipment.eta,
+                    etd: result.etd || shipment.etd,
+                    loadingPort: result.loadingPort || shipment.loadingPort,
+                    destination: result.unloadingPort || shipment.destination,
                     currentLat: result.location?.lat,
                     currentLng: result.location?.lng,
-                    trackingHistory: JSON.stringify(result.events),
+                    trackingHistory: JSON.stringify(result.events || []),
                     lastUpdate: new Date()
-                });
+                };
+
+                // Auto-set arrival date when status becomes 'Arrivé'
+                if (isArrived && !shipment.arrivalDate) {
+                    updateData.arrivalDate = new Date();
+                    console.log(`[ShipmentController] Auto-set arrivalDate for individual tracking of shipment ${shipment.id}`);
+                }
+
+                // Update just this shipment with all available tracking data
+                await shipment.update(updateData);
+
+                // Sync status to orders to enforce 'ARRIVÉE'
+                const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
+                if (updateData.status) {
+                    await syncShipmentStatusToOrders(shipment.id, updateData.status);
+                }
 
                 return res.json({ success: true, message: 'Tracking individuel mis à jour', data: result });
             }
