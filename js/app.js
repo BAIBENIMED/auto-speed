@@ -797,23 +797,32 @@ const app = {
         const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
         const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
 
+        const orderStatus = (this.calculateOrderStatus(order) || '').toLowerCase();
+
+        const isAboard = ['a bord', 'en mer', 'arrivée', 'enlevée'].includes(orderStatus);
+        const isAtSea = ['en mer', 'arrivée', 'enlevée'].includes(orderStatus);
+        const isArrived = ['arrivée', 'enlevée'].includes(orderStatus);
+        const isDelivered = orderStatus === 'enlevée' || orderStatus === 'livrée';
+
         const steps = [
-            { id: 'validation', label: 'Validation', icon: 'fa-check-double', completed: order.isValidated },
-            { id: 'assignment', label: 'Affectation', icon: 'fa-car', completed: !!order.vehicleId },
-            { id: 'shipping', label: 'Expédition', icon: 'fa-shipping-fast', completed: !!shipment },
-            { id: 'onboard', label: 'A Bord', icon: 'fa-ship', completed: shipment && (['préparation', 'loaded', 'departure', 'a bord'].includes((shipment.status || '').toLowerCase()) || shipment.etd) },
-            { id: 'atsea', label: 'En Mer', icon: 'fa-water', completed: shipment && ['en mer', 'en route', 'in transit', 'en-route'].includes((shipment.status || '').toLowerCase()) },
-            { id: 'arrived', label: 'Arrivée', icon: 'fa-box-open', completed: shipment && (shipment.arrivalDate || shipment.status === 'Arrivée' || shipment.status === 'Arrivé') },
-            { id: 'delivered', label: 'Enlevée', icon: 'fa-handshake', completed: shipment && (shipment.pickupDate || shipment.status === 'Livré' || shipment.status === 'Enlevée') }
+            { id: 'validation', label: 'Validation', icon: 'fa-check-double', completed: order.isValidated || !!order.vehicleId },
+            { id: 'assignment', label: 'Affectation', icon: 'fa-car', completed: !!order.vehicleId || !!shipment },
+            { id: 'shipping', label: 'Expédition', icon: 'fa-shipping-fast', completed: !!shipment || isAboard },
+            { id: 'onboard', label: 'A Bord', icon: 'fa-ship', completed: isAboard || isAtSea },
+            { id: 'atsea', label: 'En Mer', icon: 'fa-water', completed: isAtSea || isArrived },
+            { id: 'arrived', label: 'Arrivée', icon: 'fa-box-open', completed: isArrived || isDelivered },
+            { id: 'delivered', label: 'Enlevée', icon: 'fa-handshake', completed: isDelivered }
         ];
 
-        // Determine active step (last completed step or first incomplete)
+        // Ensure strictly progressive visual completion
         let activeIndex = -1;
         for (let i = steps.length - 1; i >= 0; i--) {
             if (steps[i].completed) {
-                activeIndex = i;
-                break;
+                activeIndex = Math.max(activeIndex, i);
             }
+        }
+        for (let i = 0; i <= activeIndex; i++) {
+            steps[i].completed = true;
         }
 
         const modalHtml = `
