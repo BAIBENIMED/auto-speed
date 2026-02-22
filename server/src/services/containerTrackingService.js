@@ -108,6 +108,7 @@ class ContainerTrackingService {
                 },
                 headers: {
                     'API_KEY': this.apiKey,
+                    'X-API-KEY': this.apiKey,
                     'Accept': 'application/json'
                 },
                 timeout: 30000
@@ -147,9 +148,18 @@ class ContainerTrackingService {
     async createAndTrackLegacy(number, isBL = false) {
         try {
             const payload = isBL ? [{ blNumber: number }] : [{ shipmentNumber: number }];
-            await axios.post(`https://api.sinay.ai/safecube/api/v1/public/shipments`,
+            console.log(`[Sinay] Registering ${number} at /safecube/api/v1/shipments...`);
+            await axios.post(`https://api.sinay.ai/safecube/api/v1/shipments`,
                 payload,
-                { headers: { 'API_KEY': this.apiKey, 'Content-Type': 'application/json' }, timeout: 10000 }
+                {
+                    headers: {
+                        'API_KEY': this.apiKey,
+                        'X-API-KEY': this.apiKey,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    timeout: 15000
+                }
             );
             return {
                 identifier: number,
@@ -194,6 +204,19 @@ class ContainerTrackingService {
         }
 
         let vesselName = data.ais?.vesselName || (vessels.length > 0 ? vessels[vessels.length - 1].name : metadata.sealineName || 'Navire');
+
+        const isSimulator = vesselName.toUpperCase().includes('TITAN') ||
+            vesselName.toUpperCase().includes('SIMULATOR') ||
+            (metadata.shippingStatus && metadata.shippingStatus.toUpperCase().includes('SIMULATOR'));
+
+        if (isSimulator) {
+            return {
+                status: 'ERREUR',
+                identifier: number,
+                message: 'DONNÉES DE SIMULATION REJETÉES (TITAN SIMULATOR)',
+                provider: 'Sinay V2 (Simulated)'
+            };
+        }
 
         return {
             identifier: number,

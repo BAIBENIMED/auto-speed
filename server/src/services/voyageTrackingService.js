@@ -57,7 +57,8 @@ class VoyageTrackingService {
 
         // HANDLE TRACKING ERRORS / NO DATA
         const isError = !trackingInfo ||
-            ['Tracking Error', 'No API Key', 'Erreur API', 'Numéro manquant'].includes(trackingInfo.status);
+            ['Tracking Error', 'No API Key', 'Erreur API', 'Numéro manquant', 'ERREUR'].includes(trackingInfo.status) ||
+            trackingInfo.status === 'ERREUR';
 
         if (isError) {
             console.warn(`[VoyageTracking] Tracking failed for ${voyageName} (${identifier}): ${trackingInfo?.status}`);
