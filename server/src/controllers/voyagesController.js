@@ -51,9 +51,19 @@ exports.updateVoyage = async (req, res) => {
             if (req.body.blNumber) updates.blNumber = req.body.blNumber;
             // Also update legacy voyage string field
             if (req.body.name) updates.voyage = req.body.name;
+            // Propagate the literal status as well so manual updates work natively
+            if (req.body.status) updates.status = req.body.status;
 
             if (Object.keys(updates).length > 0) {
                 await Shipment.update(updates, { where: { voyageId: voyage.id } });
+
+                // If status was changed, we absolutely MUST force the status synchronizer 
+                // for every single shipment inside this voyage so that Orders auto-update!
+                if (req.body.status) {
+                    const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
+                    const affectedShipments = await Shipment.findAll({ where: { voyageId: voyage.id }, attributes: ['id'] });
+                    await Promise.all(affectedShipments.map(s => syncShipmentStatusToOrders(s.id, req.body.status)));
+                }
             }
         }
 
