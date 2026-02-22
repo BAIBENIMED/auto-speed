@@ -636,10 +636,10 @@ const app = {
         const shpStatus = (shipment.status || '').toLowerCase().trim();
 
         // Priority to pickup/arrival dates if present
-        if (shipment.pickupDate || shpStatus === 'livré' || shpStatus === 'livre' || shpStatus === 'enlevée') return 'ENLEVÉE';
-        if (shipment.arrivalDate || shpStatus === 'arrivé' || shpStatus === 'arrive' || shpStatus === 'arrivée') return 'ARRIVÉE';
-        if (shpStatus === 'en mer' || shpStatus === 'en route') return 'EN MER';
-        if (shpStatus === 'préparation' || shpStatus === 'preparation' || shipment.etd) return 'A BORD';
+        if (shipment.pickupDate || shpStatus === 'livré' || shpStatus === 'livre' || shpStatus === 'enlevée' || shpStatus.includes('delivered') || shpStatus.includes('completed')) return 'ENLEVÉE';
+        if (shipment.arrivalDate || shpStatus === 'arrivé' || shpStatus === 'arrive' || shpStatus === 'arrivée' || shpStatus.includes('arrived') || shpStatus.includes('discharge')) return 'ARRIVÉE';
+        if (shpStatus === 'en mer' || shpStatus === 'en route' || shpStatus.includes('transit') || shpStatus.includes('sailing')) return 'EN MER';
+        if (shpStatus === 'préparation' || shpStatus === 'preparation' || shpStatus.includes('loaded') || shpStatus.includes('departure') || shipment.etd) return 'A BORD';
 
         return order.status || 'EN COURS';
     },

@@ -236,7 +236,8 @@ const shipmentsController = {
 
                 // Determine mapped status
                 const mappedStatus = result.status || shipment.status;
-                const isArrived = mappedStatus === 'Arrivé' || mappedStatus === 'Arrivée';
+                const lowerStatus = (mappedStatus || '').toLowerCase();
+                const isArrived = lowerStatus === 'arrivé' || lowerStatus === 'arrivée' || lowerStatus === 'arrived' || lowerStatus.includes('discharge');
 
                 // Prepare update object
                 const updateData = {
