@@ -215,15 +215,20 @@ const shipmentsController = {
 
             const VoyageTrackingService = require('../services/voyageTrackingService');
 
-            // Determine logical voyage name
-            let voyageName = shipment.voyage;
-            if (!voyageName && shipment.voyageId) {
-                const Voyage = require('../models/Voyage');
-                const v = await Voyage.findByPk(shipment.voyageId);
-                if (v) voyageName = v.name;
+            // Determine logical voyage identifier
+            let voyageIdentifier = shipment.voyage;
+            let isRefByVoyageId = false;
+
+            if (shipment.voyageId) {
+                voyageIdentifier = shipment.voyageId;
+                isRefByVoyageId = true;
+            } else if (!voyageIdentifier && shipment.voyageId) {
+                // Fallback (redundant safeguard)
+                voyageIdentifier = shipment.voyageId;
+                isRefByVoyageId = true;
             }
 
-            if (!voyageName) {
+            if (!voyageIdentifier) {
                 // Fallback: If no voyage linked, try individual tracking (which shouldn't happen much in new logic but safe to have)
                 // OR return error saying "Aucun voyage lié"
                 // Let's try to track individually using the container service directly if no voyage
@@ -271,8 +276,8 @@ const shipmentsController = {
                 return res.json({ success: true, message: 'Tracking individuel mis à jour', data: result });
             }
 
-            // Trigger Voyage Refresh
-            const result = await VoyageTrackingService.refreshVoyage(voyageName);
+            // Trigger Voyage Refresh using identifier (ID or string fallback)
+            const result = await VoyageTrackingService.refreshVoyage(voyageIdentifier, isRefByVoyageId);
 
             if (!result.success) {
                 return res.status(400).json({ success: false, message: 'Erreur lors de l\'actualisation du voyage', details: result });

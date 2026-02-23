@@ -46,16 +46,21 @@ router.post('/:id/refresh', async (req, res) => {
         }
 
         // --- NEW LOGIC: Delegate to VoyageTrackingService if part of a Voyage ---
-        let voyageName = shipment.voyage;
-        if (!voyageName && shipment.voyageId) {
-            const { Voyage } = require('../models');
-            const v = await Voyage.findByPk(shipment.voyageId);
-            if (v) voyageName = v.name;
+        let voyageIdentifier = shipment.voyage;
+        let isRefByVoyageId = false;
+
+        if (shipment.voyageId) {
+            voyageIdentifier = shipment.voyageId;
+            isRefByVoyageId = true;
+        } else if (!voyageIdentifier && shipment.voyageId) {
+            // Fallback (redundant safeguard)
+            voyageIdentifier = shipment.voyageId;
+            isRefByVoyageId = true;
         }
 
-        if (voyageName) {
-            console.log(`[Tracking] Shipment ${id} belongs to Voyage '${voyageName}'. Refreshing entire voyage instead.`);
-            const result = await voyageTrackingService.refreshVoyage(voyageName);
+        if (voyageIdentifier) {
+            console.log(`[Tracking] Shipment ${id} belongs to Voyage '${voyageIdentifier}'. Refreshing entire voyage instead.`);
+            const result = await voyageTrackingService.refreshVoyage(voyageIdentifier, isRefByVoyageId);
             if (!result.success) {
                 return res.json(result); // Return the detailed error (e.g. from Siney API)
             }

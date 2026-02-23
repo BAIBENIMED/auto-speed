@@ -24,19 +24,26 @@ class VoyageTrackingService {
     }
 
     /**
-     * Refresh a single voyage by name, sync all related shipments/orders,
+     * Refresh a single voyage by name or ID, sync all related shipments/orders,
      * and handle notifications for changes.
      */
-    async refreshVoyage(voyageName) {
-        console.log(`[VoyageTrackingService] Refreshing voyage: ${voyageName}`);
+    async refreshVoyage(voyageIdentifier, isId = false) {
+        console.log(`[VoyageTrackingService] Refreshing voyage: ${voyageIdentifier} (isId: ${isId})`);
 
         // 1. Find Voyage Entity
-        const voyageEntity = await Voyage.findOne({ where: { name: voyageName } });
+        let voyageEntity = null;
+        if (isId) {
+            voyageEntity = await Voyage.findByPk(voyageIdentifier);
+        } else {
+            voyageEntity = await Voyage.findOne({ where: { name: voyageIdentifier } });
+        }
+
+        const voyageName = voyageEntity ? voyageEntity.name : voyageIdentifier;
 
         // 2. Find linked shipments
         const whereClause = { isArchived: false };
         if (voyageEntity) {
-            whereClause[Op.or] = [{ voyage: voyageName }, { voyageId: voyageEntity.id }];
+            whereClause[Op.or] = [{ voyageId: voyageEntity.id }, { voyage: voyageName }];
         } else {
             whereClause.voyage = voyageName;
         }
