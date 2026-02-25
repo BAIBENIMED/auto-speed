@@ -15,15 +15,17 @@ class VoyageTrackingService {
         if (!rawStatus) return null;
         const s = rawStatus.toLowerCase();
 
-        // Priority 1: Arrival/Delivery (Detect arrival before transit to handle 'Discharge' properly)
+        // Priority 1: Delivery
         if (s.includes('delivered') || s.includes('gate out') || s.includes('completed')) return 'Livré';
-        if (s.includes('arriv') || s.includes('unloaded') || s.includes('pod') || s.includes('discharge')) return 'Arrivé';
 
-        // Priority 2: Transit
+        // Priority 2: Transit (Check transit before arrival keywords to handle transshipment reload)
         if (s.includes('transit') || s.includes('en mer') || s.includes('loaded') ||
             s.includes('departure') || s.includes('route') || s.includes('sailing')) return 'En Route';
 
-        // Priority 3: Planning
+        // Priority 3: Arrival
+        if (s.includes('arriv') || s.includes('unloaded') || s.includes('pod') || s.includes('discharge')) return 'Arrivé';
+
+        // Priority 4: Planning
         if (s.includes('plan') || s.includes('sched') || s.includes('gate in') || s.includes('prep')) return 'Planifié';
         return null;
     }
