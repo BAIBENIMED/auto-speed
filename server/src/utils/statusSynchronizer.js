@@ -52,14 +52,14 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
         // Map specific shipment statuses to order-friendly names (Case insensitive)
         const normalizedStatus = status.toLowerCase().trim();
 
-        if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée' || normalizedStatus === 'arrived' || normalizedStatus === 'arrivee' || normalizedStatus === 'arriver' || normalizedStatus.includes('discharge') || normalizedStatus.includes('unloaded') || normalizedStatus.includes('pod')) {
-            orderStatus = 'ARRIVÉE';
-        } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée' || normalizedStatus === 'delivered' || normalizedStatus === 'livree' || normalizedStatus === 'livrée') {
+        if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée' || normalizedStatus === 'delivered' || normalizedStatus === 'livree' || normalizedStatus === 'livrée') {
             orderStatus = 'ENLEVÉE';
         } else if (normalizedStatus === 'en route' || normalizedStatus === 'en mer' || normalizedStatus === 'en-route' || normalizedStatus === 'in_transit') {
             orderStatus = 'EN MER';
         } else if (normalizedStatus === 'loaded' || normalizedStatus === 'departure') {
             orderStatus = 'A BORD';
+        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée' || normalizedStatus === 'arrived' || normalizedStatus === 'arrivee' || normalizedStatus === 'arriver' || normalizedStatus.includes('discharge') || normalizedStatus.includes('unloaded') || normalizedStatus.includes('pod')) {
+            orderStatus = 'ARRIVÉE';
         } else if (normalizedStatus === 'préparation') {
             orderStatus = 'A BORD'; // Prep on ship usually means loaded
         }

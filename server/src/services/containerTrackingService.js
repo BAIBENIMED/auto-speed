@@ -219,13 +219,25 @@ class ContainerTrackingService {
         }
 
         let shippingStatus = metadata.shippingStatus || 'En transit';
+        const finalPod = data.route?.pod?.location?.name || '';
 
         // Check if the latest actual event gives a better status than 'En transit'
+        // OPTION B: Only promote to 'Arrivé' if we are at the FINAL destination
         if (shippingStatus === 'En transit' && lastActualEvent && lastActualEvent.description) {
             const desc = lastActualEvent.description.toLowerCase();
-            if (desc.includes('discharge') || desc.includes('unloaded') || desc.includes('arriv') || desc.includes('pod')) {
-                shippingStatus = lastActualEvent.description;
-                console.log(`[SinayV2] Promoting status to "${shippingStatus}" based on latest actual event.`);
+            const eventLoc = (lastActualEvent.location || '').toLowerCase();
+            const podLoc = finalPod.toLowerCase();
+
+            const isArrivalKeyword = desc.includes('discharge') || desc.includes('unloaded') || desc.includes('arriv') || desc.includes('pod');
+
+            // If it's an arrival keyword, check if the location matches the final POD
+            if (isArrivalKeyword) {
+                if (podLoc && eventLoc.includes(podLoc)) {
+                    shippingStatus = lastActualEvent.description;
+                    console.log(`[SinayV2] Promoting status to "${shippingStatus}" because it matches final POD: ${finalPod}`);
+                } else {
+                    console.log(`[SinayV2] Discharge detected at ${lastActualEvent.location}, but final POD is ${finalPod}. Still "En transit" (Transshipment).`);
+                }
             }
         }
 
