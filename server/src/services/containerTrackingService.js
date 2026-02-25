@@ -228,18 +228,21 @@ class ContainerTrackingService {
 
         if (isGenericTransit && lastActualEvent && lastActualEvent.description) {
             const desc = lastActualEvent.description.toLowerCase();
-            const eventLoc = (lastActualEvent.location || '').toLowerCase();
-            const podLoc = finalPod.toLowerCase();
+            const eventLoc = (lastActualEvent.location || '').toLowerCase().trim();
+            const podLoc = finalPod.toLowerCase().trim();
 
             const isArrivalKeyword = desc.includes('discharge') || desc.includes('unloaded') || desc.includes('arriv') || desc.includes('pod');
 
             // If it's an arrival keyword, check if the location matches the final POD
             if (isArrivalKeyword) {
-                if (podLoc && eventLoc.includes(podLoc)) {
+                // Robust match: either includes the other
+                const isPodMatch = podLoc && (podLoc.includes(eventLoc) || eventLoc.includes(podLoc));
+
+                if (isPodMatch) {
                     shippingStatus = lastActualEvent.description;
-                    console.log(`[SinayV2] Promoting status to "${shippingStatus}" because it matches final POD: ${finalPod}`);
+                    console.log(`[SinayV2] SUCCESS: Promoting status to "${shippingStatus}" because it matches POD: ${finalPod} at ${lastActualEvent.location}`);
                 } else {
-                    console.log(`[SinayV2] Arrival event detected at ${lastActualEvent.location}, but final POD is ${finalPod}. Still in transit.`);
+                    console.log(`[SinayV2] SKIP: Arrival event at ${lastActualEvent.location} does not match POD ${finalPod}. Still in transit.`);
                 }
             }
         }
