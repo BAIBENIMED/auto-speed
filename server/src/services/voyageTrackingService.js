@@ -14,11 +14,16 @@ class VoyageTrackingService {
     mapTrackingStatus(rawStatus) {
         if (!rawStatus) return null;
         const s = rawStatus.toLowerCase();
-        if (s.includes('transit') || s.includes('en mer') || s.includes('loaded') ||
-            s.includes('departure') || s.includes('route') || s.includes('sailing')) return 'En Route';
-        // Distinguish between Arrived (at port) and Delivered (to customer)
+
+        // Priority 1: Arrival/Delivery (Detect arrival before transit to handle 'Discharge' properly)
         if (s.includes('delivered') || s.includes('gate out') || s.includes('completed')) return 'Livré';
         if (s.includes('arriv') || s.includes('unloaded') || s.includes('pod') || s.includes('discharge')) return 'Arrivé';
+
+        // Priority 2: Transit
+        if (s.includes('transit') || s.includes('en mer') || s.includes('loaded') ||
+            s.includes('departure') || s.includes('route') || s.includes('sailing')) return 'En Route';
+
+        // Priority 3: Planning
         if (s.includes('plan') || s.includes('sched') || s.includes('gate in') || s.includes('prep')) return 'Planifié';
         return null;
     }
