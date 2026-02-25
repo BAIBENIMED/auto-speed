@@ -259,7 +259,11 @@ class ContainerTrackingService {
             unloadingPort: data.route?.pod?.location?.name || null,
             vesselName: vesselName,
             voyage: 'N/A',
-            provider: 'Sinay V2'
+            provider: 'Sinay V2',
+            carrierInfo: {
+                carrier: metadata.carrierName || 'Sinay API',
+                debug: `Status: ${metadata.shippingStatus}, POD: ${finalPod}, Last: ${lastActualEvent?.description} @ ${lastActualEvent?.location}`
+            }
         };
     }
 }
