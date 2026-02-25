@@ -7495,9 +7495,9 @@ const app = {
                 this.showToast("Suivi mis à jour avec succès", "success");
                 // Afficher le modal avec les détails frais
                 this.showTrackingModal(res.data, `Suivi: ${res.data.identifier}`);
-                // Synchroniser les données locales pour mettre à jour le tableau
-                await StorageService.syncAll();
-                this.renderView('shipments');
+                // Synchroniser les données locales et tout rafraîchir pour que les Commandes et Véhicules voient "ARRIVÉE"
+                await this.syncAllData();
+                this.renderView(this.currentView);
             } else {
                 throw new Error(res.message);
             }
