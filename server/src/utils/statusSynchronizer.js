@@ -56,9 +56,9 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
             orderStatus = 'EN MER';
         } else if (normalizedStatus === 'loaded' || normalizedStatus === 'departure') {
             orderStatus = 'A BORD';
-        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée' || normalizedStatus === 'arrived') {
+        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée' || normalizedStatus === 'arrived' || normalizedStatus === 'arrivee' || normalizedStatus === 'arriver') {
             orderStatus = 'ARRIVÉE';
-        } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée' || normalizedStatus === 'delivered') {
+        } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée' || normalizedStatus === 'delivered' || normalizedStatus === 'livree' || normalizedStatus === 'livrée') {
             orderStatus = 'ENLEVÉE';
         } else if (normalizedStatus === 'préparation') {
             orderStatus = 'A BORD'; // Prep on ship usually means loaded

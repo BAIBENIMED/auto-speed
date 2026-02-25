@@ -4,14 +4,8 @@ const { Shipment, Notification, Order } = require('../models');
 const voyageTrackingService = require('../services/voyageTrackingService');
 const containerTrackingService = require('../services/containerTrackingService');
 
-// Helper to sync status
-async function syncShipmentStatusToOrders(shipmentId, status) {
-    try {
-        await Order.update({ status }, { where: { shipmentId } });
-    } catch (err) {
-        console.error('[Sync] Error syncing status to orders:', err);
-    }
-}
+// Helper to sync status (Imported from statusSynchronizer to ensure unified logic)
+const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 
 // Get tracking info for a Voyage (finds first valid BL or container in voyage)
 router.get('/voyage/:voyageName', async (req, res) => {
