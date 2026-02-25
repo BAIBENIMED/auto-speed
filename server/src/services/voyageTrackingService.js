@@ -115,8 +115,18 @@ class VoyageTrackingService {
 
             // Auto-set arrival date when status becomes 'Arrivé'
             if (mappedStatus === 'Arrivé' && !voyageEntity.arrivalDate) {
-                updateData.arrivalDate = new Date();
-                console.log(`[VoyageTracking] Auto-set arrivalDate for voyage ${voyageName}`);
+                let eventDate = new Date();
+                if (trackingInfo.events && trackingInfo.events.length > 0) {
+                    const arrivalEvent = trackingInfo.events.find(e => {
+                        const d = (e.description || '').toLowerCase();
+                        return d.includes('arriv') || d.includes('discharge') || d.includes('unloaded') || d.includes('pod');
+                    });
+                    if (arrivalEvent && arrivalEvent.date) {
+                        eventDate = new Date(arrivalEvent.date);
+                    }
+                }
+                updateData.arrivalDate = eventDate;
+                console.log(`[VoyageTracking] Auto-set arrivalDate for voyage ${voyageName} to ${eventDate.toISOString()}`);
             }
 
             await voyageEntity.update(updateData);
@@ -157,8 +167,19 @@ class VoyageTrackingService {
 
                 // Auto-set arrival date when status becomes 'Arrivé'
                 if (mappedStatus === 'Arrivé' && !s.arrivalDate) {
-                    shipmentUpdate.arrivalDate = new Date();
-                    console.log(`[VoyageTracking] Auto-set arrivalDate for shipment ${s.id}`);
+                    let eventDate = new Date();
+                    // Try to find the actual event date in history
+                    if (trackingInfo.events && trackingInfo.events.length > 0) {
+                        const arrivalEvent = trackingInfo.events.find(e => {
+                            const d = (e.description || '').toLowerCase();
+                            return d.includes('arriv') || d.includes('discharge') || d.includes('unloaded') || d.includes('pod');
+                        });
+                        if (arrivalEvent && arrivalEvent.date) {
+                            eventDate = new Date(arrivalEvent.date);
+                        }
+                    }
+                    shipmentUpdate.arrivalDate = eventDate;
+                    console.log(`[VoyageTracking] Auto-set arrivalDate for shipment ${s.id} to ${eventDate.toISOString()}`);
                 }
 
                 await s.update(shipmentUpdate);

@@ -218,10 +218,21 @@ class ContainerTrackingService {
             };
         }
 
+        let shippingStatus = metadata.shippingStatus || 'En transit';
+
+        // Check if the latest actual event gives a better status than 'En transit'
+        if (shippingStatus === 'En transit' && lastActualEvent && lastActualEvent.description) {
+            const desc = lastActualEvent.description.toLowerCase();
+            if (desc.includes('discharge') || desc.includes('unloaded') || desc.includes('arriv') || desc.includes('pod')) {
+                shippingStatus = lastActualEvent.description;
+                console.log(`[SinayV2] Promoting status to "${shippingStatus}" based on latest actual event.`);
+            }
+        }
+
         return {
             identifier: number,
             type: isBL ? 'BL' : 'Container',
-            status: metadata.shippingStatus || 'En transit',
+            status: shippingStatus,
             location: { lat: parseFloat(currentLat), lng: parseFloat(currentLng), name: locationName },
             events: mappedEvents,
             etd: data.route?.pol?.date || null,

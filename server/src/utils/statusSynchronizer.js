@@ -56,7 +56,7 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
             orderStatus = 'EN MER';
         } else if (normalizedStatus === 'loaded' || normalizedStatus === 'departure') {
             orderStatus = 'A BORD';
-        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée' || normalizedStatus === 'arrived' || normalizedStatus === 'arrivee' || normalizedStatus === 'arriver' || normalizedStatus.includes('discharge')) {
+        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus === 'arrivée' || normalizedStatus === 'arrived' || normalizedStatus === 'arrivee' || normalizedStatus === 'arriver' || normalizedStatus.includes('discharge') || normalizedStatus.includes('unloaded') || normalizedStatus.includes('pod')) {
             orderStatus = 'ARRIVÉE';
         } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus === 'enlevée' || normalizedStatus === 'delivered' || normalizedStatus === 'livree' || normalizedStatus === 'livrée') {
             orderStatus = 'ENLEVÉE';
