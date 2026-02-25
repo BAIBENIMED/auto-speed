@@ -4754,38 +4754,8 @@ const app = {
     },
 
     async refreshShipmentTracking(id, btnElement) {
-        if (!confirm('Voulez-vous actualiser le tracking pour ce voyage ? Cela mettra à jour tous les dossiers liés.')) return;
-
-        const originalText = btnElement ? btnElement.innerHTML : '';
-        if (btnElement) {
-            btnElement.disabled = true;
-            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualisation...';
-        }
-
-        try {
-            const response = await ApiService.request(`/shipments/${id}/tracking`, { method: 'POST' });
-
-            if (response.success) {
-                this.showToast('Tracking actualisé avec succès', 'success');
-            } else {
-                // Display the specific error message as requested
-                const errorMsg = response.message || "Erreur de communication avec Safecube";
-                this.showToast(`ERREUR: ${errorMsg}`, "error");
-                console.error("Tracking error details:", response.data);
-            }
-
-            await StorageService.syncAll(); // Sync to get new data
-            this.renderView('orders');
-            this.closeModal();
-        } catch (error) {
-            console.error(error);
-            this.showToast(`ERREUR: ${error.message || "Impossible de contacter le serveur"}`, "error");
-        } finally {
-            if (btnElement) {
-                btnElement.disabled = false;
-                btnElement.innerHTML = originalText;
-            }
-        }
+        // Rediriger vers la fonction unifiée trackShipment
+        return this.trackShipment(id);
     },
 
 
@@ -7493,17 +7463,18 @@ const app = {
 
             if (res.success) {
                 this.showToast("Suivi mis à jour avec succès", "success");
-                // Afficher le modal avec les détails frais
-                this.showTrackingModal(res.data, `Suivi: ${res.data.identifier}`);
-                // Synchroniser les données locales et tout rafraîchir pour que les Commandes et Véhicules voient "ARRIVÉE"
+                // Synchroniser les données locales
                 await this.syncAllData();
+                // Afficher le modal avec les détails frais (Utilise le nom correct de la fonction)
+                this.showTrackingHistoryModal(shipmentId);
+                // Tout rafraîchir pour que les Commandes et Véhicules voient les changements
                 this.renderView(this.currentView);
             } else {
                 throw new Error(res.message);
             }
         } catch (error) {
             console.error("Refresh Error:", error);
-            this.showToast("Erreur lors de la mise à jour: " + error.message, "danger");
+            this.showToast("Erreur lors de la mise à jour: " + (error.message || "Erreur inconnue"), "danger");
         }
     },
 
