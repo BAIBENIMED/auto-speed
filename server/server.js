@@ -80,11 +80,11 @@ app.use('/api/maintenance', require('./src/routes/maintenance'));
 // More routes will be added here
 
 // Basic reachability test
-app.get('/', (req, res) => res.json({ message: 'TIBOU AUTO API is running', version: '2.5' }));
+app.get('/', (req, res) => res.json({ message: 'TIBOU AUTO API is running', version: '2.6-ANTIGRAVITY' }));
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.3 - FIXED)' });
+    res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.6-ANTIGRAVITY)' });
 });
 
 // Diagnostic endpoint for Cloud deployment
@@ -92,7 +92,7 @@ app.get('/api/diag', async (req, res) => {
     // Show environment status immediately
     const diag = {
         timestamp: new Date().toISOString(),
-        version: "2.2",
+        version: "2.6-ANTIGRAVITY",
         request: {
             origin: req.get('origin'),
             host: req.get('host')
