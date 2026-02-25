@@ -221,9 +221,12 @@ class ContainerTrackingService {
         let shippingStatus = metadata.shippingStatus || 'En transit';
         const finalPod = data.route?.pod?.location?.name || '';
 
-        // Check if the latest actual event gives a better status than 'En transit'
+        // Check if the latest actual event gives a better status than a generic transit status
         // OPTION B: Only promote to 'Arrivé' if we are at the FINAL destination
-        if (shippingStatus === 'En transit' && lastActualEvent && lastActualEvent.description) {
+        const normalizedStatus = shippingStatus.toLowerCase();
+        const isGenericTransit = normalizedStatus.includes('transit') || normalizedStatus.includes('route') || normalizedStatus.includes('mer');
+
+        if (isGenericTransit && lastActualEvent && lastActualEvent.description) {
             const desc = lastActualEvent.description.toLowerCase();
             const eventLoc = (lastActualEvent.location || '').toLowerCase();
             const podLoc = finalPod.toLowerCase();
@@ -236,7 +239,7 @@ class ContainerTrackingService {
                     shippingStatus = lastActualEvent.description;
                     console.log(`[SinayV2] Promoting status to "${shippingStatus}" because it matches final POD: ${finalPod}`);
                 } else {
-                    console.log(`[SinayV2] Discharge detected at ${lastActualEvent.location}, but final POD is ${finalPod}. Still "En transit" (Transshipment).`);
+                    console.log(`[SinayV2] Arrival event detected at ${lastActualEvent.location}, but final POD is ${finalPod}. Still in transit.`);
                 }
             }
         }
