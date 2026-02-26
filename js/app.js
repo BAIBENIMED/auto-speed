@@ -10464,53 +10464,59 @@ const app = {
 
             console.log("✅ Événements à afficher:", events.length);
 
-            const modalHtml = `
-                <div class="modal-overlay" onclick="app.closeModal()">
-                    <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 700px; max-width: 95vw;">
-                        <div class="modal-header">
-                            <div>
-                                <h2 style="margin:0;">Historique: ${shipment.containerNumber || shipmentId}</h2>
-                                <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;">
-                                    Source: ${source} | Statut: ${shipment.status || 'N/A'}
-                                </p>
-                            </div>
-                            <button class="btn-close" onclick="app.closeModal()">&times;</button>
-                        </div>
-                        <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 20px;">
-                            <div class="tracking-timeline">
-                                ${events.length > 0 ? events.map((event, index) => `
-                                    <div class="timeline-item" style="display: flex; gap: 20px; margin-bottom: 25px; position: relative;">
-                                        ${index !== events.length - 1 ? `<div style="position: absolute; left: 14px; top: 30px; bottom: -20px; width: 2px; background: var(--border-glass);"></div>` : ''}
-                                        <div class="timeline-marker" style="width: 30px; height: 30px; border-radius: 50%; background: ${event.isActual ? 'var(--success)' : 'var(--border-glass)'}; display: flex; align-items: center; justify-content: center; z-index: 1; flex-shrink: 0; box-shadow: ${event.isActual ? '0 0 10px rgba(34, 197, 94, 0.4)' : 'none'};">
-                                            <i class="fas ${event.isActual ? 'fa-check' : 'fa-clock'}" style="font-size: 0.8rem; color: ${event.isActual ? 'white' : 'var(--text-dim)'};"></i>
-                                        </div >
-    <div class="timeline-content">
-        <div style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">
-            ${new Date(event.date).toLocaleDateString()} ${new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </div>
-        <div style="font-weight: 700; font-size: 1rem; margin: 4px 0;">${event.description}</div>
-        <div style="font-size: 0.85rem; color: var(--text-secondary);">
-            <i class="fas fa-map-marker-alt" style="font-size: 0.7rem;"></i> ${event.location || 'En transit'}
-        </div>
-    </div>
-                                    </div >
-    `).join('') : `
-    < div style = "text-align: center; padding: 40px; color: var(--text-dim);" >
-                                        <i class="fas fa-info-circle" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
-                                        <p>Aucun événement de tracking disponible pour cette expédition.</p>
-                                    </div >
-    `}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            this.renderTrackingHistoryModal(shipment, events, source);
         } catch (error) {
-            console.error("❌ Erreur affichage historique:", error);
-            this.showToast("Erreur lors de l'affichage de l'historique", "error");
+            console.error("Error showing tracking history:", error);
+            this.showToast("Erreur lors de l'affichage de l'historique", "danger");
         }
+    },
+
+    renderTrackingHistoryModal(shipment, events, source) {
+        // Sort by date desc (double check)
+        events.sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp));
+
+        const modalHtml = `
+             <div class="modal-overlay" onclick="app.closeModal()">
+                 <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+                     <div class="modal-header">
+                         <div>
+                             <h2 style="margin:0;"><i class="fas fa-history"></i> Historique du Voyage</h2>
+                             <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;">
+                                 Cont: <strong>${shipment.containerNumber || 'N/A'}</strong> | Source: ${source}
+                             </p>
+                         </div>
+                         <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                     </div>
+                     <div class="modal-body" style="overflow-y: auto; padding: 20px;">
+                         ${events.length === 0 ?
+                '<div style="text-align: center; color: var(--text-secondary); padding: 40px; opacity: 0.6;"><i class="fas fa-ghost fa-3x mb-3"></i><br>Aucun historique disponible</div>' :
+                `<div class="timeline-vertical" style="display: flex; flex-direction: column; gap: 20px;">
+                                 ${events.map((e, i) => `
+                                     <div class="timeline-event" style="display: flex; gap: 15px; position: relative;">
+                                         <div class="timeline-line" style="position: absolute; left: 11px; top: 25px; bottom: -20px; width: 2px; background: var(--border-glass); height: calc(100% + 5px); display: ${i === events.length - 1 ? 'none' : 'block'}"></div>
+                                         <div class="timeline-dot" style="width: 24px; height: 24px; border-radius: 50%; background: ${i === 0 ? 'var(--primary)' : 'var(--bg-glass)'}; border: 3px solid ${i === 0 ? 'rgba(99,102,241,0.3)' : 'var(--border-glass)'}; flex-shrink: 0; z-index: 1; display: flex; align-items: center; justify-content: center;">
+                                             ${i === 0 ? '<div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>' : ''}
+                                         </div>
+                                         <div class="timeline-item-content" style="flex: 1;">
+                                             <div style="font-weight: 700; color: ${i === 0 ? 'var(--primary)' : 'var(--text-primary)'}; font-size: 0.95rem;">${e.description || e.status || e.event || 'Événement'}</div>
+                                             <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; margin-top: 2px;">${e.location || 'N/A'}</div>
+                                             <div style="font-size: 0.75rem; color: var(--text-secondary); opacity: 0.7; margin-top: 6px; display: flex; align-items: center; gap: 5px;">
+                                                 <i class="far fa-clock"></i> ${new Date(e.date || e.timestamp).toLocaleString('fr-FR')}
+                                             </div>
+                                             ${e.details ? `<div style="font-size: 0.8rem; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; font-style: italic; border-left: 3px solid var(--border-glass);">${e.details}</div>` : ''}
+                                         </div>
+                                     </div>
+                                 `).join('')}
+                             </div>`
+            }
+                     </div>
+                     <div class="modal-footer" style="padding: 15px; border-top: 1px solid var(--border-glass);">
+                         <button class="btn-secondary" style="width: 100%;" onclick="app.closeModal()">Fermer</button>
+                     </div>
+                 </div>
+             </div>
+         `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
 
@@ -10711,61 +10717,6 @@ const app = {
     },
 
 
-
-    async refreshAllVoyages() {
-        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-
-        // Extract unique, non-empty voyage names
-        const voyageNames = [...new Set(shipments
-            .map(s => s.voyage ? s.voyage.trim() : '')
-            .filter(v => v !== '' && v !== 'SANS VOYAGE')
-        )].sort();
-
-        if (voyageNames.length === 0) {
-            this.showToast("Aucun voyage à actualiser.", "info");
-            return;
-        }
-
-        if (!confirm(`Voulez-vous lancer l'actualisation de ${voyageNames.length} voyages ? Cela peut prendre plusieurs secondes.`)) {
-            return;
-        }
-
-        let successCount = 0;
-        let failCount = 0;
-
-        for (let i = 0; i < voyageNames.length; i++) {
-            const vName = voyageNames[i];
-            const progress = `(${i + 1}/${voyageNames.length})`;
-            this.showToast(`Mise à jour du voyage ${progress}: ${vName}...`, "info");
-
-            try {
-                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(vName)}`);
-                const res = await response.json();
-                if (res.success) {
-                    successCount++;
-                } else {
-                    console.warn(`Failed to update ${vName}: ${res.message}`);
-                    failCount++;
-                }
-            } catch (err) {
-                console.error(`Error updating ${vName}:`, err);
-                failCount++;
-            }
-
-            // Small delay to be nice to the server/external API
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        // Final sync and refresh
-        await StorageService.syncAll();
-        this.renderView(this.currentView);
-
-        if (failCount === 0) {
-            this.showToast(`Succès ! ${successCount} voyages actualisés.`, "success");
-        } else {
-            this.showToast(`Terminé. ${successCount} succès, ${failCount} échecs.`, "warning");
-        }
-    },
 
     async refreshAllVoyages() {
         const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
@@ -11336,57 +11287,6 @@ const app = {
                             <div style="font-size: 0.95rem;">${displayLocation}</div>
                             <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">Dernière mise à jour: ${shipment.lastUpdate ? new Date(shipment.lastUpdate).toLocaleString() : 'Non disponible'}</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    },
-
-    showShipmentTrackingHistory(shipmentId) {
-        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-        const shipment = shipments.find(s => s.id === shipmentId);
-        if (!shipment) return this.showToast("Expédition introuvable", "error");
-
-        let events = [];
-        try {
-            events = typeof shipment.trackingHistory === 'string' ? JSON.parse(shipment.trackingHistory) : (shipment.trackingHistory || []);
-        } catch (e) {
-            events = [];
-        }
-
-        // Sort by date desc
-        events.sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp));
-
-        const modalHtml = `
-            <div class="modal-overlay">
-                <div class="modal-content glass" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
-                    <div class="modal-header">
-                        <h2><i class="fas fa-history"></i> Historique du Voyage</h2>
-                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
-                    </div>
-                    <div class="modal-body" style="overflow-y: auto; padding: 25px;">
-                        ${events.length === 0 ?
-                '<div style="text-align: center; color: var(--text-secondary); padding: 40px; opacity: 0.6;"><i class="fas fa-ghost fa-3x mb-3"></i><br>Aucun historique disponible</div>' :
-                `<div class="timeline-vertical" style="display: flex; flex-direction: column; gap: 20px;">
-                                ${events.map((e, i) => `
-                                    <div class="timeline-event" style="display: flex; gap: 15px; position: relative;">
-                                        <div class="timeline-line" style="position: absolute; left: 11px; top: 25px; bottom: -20px; width: 2px; background: var(--border-glass); opacity: ${i === events.length - 1 ? 0 : 1}"></div>
-                                        <div class="timeline-dot" style="width: 24px; height: 24px; border-radius: 50%; background: ${i === 0 ? 'var(--primary)' : 'var(--bg-glass)'}; border: 3px solid ${i === 0 ? 'rgba(99,102,241,0.3)' : 'var(--border-glass)'}; flex-shrink: 0; z-index: 1; display: flex; align-items: center; justify-content: center;">
-                                            ${i === 0 ? '<div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>' : ''}
-                                        </div>
-                                        <div class="timeline-item-content" style="flex: 1;">
-                                            <div style="font-weight: 700; color: ${i === 0 ? 'var(--primary)' : 'var(--text-primary)'}; font-size: 0.95rem;">${e.status || e.event}</div>
-                                            <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; margin-top: 2px;">${e.location || 'N/A'}</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-secondary); opacity: 0.7; margin-top: 6px; display: flex; align-items: center; gap: 5px;">
-                                                <i class="far fa-clock"></i> ${new Date(e.date || e.timestamp).toLocaleString()}
-                                            </div>
-                                            ${e.details ? `<div style="font-size: 0.8rem; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; font-style: italic; border-left: 3px solid var(--border-glass);">${e.details}</div>` : ''}
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>`
-            }
                     </div>
                 </div>
             </div>
