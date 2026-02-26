@@ -709,7 +709,7 @@ const app = {
                         clientId: client.id,
                         clientName: `${client.firstName} ${client.lastName}`,
                         vehicleId: vehicleId || null,
-                        vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''}`,
+                        vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.motorization || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''}`,
                         requestedBrand: formData.get('requestedBrand') || '',
                         requestedModel: formData.get('requestedModel') || '',
                         requestedColor: formData.get('requestedColor') || '',
@@ -858,8 +858,18 @@ const app = {
                             </div>
                             <div class="details-section">
                                 <h3><i class="fas fa-car"></i> Véhicule</h3>
-                                <p><strong>Modèle:</strong> ${order.vehicleName || (vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : 'N/A')}</p>
-                                <p><strong>Châssis:</strong> ${vehicle ? vehicle.chassisNumber : 'N/A'}</p>
+                                <p><strong>Désignation:</strong> ${order.vehicleName || 'N/A'}</p>
+                                ${vehicle ? `
+                                    <p><strong>Marque/Modèle:</strong> ${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})</p>
+                                    <p><strong>Châssis:</strong> <code style="font-size: 0.85rem;">${vehicle.chassisNumber || 'N/A'}</code></p>
+                                    <p><strong>Motorisation:</strong> ${vehicle.motorization || 'N/A'}</p>
+                                    <p><strong>Finition:</strong> ${vehicle.trim || 'N/A'}</p>
+                                    <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
+                                ` : `
+                                    <p><strong>Marque Souhaitée:</strong> ${order.requestedBrand || 'N/A'}</p>
+                                    <p><strong>Modèle Souhaité:</strong> ${order.requestedModel || 'N/A'}</p>
+                                    <p><strong>Couleur Souhaitée:</strong> ${order.requestedColor || 'N/A'}</p>
+                                `}
                                 ${vehicle && vehicle.options ? `<p><strong>Options:</strong> <span style="font-size: 0.85rem; color: var(--text-dim);">${vehicle.options}</span></p>` : ''}
                                 
                                 ${shipment ? `
@@ -2174,7 +2184,7 @@ const app = {
                             ${orders.map(order => {
             const vehicle = vehicles.find(v => v.id === order.vehicleId || (order.id && v.orderId === order.id));
             const client = clients.find(c => c.id === order.clientId);
-            const vehicleName = vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : (order.vehicleName || 'Sans véhicule');
+            const vehicleName = vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.motorization || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : (order.vehicleName || 'Sans véhicule');
             const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
             const isShipped = !!shipment;
 
