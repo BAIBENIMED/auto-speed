@@ -1249,6 +1249,8 @@ const app = {
                                 <h3><i class="fas fa-info-circle"></i> Identification</h3>
                                 <p><strong>Marque/Modèle:</strong> ${vehicle.brand} ${vehicle.model || ''}</p>
                                 ${client ? `<p><strong>Client Affecté:</strong> <span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-weight: 600;">${client.name}</span></p>` : ''}
+                                <p><strong>Provenance/Fournisseur:</strong> ${vehicle.supplier || 'N/A'}</p>
+                                ${vehicle.purchaseOrderId ? `<p><strong>Commande d'Achat (PO):</strong> <span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.closeModal(); app.renderPurchases('${vehicle.purchaseOrderId}')">${vehicle.purchaseOrderId}</span></p>` : ''}
                                 <p><strong>Châssis (VIN):</strong> <code class="chassis">${vehicle.chassisNumber || 'N/A'}</code></p>
                                 <p><strong>Année/Mois:</strong> ${vehicle.year || 'N/A'} ${vehicle.month ? '/ ' + vehicle.month : ''}</p>
                             </div>
