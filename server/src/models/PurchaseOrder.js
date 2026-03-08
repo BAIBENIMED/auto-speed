@@ -8,8 +8,7 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
     },
     orderId: {
         type: DataTypes.STRING(50),
-        allowNull: false,
-        unique: true, // One purchase per order
+        allowNull: true,
         references: {
             model: 'orders',
             key: 'id'

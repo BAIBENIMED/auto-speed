@@ -32,11 +32,14 @@ Client.hasMany(Order, { foreignKey: 'clientId' });
 Vehicle.belongsTo(Order, { foreignKey: 'orderId', as: 'order' });
 Order.hasMany(Vehicle, { foreignKey: 'orderId' });
 
-PurchaseOrder.belongsTo(Order, { foreignKey: 'orderId', as: 'order' });
-Order.hasOne(PurchaseOrder, { foreignKey: 'orderId', as: 'purchaseOrder' });
+PurchaseOrder.belongsTo(Order, { foreignKey: 'orderId', as: 'order' }); // Kept for legacy
+Order.hasMany(PurchaseOrder, { foreignKey: 'orderId', as: 'purchaseOrders' }); // Kept for legacy
 
 PurchaseOrder.belongsTo(Supplier, { foreignKey: 'supplierId', as: 'supplierDetails' });
 Supplier.hasMany(PurchaseOrder, { foreignKey: 'supplierId' });
+
+PurchaseOrder.hasMany(Vehicle, { foreignKey: 'purchaseOrderId', as: 'vehicles' });
+Vehicle.belongsTo(PurchaseOrder, { foreignKey: 'purchaseOrderId', as: 'purchaseOrder' });
 
 Vehicle.belongsTo(Shipment, { foreignKey: 'shipmentId', as: 'shipment' });
 Shipment.hasMany(Vehicle, { foreignKey: 'shipmentId' });

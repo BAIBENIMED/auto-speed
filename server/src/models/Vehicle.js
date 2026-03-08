@@ -80,6 +80,10 @@ const Vehicle = sequelize.define('Vehicle', {
         type: DataTypes.STRING(50),
         field: 'shipment_id'
     },
+    purchaseOrderId: {
+        type: DataTypes.STRING(50),
+        field: 'purchase_order_id'
+    },
     options: {
         type: DataTypes.TEXT
     },

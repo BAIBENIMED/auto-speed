@@ -8347,9 +8347,9 @@ const app = {
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Commande Client</th>
-                                    <th>Véhicule</th>
                                     <th>Fournisseur</th>
+                                    <th>Nb Véhicules</th>
+                                    <th>Détails Véhicules</th>
                                     <th>Date Commande</th>
                                     <th>Statut</th>
                                     <th>Actions</th>
@@ -8359,11 +8359,19 @@ const app = {
                                 ${purchases.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 40px;">Aucune commande d\'achat trouvée</td></tr>' :
                     purchases.map(p => `
                                     <tr>
-                                        <td><strong>#${p.id}</strong></td>
-                                        <td>#${p.orderId} ${p.order?.clientName || ''}</td>
-                                        <td>${p.order ? `${p.order.requestedBrand} ${p.order.requestedModel || ''}` : 'N/A'}</td>
+                                        <td><strong>${p.id}</strong></td>
                                         <td>${p.supplierDetails ? `<span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 5px 10px;">${p.supplierDetails.code}</span> ${p.supplierDetails.name}` : p.supplierName || 'N/A'}</td>
-                                        <td>${p.order?.date ? new Date(p.order.date).toLocaleDateString() : 'N/A'}</td>
+                                        <td><span class="badge">${p.vehicles ? p.vehicles.length : 0}</span></td>
+                                        <td>
+                                            ${p.vehicles && p.vehicles.length > 0 ?
+                            `<div style="font-size: 0.85rem; max-height: 80px; overflow-y: auto;">
+                                                ${p.vehicles.map(v =>
+                                `<div style="margin-bottom: 2px;">• <strong>${v.order?.clientName || 'N/A'}</strong> : ${v.brand} ${v.model || ''} <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span></div>`
+                            ).join('')}
+                                                </div>`
+                            : '-'}
+                                        </td>
+                                        <td>${p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A'}</td>
                                         <td><span class="status-badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${p.status}</span></td>
                                         <td>
                                             <div class="actions-cell">
@@ -8562,18 +8570,18 @@ const app = {
                         <div class="section-header" style="margin-bottom: 15px;">
                             <h3>1. Sélectionner les Commandes Client</h3>
                         </div>
-                        <div class="data-table-container" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                        <div class="data-table-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
                             <table class="data-table">
                                 <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card);">
                                     <tr>
                                         <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-po-orders"></th>
                                         <th>Commande</th>
-                                        <th>Date Commande</th>
                                         <th>Client</th>
-                                        <th>Marque</th>
-                                        <th>Modèle</th>
-                                        <th>Couleur</th>
-                                        <th>Catégorie</th>
+                                        <th>Véhicule (Marque/Modèle)</th>
+                                        <th>VIN Châssis</th>
+                                        <th>Couleur/Cat.</th>
+                                        <th>Kilo.</th>
+                                        <th>Prix Achat</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -8581,20 +8589,26 @@ const app = {
                                     <tr data-order-id="${o.id}">
                                         <td style="text-align: center;"><input type="checkbox" name="selectedOrders" value="${o.id}" class="po-order-checkbox"></td>
                                         <td><strong>#${o.id}</strong></td>
-                                        <td>${o.date ? new Date(o.date).toLocaleDateString() : 'N/A'}</td>
                                         <td>${o.clientName}</td>
-                                        <td>${o.requestedBrand || 'N/A'}</td>
-                                        <td>${o.requestedModel || 'N/A'}</td>
+                                        <td>${o.requestedBrand || ''} ${o.requestedModel || ''}</td>
+                                        <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
-                                            <select class="glass-select color-select" style="padding: 2px 5px; font-size: 0.8rem;">
-                                                <option value="">--</option>
+                                            <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
+                                                <option value="">Couleur</option>
                                                 ${colors.map(c => `<option value="${c}" ${o.requestedColor === c ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
-                                        </td>
-                                        <td>
-                                            <select class="glass-select category-select" style="padding: 2px 5px; font-size: 0.8rem;">
-                                                <option value="">--</option>
+                                            <br>
+                                            <select class="glass-select category-select" style="padding: 2px; font-size: 0.8rem; width: 100px;">
+                                                <option value="">Catégorie</option>
                                                 ${categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+                                            </select>
+                                        </td>
+                                        <td><input type="number" class="glass-input mileage-input" placeholder="0" value="0" style="width: 70px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td>
+                                            <input type="number" class="glass-input price-input" placeholder="Prix" style="width: 90px; padding: 4px; font-size: 0.8rem;">
+                                            <br>
+                                            <select class="glass-select currency-select" style="padding: 2px; font-size: 0.8rem; margin-top: 2px; width: 90px;">
+                                                ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${c === 'EUR' ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </td>
                                     </tr>
@@ -8603,19 +8617,50 @@ const app = {
                             </table>
                         </div>
                         ` : `
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Commande Client</label>
-                                <input type="text" value="#${po.orderId} - ${orders.find(o => o.id === po.orderId)?.clientName || 'N/A'}" disabled class="code-input">
-                                <input type="hidden" name="orderId" value="${po.orderId}">
-                            </div>
-                            <div class="form-group">
-                                <label>Véhicule</label>
-                                <input type="text" value="${(() => {
-                const o = orders.find(ord => ord.id === po.orderId);
-                return o ? `${o.requestedBrand} ${o.requestedModel || ''}` : 'N/A';
-            })()}" disabled class="code-input">
-                            </div>
+                        <div class="section-header" style="margin-bottom: 15px;">
+                            <h3>1. Véhicules de la Commande</h3>
+                        </div>
+                        <div class="data-table-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                            <table class="data-table">
+                                <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card);">
+                                    <tr>
+                                        <th>Client</th>
+                                        <th>Véhicule</th>
+                                        <th>VIN Châssis</th>
+                                        <th>Couleur/Cat.</th>
+                                        <th>Kilo.</th>
+                                        <th>Prix Achat</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${po.vehicles ? po.vehicles.map(v => `
+                                    <tr data-vehicle-id="${v.id}">
+                                        <td>${v.order?.clientName || 'N/A'}</td>
+                                        <td>${v.brand || ''} ${v.model || ''}</td>
+                                        <td><input type="text" class="glass-input vin-input" value="${v.chassisNumber || ''}" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td>
+                                            <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
+                                                <option value="">Couleur</option>
+                                                ${colors.map(c => `<option value="${c}" ${v.color === c ? 'selected' : ''}>${c}</option>`).join('')}
+                                            </select>
+                                            <br>
+                                            <select class="glass-select category-select" style="padding: 2px; font-size: 0.8rem; width: 100px;">
+                                                <option value="">Catégorie</option>
+                                                ${categories.map(cat => `<option value="${cat}" ${v.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                                            </select>
+                                        </td>
+                                        <td><input type="number" class="glass-input mileage-input" value="${v.mileage || 0}" style="width: 70px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td>
+                                            <input type="number" class="glass-input price-input" value="${v.purchasePrice || 0}" style="width: 90px; padding: 4px; font-size: 0.8rem;">
+                                            <br>
+                                            <select class="glass-select currency-select" style="padding: 2px; font-size: 0.8rem; margin-top: 2px; width: 90px;">
+                                                ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${v.purchaseCurrency === c ? 'selected' : ''}>${c}</option>`).join('')}
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    `).join('') : '<tr><td colspan="6" style="text-align: center;">Aucun véhicule lié</td></tr>'}
+                                </tbody>
+                            </table>
                         </div>
                         `}
 
@@ -8652,10 +8697,10 @@ const app = {
                         <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Annuler</button>
                         <button type="submit" class="btn-primary">${id ? 'Mettre à jour' : 'Créer les commandes'}</button>
                     </div>
-                </form>
-            </div>
+                </form >
             </div >
-        `;
+            </div >
+    `;
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
@@ -8680,49 +8725,67 @@ const app = {
             if (!id) {
                 const selectedCheckboxes = document.querySelectorAll('.po-order-checkbox:checked');
                 if (selectedCheckboxes.length === 0) {
-                    this.showToast("Veuillez sélectionner au moins une commande.", "warning");
+                    this.showToast("Veuillez sélectionner au moins une commande client.", "warning");
                     return;
                 }
 
-                const loadingToast = this.showToast("Création des commandes d'achat en cours...", "info", 0);
-                let successCount = 0;
-                let errorCount = 0;
+                const loadingToast = this.showToast("Création de la commande d'achat en cours...", "info", 0);
 
-                for (const cb of selectedCheckboxes) {
-                    const orderId = cb.value;
+                const vehiclesToCreate = Array.from(selectedCheckboxes).map(cb => {
                     const tr = cb.closest('tr');
-                    const color = tr.querySelector('.color-select').value;
-                    const category = tr.querySelector('.category-select').value;
+                    const orderId = cb.value;
+                    const order = orders.find(o => o.id === orderId);
 
-                    const data = {
-                        ...baseData,
-                        id: `PO - ${Date.now()} -${orderId} `,
+                    return {
                         orderId: orderId,
-                        notes: (baseData.notes ? baseData.notes + "\n" : "") + `Couleur: ${color || 'N/A'}, Catégorie: ${category || 'N/A'} `
+                        brand: order?.requestedBrand || '',
+                        model: order?.requestedModel || '',
+                        chassisNumber: tr.querySelector('.vin-input').value,
+                        color: tr.querySelector('.color-select').value,
+                        category: tr.querySelector('.category-select').value,
+                        mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
+                        purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
+                        purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
                     };
+                });
 
-                    try {
-                        await ApiService.createPurchaseOrder(data);
-                        // Also optionally update the order/vehicle with color/category if we had a vehicle, 
-                        // but here vehicle is not created yet. 
-                        // We might want to pass these to the creation of the vehicle later.
-                        successCount++;
-                    } catch (err) {
-                        console.error(`Error creating PO for order ${orderId}: `, err);
-                        errorCount++;
-                    }
-                }
+                const data = {
+                    ...baseData,
+                    vehicles: vehiclesToCreate
+                };
 
-                if (loadingToast && loadingToast.remove) loadingToast.remove();
-
-                if (errorCount === 0) {
-                    this.showToast(`${successCount} commande(s) d'achat créée(s) avec succès`, "success");
-                } else {
-                    this.showToast(`${successCount} succès, ${errorCount} erreurs lors de la création`, "warning");
+                try {
+                    await ApiService.createPurchaseOrder(data);
+                    if (loadingToast && loadingToast.remove) loadingToast.remove();
+                    this.showToast("Commande d'achat créée avec succès", "success");
+                } catch (err) {
+                    if (loadingToast && loadingToast.remove) loadingToast.remove();
+                    console.error("Error creating PO:", err);
+                    this.showToast("Erreur: " + err.message, "error");
+                    return;
                 }
             } else {
+                // Update mode
+                const vehicleRows = document.querySelectorAll('tr[data-vehicle-id]');
+                const vehiclesToUpdate = Array.from(vehicleRows).map(tr => {
+                    return {
+                        id: tr.getAttribute('data-vehicle-id'),
+                        chassisNumber: tr.querySelector('.vin-input').value,
+                        color: tr.querySelector('.color-select').value,
+                        category: tr.querySelector('.category-select').value,
+                        mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
+                        purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
+                        purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
+                    };
+                });
+
+                const data = {
+                    ...baseData,
+                    vehicles: vehiclesToUpdate
+                };
+
                 try {
-                    await ApiService.updatePurchaseOrder(id, baseData);
+                    await ApiService.updatePurchaseOrder(id, data);
                     this.showToast("Commande d'achat mise à jour", "success");
                 } catch (err) {
                     this.showToast(err.message, "error");
@@ -8752,153 +8815,153 @@ const app = {
         const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES);
 
         const viewHtml = `
-                <div class="view-header">
+    < div class="view-header" >
                     <h1><i class="fas fa-file-contract"></i> Vérification Papier</h1>
                     <p class="subtitle">Analyse et vérification automatique des documents de transport (BL)</p>
+                </div >
+
+    <div class="verification-container" style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; height: calc(100vh - 180px);">
+        <!-- Control Panel -->
+        <div class="glass" style="padding: 20px; display: flex; flex-direction: column; gap: 20px; border-radius: 12px;">
+            <div class="upload-section" style="text-align: center; border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 30px 20px; transition: all 0.3s; cursor: pointer;" id="drop-zone">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
+                <h3 style="margin-bottom: 10px;">Glisser votre BL ici</h3>
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px;">ou cliquez pour sélectionner un fichier (Image/PDF)</p>
+                <input type="file" id="bl-input" accept="image/*" style="display: none;">
+                    <button class="btn-primary" onclick="document.getElementById('bl-input').click()">Sélectionner un fichier</button>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-building"></i> Compagnie Maritime</label>
+                <div style="display: flex; gap: 10px;">
+                    <select id="bl-template" class="glass-select" style="flex: 1;">
+                        <option value="">Détection Automatique</option>
+                        ${templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                    </select>
+                    <button class="btn-icon" id="ai-toggle-btn" onclick="app.toggleAiExtraction()" title="Utiliser l'IA (BETA)" style="width: 42px; background: ${StorageService.get(STORAGE_KEYS.SETTINGS).useAiExtraction ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.05)'}; color: ${StorageService.get(STORAGE_KEYS.SETTINGS).useAiExtraction ? 'var(--primary)' : 'inherit'};">
+                        <i class="fas fa-robot"></i>
+                    </button>
+                    <button class="btn-icon" onclick="app.showTemplateManagerModal()" title="Gérer les modèles" style="width: 42px;">
+                        <i class="fas fa-cog"></i>
+                    </button>
                 </div>
+            </div>
+            <div id="processing-status" style="display: none;">
+                <label>Traitement en cours...</label>
+                <div class="progress-bar" style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 5px;">
+                    <div id="ocr-progress" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+                </div>
+                <p id="status-text" style="font-size: 0.8rem; color: var(--text-dim); margin-top: 5px; text-align: right;">Initialisation...</p>
+            </div>
+        </div>
 
-                <div class="verification-container" style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; height: calc(100vh - 180px);">
-                    <!-- Control Panel -->
-                    <div class="glass" style="padding: 20px; display: flex; flex-direction: column; gap: 20px; border-radius: 12px;">
-                        <div class="upload-section" style="text-align: center; border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 30px 20px; transition: all 0.3s; cursor: pointer;" id="drop-zone">
-                            <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
-                            <h3 style="margin-bottom: 10px;">Glisser votre BL ici</h3>
-                            <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px;">ou cliquez pour sélectionner un fichier (Image/PDF)</p>
-                            <input type="file" id="bl-input" accept="image/*" style="display: none;">
-                            <button class="btn-primary" onclick="document.getElementById('bl-input').click()">Sélectionner un fichier</button>
+        <!-- Results Panel -->
+        <div class="glass" style="padding: 20px; border-radius: 12px; display: grid; grid-template-rows: auto 1fr; overflow: hidden;">
+            <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <h3><i class="fas fa-search"></i> Résultats de l'analyse</h3>
+                <span id="verification-badge" class="status-badge" style="display: none;">EN ATTENTE</span>
+            </div>
+
+            <div id="verification-results" style="overflow-y: auto; display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <!-- Extracted Data -->
+                    <div>
+                        <h4 style="color: var(--primary); margin-bottom: 15px;">Données Extraites (OCR)</h4>
+
+                        <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Numéro Booking/BL</label>
+                            <div id="res-booking" style="font-family: monospace; font-size: 1.1rem; font-weight: 600;">-</div>
                         </div>
 
-                        <div class="form-group">
-                            <label><i class="fas fa-building"></i> Compagnie Maritime</label>
-                            <div style="display: flex; gap: 10px;">
-                                <select id="bl-template" class="glass-select" style="flex: 1;">
-                                    <option value="">Détection Automatique</option>
-                                    ${templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
-                                </select>
-                                <button class="btn-icon" id="ai-toggle-btn" onclick="app.toggleAiExtraction()" title="Utiliser l'IA (BETA)" style="width: 42px; background: ${StorageService.get(STORAGE_KEYS.SETTINGS).useAiExtraction ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.05)'}; color: ${StorageService.get(STORAGE_KEYS.SETTINGS).useAiExtraction ? 'var(--primary)' : 'inherit'};">
-                                    <i class="fas fa-robot"></i>
-                                </button>
-                                <button class="btn-icon" onclick="app.showTemplateManagerModal()" title="Gérer les modèles" style="width: 42px;">
-                                    <i class="fas fa-cog"></i>
-                                </button>
+                        <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Numéro Conteneur</label>
+                            <div id="res-container" style="font-family: monospace; font-size: 1.1rem; font-weight: 600;">-</div>
+                        </div>
+
+                        <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Numéro Châssis (VIN)</label>
+                            <div id="res-chassis" style="font-family: monospace; font-size: 1.1rem; font-weight: 600;">-</div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                            <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                <label style="font-size: 0.7rem; color: var(--text-dim);">Port de Chargement</label>
+                                <div id="res-port-loading" style="font-size: 0.9rem; font-weight: 500;">-</div>
+                            </div>
+                            <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                <label style="font-size: 0.7rem; color: var(--text-dim);">Port de Destination</label>
+                                <div id="res-port-destination" style="font-size: 0.9rem; font-weight: 500;">-</div>
                             </div>
                         </div>
-                        <div id="processing-status" style="display: none;">
-                            <label>Traitement en cours...</label>
-                            <div class="progress-bar" style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 5px;">
-                                <div id="ocr-progress" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                            <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                <label style="font-size: 0.7rem; color: var(--text-dim);">Compagnie Maritime</label>
+                                <div id="res-shipping-line" style="font-size: 0.9rem; font-weight: 500;">-</div>
                             </div>
-                            <p id="status-text" style="font-size: 0.8rem; color: var(--text-dim); margin-top: 5px; text-align: right;">Initialisation...</p>
+                            <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                <label style="font-size: 0.7rem; color: var(--text-dim);">Date de Chargement</label>
+                                <div id="res-loading-date" style="font-size: 0.9rem; font-weight: 500;">-</div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="result-item" style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                <label style="font-size: 0.7rem; color: var(--text-dim);">Client Extraposé</label>
+                                <div id="res-client" style="font-size: 0.9rem; font-weight: 500;">-</div>
+                            </div>
+                            <div class="result-item" style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                <label style="font-size: 0.7rem; color: var(--text-dim);">Passeport / NIN</label>
+                                <div id="res-passport" style="font-size: 0.9rem; font-weight: 500;">-</div>
+                            </div>
+                        </div>
+
+                        <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                            <label style="font-size: 0.7rem; color: var(--text-dim);">Véhicule Extraposé</label>
+                            <div id="res-vehicle" style="font-size: 0.9rem; font-weight: 500;">-</div>
                         </div>
                     </div>
 
-                    <!-- Results Panel -->
-                    <div class="glass" style="padding: 20px; border-radius: 12px; display: grid; grid-template-rows: auto 1fr; overflow: hidden;">
-                         <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
-                            <h3><i class="fas fa-search"></i> Résultats de l'analyse</h3>
-                            <span id="verification-badge" class="status-badge" style="display: none;">EN ATTENTE</span>
+                    <!-- Database Match -->
+                    <div>
+                        <h4 style="color: var(--success); margin-bottom: 15px;">Correspondance Système</h4>
+
+                        <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Véhicule Trouvé</label>
+                            <div id="db-vehicle" style="font-weight: 600;">-</div>
                         </div>
 
-                        <div id="verification-results" style="overflow-y: auto; display: none;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                                <!-- Extracted Data -->
-                                <div>
-                                    <h4 style="color: var(--primary); margin-bottom: 15px;">Données Extraites (OCR)</h4>
-                                    
-                                    <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                        <label style="font-size: 0.8rem; color: var(--text-dim);">Numéro Booking/BL</label>
-                                        <div id="res-booking" style="font-family: monospace; font-size: 1.1rem; font-weight: 600;">-</div>
-                                    </div>
-
-                                    <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                        <label style="font-size: 0.8rem; color: var(--text-dim);">Numéro Conteneur</label>
-                                        <div id="res-container" style="font-family: monospace; font-size: 1.1rem; font-weight: 600;">-</div>
-                                    </div>
-
-                                    <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                        <label style="font-size: 0.8rem; color: var(--text-dim);">Numéro Châssis (VIN)</label>
-                                        <div id="res-chassis" style="font-family: monospace; font-size: 1.1rem; font-weight: 600;">-</div>
-                                    </div>
-
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                                        <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                            <label style="font-size: 0.7rem; color: var(--text-dim);">Port de Chargement</label>
-                                            <div id="res-port-loading" style="font-size: 0.9rem; font-weight: 500;">-</div>
-                                        </div>
-                                        <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                            <label style="font-size: 0.7rem; color: var(--text-dim);">Port de Destination</label>
-                                            <div id="res-port-destination" style="font-size: 0.9rem; font-weight: 500;">-</div>
-                                        </div>
-                                    </div>
-
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                                        <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                            <label style="font-size: 0.7rem; color: var(--text-dim);">Compagnie Maritime</label>
-                                            <div id="res-shipping-line" style="font-size: 0.9rem; font-weight: 500;">-</div>
-                                        </div>
-                                        <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                            <label style="font-size: 0.7rem; color: var(--text-dim);">Date de Chargement</label>
-                                            <div id="res-loading-date" style="font-size: 0.9rem; font-weight: 500;">-</div>
-                                        </div>
-                                    </div>
-
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                        <div class="result-item" style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                            <label style="font-size: 0.7rem; color: var(--text-dim);">Client Extraposé</label>
-                                            <div id="res-client" style="font-size: 0.9rem; font-weight: 500;">-</div>
-                                        </div>
-                                        <div class="result-item" style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                            <label style="font-size: 0.7rem; color: var(--text-dim);">Passeport / NIN</label>
-                                            <div id="res-passport" style="font-size: 0.9rem; font-weight: 500;">-</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="result-item" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                        <label style="font-size: 0.7rem; color: var(--text-dim);">Véhicule Extraposé</label>
-                                        <div id="res-vehicle" style="font-size: 0.9rem; font-weight: 500;">-</div>
-                                    </div>
-                                </div>
-
-                                <!-- Database Match -->
-                                <div>
-                                    <h4 style="color: var(--success); margin-bottom: 15px;">Correspondance Système</h4>
-
-                                    <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                        <label style="font-size: 0.8rem; color: var(--text-dim);">Véhicule Trouvé</label>
-                                        <div id="db-vehicle" style="font-weight: 600;">-</div>
-                                    </div>
-
-                                    <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                        <label style="font-size: 0.8rem; color: var(--text-dim);">Client Associé</label>
-                                        <div id="db-client" style="font-weight: 600;">-</div>
-                                    </div>
-
-                                    <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                                        <label style="font-size: 0.8rem; color: var(--text-dim);">Statut Actuel</label>
-                                        <div id="db-status" style="font-weight: 600;">-</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Raw Text Toggle -->
-                            <div style="margin-top: 20px;">
-                                <button class="btn-secondary" onclick="document.getElementById('raw-text-container').style.display = document.getElementById('raw-text-container').style.display === 'none' ? 'block' : 'none'">
-                                    <i class="fas fa-code"></i> Voir texte brut
-                                </button>
-                                <div id="raw-text-container" style="display: none; margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px;">
-                                    <pre id="raw-text" style="white-space: pre-wrap; font-family: monospace; font-size: 0.8rem; color: var(--text-dim);"></pre>
-                                </div>
-                            </div>
+                        <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Client Associé</label>
+                            <div id="db-client" style="font-weight: 600;">-</div>
                         </div>
 
-                        <!-- Empty State -->
-                        <div id="verification-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-dim);">
-                            <i class="fas fa-search" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
-                            <p>Importez un document pour commencer l'analyse</p>
+                        <div class="result-item" style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Statut Actuel</label>
+                            <div id="db-status" style="font-weight: 600;">-</div>
                         </div>
                     </div>
                 </div>
-            `;
+
+                <!-- Raw Text Toggle -->
+                <div style="margin-top: 20px;">
+                    <button class="btn-secondary" onclick="document.getElementById('raw-text-container').style.display = document.getElementById('raw-text-container').style.display === 'none' ? 'block' : 'none'">
+                        <i class="fas fa-code"></i> Voir texte brut
+                    </button>
+                    <div id="raw-text-container" style="display: none; margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                        <pre id="raw-text" style="white-space: pre-wrap; font-family: monospace; font-size: 0.8rem; color: var(--text-dim);"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="verification-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-dim);">
+                <i class="fas fa-search" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
+                <p>Importez un document pour commencer l'analyse</p>
+            </div>
+        </div>
+    </div>
+`;
 
         document.getElementById('view-container').innerHTML = viewHtml;
 
@@ -8987,13 +9050,13 @@ const app = {
                     logger: m => {
                         console.log(m);
                         if (m.status === 'loading tesseract core') {
-                            statusText.innerText = `Chargement du coeur OCR... ${Math.round((m.progress || 0) * 100)}%`;
-                            progressBar.style.width = `${(m.progress || 0) * 30}%`;
+                            statusText.innerText = `Chargement du coeur OCR... ${Math.round((m.progress || 0) * 100)}% `;
+                            progressBar.style.width = `${(m.progress || 0) * 30}% `;
                         } else if (m.status === 'initializing tesseract') {
                             statusText.innerText = `Initialisation OCR...`;
                         } else if (m.status === 'loading language traineddata') {
-                            statusText.innerText = `Téléchargement du modèle de langue... ${Math.round((m.progress || 0) * 100)}%`;
-                            progressBar.style.width = `${30 + ((m.progress || 0) * 30)}%`;
+                            statusText.innerText = `Téléchargement du modèle de langue... ${Math.round((m.progress || 0) * 100)}% `;
+                            progressBar.style.width = `${30 + ((m.progress || 0) * 30)}% `;
                         } else {
                             statusText.innerText = `${m.status}...`;
                         }
@@ -9005,8 +9068,8 @@ const app = {
                 const { data: { text } } = await worker.recognize(imageUrl, {
                     logger: m => {
                         if (m.status === 'recognizing text') {
-                            progressBar.style.width = `${60 + ((m.progress || 0) * 40)}%`;
-                            statusText.innerText = `Analyse en cours... ${Math.round(m.progress * 100)}%`;
+                            progressBar.style.width = `${60 + ((m.progress || 0) * 40)}% `;
+                            statusText.innerText = `Analyse en cours... ${Math.round(m.progress * 100)}% `;
                         }
                     }
                 });
@@ -9265,29 +9328,29 @@ const app = {
         const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
 
         const modalHtml = `
-            <div id="modal-overlay" class="modal-overlay" onclick="app.closeModal()">
-                <div class="modal glass" onclick="event.stopPropagation()">
-                    <div class="modal-header">
-                        <h2><i class="fas fa-list-alt"></i> Gérer les Modèles de BL</h2>
-                        <button class="close-btn" onclick="app.closeModal()"><i class="fas fa-times"></i></button>
-                    </div>
-                    <div class="modal-body">
-                        <div style="margin-bottom: 20px; text-align: right;">
-                            <button class="btn-primary" onclick="app.showEditTemplateModal()">
-                                <i class="fas fa-plus"></i> Nouveau Modèle
-                            </button>
-                        </div>
-                        <div class="table-container">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Nom</th>
-                                        <th>Mots-clés</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${templates.map(t => `
+    < div id = "modal-overlay" class="modal-overlay" onclick = "app.closeModal()" >
+        <div class="modal glass" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2><i class="fas fa-list-alt"></i> Gérer les Modèles de BL</h2>
+                <button class="close-btn" onclick="app.closeModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px; text-align: right;">
+                    <button class="btn-primary" onclick="app.showEditTemplateModal()">
+                        <i class="fas fa-plus"></i> Nouveau Modèle
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Mots-clés</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${templates.map(t => `
                                     <tr>
                                         <td>${t.name} ${t.id === 'tmpl_generic' ? '(Défaut)' : ''}</td>
                                         <td>${t.keywords.join(', ')}</td>
@@ -9306,13 +9369,13 @@ const app = {
                                         </td>
                                     </tr>
                                     `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            `;
+        </div>
+            </div >
+    `;
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
@@ -9341,94 +9404,94 @@ const app = {
         };
 
         const modalHtml = `
-            <div id="modal-overlay" class="modal-overlay">
-                <div class="modal glass" onclick="event.stopPropagation()">
-                    <div class="modal-header">
-                        <h2>${id ? 'Modifier' : 'Nouveau'} Modèle</h2>
-                        <button class="close-btn" onclick="app.showTemplateManagerModal(); document.getElementById('modal-overlay').remove();"><i class="fas fa-times"></i></button>
-                    </div>
-                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
-                        <form id="template-form">
-                            <div class="form-group">
-                                <label>Nom de la Compagnie / Modèle</label>
-                                <input type="text" name="name" value="${template.name}" required placeholder="Ex: MSC, Maersk...">
-                            </div>
-                            <div class="form-group">
-                                <label>Mots-clés (séparés par des virgules)</label>
-                                <input type="text" name="keywords" value="${template.keywords.join(', ')}" placeholder="Ex: MSC, MEDITERRANEAN...">
-                                <small style="color: var(--text-dim)">Utilisé pour la détection automatique du modèle.</small>
-                            </div>
-                            
-                            <h4 style="margin-top: 20px; margin-bottom: 10px; color: var(--primary);">Expressions Régulières (Regex)</h4>
-                            <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px;">
-                                Utilisez des parenthèses de capture <code>(...)</code> pour extraire la valeur exacte.
-                                Exemple: <code>Booking No: (\\w+)</code>
-                            </p>
-
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div class="form-group">
-                                    <label>Numéro de Booking</label>
-                                    <input type="text" name="pattern_booking" value="${template.patterns.bookingNumber || ''}" class="code-input" placeholder="Regex pour le Booking">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Numéro de Conteneur</label>
-                                    <input type="text" name="pattern_container" value="${template.patterns.containerNumber || ''}" class="code-input" placeholder="Regex pour le Conteneur">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Numéro de Châssis (VIN)</label>
-                                    <input type="text" name="pattern_chassis" value="${template.patterns.chassisNumber || ''}" class="code-input" placeholder="Regex pour le VIN">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Nom du Client</label>
-                                    <input type="text" name="pattern_client" value="${template.patterns.clientName || ''}" class="code-input" placeholder="Regex pour le Client">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Numéro Passeport</label>
-                                    <input type="text" name="pattern_passport" value="${template.patterns.passportNumber || ''}" class="code-input" placeholder="Regex pour le Passeport">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>NIN (ID National)</label>
-                                    <input type="text" name="pattern_nin" value="${template.patterns.nin || ''}" class="code-input" placeholder="Regex pour le NIN">
-                                </div>
-
-                                <div class="form-group full-width" style="grid-column: span 2;">
-                                    <label>Nom du Véhicule</label>
-                                    <input type="text" name="pattern_vehicle" value="${template.patterns.vehicleName || ''}" class="code-input" placeholder="Regex pour le Véhicule">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Port de Chargement</label>
-                                    <input type="text" name="pattern_port_loading" value="${template.patterns.portOfLoading || ''}" class="code-input" placeholder="Regex pour le Port de Chargement">
-                                </div>
-                                <div class="form-group">
-                                    <label>Port de Destination</label>
-                                    <input type="text" name="pattern_port_destination" value="${template.patterns.portOfDestination || ''}" class="code-input" placeholder="Regex pour le Port de Destination">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Compagnie Maritime</label>
-                                    <input type="text" name="pattern_shipping_line" value="${template.patterns.shippingLine || ''}" class="code-input" placeholder="Regex pour la Compagnie">
-                                </div>
-                                <div class="form-group">
-                                    <label>Date de Chargement</label>
-                                    <input type="text" name="pattern_loading_date" value="${template.patterns.loadingDate || ''}" class="code-input" placeholder="Regex pour la Date">
-                                </div>
-                            </div>
-
-                            <div class="modal-footer">
-                                <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').remove(); app.showTemplateManagerModal()">Retour</button>
-                                <button type="submit" class="btn-primary">Enregistrer</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+    < div id = "modal-overlay" class="modal-overlay" >
+        <div class="modal glass" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>${id ? 'Modifier' : 'Nouveau'} Modèle</h2>
+                <button class="close-btn" onclick="app.showTemplateManagerModal(); document.getElementById('modal-overlay').remove();"><i class="fas fa-times"></i></button>
             </div>
-            `;
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+                <form id="template-form">
+                    <div class="form-group">
+                        <label>Nom de la Compagnie / Modèle</label>
+                        <input type="text" name="name" value="${template.name}" required placeholder="Ex: MSC, Maersk...">
+                    </div>
+                    <div class="form-group">
+                        <label>Mots-clés (séparés par des virgules)</label>
+                        <input type="text" name="keywords" value="${template.keywords.join(', ')}" placeholder="Ex: MSC, MEDITERRANEAN...">
+                            <small style="color: var(--text-dim)">Utilisé pour la détection automatique du modèle.</small>
+                    </div>
+
+                    <h4 style="margin-top: 20px; margin-bottom: 10px; color: var(--primary);">Expressions Régulières (Regex)</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px;">
+                        Utilisez des parenthèses de capture <code>(...)</code> pour extraire la valeur exacte.
+                        Exemple: <code>Booking No: (\\w+)</code>
+                    </p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Numéro de Booking</label>
+                            <input type="text" name="pattern_booking" value="${template.patterns.bookingNumber || ''}" class="code-input" placeholder="Regex pour le Booking">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Numéro de Conteneur</label>
+                            <input type="text" name="pattern_container" value="${template.patterns.containerNumber || ''}" class="code-input" placeholder="Regex pour le Conteneur">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Numéro de Châssis (VIN)</label>
+                            <input type="text" name="pattern_chassis" value="${template.patterns.chassisNumber || ''}" class="code-input" placeholder="Regex pour le VIN">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Nom du Client</label>
+                            <input type="text" name="pattern_client" value="${template.patterns.clientName || ''}" class="code-input" placeholder="Regex pour le Client">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Numéro Passeport</label>
+                            <input type="text" name="pattern_passport" value="${template.patterns.passportNumber || ''}" class="code-input" placeholder="Regex pour le Passeport">
+                        </div>
+
+                        <div class="form-group">
+                            <label>NIN (ID National)</label>
+                            <input type="text" name="pattern_nin" value="${template.patterns.nin || ''}" class="code-input" placeholder="Regex pour le NIN">
+                        </div>
+
+                        <div class="form-group full-width" style="grid-column: span 2;">
+                            <label>Nom du Véhicule</label>
+                            <input type="text" name="pattern_vehicle" value="${template.patterns.vehicleName || ''}" class="code-input" placeholder="Regex pour le Véhicule">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Port de Chargement</label>
+                            <input type="text" name="pattern_port_loading" value="${template.patterns.portOfLoading || ''}" class="code-input" placeholder="Regex pour le Port de Chargement">
+                        </div>
+                        <div class="form-group">
+                            <label>Port de Destination</label>
+                            <input type="text" name="pattern_port_destination" value="${template.patterns.portOfDestination || ''}" class="code-input" placeholder="Regex pour le Port de Destination">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Compagnie Maritime</label>
+                            <input type="text" name="pattern_shipping_line" value="${template.patterns.shippingLine || ''}" class="code-input" placeholder="Regex pour la Compagnie">
+                        </div>
+                        <div class="form-group">
+                            <label>Date de Chargement</label>
+                            <input type="text" name="pattern_loading_date" value="${template.patterns.loadingDate || ''}" class="code-input" placeholder="Regex pour la Date">
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').remove(); app.showTemplateManagerModal()">Retour</button>
+                        <button type="submit" class="btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+            </div >
+    `;
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
@@ -9437,7 +9500,7 @@ const app = {
             const formData = new FormData(e.target);
 
             const newTemplate = {
-                id: id || `tmpl_${Date.now()}`,
+                id: id || `tmpl_${Date.now()} `,
                 name: formData.get('name'),
                 keywords: formData.get('keywords').split(',').map(k => k.trim()).filter(k => k),
                 patterns: {
@@ -9496,7 +9559,7 @@ const app = {
         document.getElementById('res-container').innerText = data.container;
         document.getElementById('res-chassis').innerText = data.chassis;
         document.getElementById('res-client').innerText = data.clientName || 'Non trouvé';
-        document.getElementById('res-passport').innerText = (data.passportNumber || data.nin) ? `${data.passportNumber || ''} ${data.nin ? '/ ' + data.nin : ''}` : 'Non trouvé';
+        document.getElementById('res-passport').innerText = (data.passportNumber || data.nin) ? `${data.passportNumber || ''} ${data.nin ? '/ ' + data.nin : ''} ` : 'Non trouvé';
         document.getElementById('res-vehicle').innerText = data.vehicleName || 'Non trouvé';
         document.getElementById('res-port-loading').innerText = data.portOfLoading || 'Non trouver';
         document.getElementById('res-port-destination').innerText = data.portOfDestination || 'Non trouver';
@@ -9529,7 +9592,7 @@ const app = {
         const badgeEl = document.getElementById('verification-badge');
 
         if (vehicleMatch) {
-            dbVehicleEl.innerText = `[#${vehicleMatch.id}] ${vehicleMatch.brand} ${vehicleMatch.model || ''}`;
+            dbVehicleEl.innerText = `[#${vehicleMatch.id}] ${vehicleMatch.brand} ${vehicleMatch.model || ''} `;
             dbVehicleEl.classList.add('success');
             status = 'MATCH';
 
@@ -9589,22 +9652,22 @@ const app = {
         this.showToast("Chargement de l'éditeur...", "info");
 
         const editorHtml = `
-            <div id="modal-overlay" class="modal-overlay" style="background: rgba(0,0,0,0.9);">
-                <div class="visual-editor-container" style="width: 95vw; height: 90vh; background: #1a1a1a; display: flex; flex-direction: column; color: white;">
-                    <div class="modal-header" style="background: #252525; padding: 15px;">
-                        <h2>Mappage Visuel : ${template.name}</h2>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <span style="font-size: 0.9rem; color: #aaa;">Sélectionnez une zone sur le document</span>
-                            <button class="btn-primary" onclick="app.saveVisualZones('${templateId}')">Enregistrer le Masque</button>
-                            <button class="close-btn" onclick="document.getElementById('modal-overlay').remove(); app.showTemplateManagerModal();"><i class="fas fa-times"></i></button>
-                        </div>
-                    </div>
-                    <div style="display: flex; flex: 1; overflow: hidden;">
-                        <!-- Sidebar -->
-                        <div class="editor-sidebar" style="width: 280px; background: #252525; border-right: 1px solid #333; padding: 15px; overflow-y: auto;">
-                            <h4 style="margin-bottom: 15px; color: var(--primary);">Champs à maper</h4>
-                            <div id="zone-selectors" style="display: flex; flex-direction: column; gap: 10px;">
-                                ${[
+    < div id = "modal-overlay" class="modal-overlay" style = "background: rgba(0,0,0,0.9);" >
+        <div class="visual-editor-container" style="width: 95vw; height: 90vh; background: #1a1a1a; display: flex; flex-direction: column; color: white;">
+            <div class="modal-header" style="background: #252525; padding: 15px;">
+                <h2>Mappage Visuel : ${template.name}</h2>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span style="font-size: 0.9rem; color: #aaa;">Sélectionnez une zone sur le document</span>
+                    <button class="btn-primary" onclick="app.saveVisualZones('${templateId}')">Enregistrer le Masque</button>
+                    <button class="close-btn" onclick="document.getElementById('modal-overlay').remove(); app.showTemplateManagerModal();"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div style="display: flex; flex: 1; overflow: hidden;">
+                <!-- Sidebar -->
+                <div class="editor-sidebar" style="width: 280px; background: #252525; border-right: 1px solid #333; padding: 15px; overflow-y: auto;">
+                    <h4 style="margin-bottom: 15px; color: var(--primary);">Champs à maper</h4>
+                    <div id="zone-selectors" style="display: flex; flex-direction: column; gap: 10px;">
+                        ${[
                 { id: 'bookingNumber', label: 'N° Booking' },
                 { id: 'containerNumber', label: 'N° Conteneur' },
                 { id: 'chassisNumber', label: 'N° Châssis (VIN)' },
@@ -9625,23 +9688,23 @@ const app = {
                                         <small id="coord-${f.id}" style="color: #888; font-size: 0.7rem; display: block; margin-top: 5px;">Non défini</small>
                                     </div>
                                 `).join('')}
-                            </div>
-                            <div style="margin-top: 30px; padding: 15px; background: rgba(255,165,0,0.1); border: 1px dashed orange; border-radius: 8px;">
-                                <p style="font-size: 0.8rem; color: #ffad33;"><i class="fas fa-info-circle"></i> Dessinez un rectangle sur le document pour définir la zone de lecture.</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Canvas Area -->
-                        <div id="canvas-container" style="flex: 1; position: relative; overflow: auto; background: #0e0e0e; display: flex; justify-content: center; align-items: flex-start; padding: 40px;">
-                            <div id="canvas-wrapper" style="position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.8);">
-                                <canvas id="doc-canvas" style="display: block;"></canvas>
-                                <canvas id="draw-canvas" style="position: absolute; top: 0; left: 0; cursor: crosshair;"></canvas>
-                            </div>
-                        </div>
+                    </div>
+                    <div style="margin-top: 30px; padding: 15px; background: rgba(255,165,0,0.1); border: 1px dashed orange; border-radius: 8px;">
+                        <p style="font-size: 0.8rem; color: #ffad33;"><i class="fas fa-info-circle"></i> Dessinez un rectangle sur le document pour définir la zone de lecture.</p>
+                    </div>
+                </div>
+
+                <!-- Canvas Area -->
+                <div id="canvas-container" style="flex: 1; position: relative; overflow: auto; background: #0e0e0e; display: flex; justify-content: center; align-items: flex-start; padding: 40px;">
+                    <div id="canvas-wrapper" style="position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.8);">
+                        <canvas id="doc-canvas" style="display: block;"></canvas>
+                        <canvas id="draw-canvas" style="position: absolute; top: 0; left: 0; cursor: crosshair;"></canvas>
                     </div>
                 </div>
             </div>
-            `;
+        </div>
+            </div >
+    `;
 
         document.body.insertAdjacentHTML('beforeend', editorHtml);
 
@@ -9800,7 +9863,7 @@ const app = {
             el.style.background = '#333';
             el.style.border = 'none';
         });
-        const activeEl = document.getElementById(`zone-item-${fieldId}`);
+        const activeEl = document.getElementById(`zone - item - ${fieldId} `);
         if (activeEl) {
             activeEl.style.background = 'rgba(99, 102, 241, 0.2)';
             activeEl.style.borderLeft = '4px solid var(--primary)';
@@ -9850,11 +9913,11 @@ const app = {
         const z = this.zones[fieldId];
         if (!z) return;
 
-        const statusIcon = document.getElementById(`status-${fieldId}`);
+        const statusIcon = document.getElementById(`status - ${fieldId} `);
         if (statusIcon) statusIcon.style.color = '#6366f1';
 
-        const coordSpan = document.getElementById(`coord-${fieldId}`);
-        if (coordSpan) coordSpan.innerText = `Pos: ${Math.round(z.x)}%, ${Math.round(z.y)}% | Taille: ${Math.round(z.w)}x${Math.round(z.h)}%`;
+        const coordSpan = document.getElementById(`coord - ${fieldId} `);
+        if (coordSpan) coordSpan.innerText = `Pos: ${Math.round(z.x)}%, ${Math.round(z.y)}% | Taille: ${Math.round(z.w)}x${Math.round(z.h)}% `;
     },
 
     async saveVisualZones(templateId) {
