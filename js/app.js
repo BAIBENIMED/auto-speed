@@ -8536,26 +8536,12 @@ const app = {
         }
     },
 
-    async showPurchaseOrderModal(id = null) {
-        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-        const response = await ApiService.getPurchaseOrders();
-        const existingPOs = response.data || [];
-        const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
-        const colors = StorageService.get(STORAGE_KEYS.COLORS) || [];
+    const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+    const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
 
-        let po = id ? existingPOs.find(p => p.id === id) : null;
-
-        // Filter for creation: Validated AND NOT Cancelled AND NOT linked to a vehicle AND NOT already having a PO
-        const eligibleOrders = orders.filter(o =>
-            o.isValidated &&
-            !['ANNULÉE', 'ANNULÉ'].includes(o.status) &&
-            !o.vehicleId
-        );
-
-
-        const modalHtml = `
+    const modalHtml = `
         <div id="modal-overlay" class="modal-overlay">
-            <div class="modal glass" style="max-width: 900px; width: 95%;">
+            <div class="modal glass" style="max-width: 1000px; width: 95%;">
                 <div class="modal-header">
                     <h2>${id ? 'Modifier' : 'Nouveaux'} Achats</h2>
                     <button class="close-btn" onclick="document.getElementById('modal-overlay').remove()"><i class="fas fa-times"></i></button>
@@ -8592,7 +8578,7 @@ const app = {
                                         <td><strong>#${o.id}</strong></td>
                                         <td>${o.clientName}</td>
                                         <td>
-                                            <span class="brand-text">${o.requestedBrand || ''}</span> <span class="model-text">${o.requestedModel || ''}</span>
+                                            <div style="font-weight: 600; font-size: 0.9rem;">${o.requestedBrand || ''} ${o.requestedModel || ''}</div>
                                             <input type="hidden" class="brand-input" value="${o.requestedBrand || ''}">
                                             <input type="hidden" class="model-input" value="${o.requestedModel || ''}">
                                         </td>
@@ -8626,12 +8612,18 @@ const app = {
                                         <td style="text-align: center;">
                                             <button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();" title="Supprimer"><i class="fas fa-trash"></i></button>
                                         </td>
-                                        <td><strong>${v.orderId ? '#' + v.orderId : 'STOCK'}</strong></td>
+                                        <td><strong>#${v.orderId || 'STOCK'}</strong></td>
                                         <td>${v.order?.clientName || 'N/A'}</td>
                                         <td>
-                                            <span class="brand-text">${v.brand || ''}</span> <span class="model-text">${v.model || ''}</span>
-                                            <input type="hidden" class="brand-input" value="${v.brand || ''}">
-                                            <input type="hidden" class="model-input" value="${v.model || ''}">
+                                            <select class="glass-select brand-input" style="width: 100px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;" onchange="app.updatePOVehicleModel(this)">
+                                                <option value="">Marque</option>
+                                                ${brands.map(b => `<option value="${b}" ${v.brand === b ? 'selected' : ''}>${b}</option>`).join('')}
+                                            </select>
+                                            <br>
+                                            <select class="glass-select model-input" style="width: 100px; padding: 4px; font-size: 0.8rem;">
+                                                <option value="">Modèle</option>
+                                                ${(brandModels[v.brand] || []).map(m => `<option value="${m}" ${v.model === m ? 'selected' : ''}>${m}</option>`).join('')}
+                                            </select>
                                         </td>
                                         <td><input type="text" class="glass-input vin-input" value="${v.chassisNumber || ''}" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
@@ -8700,80 +8692,38 @@ const app = {
         </div>
     `;
 
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-        // Select all functionality
-        const selectAll = document.getElementById('select-all-po-orders');
-        if (selectAll) {
-            selectAll.addEventListener('change', (e) => {
-                document.querySelectorAll('.po-order-checkbox').forEach(cb => cb.checked = e.target.checked);
-            });
-        }
+    // Select all functionality
+    const selectAll = document.getElementById('select-all-po-orders');
+    if(selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            document.querySelectorAll('.po-order-checkbox').forEach(cb => cb.checked = e.target.checked);
+        });
+    }
 
         document.getElementById('po-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const baseData = {
-                supplierId: formData.get('supplierId'),
-                status: formData.get('status'),
-                purchaseDate: formData.get('purchaseDate'),
-                notes: formData.get('notes')
-            };
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const baseData = {
+            supplierId: formData.get('supplierId'),
+            status: formData.get('status'),
+            purchaseDate: formData.get('purchaseDate'),
+            notes: formData.get('notes')
+        };
 
-            if (!id) {
-                const selectedCheckboxes = document.querySelectorAll('.po-order-checkbox:checked');
-                const allRows = document.querySelectorAll('#po-form .data-table tbody tr.po-row');
+        if (!id) {
+            const allRows = document.querySelectorAll('#po-form .data-table tbody tr.po-row');
 
-                // For new PO: collect selected client orders and all stock rows
-                const vehiclesToCreate = [];
+            // For new PO: collect selected client orders and all stock rows
+            const vehiclesToCreate = [];
 
-                allRows.forEach(tr => {
-                    const cb = tr.querySelector('.po-order-checkbox');
-                    const isNewStock = tr.classList.contains('po-stock-row');
+            allRows.forEach(tr => {
+                const cb = tr.querySelector('.po-order-checkbox');
+                const isNewStock = tr.classList.contains('po-stock-row');
 
-                    if (isNewStock || (cb && cb.checked)) {
-                        vehiclesToCreate.push({
-                            orderId: tr.getAttribute('data-order-id') || null,
-                            brand: tr.querySelector('.brand-input')?.value || '',
-                            model: tr.querySelector('.model-input')?.value || '',
-                            chassisNumber: tr.querySelector('.vin-input').value,
-                            color: tr.querySelector('.color-select').value,
-                            category: tr.querySelector('.category-select').value,
-                            mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
-                            purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
-                            purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
-                        });
-                    }
-                });
-
-                if (vehiclesToCreate.length === 0) {
-                    this.showToast("Veuillez sélectionner au moins une commande client ou ajouter un véhicule de stock.", "warning");
-                    return;
-                }
-
-                const loadingToast = this.showToast("Création de la commande d'achat en cours...", "info", 0);
-
-                const data = {
-                    ...baseData,
-                    vehicles: vehiclesToCreate
-                };
-
-                try {
-                    await ApiService.createPurchaseOrder(data);
-                    if (loadingToast && loadingToast.remove) loadingToast.remove();
-                    this.showToast("Commande d'achat créée avec succès", "success");
-                } catch (err) {
-                    if (loadingToast && loadingToast.remove) loadingToast.remove();
-                    console.error("Error creating PO:", err);
-                    this.showToast("Erreur: " + err.message, "error");
-                    return;
-                }
-            } else {
-                // Update mode
-                const allRows = document.querySelectorAll('#po-form .data-table tbody tr.po-row');
-                const vehiclesToUpdate = Array.from(allRows).map(tr => {
-                    return {
-                        id: tr.getAttribute('data-vehicle-id') || null,
+                if (isNewStock || (cb && cb.checked)) {
+                    vehiclesToCreate.push({
                         orderId: tr.getAttribute('data-order-id') || null,
                         brand: tr.querySelector('.brand-input')?.value || '',
                         model: tr.querySelector('.model-input')?.value || '',
@@ -8783,47 +8733,106 @@ const app = {
                         mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
                         purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
                         purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
-                    };
-                });
-
-                const data = {
-                    ...baseData,
-                    vehicles: vehiclesToUpdate
-                };
-
-                try {
-                    await ApiService.updatePurchaseOrder(id, data);
-                    this.showToast("Commande d'achat mise à jour", "success");
-                } catch (err) {
-                    this.showToast(err.message, "error");
-                    return;
+                    });
                 }
+            });
+
+            if (vehiclesToCreate.length === 0) {
+                this.showToast("Veuillez sélectionner au moins une commande client ou ajouter un véhicule de stock.", "warning");
+                return;
             }
 
-            document.getElementById('modal-overlay').remove();
-            this.renderPurchases(this.searchQuery);
-        });
+            const loadingToast = this.showToast("Création de la commande d'achat en cours...", "info", 0);
+
+            const data = {
+                ...baseData,
+                vehicles: vehiclesToCreate
+            };
+
+            try {
+                await ApiService.createPurchaseOrder(data);
+                if (loadingToast && loadingToast.remove) loadingToast.remove();
+                this.showToast("Commande d'achat créée avec succès", "success");
+            } catch (err) {
+                if (loadingToast && loadingToast.remove) loadingToast.remove();
+                console.error("Error creating PO:", err);
+                this.showToast("Erreur: " + err.message, "error");
+                return;
+            }
+        } else {
+            // Update mode
+            const allRows = document.querySelectorAll('#po-form .data-table tbody tr.po-row');
+            const vehiclesToUpdate = Array.from(allRows).map(tr => {
+                return {
+                    id: tr.getAttribute('data-vehicle-id') || null,
+                    orderId: tr.getAttribute('data-order-id') || null,
+                    brand: tr.querySelector('.brand-input')?.value || '',
+                    model: tr.querySelector('.model-input')?.value || '',
+                    chassisNumber: tr.querySelector('.vin-input').value,
+                    color: tr.querySelector('.color-select').value,
+                    category: tr.querySelector('.category-select').value,
+                    mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
+                    purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
+                    purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
+                };
+            });
+
+            const data = {
+                ...baseData,
+                vehicles: vehiclesToUpdate
+            };
+
+            try {
+                // Fix: constructor of updatePurchaseOrder relies on this.ApiService.request(`/purchase-orders/${id}` ...
+                await ApiService.updatePurchaseOrder(id, data);
+                this.showToast("Commande d'achat mise à jour", "success");
+            } catch (err) {
+                this.showToast(err.message, "error");
+                return;
+            }
+        }
+
+        document.getElementById('modal-overlay').remove();
+        this.renderPurchases(this.searchQuery);
+    });
+},
+
+    updatePOVehicleModel(brandSelect) {
+        const row = brandSelect.closest('tr');
+        const modelSelect = row.querySelector('.model-input');
+        const brand = brandSelect.value;
+        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+        const models = brandModels[brand] || [];
+
+        modelSelect.innerHTML = '<option value="">Modèle</option>' +
+            models.map(m => `<option value="${m}">${m}</option>`).join('');
     },
 
-    addStockRowToPO() {
-        const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
-        const colors = StorageService.get(STORAGE_KEYS.COLORS) || [];
-        const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD'];
+        addStockRowToPO() {
+    const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
+    const colors = StorageService.get(STORAGE_KEYS.COLORS) || [];
+    const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD'];
+    const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
 
-        const tbody = document.querySelector('#po-form .data-table tbody');
-        if (!tbody) return;
+    const tbody = document.querySelector('#po-form .data-table tbody');
+    if (!tbody) return;
 
-        const row = document.createElement('tr');
-        row.className = 'po-stock-row po-row';
-        row.innerHTML = `
+    const row = document.createElement('tr');
+    row.className = 'po-stock-row po-row';
+    row.innerHTML = `
             <td class="row-index" style="text-align: center; font-weight: bold; color: var(--primary);">0</td>
             <td style="text-align: center;"><button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();"><i class="fas fa-trash"></i></button></td>
             <td><strong>STOCK</strong></td>
             <td>N/A</td>
             <td>
-                <input type="text" class="glass-input brand-input" placeholder="Marque" required style="width: 80px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;">
+                <select class="glass-select brand-input" style="width: 100px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;" onchange="app.updatePOVehicleModel(this)">
+                    <option value="">Marque</option>
+                    ${brands.map(b => `<option value="${b}">${b}</option>`).join('')}
+                </select>
                 <br>
-                <input type="text" class="glass-input model-input" placeholder="Modèle" style="width: 80px; padding: 4px; font-size: 0.8rem;">
+                <select class="glass-select model-input" style="width: 100px; padding: 4px; font-size: 0.8rem;">
+                    <option value="">Modèle</option>
+                </select>
             </td>
             <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
             <td>
@@ -8850,79 +8859,88 @@ const app = {
             </td>
         `;
 
-        // If 'No records found' row exists, remove it
-        if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
-            tbody.innerHTML = '';
+    // If 'No records found' row exists, remove it
+    if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+        tbody.innerHTML = '';
+    }
+
+    tbody.appendChild(row);
+    this.reindexPORows();
+},
+
+duplicatePORow(button) {
+    const sourceRow = button.closest('tr');
+    const clone = sourceRow.cloneNode(true);
+
+    // Copy current input/select values
+    const sourceInputs = sourceRow.querySelectorAll('input, select, textarea');
+    const cloneInputs = clone.querySelectorAll('input, select, textarea');
+    sourceInputs.forEach((input, i) => {
+        if (cloneInputs[i]) cloneInputs[i].value = input.value;
+    });
+
+    // Duplicated rows always become stock rows
+    clone.className = 'po-stock-row po-row';
+    clone.removeAttribute('data-vehicle-id');
+    clone.setAttribute('data-order-id', '');
+    const cells = clone.cells;
+
+    // Ensure action cell (Index 1) has trash button
+    cells[1].innerHTML = `<button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();" title="Supprimer"><i class="fas fa-trash"></i></button>`;
+
+    // Ensure brand/model cell (Index 4) has selects
+    const bSelect = clone.querySelector('select.brand-input');
+    if (!bSelect) {
+        // Convert static text/hidden to selects if needed (e.g. duplicating from a client row)
+        const brand = sourceRow.querySelector('.brand-input')?.value || '';
+        const model = sourceRow.querySelector('.model-input')?.value || '';
+        const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+
+        cells[4].innerHTML = `
+            <select class="glass-select brand-input" style="width: 100px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;" onchange="app.updatePOVehicleModel(this)">
+                <option value="">Marque</option>
+                ${brands.map(b => `<option value="${b}" ${brand === b ? 'selected' : ''}>${b}</option>`).join('')}
+            </select>
+            <br>
+            <select class="glass-select model-input" style="width: 100px; padding: 4px; font-size: 0.8rem;">
+                <option value="">Modèle</option>
+                ${(brandModels[brand] || []).map(m => `<option value="${m}" ${model === m ? 'selected' : ''}>${m}</option>`).join('')}
+            </select>
+        `;
+    }
+
+    sourceRow.parentNode.insertBefore(clone, sourceRow.nextSibling);
+    this.reindexPORows();
+},
+
+reindexPORows() {
+    document.querySelectorAll('#po-form .po-row').forEach((row, idx) => {
+        const indexCell = row.querySelector('.row-index');
+        if (indexCell) {
+            indexCell.textContent = idx + 1;
         }
-
-        tbody.appendChild(row);
-        this.reindexPORows();
-    },
-
-    duplicatePORow(button) {
-        const sourceRow = button.closest('tr');
-        const isStock = sourceRow.classList.contains('po-stock-row');
-        const clone = sourceRow.cloneNode(true);
-
-        // Copy current input/select values
-        const sourceInputs = sourceRow.querySelectorAll('input, select, textarea');
-        const cloneInputs = clone.querySelectorAll('input, select, textarea');
-        sourceInputs.forEach((input, i) => {
-            if (cloneInputs[i]) cloneInputs[i].value = input.value;
-        });
-
-        // Duplicated rows always become stock rows
-        clone.className = 'po-stock-row po-row';
-        clone.removeAttribute('data-vehicle-id');
-        clone.setAttribute('data-order-id', '');
-        const cells = clone.cells;
-
-        // Ensure action cell (Index 1) has trash button
-        cells[1].innerHTML = `<button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();" title="Supprimer"><i class="fas fa-trash"></i></button>`;
-
-        // Ensure brand/model cell (Index 4) has visible inputs
-        const bInput = clone.querySelector('.brand-input');
-        if (!bInput || bInput.type === 'hidden') {
-            const brand = sourceRow.querySelector('.brand-input')?.value || '';
-            const model = sourceRow.querySelector('.model-input')?.value || '';
-            cells[4].innerHTML = `
-                <input type="text" class="glass-input brand-input" value="${brand}" required style="width: 80px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;">
-                <br>
-                <input type="text" class="glass-input model-input" value="${model}" style="width: 80px; padding: 4px; font-size: 0.8rem;">
-            `;
-        }
-
-        sourceRow.parentNode.insertBefore(clone, sourceRow.nextSibling);
-        this.reindexPORows();
-    },
-
-    reindexPORows() {
-        document.querySelectorAll('#po-form .po-row').forEach((row, idx) => {
-            const indexCell = row.querySelector('.row-index');
-            if (indexCell) {
-                indexCell.textContent = idx + 1;
-            }
-        });
-    },
+    });
+},
 
 
     async deletePurchaseOrder(id) {
-        if (confirm("Êtes-vous sûr de vouloir supprimer cette commande d'achat ?")) {
-            try {
-                await ApiService.deletePurchaseOrder(id);
-                this.showToast("Commande d'achat supprimée", "info");
-                this.renderPurchases(this.searchQuery);
-            } catch (err) {
-                this.showToast("Erreur lors de la suppression", "error");
-            }
+    if (confirm("Êtes-vous sûr de vouloir supprimer cette commande d'achat ?")) {
+        try {
+            await ApiService.deletePurchaseOrder(id);
+            this.showToast("Commande d'achat supprimée", "info");
+            this.renderPurchases(this.searchQuery);
+        } catch (err) {
+            this.showToast("Erreur lors de la suppression", "error");
         }
-    },
+    }
+},
 
 
-    renderVerification() {
-        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES);
+renderVerification() {
+    const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES);
 
-        const viewHtml = `
+    const viewHtml = `
     <div class="view-header">
                     <h1><i class="fas fa-file-contract"></i> Vérification Papier</h1>
                     <p class="subtitle">Analyse et vérification automatique des documents de transport (BL)</p>
@@ -9071,371 +9089,371 @@ const app = {
     </div>
 `;
 
-        document.getElementById('view-container').innerHTML = viewHtml;
+    document.getElementById('view-container').innerHTML = viewHtml;
 
-        // Event Listeners for File Upload
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('bl-input');
+    // Event Listeners for File Upload
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('bl-input');
 
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.style.borderColor = 'var(--primary)';
-            dropZone.style.background = 'rgba(255,255,255,0.05)';
-        });
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--primary)';
+        dropZone.style.background = 'rgba(255,255,255,0.05)';
+    });
 
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
-            dropZone.style.background = 'transparent';
-        });
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
+        dropZone.style.background = 'transparent';
+    });
 
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
-            dropZone.style.background = 'transparent';
-            if (e.dataTransfer.files.length > 0) {
-                this.handleBLUpload(e.dataTransfer.files[0]);
-            }
-        });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
+        dropZone.style.background = 'transparent';
+        if (e.dataTransfer.files.length > 0) {
+            this.handleBLUpload(e.dataTransfer.files[0]);
+        }
+    });
 
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                this.handleBLUpload(e.target.files[0]);
-            }
-        });
-    },
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            this.handleBLUpload(e.target.files[0]);
+        }
+    });
+},
 
     async handleBLUpload(file) {
-        const statusDiv = document.getElementById('processing-status');
-        const progressBar = document.getElementById('ocr-progress');
-        const statusText = document.getElementById('status-text');
-        const templateId = document.getElementById('bl-template').value;
+    const statusDiv = document.getElementById('processing-status');
+    const progressBar = document.getElementById('ocr-progress');
+    const statusText = document.getElementById('status-text');
+    const templateId = document.getElementById('bl-template').value;
 
-        statusDiv.style.display = 'block';
-        document.getElementById('verification-empty').style.display = 'none';
-        document.getElementById('verification-results').style.display = 'none';
-        document.querySelector('.upload-section').style.pointerEvents = 'none';
-        document.querySelector('.upload-section').style.opacity = '0.5';
+    statusDiv.style.display = 'block';
+    document.getElementById('verification-empty').style.display = 'none';
+    document.getElementById('verification-results').style.display = 'none';
+    document.querySelector('.upload-section').style.pointerEvents = 'none';
+    document.querySelector('.upload-section').style.opacity = '0.5';
 
-        try {
-            let imageUrl;
-            let extractedText = '';
-            let useOCR = true;
+    try {
+        let imageUrl;
+        let extractedText = '';
+        let useOCR = true;
 
-            if (file.type === 'application/pdf') {
-                statusText.innerText = "Analyse du PDF...";
-                const pdfUrl = URL.createObjectURL(file);
-                const loadingTask = pdfjsLib.getDocument(pdfUrl);
-                const pdf = await loadingTask.promise;
+        if (file.type === 'application/pdf') {
+            statusText.innerText = "Analyse du PDF...";
+            const pdfUrl = URL.createObjectURL(file);
+            const loadingTask = pdfjsLib.getDocument(pdfUrl);
+            const pdf = await loadingTask.promise;
 
-                // Try native text extraction first
-                statusText.innerText = "Extraction du texte...";
-                extractedText = await this.extractTextFromPdf(pdf);
+            // Try native text extraction first
+            statusText.innerText = "Extraction du texte...";
+            extractedText = await this.extractTextFromPdf(pdf);
 
-                // Check if text is sufficient (not just empty or whitespace)
-                if (extractedText && extractedText.trim().length > 50) {
-                    console.log("Native PDF text extracted:", extractedText.length, "chars");
-                    useOCR = false;
-                    statusText.innerText = "Texte extrait avec succès !";
-                    progressBar.style.width = '100%';
+            // Check if text is sufficient (not just empty or whitespace)
+            if (extractedText && extractedText.trim().length > 50) {
+                console.log("Native PDF text extracted:", extractedText.length, "chars");
+                useOCR = false;
+                statusText.innerText = "Texte extrait avec succès !";
+                progressBar.style.width = '100%';
 
-                    // Clean up URL object
-                    URL.revokeObjectURL(pdfUrl);
-                } else {
-                    console.log("Insufficient text in PDF, falling back to OCR");
-                    statusText.innerText = "PDF scanné détecté. Conversion en image...";
-                    imageUrl = await this.convertPdfToImage(pdf);
-                    // URL of PDF no longer needed if we have the image
-                    URL.revokeObjectURL(pdfUrl);
-                }
+                // Clean up URL object
+                URL.revokeObjectURL(pdfUrl);
             } else {
-                imageUrl = URL.createObjectURL(file);
+                console.log("Insufficient text in PDF, falling back to OCR");
+                statusText.innerText = "PDF scanné détecté. Conversion en image...";
+                imageUrl = await this.convertPdfToImage(pdf);
+                // URL of PDF no longer needed if we have the image
+                URL.revokeObjectURL(pdfUrl);
             }
-
-            if (useOCR) {
-                // Initialize Worker with English + French + Chinese
-                const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1, {
-                    logger: m => {
-                        console.log(m);
-                        if (m.status === 'loading tesseract core') {
-                            statusText.innerText = `Chargement du coeur OCR... ${Math.round((m.progress || 0) * 100)}% `;
-                            progressBar.style.width = `${(m.progress || 0) * 30}% `;
-                        } else if (m.status === 'initializing tesseract') {
-                            statusText.innerText = `Initialisation OCR...`;
-                        } else if (m.status === 'loading language traineddata') {
-                            statusText.innerText = `Téléchargement du modèle de langue... ${Math.round((m.progress || 0) * 100)}% `;
-                            progressBar.style.width = `${30 + ((m.progress || 0) * 30)}% `;
-                        } else {
-                            statusText.innerText = `${m.status}...`;
-                        }
-                    }
-                });
-
-                statusText.innerText = "Lecture du document...";
-
-                const { data: { text } } = await worker.recognize(imageUrl, {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            progressBar.style.width = `${60 + ((m.progress || 0) * 40)}% `;
-                            statusText.innerText = `Analyse en cours... ${Math.round(m.progress * 100)}% `;
-                        }
-                    }
-                });
-
-                extractedText = text;
-                await worker.terminate();
-
-                if (file.type !== 'application/pdf') {
-                    URL.revokeObjectURL(imageUrl);
-                }
-            }
-
-            // Process Data
-            statusText.innerText = "Terminé !";
-            progressBar.style.width = '100%';
-
-            setTimeout(() => {
-                try {
-                    console.log("Processing extracted text:", extractedText.substring(0, 100) + "...");
-                    // Pass file so processOCRData can do zonal OCR if needed
-                    this.processOCRData(extractedText, templateId, file);
-                } catch (error) {
-                    console.error("Error processing data:", error);
-                    this.showToast("Erreur lors de l'affichage des résultats: " + error.message, "error");
-                }
-            }, 500);
-
-        } catch (error) {
-            console.error("Analysis Error:", error);
-            this.showToast("Erreur analyse: " + (error.message || error), "error");
-            statusDiv.style.display = 'none';
-        } finally {
-            document.querySelector('.upload-section').style.pointerEvents = 'auto';
-            document.querySelector('.upload-section').style.opacity = '1';
+        } else {
+            imageUrl = URL.createObjectURL(file);
         }
-    },
+
+        if (useOCR) {
+            // Initialize Worker with English + French + Chinese
+            const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1, {
+                logger: m => {
+                    console.log(m);
+                    if (m.status === 'loading tesseract core') {
+                        statusText.innerText = `Chargement du coeur OCR... ${Math.round((m.progress || 0) * 100)}% `;
+                        progressBar.style.width = `${(m.progress || 0) * 30}% `;
+                    } else if (m.status === 'initializing tesseract') {
+                        statusText.innerText = `Initialisation OCR...`;
+                    } else if (m.status === 'loading language traineddata') {
+                        statusText.innerText = `Téléchargement du modèle de langue... ${Math.round((m.progress || 0) * 100)}% `;
+                        progressBar.style.width = `${30 + ((m.progress || 0) * 30)}% `;
+                    } else {
+                        statusText.innerText = `${m.status}...`;
+                    }
+                }
+            });
+
+            statusText.innerText = "Lecture du document...";
+
+            const { data: { text } } = await worker.recognize(imageUrl, {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        progressBar.style.width = `${60 + ((m.progress || 0) * 40)}% `;
+                        statusText.innerText = `Analyse en cours... ${Math.round(m.progress * 100)}% `;
+                    }
+                }
+            });
+
+            extractedText = text;
+            await worker.terminate();
+
+            if (file.type !== 'application/pdf') {
+                URL.revokeObjectURL(imageUrl);
+            }
+        }
+
+        // Process Data
+        statusText.innerText = "Terminé !";
+        progressBar.style.width = '100%';
+
+        setTimeout(() => {
+            try {
+                console.log("Processing extracted text:", extractedText.substring(0, 100) + "...");
+                // Pass file so processOCRData can do zonal OCR if needed
+                this.processOCRData(extractedText, templateId, file);
+            } catch (error) {
+                console.error("Error processing data:", error);
+                this.showToast("Erreur lors de l'affichage des résultats: " + error.message, "error");
+            }
+        }, 500);
+
+    } catch (error) {
+        console.error("Analysis Error:", error);
+        this.showToast("Erreur analyse: " + (error.message || error), "error");
+        statusDiv.style.display = 'none';
+    } finally {
+        document.querySelector('.upload-section').style.pointerEvents = 'auto';
+        document.querySelector('.upload-section').style.opacity = '1';
+    }
+},
 
     // Helper to extract text usage PDF.js (No OCR)
     async extractTextFromPdf(pdf) {
-        let fullText = '';
-        // Limit to first 2 pages for performance
-        const numPages = Math.min(pdf.numPages, 2);
-        for (let i = 1; i <= numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            const pageText = textContent.items.map(item => item.str).join(' ');
-            fullText += pageText + '\n';
-        }
-        return fullText;
-    },
+    let fullText = '';
+    // Limit to first 2 pages for performance
+    const numPages = Math.min(pdf.numPages, 2);
+    for (let i = 1; i <= numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n';
+    }
+    return fullText;
+},
 
     async convertPdfToImage(pdf) {
-        const page = await pdf.getPage(1); // Get first page
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
+    const page = await pdf.getPage(1); // Get first page
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
 
-        await page.render({ canvasContext: context, viewport: viewport }).promise;
-        return canvas.toDataURL('image/png');
-    },
+    await page.render({ canvasContext: context, viewport: viewport }).promise;
+    return canvas.toDataURL('image/png');
+},
 
     async processOCRData(text, templateId, file = null) {
-        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-        let template = null;
+    const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
+    let template = null;
 
-        if (!text) {
-            console.warn("No text provided to processOCRData");
-            text = "";
-        }
+    if (!text) {
+        console.warn("No text provided to processOCRData");
+        text = "";
+    }
 
-        if (templateId) {
-            template = templates.find(t => t.id === templateId);
-        } else {
-            // Auto-detect template
-            if (templates && templates.length > 0) {
-                for (const t of templates) {
-                    if (t.keywords && t.keywords.some(k => text.toUpperCase().includes(k.toUpperCase()))) {
-                        template = t;
-                        break;
-                    }
+    if (templateId) {
+        template = templates.find(t => t.id === templateId);
+    } else {
+        // Auto-detect template
+        if (templates && templates.length > 0) {
+            for (const t of templates) {
+                if (t.keywords && t.keywords.some(k => text.toUpperCase().includes(k.toUpperCase()))) {
+                    template = t;
+                    break;
                 }
             }
-            if (!template) template = templates.find(t => t.id === 'tmpl_generic');
         }
+        if (!template) template = templates.find(t => t.id === 'tmpl_generic');
+    }
 
-        // Extract using patterns
-        const extraction = {
-            booking: 'Non trouvé',
-            container: 'Non trouvé',
-            chassis: 'Non trouvé',
-            clientName: 'Non trouvé',
-            passportNumber: 'Non trouvé',
-            nin: 'Non trouvé',
-            vehicleName: 'Non trouvé',
-            portOfLoading: 'Non trouvé',
-            portOfDestination: 'Non trouvé',
-            shippingLine: 'Non trouvé',
-            loadingDate: 'Non trouvé',
-            rawText: text
+    // Extract using patterns
+    const extraction = {
+        booking: 'Non trouvé',
+        container: 'Non trouvé',
+        chassis: 'Non trouvé',
+        clientName: 'Non trouvé',
+        passportNumber: 'Non trouvé',
+        nin: 'Non trouvé',
+        vehicleName: 'Non trouvé',
+        portOfLoading: 'Non trouvé',
+        portOfDestination: 'Non trouvé',
+        shippingLine: 'Non trouvé',
+        loadingDate: 'Non trouvé',
+        rawText: text
+    };
+
+    const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+
+    // AI Mode Branch
+    if (settings.useAiExtraction && text.length > 20) {
+        this.showToast("Analyse intelligente par IA...", "info");
+        try {
+            const aiData = await this.callGeminiAI(text);
+            console.log("AI Extraction Result:", aiData);
+
+            extraction.booking = aiData.bookingNumber || 'Non trouvé';
+            extraction.container = aiData.containerNumber || 'Non trouvé';
+            extraction.chassis = aiData.chassisNumber || 'Non trouvé';
+            extraction.clientName = aiData.clientName || 'Non trouvé';
+            extraction.passportNumber = aiData.passportNumber || 'Non trouvé';
+            extraction.nin = aiData.nin || 'Non trouvé';
+            extraction.vehicleName = aiData.vehicleName || 'Non trouvé';
+            extraction.portOfLoading = aiData.portOfLoading || 'Non trouvé';
+            extraction.portOfDestination = aiData.portOfDestination || 'Non trouvé';
+            extraction.shippingLine = aiData.shippingLine || 'Non trouvé';
+            extraction.loadingDate = aiData.loadingDate || 'Non trouvé';
+
+            this.showToast("Extraction IA terminée", "success");
+            this.displayVerificationResults(extraction);
+            return;
+        } catch (aiError) {
+            console.error("Gemini Error:", aiError);
+            this.showToast("L'IA a échoué: " + aiError.message, "warning");
+            // Fall through to standard extraction
+        }
+    }
+
+    // Zonal Mode: If template uses zones and we have the file
+    if (template && template.useZonal && template.zones && file) {
+        this.showToast("Analyse des zones du masque...", "info");
+
+        try {
+            let canvas = document.createElement('canvas');
+            let ctx = canvas.getContext('2d');
+
+            // Render document to canvas for cropping
+            if (file.type === 'application/pdf') {
+                const pdfUrl = URL.createObjectURL(file);
+                const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 2.0 }); // High res for OCR
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                URL.revokeObjectURL(pdfUrl);
+            } else {
+                const img = await new Promise(r => {
+                    const i = new Image();
+                    i.onload = () => r(i);
+                    i.src = URL.createObjectURL(file);
+                });
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(img.src);
+            }
+
+            // For each zone, crop and OCR (Support French, English, and Chinese)
+            const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1);
+
+            for (const [fieldId, zone] of Object.entries(template.zones)) {
+                const cropCanvas = document.createElement('canvas');
+                const cCtx = cropCanvas.getContext('2d');
+
+                const sx = (zone.x / 100) * canvas.width;
+                const sy = (zone.y / 100) * canvas.height;
+                const sw = (zone.w / 100) * canvas.width;
+                const sh = (zone.h / 100) * canvas.height;
+
+                cropCanvas.width = sw;
+                cropCanvas.height = sh;
+                cCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+                const { data: { text: zoneText } } = await worker.recognize(cropCanvas);
+                const cleanText = zoneText.trim().replace(/\n/g, ' ');
+
+                if (fieldId === 'bookingNumber') extraction.booking = cleanText;
+                else if (fieldId === 'containerNumber') extraction.container = cleanText;
+                else if (fieldId === 'chassisNumber') extraction.chassis = cleanText;
+                else if (fieldId === 'clientName') extraction.clientName = cleanText;
+                else if (fieldId === 'passportNumber') extraction.passportNumber = cleanText;
+                else if (fieldId === 'nin') extraction.nin = cleanText;
+                else if (fieldId === 'vehicleName') extraction.vehicleName = cleanText;
+                else if (fieldId === 'portOfLoading') extraction.portOfLoading = cleanText;
+                else if (fieldId === 'portOfDestination') extraction.portOfDestination = cleanText;
+                else if (fieldId === 'shippingLine') extraction.shippingLine = cleanText;
+                else if (fieldId === 'loadingDate') extraction.loadingDate = cleanText;
+            }
+
+            await worker.terminate();
+        } catch (zError) {
+            console.error("Zonal OCR Error:", zError);
+            this.showToast("Erreur lors de l'extraction par zone", "warning");
+        }
+    } else {
+        // Regex Mode (Fallback)
+        const patterns = template ? template.patterns : {};
+
+        const safeMatch = (patternString) => {
+            if (!patternString) return null;
+            try {
+                const regex = new RegExp(patternString, 'i');
+                return text.match(regex);
+            } catch (e) {
+                return null;
+            }
         };
 
-        const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+        const matchBooking = safeMatch(patterns.bookingNumber);
+        if (matchBooking) extraction.booking = matchBooking[1];
 
-        // AI Mode Branch
-        if (settings.useAiExtraction && text.length > 20) {
-            this.showToast("Analyse intelligente par IA...", "info");
-            try {
-                const aiData = await this.callGeminiAI(text);
-                console.log("AI Extraction Result:", aiData);
+        const matchContainer = safeMatch(patterns.containerNumber);
+        if (matchContainer) extraction.container = matchContainer[1];
 
-                extraction.booking = aiData.bookingNumber || 'Non trouvé';
-                extraction.container = aiData.containerNumber || 'Non trouvé';
-                extraction.chassis = aiData.chassisNumber || 'Non trouvé';
-                extraction.clientName = aiData.clientName || 'Non trouvé';
-                extraction.passportNumber = aiData.passportNumber || 'Non trouvé';
-                extraction.nin = aiData.nin || 'Non trouvé';
-                extraction.vehicleName = aiData.vehicleName || 'Non trouvé';
-                extraction.portOfLoading = aiData.portOfLoading || 'Non trouvé';
-                extraction.portOfDestination = aiData.portOfDestination || 'Non trouvé';
-                extraction.shippingLine = aiData.shippingLine || 'Non trouvé';
-                extraction.loadingDate = aiData.loadingDate || 'Non trouvé';
+        const matchChassis = safeMatch(patterns.chassisNumber);
+        if (matchChassis) extraction.chassis = matchChassis[1] || matchChassis[2];
 
-                this.showToast("Extraction IA terminée", "success");
-                this.displayVerificationResults(extraction);
-                return;
-            } catch (aiError) {
-                console.error("Gemini Error:", aiError);
-                this.showToast("L'IA a échoué: " + aiError.message, "warning");
-                // Fall through to standard extraction
-            }
-        }
+        const matchClient = safeMatch(patterns.clientName);
+        if (matchClient) extraction.clientName = matchClient[1];
 
-        // Zonal Mode: If template uses zones and we have the file
-        if (template && template.useZonal && template.zones && file) {
-            this.showToast("Analyse des zones du masque...", "info");
+        const matchPassport = safeMatch(patterns.passportNumber);
+        if (matchPassport) extraction.passportNumber = matchPassport[1];
 
-            try {
-                let canvas = document.createElement('canvas');
-                let ctx = canvas.getContext('2d');
+        const matchNin = safeMatch(patterns.nin);
+        if (matchNin) extraction.nin = matchNin[1];
 
-                // Render document to canvas for cropping
-                if (file.type === 'application/pdf') {
-                    const pdfUrl = URL.createObjectURL(file);
-                    const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-                    const page = await pdf.getPage(1);
-                    const viewport = page.getViewport({ scale: 2.0 }); // High res for OCR
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                    URL.revokeObjectURL(pdfUrl);
-                } else {
-                    const img = await new Promise(r => {
-                        const i = new Image();
-                        i.onload = () => r(i);
-                        i.src = URL.createObjectURL(file);
-                    });
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    URL.revokeObjectURL(img.src);
-                }
+        const matchVehicle = safeMatch(patterns.vehicleName);
+        if (matchVehicle) extraction.vehicleName = matchVehicle[1];
 
-                // For each zone, crop and OCR (Support French, English, and Chinese)
-                const worker = await Tesseract.createWorker('eng+fra+chi_sim+chi_tra', 1);
+        const matchPortLoading = safeMatch(patterns.portOfLoading);
+        if (matchPortLoading) extraction.portOfLoading = matchPortLoading[1];
 
-                for (const [fieldId, zone] of Object.entries(template.zones)) {
-                    const cropCanvas = document.createElement('canvas');
-                    const cCtx = cropCanvas.getContext('2d');
+        const matchPortDestination = safeMatch(patterns.portOfDestination);
+        if (matchPortDestination) extraction.portOfDestination = matchPortDestination[1];
 
-                    const sx = (zone.x / 100) * canvas.width;
-                    const sy = (zone.y / 100) * canvas.height;
-                    const sw = (zone.w / 100) * canvas.width;
-                    const sh = (zone.h / 100) * canvas.height;
+        const matchShippingLine = safeMatch(patterns.shippingLine);
+        if (matchShippingLine) extraction.shippingLine = matchShippingLine[1];
 
-                    cropCanvas.width = sw;
-                    cropCanvas.height = sh;
-                    cCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+        const matchLoadingDate = safeMatch(patterns.loadingDate);
+        if (matchLoadingDate) extraction.loadingDate = matchLoadingDate[1];
+    }
 
-                    const { data: { text: zoneText } } = await worker.recognize(cropCanvas);
-                    const cleanText = zoneText.trim().replace(/\n/g, ' ');
+    this.displayVerificationResults(extraction);
+},
 
-                    if (fieldId === 'bookingNumber') extraction.booking = cleanText;
-                    else if (fieldId === 'containerNumber') extraction.container = cleanText;
-                    else if (fieldId === 'chassisNumber') extraction.chassis = cleanText;
-                    else if (fieldId === 'clientName') extraction.clientName = cleanText;
-                    else if (fieldId === 'passportNumber') extraction.passportNumber = cleanText;
-                    else if (fieldId === 'nin') extraction.nin = cleanText;
-                    else if (fieldId === 'vehicleName') extraction.vehicleName = cleanText;
-                    else if (fieldId === 'portOfLoading') extraction.portOfLoading = cleanText;
-                    else if (fieldId === 'portOfDestination') extraction.portOfDestination = cleanText;
-                    else if (fieldId === 'shippingLine') extraction.shippingLine = cleanText;
-                    else if (fieldId === 'loadingDate') extraction.loadingDate = cleanText;
-                }
+// --- Template Management System ---
 
-                await worker.terminate();
-            } catch (zError) {
-                console.error("Zonal OCR Error:", zError);
-                this.showToast("Erreur lors de l'extraction par zone", "warning");
-            }
-        } else {
-            // Regex Mode (Fallback)
-            const patterns = template ? template.patterns : {};
+showTemplateManagerModal() {
+    const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
 
-            const safeMatch = (patternString) => {
-                if (!patternString) return null;
-                try {
-                    const regex = new RegExp(patternString, 'i');
-                    return text.match(regex);
-                } catch (e) {
-                    return null;
-                }
-            };
-
-            const matchBooking = safeMatch(patterns.bookingNumber);
-            if (matchBooking) extraction.booking = matchBooking[1];
-
-            const matchContainer = safeMatch(patterns.containerNumber);
-            if (matchContainer) extraction.container = matchContainer[1];
-
-            const matchChassis = safeMatch(patterns.chassisNumber);
-            if (matchChassis) extraction.chassis = matchChassis[1] || matchChassis[2];
-
-            const matchClient = safeMatch(patterns.clientName);
-            if (matchClient) extraction.clientName = matchClient[1];
-
-            const matchPassport = safeMatch(patterns.passportNumber);
-            if (matchPassport) extraction.passportNumber = matchPassport[1];
-
-            const matchNin = safeMatch(patterns.nin);
-            if (matchNin) extraction.nin = matchNin[1];
-
-            const matchVehicle = safeMatch(patterns.vehicleName);
-            if (matchVehicle) extraction.vehicleName = matchVehicle[1];
-
-            const matchPortLoading = safeMatch(patterns.portOfLoading);
-            if (matchPortLoading) extraction.portOfLoading = matchPortLoading[1];
-
-            const matchPortDestination = safeMatch(patterns.portOfDestination);
-            if (matchPortDestination) extraction.portOfDestination = matchPortDestination[1];
-
-            const matchShippingLine = safeMatch(patterns.shippingLine);
-            if (matchShippingLine) extraction.shippingLine = matchShippingLine[1];
-
-            const matchLoadingDate = safeMatch(patterns.loadingDate);
-            if (matchLoadingDate) extraction.loadingDate = matchLoadingDate[1];
-        }
-
-        this.displayVerificationResults(extraction);
-    },
-
-    // --- Template Management System ---
-
-    showTemplateManagerModal() {
-        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-
-        const modalHtml = `
+    const modalHtml = `
     < div id = "modal-overlay" class="modal-overlay" onclick = "app.closeModal()" >
         <div class="modal glass" onclick="event.stopPropagation()">
             <div class="modal-header">
@@ -9485,33 +9503,33 @@ const app = {
             </div >
     `;
 
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    },
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+},
 
-    showEditTemplateModal(id = null) {
-        this.closeModal(); // Close manager to open edit, or stack them? Stacking is harder, lets close for now or replace content.
-        // Better: Close manager, open edit. On save/cancel, reopen manager.
+showEditTemplateModal(id = null) {
+    this.closeModal(); // Close manager to open edit, or stack them? Stacking is harder, lets close for now or replace content.
+    // Better: Close manager, open edit. On save/cancel, reopen manager.
 
-        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-        const template = id ? templates.find(t => t.id === id) : {
-            name: '',
-            keywords: [],
-            patterns: {
-                bookingNumber: '',
-                containerNumber: '',
-                chassisNumber: '',
-                clientName: '',
-                passportNumber: '',
-                nin: '',
-                vehicleName: '',
-                portOfLoading: '',
-                portOfDestination: '',
-                shippingLine: '',
-                loadingDate: ''
-            }
-        };
+    const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
+    const template = id ? templates.find(t => t.id === id) : {
+        name: '',
+        keywords: [],
+        patterns: {
+            bookingNumber: '',
+            containerNumber: '',
+            chassisNumber: '',
+            clientName: '',
+            passportNumber: '',
+            nin: '',
+            vehicleName: '',
+            portOfLoading: '',
+            portOfDestination: '',
+            shippingLine: '',
+            loadingDate: ''
+        }
+    };
 
-        const modalHtml = `
+    const modalHtml = `
     < div id = "modal-overlay" class="modal-overlay" >
         <div class="modal glass" onclick="event.stopPropagation()">
             <div class="modal-header">
@@ -9601,165 +9619,165 @@ const app = {
             </div >
     `;
 
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-        document.getElementById('template-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
+    document.getElementById('template-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
 
-            const newTemplate = {
-                id: id || `tmpl_${Date.now()} `,
-                name: formData.get('name'),
-                keywords: formData.get('keywords').split(',').map(k => k.trim()).filter(k => k),
-                patterns: {
-                    bookingNumber: formData.get('pattern_booking'),
-                    containerNumber: formData.get('pattern_container'),
-                    chassisNumber: formData.get('pattern_chassis'),
-                    clientName: formData.get('pattern_client'),
-                    passportNumber: formData.get('pattern_passport'),
-                    nin: formData.get('pattern_nin'),
-                    vehicleName: formData.get('pattern_vehicle'),
-                    portOfLoading: formData.get('pattern_port_loading'),
-                    portOfDestination: formData.get('pattern_port_destination'),
-                    shippingLine: formData.get('pattern_shipping_line'),
-                    loadingDate: formData.get('pattern_loading_date')
-                },
-                // Preserve existing zones if editing, otherwise initialize empty
-                zones: templateId ? (currentTemplates.find(t => t.id === templateId)?.zones || {}) : {}
-            };
+        const newTemplate = {
+            id: id || `tmpl_${Date.now()} `,
+            name: formData.get('name'),
+            keywords: formData.get('keywords').split(',').map(k => k.trim()).filter(k => k),
+            patterns: {
+                bookingNumber: formData.get('pattern_booking'),
+                containerNumber: formData.get('pattern_container'),
+                chassisNumber: formData.get('pattern_chassis'),
+                clientName: formData.get('pattern_client'),
+                passportNumber: formData.get('pattern_passport'),
+                nin: formData.get('pattern_nin'),
+                vehicleName: formData.get('pattern_vehicle'),
+                portOfLoading: formData.get('pattern_port_loading'),
+                portOfDestination: formData.get('pattern_port_destination'),
+                shippingLine: formData.get('pattern_shipping_line'),
+                loadingDate: formData.get('pattern_loading_date')
+            },
+            // Preserve existing zones if editing, otherwise initialize empty
+            zones: templateId ? (currentTemplates.find(t => t.id === templateId)?.zones || {}) : {}
+        };
 
-            if (templateId) { // Use templateId here
-                const index = currentTemplates.findIndex(t => t.id === templateId); // Use templateId here
-                if (index !== -1) currentTemplates[index] = newTemplate;
-            } else {
-                currentTemplates.push(newTemplate);
-            }
+        if (templateId) { // Use templateId here
+            const index = currentTemplates.findIndex(t => t.id === templateId); // Use templateId here
+            if (index !== -1) currentTemplates[index] = newTemplate;
+        } else {
+            currentTemplates.push(newTemplate);
+        }
 
-            await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, currentTemplates);
-            this.showToast('Modèle enregistré avec succès', 'success');
+        await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, currentTemplates);
+        this.showToast('Modèle enregistré avec succès', 'success');
 
-            document.getElementById('modal-overlay').remove();
-            this.showTemplateManagerModal();
+        document.getElementById('modal-overlay').remove();
+        this.showTemplateManagerModal();
 
-            // Refresh dropdown in main view if needed
-            this.renderVerification();
-        });
-    },
+        // Refresh dropdown in main view if needed
+        this.renderVerification();
+    });
+},
 
     async deleteTemplate(id) {
-        this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce modèle ?', async () => {
-            await StorageService.delete(STORAGE_KEYS.BL_TEMPLATES, id);
-            this.showToast('Modèle supprimé', 'info');
-            // Refresh modal
-            const overlay = document.getElementById('modal-overlay');
-            if (overlay) overlay.remove();
-            this.showTemplateManagerModal();
-            this.renderVerification();
-        });
-    },
+    this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce modèle ?', async () => {
+        await StorageService.delete(STORAGE_KEYS.BL_TEMPLATES, id);
+        this.showToast('Modèle supprimé', 'info');
+        // Refresh modal
+        const overlay = document.getElementById('modal-overlay');
+        if (overlay) overlay.remove();
+        this.showTemplateManagerModal();
+        this.renderVerification();
+    });
+},
 
-    displayVerificationResults(data) {
-        document.getElementById('processing-status').style.display = 'none';
-        document.getElementById('verification-results').style.display = 'block';
+displayVerificationResults(data) {
+    document.getElementById('processing-status').style.display = 'none';
+    document.getElementById('verification-results').style.display = 'block';
 
-        // Fill Extracted Data
-        document.getElementById('res-booking').innerText = data.booking;
-        document.getElementById('res-container').innerText = data.container;
-        document.getElementById('res-chassis').innerText = data.chassis;
-        document.getElementById('res-client').innerText = data.clientName || 'Non trouvé';
-        document.getElementById('res-passport').innerText = (data.passportNumber || data.nin) ? `${data.passportNumber || ''} ${data.nin ? '/ ' + data.nin : ''} ` : 'Non trouvé';
-        document.getElementById('res-vehicle').innerText = data.vehicleName || 'Non trouvé';
-        document.getElementById('res-port-loading').innerText = data.portOfLoading || 'Non trouver';
-        document.getElementById('res-port-destination').innerText = data.portOfDestination || 'Non trouver';
-        document.getElementById('res-shipping-line').innerText = data.shippingLine || 'Non trouver';
-        document.getElementById('res-loading-date').innerText = data.loadingDate || 'Non trouver';
-        document.getElementById('raw-text').innerText = data.rawText;
+    // Fill Extracted Data
+    document.getElementById('res-booking').innerText = data.booking;
+    document.getElementById('res-container').innerText = data.container;
+    document.getElementById('res-chassis').innerText = data.chassis;
+    document.getElementById('res-client').innerText = data.clientName || 'Non trouvé';
+    document.getElementById('res-passport').innerText = (data.passportNumber || data.nin) ? `${data.passportNumber || ''} ${data.nin ? '/ ' + data.nin : ''} ` : 'Non trouvé';
+    document.getElementById('res-vehicle').innerText = data.vehicleName || 'Non trouvé';
+    document.getElementById('res-port-loading').innerText = data.portOfLoading || 'Non trouver';
+    document.getElementById('res-port-destination').innerText = data.portOfDestination || 'Non trouver';
+    document.getElementById('res-shipping-line').innerText = data.shippingLine || 'Non trouver';
+    document.getElementById('res-loading-date').innerText = data.loadingDate || 'Non trouver';
+    document.getElementById('raw-text').innerText = data.rawText;
 
-        // Database Lookup
-        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+    // Database Lookup
+    const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+    const orders = StorageService.get(STORAGE_KEYS.ORDERS);
 
-        let vehicleMatch = null;
-        let orderMatch = null;
-        let status = 'MISMATCH';
+    let vehicleMatch = null;
+    let orderMatch = null;
+    let status = 'MISMATCH';
 
-        // Find Vehicle by Chassis (allow partial match last 6 digits if full fails)
-        if (data.chassis !== 'Non trouvé') {
-            vehicleMatch = vehicles.find(v => v.chassisNumber && (v.chassisNumber.includes(data.chassis) || data.chassis.includes(v.chassisNumber)));
-        }
+    // Find Vehicle by Chassis (allow partial match last 6 digits if full fails)
+    if (data.chassis !== 'Non trouvé') {
+        vehicleMatch = vehicles.find(v => v.chassisNumber && (v.chassisNumber.includes(data.chassis) || data.chassis.includes(v.chassisNumber)));
+    }
 
-        // Find Order
-        if (vehicleMatch && vehicleMatch.orderId) {
-            orderMatch = orders.find(o => o.id === vehicleMatch.orderId);
-        }
+    // Find Order
+    if (vehicleMatch && vehicleMatch.orderId) {
+        orderMatch = orders.find(o => o.id === vehicleMatch.orderId);
+    }
 
-        // Update UI
-        const dbVehicleEl = document.getElementById('db-vehicle');
-        const dbClientEl = document.getElementById('db-client');
-        const dbStatusEl = document.getElementById('db-status');
-        const badgeEl = document.getElementById('verification-badge');
+    // Update UI
+    const dbVehicleEl = document.getElementById('db-vehicle');
+    const dbClientEl = document.getElementById('db-client');
+    const dbStatusEl = document.getElementById('db-status');
+    const badgeEl = document.getElementById('verification-badge');
 
-        if (vehicleMatch) {
-            dbVehicleEl.innerText = `[#${vehicleMatch.id}] ${vehicleMatch.brand} ${vehicleMatch.model || ''} `;
-            dbVehicleEl.classList.add('success');
-            status = 'MATCH';
+    if (vehicleMatch) {
+        dbVehicleEl.innerText = `[#${vehicleMatch.id}] ${vehicleMatch.brand} ${vehicleMatch.model || ''} `;
+        dbVehicleEl.classList.add('success');
+        status = 'MATCH';
 
-            if (orderMatch) {
-                dbClientEl.innerText = orderMatch.clientName;
-            } else {
-                dbClientEl.innerText = "Non alloué";
-                status = 'PARTIAL';
-            }
-
-            dbStatusEl.innerText = vehicleMatch.status || 'En Stock';
+        if (orderMatch) {
+            dbClientEl.innerText = orderMatch.clientName;
         } else {
-            dbVehicleEl.innerText = "Non trouvé en base";
-            dbVehicleEl.classList.add('danger');
-            dbClientEl.innerText = "-";
-            dbStatusEl.innerText = "-";
-            status = 'NOT_FOUND';
+            dbClientEl.innerText = "Non alloué";
+            status = 'PARTIAL';
         }
 
-        badgeEl.style.display = 'block';
-        if (status === 'MATCH') {
-            badgeEl.className = 'status-badge success';
-            badgeEl.innerText = 'CONFORME';
-        } else if (status === 'PARTIAL') {
-            badgeEl.className = 'status-badge warning';
-            badgeEl.innerText = 'VÉHICULE TROUVÉ (LIBRE)';
-        } else {
-            badgeEl.className = 'status-badge danger';
-            badgeEl.innerText = 'NON TROUVÉ / PROBLÈME';
+        dbStatusEl.innerText = vehicleMatch.status || 'En Stock';
+    } else {
+        dbVehicleEl.innerText = "Non trouvé en base";
+        dbVehicleEl.classList.add('danger');
+        dbClientEl.innerText = "-";
+        dbStatusEl.innerText = "-";
+        status = 'NOT_FOUND';
+    }
+
+    badgeEl.style.display = 'block';
+    if (status === 'MATCH') {
+        badgeEl.className = 'status-badge success';
+        badgeEl.innerText = 'CONFORME';
+    } else if (status === 'PARTIAL') {
+        badgeEl.className = 'status-badge warning';
+        badgeEl.innerText = 'VÉHICULE TROUVÉ (LIBRE)';
+    } else {
+        badgeEl.className = 'status-badge danger';
+        badgeEl.innerText = 'NON TROUVÉ / PROBLÈME';
+    }
+},
+
+
+// --- Visual Mapping System (Zonal OCR) ---
+
+startVisualMapping(templateId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,image/*';
+    input.onchange = (e) => {
+        if (e.target.files.length > 0) {
+            this.showVisualEditor(e.target.files[0], templateId);
         }
-    },
-
-
-    // --- Visual Mapping System (Zonal OCR) ---
-
-    startVisualMapping(templateId) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'application/pdf,image/*';
-        input.onchange = (e) => {
-            if (e.target.files.length > 0) {
-                this.showVisualEditor(e.target.files[0], templateId);
-            }
-        };
-        input.click();
-    },
+    };
+    input.click();
+},
 
     async showVisualEditor(file, templateId) {
-        // Close existing modals
-        const existingModal = document.getElementById('modal-overlay');
-        if (existingModal) existingModal.remove();
+    // Close existing modals
+    const existingModal = document.getElementById('modal-overlay');
+    if (existingModal) existingModal.remove();
 
-        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-        const template = templates.find(t => t.id === templateId);
-        if (!template) return;
+    const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
 
-        this.showToast("Chargement de l'éditeur...", "info");
+    this.showToast("Chargement de l'éditeur...", "info");
 
-        const editorHtml = `
+    const editorHtml = `
     < div id = "modal-overlay" class="modal-overlay" style = "background: rgba(0,0,0,0.9);" >
         <div class="visual-editor-container" style="width: 95vw; height: 90vh; background: #1a1a1a; display: flex; flex-direction: column; color: white;">
             <div class="modal-header" style="background: #252525; padding: 15px;">
@@ -9776,18 +9794,18 @@ const app = {
                     <h4 style="margin-bottom: 15px; color: var(--primary);">Champs à maper</h4>
                     <div id="zone-selectors" style="display: flex; flex-direction: column; gap: 10px;">
                         ${[
-                { id: 'bookingNumber', label: 'N° Booking' },
-                { id: 'containerNumber', label: 'N° Conteneur' },
-                { id: 'chassisNumber', label: 'N° Châssis (VIN)' },
-                { id: 'clientName', label: 'Nom du Client' },
-                { id: 'passportNumber', label: 'N° Passeport' },
-                { id: 'nin', label: 'NIN' },
-                { id: 'vehicleName', label: 'Nom du Véhicule' },
-                { id: 'portOfLoading', label: 'Port de Chargement' },
-                { id: 'portOfDestination', label: 'Port de Destination' },
-                { id: 'shippingLine', label: 'Compagnie Maritime' },
-                { id: 'loadingDate', label: 'Date de Chargement' }
-            ].map(f => `
+            { id: 'bookingNumber', label: 'N° Booking' },
+            { id: 'containerNumber', label: 'N° Conteneur' },
+            { id: 'chassisNumber', label: 'N° Châssis (VIN)' },
+            { id: 'clientName', label: 'Nom du Client' },
+            { id: 'passportNumber', label: 'N° Passeport' },
+            { id: 'nin', label: 'NIN' },
+            { id: 'vehicleName', label: 'Nom du Véhicule' },
+            { id: 'portOfLoading', label: 'Port de Chargement' },
+            { id: 'portOfDestination', label: 'Port de Destination' },
+            { id: 'shippingLine', label: 'Compagnie Maritime' },
+            { id: 'loadingDate', label: 'Date de Chargement' }
+        ].map(f => `
                                     <div class="zone-item" id="zone-item-${f.id}" onclick="app.setActiveZone('${f.id}')" style="padding: 12px; background: #333; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span>${f.label}</span>
@@ -9814,367 +9832,367 @@ const app = {
             </div >
     `;
 
-        document.body.insertAdjacentHTML('beforeend', editorHtml);
+    document.body.insertAdjacentHTML('beforeend', editorHtml);
 
-        // Initialize State
-        this.activeZone = 'bookingNumber';
-        this.zones = template.zones || {};
-        this.setActiveZone('bookingNumber', false);
+    // Initialize State
+    this.activeZone = 'bookingNumber';
+    this.zones = template.zones || {};
+    this.setActiveZone('bookingNumber', false);
 
-        const docCanvas = document.getElementById('doc-canvas');
-        const drawCanvas = document.getElementById('draw-canvas');
-        const wrapper = document.getElementById('canvas-wrapper');
-        const ctx = docCanvas.getContext('2d', { alpha: false });
-        const dCtx = drawCanvas.getContext('2d');
+    const docCanvas = document.getElementById('doc-canvas');
+    const drawCanvas = document.getElementById('draw-canvas');
+    const wrapper = document.getElementById('canvas-wrapper');
+    const ctx = docCanvas.getContext('2d', { alpha: false });
+    const dCtx = drawCanvas.getContext('2d');
 
-        try {
-            let docWidth, docHeight;
-            if (file.type === 'application/pdf') {
-                const pdfUrl = URL.createObjectURL(file);
-                const loadingTask = pdfjsLib.getDocument(pdfUrl);
-                const pdf = await loadingTask.promise;
-                const page = await pdf.getPage(1);
-                const viewport = page.getViewport({ scale: 1.5 });
-                docWidth = viewport.width;
-                docHeight = viewport.height;
-                docCanvas.width = docWidth;
-                docCanvas.height = docHeight;
-                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                URL.revokeObjectURL(pdfUrl);
-            } else {
-                const img = await new Promise((resolve) => {
-                    const i = new Image();
-                    i.onload = () => resolve(i);
-                    i.src = URL.createObjectURL(file);
-                });
-                const scale = Math.min(1200 / img.width, 1);
-                docWidth = img.width * scale;
-                docHeight = img.height * scale;
-                docCanvas.width = docWidth;
-                docCanvas.height = docHeight;
-                ctx.drawImage(img, 0, 0, docWidth, docHeight);
-                URL.revokeObjectURL(img.src);
+    try {
+        let docWidth, docHeight;
+        if (file.type === 'application/pdf') {
+            const pdfUrl = URL.createObjectURL(file);
+            const loadingTask = pdfjsLib.getDocument(pdfUrl);
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1.5 });
+            docWidth = viewport.width;
+            docHeight = viewport.height;
+            docCanvas.width = docWidth;
+            docCanvas.height = docHeight;
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            URL.revokeObjectURL(pdfUrl);
+        } else {
+            const img = await new Promise((resolve) => {
+                const i = new Image();
+                i.onload = () => resolve(i);
+                i.src = URL.createObjectURL(file);
+            });
+            const scale = Math.min(1200 / img.width, 1);
+            docWidth = img.width * scale;
+            docHeight = img.height * scale;
+            docCanvas.width = docWidth;
+            docCanvas.height = docHeight;
+            ctx.drawImage(img, 0, 0, docWidth, docHeight);
+            URL.revokeObjectURL(img.src);
+        }
+
+        // Sync sizes
+        drawCanvas.width = docWidth;
+        drawCanvas.height = docHeight;
+        wrapper.style.width = docWidth + 'px';
+        wrapper.style.height = docHeight + 'px';
+
+        // Drawing/Editing Logic
+        let isDragging = false;
+        let startX, startY;
+        let dragMode = 'draw'; // 'draw', 'move', 'resize'
+        let handleId = null; // 'tl', 'tr', 'bl', 'br', 'center'
+
+        const getHandleAt = (x, y) => {
+            const z = this.zones[this.activeZone];
+            if (!z) return null;
+            const zX = (z.x / 100) * drawCanvas.width;
+            const zY = (z.y / 100) * drawCanvas.height;
+            const zW = (z.w / 100) * drawCanvas.width;
+            const zH = (z.h / 100) * drawCanvas.height;
+            const hSize = 10;
+
+            if (Math.abs(x - zX) < hSize && Math.abs(y - zY) < hSize) return 'tl';
+            if (Math.abs(x - (zX + zW)) < hSize && Math.abs(y - zY) < hSize) return 'tr';
+            if (Math.abs(x - zX) < hSize && Math.abs(y - (zY + zH)) < hSize) return 'bl';
+            if (Math.abs(x - (zX + zW)) < hSize && Math.abs(y - (zY + zH)) < hSize) return 'br';
+            if (x > zX && x < zX + zW && y > zY && y < zY + zH) return 'center';
+            return null;
+        };
+
+        drawCanvas.onmousedown = (e) => {
+            const rect = drawCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            handleId = getHandleAt(x, y);
+            if (handleId === 'center') dragMode = 'move';
+            else if (handleId) dragMode = 'resize';
+            else dragMode = 'draw';
+
+            isDragging = true;
+            startX = x;
+            startY = y;
+
+            if (dragMode === 'draw') {
+                this.zones[this.activeZone] = { x: (x / drawCanvas.width) * 100, y: (y / drawCanvas.height) * 100, w: 0, h: 0 };
+            }
+        };
+
+        drawCanvas.onmousemove = (e) => {
+            const rect = drawCanvas.getBoundingClientRect();
+            const curX = e.clientX - rect.left;
+            const curY = e.clientY - rect.top;
+
+            // Update cursor
+            const h = getHandleAt(curX, curY);
+            if (h === 'tl' || h === 'br') drawCanvas.style.cursor = 'nwse-resize';
+            else if (h === 'tr' || h === 'bl') drawCanvas.style.cursor = 'nesw-resize';
+            else if (h === 'center') drawCanvas.style.cursor = 'move';
+            else drawCanvas.style.cursor = 'crosshair';
+
+            if (!isDragging) return;
+
+            const dx = ((curX - startX) / drawCanvas.width) * 100;
+            const dy = ((curY - startY) / drawCanvas.height) * 100;
+            const z = this.zones[this.activeZone];
+
+            if (dragMode === 'draw') {
+                z.w = ((curX / drawCanvas.width) * 100) - z.x;
+                z.h = ((curY / drawCanvas.height) * 100) - z.y;
+            } else if (dragMode === 'move') {
+                z.x += dx;
+                z.y += dy;
+                startX = curX;
+                startY = curY;
+            } else if (dragMode === 'resize') {
+                if (handleId === 'tl') { z.x += dx; z.y += dy; z.w -= dx; z.h -= dy; }
+                else if (handleId === 'tr') { z.y += dy; z.w += dx; z.h -= dy; }
+                else if (handleId === 'bl') { z.x += dx; z.w -= dx; z.h += dy; }
+                else if (handleId === 'br') { z.w += dx; z.h += dy; }
+                startX = curX;
+                startY = curY;
             }
 
-            // Sync sizes
-            drawCanvas.width = docWidth;
-            drawCanvas.height = docHeight;
-            wrapper.style.width = docWidth + 'px';
-            wrapper.style.height = docHeight + 'px';
-
-            // Drawing/Editing Logic
-            let isDragging = false;
-            let startX, startY;
-            let dragMode = 'draw'; // 'draw', 'move', 'resize'
-            let handleId = null; // 'tl', 'tr', 'bl', 'br', 'center'
-
-            const getHandleAt = (x, y) => {
-                const z = this.zones[this.activeZone];
-                if (!z) return null;
-                const zX = (z.x / 100) * drawCanvas.width;
-                const zY = (z.y / 100) * drawCanvas.height;
-                const zW = (z.w / 100) * drawCanvas.width;
-                const zH = (z.h / 100) * drawCanvas.height;
-                const hSize = 10;
-
-                if (Math.abs(x - zX) < hSize && Math.abs(y - zY) < hSize) return 'tl';
-                if (Math.abs(x - (zX + zW)) < hSize && Math.abs(y - zY) < hSize) return 'tr';
-                if (Math.abs(x - zX) < hSize && Math.abs(y - (zY + zH)) < hSize) return 'bl';
-                if (Math.abs(x - (zX + zW)) < hSize && Math.abs(y - (zY + zH)) < hSize) return 'br';
-                if (x > zX && x < zX + zW && y > zY && y < zY + zH) return 'center';
-                return null;
-            };
-
-            drawCanvas.onmousedown = (e) => {
-                const rect = drawCanvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                handleId = getHandleAt(x, y);
-                if (handleId === 'center') dragMode = 'move';
-                else if (handleId) dragMode = 'resize';
-                else dragMode = 'draw';
-
-                isDragging = true;
-                startX = x;
-                startY = y;
-
-                if (dragMode === 'draw') {
-                    this.zones[this.activeZone] = { x: (x / drawCanvas.width) * 100, y: (y / drawCanvas.height) * 100, w: 0, h: 0 };
-                }
-            };
-
-            drawCanvas.onmousemove = (e) => {
-                const rect = drawCanvas.getBoundingClientRect();
-                const curX = e.clientX - rect.left;
-                const curY = e.clientY - rect.top;
-
-                // Update cursor
-                const h = getHandleAt(curX, curY);
-                if (h === 'tl' || h === 'br') drawCanvas.style.cursor = 'nwse-resize';
-                else if (h === 'tr' || h === 'bl') drawCanvas.style.cursor = 'nesw-resize';
-                else if (h === 'center') drawCanvas.style.cursor = 'move';
-                else drawCanvas.style.cursor = 'crosshair';
-
-                if (!isDragging) return;
-
-                const dx = ((curX - startX) / drawCanvas.width) * 100;
-                const dy = ((curY - startY) / drawCanvas.height) * 100;
-                const z = this.zones[this.activeZone];
-
-                if (dragMode === 'draw') {
-                    z.w = ((curX / drawCanvas.width) * 100) - z.x;
-                    z.h = ((curY / drawCanvas.height) * 100) - z.y;
-                } else if (dragMode === 'move') {
-                    z.x += dx;
-                    z.y += dy;
-                    startX = curX;
-                    startY = curY;
-                } else if (dragMode === 'resize') {
-                    if (handleId === 'tl') { z.x += dx; z.y += dy; z.w -= dx; z.h -= dy; }
-                    else if (handleId === 'tr') { z.y += dy; z.w += dx; z.h -= dy; }
-                    else if (handleId === 'bl') { z.x += dx; z.w -= dx; z.h += dy; }
-                    else if (handleId === 'br') { z.w += dx; z.h += dy; }
-                    startX = curX;
-                    startY = curY;
-                }
-
-                this.updateZoneUI(this.activeZone);
-                this.redrawZones(drawCanvas, dCtx);
-            };
-
-            drawCanvas.onmouseup = (e) => {
-                if (!isDragging) return;
-                isDragging = false;
-
-                const z = this.zones[this.activeZone];
-                if (z.w < 0) { z.x += z.w; z.w = Math.abs(z.w); }
-                if (z.h < 0) { z.y += z.h; z.h = Math.abs(z.h); }
-
-                this.updateZoneUI(this.activeZone);
-                this.redrawZones(drawCanvas, dCtx);
-            };
-
-            // Add initial zones if any
-            Object.keys(this.zones).forEach(zId => this.updateZoneUI(zId));
+            this.updateZoneUI(this.activeZone);
             this.redrawZones(drawCanvas, dCtx);
+        };
 
-        } catch (err) {
-            console.error("Editor Error:", err);
-            this.showToast("Erreur chargement document", "error");
+        drawCanvas.onmouseup = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+
+            const z = this.zones[this.activeZone];
+            if (z.w < 0) { z.x += z.w; z.w = Math.abs(z.w); }
+            if (z.h < 0) { z.y += z.h; z.h = Math.abs(z.h); }
+
+            this.updateZoneUI(this.activeZone);
+            this.redrawZones(drawCanvas, dCtx);
+        };
+
+        // Add initial zones if any
+        Object.keys(this.zones).forEach(zId => this.updateZoneUI(zId));
+        this.redrawZones(drawCanvas, dCtx);
+
+    } catch (err) {
+        console.error("Editor Error:", err);
+        this.showToast("Erreur chargement document", "error");
+    }
+},
+
+setActiveZone(fieldId, animate = true) {
+    this.activeZone = fieldId;
+    document.querySelectorAll('.zone-item').forEach(el => {
+        el.style.background = '#333';
+        el.style.border = 'none';
+    });
+    const activeEl = document.getElementById(`zone - item - ${fieldId} `);
+    if (activeEl) {
+        activeEl.style.background = 'rgba(99, 102, 241, 0.2)';
+        activeEl.style.borderLeft = '4px solid var(--primary)';
+    }
+    // Redraw to show handles on active zone
+    const drawCanvas = document.getElementById('draw-canvas');
+    if (drawCanvas) this.redrawZones(drawCanvas, drawCanvas.getContext('2d'));
+},
+
+redrawZones(canvas, ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw already defined zones
+    Object.entries(this.zones).forEach(([id, z]) => {
+        const isActive = id === this.activeZone;
+        const x = (z.x / 100) * canvas.width;
+        const y = (z.y / 100) * canvas.height;
+        const w = (z.w / 100) * canvas.width;
+        const h = (z.h / 100) * canvas.height;
+
+        ctx.strokeStyle = isActive ? '#6366f1' : '#4CAF50';
+        ctx.lineWidth = isActive ? 3 : 1;
+        ctx.setLineDash(isActive ? [] : [2, 2]);
+        ctx.strokeRect(x, y, w, h);
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = isActive ? 'rgba(99, 102, 241, 0.1)' : 'rgba(76, 175, 80, 0.05)';
+        ctx.fillRect(x, y, w, h);
+
+        // Label
+        ctx.fillStyle = isActive ? '#6366f1' : '#4CAF50';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.fillText(id.replace('Number', ''), x, y - 5);
+
+        // Draw handles for active zone
+        if (isActive) {
+            const hSize = 8;
+            ctx.fillStyle = '#6366f1';
+            [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([hx, hy]) => {
+                ctx.fillRect(hx - hSize / 1, hy - hSize / 1, hSize, hSize);
+            });
         }
-    },
+    });
+},
 
-    setActiveZone(fieldId, animate = true) {
-        this.activeZone = fieldId;
-        document.querySelectorAll('.zone-item').forEach(el => {
-            el.style.background = '#333';
-            el.style.border = 'none';
-        });
-        const activeEl = document.getElementById(`zone - item - ${fieldId} `);
-        if (activeEl) {
-            activeEl.style.background = 'rgba(99, 102, 241, 0.2)';
-            activeEl.style.borderLeft = '4px solid var(--primary)';
-        }
-        // Redraw to show handles on active zone
-        const drawCanvas = document.getElementById('draw-canvas');
-        if (drawCanvas) this.redrawZones(drawCanvas, drawCanvas.getContext('2d'));
-    },
+updateZoneUI(fieldId) {
+    const z = this.zones[fieldId];
+    if (!z) return;
 
-    redrawZones(canvas, ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const statusIcon = document.getElementById(`status - ${fieldId} `);
+    if (statusIcon) statusIcon.style.color = '#6366f1';
 
-        // Draw already defined zones
-        Object.entries(this.zones).forEach(([id, z]) => {
-            const isActive = id === this.activeZone;
-            const x = (z.x / 100) * canvas.width;
-            const y = (z.y / 100) * canvas.height;
-            const w = (z.w / 100) * canvas.width;
-            const h = (z.h / 100) * canvas.height;
-
-            ctx.strokeStyle = isActive ? '#6366f1' : '#4CAF50';
-            ctx.lineWidth = isActive ? 3 : 1;
-            ctx.setLineDash(isActive ? [] : [2, 2]);
-            ctx.strokeRect(x, y, w, h);
-            ctx.setLineDash([]);
-
-            ctx.fillStyle = isActive ? 'rgba(99, 102, 241, 0.1)' : 'rgba(76, 175, 80, 0.05)';
-            ctx.fillRect(x, y, w, h);
-
-            // Label
-            ctx.fillStyle = isActive ? '#6366f1' : '#4CAF50';
-            ctx.font = 'bold 10px Inter, sans-serif';
-            ctx.fillText(id.replace('Number', ''), x, y - 5);
-
-            // Draw handles for active zone
-            if (isActive) {
-                const hSize = 8;
-                ctx.fillStyle = '#6366f1';
-                [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([hx, hy]) => {
-                    ctx.fillRect(hx - hSize / 1, hy - hSize / 1, hSize, hSize);
-                });
-            }
-        });
-    },
-
-    updateZoneUI(fieldId) {
-        const z = this.zones[fieldId];
-        if (!z) return;
-
-        const statusIcon = document.getElementById(`status - ${fieldId} `);
-        if (statusIcon) statusIcon.style.color = '#6366f1';
-
-        const coordSpan = document.getElementById(`coord - ${fieldId} `);
-        if (coordSpan) coordSpan.innerText = `Pos: ${Math.round(z.x)}%, ${Math.round(z.y)}% | Taille: ${Math.round(z.w)}x${Math.round(z.h)}% `;
-    },
+    const coordSpan = document.getElementById(`coord - ${fieldId} `);
+    if (coordSpan) coordSpan.innerText = `Pos: ${Math.round(z.x)}%, ${Math.round(z.y)}% | Taille: ${Math.round(z.w)}x${Math.round(z.h)}% `;
+},
 
     async saveVisualZones(templateId) {
-        const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
-        const index = templates.findIndex(t => t.id === templateId);
-        if (index === -1) return;
+    const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES) || [];
+    const index = templates.findIndex(t => t.id === templateId);
+    if (index === -1) return;
 
-        templates[index].zones = this.zones;
-        // Mark as using zonal if zones exist
-        templates[index].useZonal = true;
+    templates[index].zones = this.zones;
+    // Mark as using zonal if zones exist
+    templates[index].useZonal = true;
 
-        await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, templates);
-        this.showToast("Zones enregistrées avec succès", "success");
-        const overlay = document.getElementById('modal-overlay');
-        if (overlay) overlay.remove();
-        this.showTemplateManagerModal();
-    },
+    await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, templates);
+    this.showToast("Zones enregistrées avec succès", "success");
+    const overlay = document.getElementById('modal-overlay');
+    if (overlay) overlay.remove();
+    this.showTemplateManagerModal();
+},
 
     async toggleAiExtraction() {
-        const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+    const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
 
-        // If trying to enable but no key
-        if (!settings.useAiExtraction && !settings.geminiApiKey) {
-            this.showToast("Merci de configurer votre clé API Gemini dans les Paramètres avant d'activer l'IA.", "warning");
-            return; // BLOCK TOGGLE
-        }
+    // If trying to enable but no key
+    if (!settings.useAiExtraction && !settings.geminiApiKey) {
+        this.showToast("Merci de configurer votre clé API Gemini dans les Paramètres avant d'activer l'IA.", "warning");
+        return; // BLOCK TOGGLE
+    }
 
-        settings.useAiExtraction = !settings.useAiExtraction;
-        await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
+    settings.useAiExtraction = !settings.useAiExtraction;
+    await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
 
-        const btn = document.getElementById('ai-toggle-btn');
-        if (btn) {
-            btn.style.background = settings.useAiExtraction ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.05)';
-            btn.style.color = settings.useAiExtraction ? 'var(--primary)' : 'inherit';
-        }
+    const btn = document.getElementById('ai-toggle-btn');
+    if (btn) {
+        btn.style.background = settings.useAiExtraction ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.05)';
+        btn.style.color = settings.useAiExtraction ? 'var(--primary)' : 'inherit';
+    }
 
-        this.showToast(settings.useAiExtraction ? "Mode IA Activé" : "Mode IA Désactivé", "info");
-    },
+    this.showToast(settings.useAiExtraction ? "Mode IA Activé" : "Mode IA Désactivé", "info");
+},
 
     async testGeminiConnection() {
-        const key = document.getElementById('settings-gemini-key').value.trim();
-        if (!key) {
-            this.showToast("Veuillez saisir une clé API à tester.", "warning");
-            return;
+    const key = document.getElementById('settings-gemini-key').value.trim();
+    if (!key) {
+        this.showToast("Veuillez saisir une clé API à tester.", "warning");
+        return;
+    }
+
+    this.showToast("Démarrage de l'auto-découverte du modèle...", "info");
+
+    try {
+        // 1. Get all available models
+        const listResp = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
+        if (!listResp.ok) throw new Error("Impossible de lister les modèles (Clé invalide ?)");
+
+        const listData = await listResp.json();
+        // Filter models that support generateContent and are not specifically skipped
+        const potentialModels = listData.models
+            .filter(m => m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => m.name.replace('models/', ''));
+
+        if (potentialModels.length === 0) throw new Error("Aucun modèle 'generateContent' trouvé pour cette clé.");
+
+        console.log("Discovery: Testing these models:", potentialModels);
+
+        let workingModel = null;
+        let quotaErrorCount = 0;
+
+        // 2. Test each model until one works (not 404 and not 429)
+        for (const model of potentialModels) {
+            console.log(`Auto-discovery: Testing ${model}...`);
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: "Reponds 'OK' en un mot." }] }]
+                    })
+                });
+
+                if (response.ok) {
+                    workingModel = model;
+                    break;
+                } else if (response.status === 429) {
+                    quotaErrorCount++;
+                    console.warn(`Model ${model} has no quota (429).`);
+                } else {
+                    console.warn(`Model ${model} returned ${response.status}.`);
+                }
+            } catch (e) {
+                console.error(`Error testing ${model}:`, e);
+            }
         }
 
-        this.showToast("Démarrage de l'auto-découverte du modèle...", "info");
+        if (workingModel) {
+            // Save the working model to settings
+            const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+            settings.activeModel = workingModel;
+            settings.geminiApiKey = key; // Update key if changed in input
+            await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
 
-        try {
-            // 1. Get all available models
-            const listResp = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
-            if (!listResp.ok) throw new Error("Impossible de lister les modèles (Clé invalide ?)");
+            this.showToast(`Connexion RÉUSSIE ! Modèle sélectionné : ${workingModel}`, "success");
+        } else if (quotaErrorCount > 0) {
+            this.showToast("Tous les modèles disponibles ont dépassé leur quota ou sont limités.", "warning");
+        } else {
+            this.showToast("Aucun modèle fonctionnel n'a été trouvé pour cette clé.", "danger");
+        }
 
-            const listData = await listResp.json();
-            // Filter models that support generateContent and are not specifically skipped
-            const potentialModels = listData.models
+    } catch (err) {
+        this.showToast("Erreur d'auto-découverte : " + err.message, "danger");
+    }
+},
+
+    async listGeminiModels() {
+    const key = document.getElementById('settings-gemini-key').value.trim();
+    if (!key) {
+        this.showToast("Veuillez saisir une clé API pour lister les modèles.", "warning");
+        return;
+    }
+
+    this.showToast("Récupération de la liste des modèles...", "info");
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
+        if (response.ok) {
+            const data = await response.json();
+            const modelNames = data.models
                 .filter(m => m.supportedGenerationMethods.includes('generateContent'))
                 .map(m => m.name.replace('models/', ''));
 
-            if (potentialModels.length === 0) throw new Error("Aucun modèle 'generateContent' trouvé pour cette clé.");
+            const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
+            settings.availableGeminiModels = modelNames;
+            await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
 
-            console.log("Discovery: Testing these models:", potentialModels);
-
-            let workingModel = null;
-            let quotaErrorCount = 0;
-
-            // 2. Test each model until one works (not 404 and not 429)
-            for (const model of potentialModels) {
-                console.log(`Auto-discovery: Testing ${model}...`);
-                try {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: "Reponds 'OK' en un mot." }] }]
-                        })
-                    });
-
-                    if (response.ok) {
-                        workingModel = model;
-                        break;
-                    } else if (response.status === 429) {
-                        quotaErrorCount++;
-                        console.warn(`Model ${model} has no quota (429).`);
-                    } else {
-                        console.warn(`Model ${model} returned ${response.status}.`);
-                    }
-                } catch (e) {
-                    console.error(`Error testing ${model}:`, e);
-                }
-            }
-
-            if (workingModel) {
-                // Save the working model to settings
-                const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-                settings.activeModel = workingModel;
-                settings.geminiApiKey = key; // Update key if changed in input
-                await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
-
-                this.showToast(`Connexion RÉUSSIE ! Modèle sélectionné : ${workingModel}`, "success");
-            } else if (quotaErrorCount > 0) {
-                this.showToast("Tous les modèles disponibles ont dépassé leur quota ou sont limités.", "warning");
-            } else {
-                this.showToast("Aucun modèle fonctionnel n'a été trouvé pour cette clé.", "danger");
-            }
-
-        } catch (err) {
-            this.showToast("Erreur d'auto-découverte : " + err.message, "danger");
+            this.showToast(`${modelNames.length} modèles récupérés et enregistrés.`, "success");
+            this.renderSettings(); // Refresh UI to show models in dropdown
+        } else {
+            const err = await response.json();
+            this.showToast("Erreur lors de la récupération : " + (err.error?.message || "Inconnue"), "danger");
         }
-    },
-
-    async listGeminiModels() {
-        const key = document.getElementById('settings-gemini-key').value.trim();
-        if (!key) {
-            this.showToast("Veuillez saisir une clé API pour lister les modèles.", "warning");
-            return;
-        }
-
-        this.showToast("Récupération de la liste des modèles...", "info");
-        try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
-            if (response.ok) {
-                const data = await response.json();
-                const modelNames = data.models
-                    .filter(m => m.supportedGenerationMethods.includes('generateContent'))
-                    .map(m => m.name.replace('models/', ''));
-
-                const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
-                settings.availableGeminiModels = modelNames;
-                await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
-
-                this.showToast(`${modelNames.length} modèles récupérés et enregistrés.`, "success");
-                this.renderSettings(); // Refresh UI to show models in dropdown
-            } else {
-                const err = await response.json();
-                this.showToast("Erreur lors de la récupération : " + (err.error?.message || "Inconnue"), "danger");
-            }
-        } catch (err) {
-            this.showToast("Erreur réseau : " + err.message, "danger");
-        }
-    },
+    } catch (err) {
+        this.showToast("Erreur réseau : " + err.message, "danger");
+    }
+},
 
     async callGeminiAI(text) {
-        const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
-        if (!settings.geminiApiKey) {
-            throw new Error("Clé API Gemini manquante. Veuillez la configurer dans les paramètres.");
-        }
+    const settings = StorageService.get(STORAGE_KEYS.SETTINGS);
+    if (!settings.geminiApiKey) {
+        throw new Error("Clé API Gemini manquante. Veuillez la configurer dans les paramètres.");
+    }
 
-        const prompt = `Extrais les informations suivantes de ce texte de Bill of Lading (BL) et retourne UNIQUEMENT un objet JSON valide avec ces clés : 
+    const prompt = `Extrais les informations suivantes de ce texte de Bill of Lading (BL) et retourne UNIQUEMENT un objet JSON valide avec ces clés : 
             "bookingNumber", "containerNumber", "chassisNumber", "clientName", "passportNumber", "nin", "vehicleName", "portOfLoading", "portOfDestination", "shippingLine", "loadingDate". 
             Si une information est absente, mets "Non trouvé".
             Le numéro de châssis est souvent appelé VIN. 
@@ -10183,103 +10201,103 @@ const app = {
             ${text}
             ---`;
 
-        // Use selected model, cached working model, or fallback strategy
-        let modelToUse = settings.geminiModel || settings.activeModel || 'gemini-1.5-flash';
-        const modelsToTry = [modelToUse, 'gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+    // Use selected model, cached working model, or fallback strategy
+    let modelToUse = settings.geminiModel || settings.activeModel || 'gemini-1.5-flash';
+    const modelsToTry = [modelToUse, 'gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
 
-        // Remove duplicates while keeping order
-        const uniqueModels = [...new Set(modelsToTry)];
+    // Remove duplicates while keeping order
+    const uniqueModels = [...new Set(modelsToTry)];
 
-        let lastResponse = null;
+    let lastResponse = null;
 
-        let lastErrorStatus = null;
+    let lastErrorStatus = null;
 
-        for (const model of uniqueModels) {
-            console.log(`Attempting extraction with ${model}...`);
-            try {
-                const body = {
-                    contents: [{ parts: [{ text: prompt }] }]
-                };
-
-                // Only add response_mime_type for newer models (1.5+ or 2.0+)
-                if (model.includes('1.5') || model.includes('2.0') || model.includes('latest')) {
-                    body.generationConfig = { response_mime_type: "application/json" };
-                }
-
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${settings.geminiApiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-
-                if (response.ok) {
-                    lastResponse = await response.json();
-                    // Update active model if it changed/was discovered
-                    if (model !== settings.activeModel) {
-                        settings.activeModel = model;
-                        await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
-                    }
-                    console.log(`Success with ${model}`);
-                    break;
-                } else {
-                    lastErrorStatus = response.status;
-                    console.warn(`Model ${model} failed (${response.status}), trying next...`);
-
-                    if (response.status !== 404 && response.status !== 429) {
-                        const errBody = await response.json();
-                        const errMsg = errBody.error?.message || "";
-                        if (errMsg) console.warn("API Error Detail:", errMsg);
-                    }
-                }
-            } catch (err) {
-                console.error(`Error with ${model}:`, err);
-            }
-        }
-
-        if (!lastResponse) {
-            throw new Error(`Aucun modèle Gemini fonctionnel n'a pu être contacté. (Code: ${lastErrorStatus}). Veuillez vérifier la clé API et les quotas.`);
-        }
-
-        const result = lastResponse;
-        let jsonText = result.candidates[0].content.parts[0].text;
-
-        // Clean markdown formatting if present
-        if (jsonText.includes('```')) {
-            jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-        }
-
-        console.log("Gemini Raw Response:", jsonText);
-
+    for (const model of uniqueModels) {
+        console.log(`Attempting extraction with ${model}...`);
         try {
-            return JSON.parse(jsonText);
-        } catch (pErr) {
-            console.error("AI JSON Parse Error:", pErr, "Raw Text:", jsonText);
-            // Last ditch effort: try to find anything between { and }
-            const match = jsonText.match(/\{[\s\S]*\}/);
-            if (match) return JSON.parse(match[0]);
-            throw pErr;
+            const body = {
+                contents: [{ parts: [{ text: prompt }] }]
+            };
+
+            // Only add response_mime_type for newer models (1.5+ or 2.0+)
+            if (model.includes('1.5') || model.includes('2.0') || model.includes('latest')) {
+                body.generationConfig = { response_mime_type: "application/json" };
+            }
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${settings.geminiApiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (response.ok) {
+                lastResponse = await response.json();
+                // Update active model if it changed/was discovered
+                if (model !== settings.activeModel) {
+                    settings.activeModel = model;
+                    await StorageService.save(STORAGE_KEYS.SETTINGS, settings);
+                }
+                console.log(`Success with ${model}`);
+                break;
+            } else {
+                lastErrorStatus = response.status;
+                console.warn(`Model ${model} failed (${response.status}), trying next...`);
+
+                if (response.status !== 404 && response.status !== 429) {
+                    const errBody = await response.json();
+                    const errMsg = errBody.error?.message || "";
+                    if (errMsg) console.warn("API Error Detail:", errMsg);
+                }
+            }
+        } catch (err) {
+            console.error(`Error with ${model}:`, err);
         }
-    },
+    }
+
+    if (!lastResponse) {
+        throw new Error(`Aucun modèle Gemini fonctionnel n'a pu être contacté. (Code: ${lastErrorStatus}). Veuillez vérifier la clé API et les quotas.`);
+    }
+
+    const result = lastResponse;
+    let jsonText = result.candidates[0].content.parts[0].text;
+
+    // Clean markdown formatting if present
+    if (jsonText.includes('```')) {
+        jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+    }
+
+    console.log("Gemini Raw Response:", jsonText);
+
+    try {
+        return JSON.parse(jsonText);
+    } catch (pErr) {
+        console.error("AI JSON Parse Error:", pErr, "Raw Text:", jsonText);
+        // Last ditch effort: try to find anything between { and }
+        const match = jsonText.match(/\{[\s\S]*\}/);
+        if (match) return JSON.parse(match[0]);
+        throw pErr;
+    }
+},
 
 
     async showLiveVoyageTracking(voyageName) {
-        this.showToast(`Recherche de la position du voyage ${voyageName}...`, "info");
-        try {
-            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message || "Impossible de localiser le voyage");
-            app.showTrackingModal(result.data, `Suivi Voyage: ${voyageName}`);
-        } catch (error) {
-            console.error("Voyage Tracking Error:", error);
-            this.showToast(error.message, "danger");
-        }
-    },
+    this.showToast(`Recherche de la position du voyage ${voyageName}...`, "info");
+    try {
+        const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || "Impossible de localiser le voyage");
+        app.showTrackingModal(result.data, `Suivi Voyage: ${voyageName}`);
+    } catch (error) {
+        console.error("Voyage Tracking Error:", error);
+        this.showToast(error.message, "danger");
+    }
+},
 
-    showTrackingModal(data, title = "Détails du Suivi") {
-        const events = data.events || [];
-        const location = data.location || { name: 'Inconnu', lat: 0, lng: 0 };
+showTrackingModal(data, title = "Détails du Suivi") {
+    const events = data.events || [];
+    const location = data.location || { name: 'Inconnu', lat: 0, lng: 0 };
 
-        const modalHtml = `
+    const modalHtml = `
                 <div class="modal-overlay" onclick="app.closeModal()">
                     <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 700px; max-width: 95vw;">
                         <div class="modal-header">
@@ -10323,32 +10341,32 @@ const app = {
                     </div>
                 </div>
             `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-        // Initialize Mini Map if coordinates exist
-        if (window.L && location.lat && location.lng) {
-            setTimeout(() => {
-                const map = L.map('modal-tracking-map', { zoomControl: false }).setView([location.lat, location.lng], 4);
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; CARTO'
-                }).addTo(map);
+    // Initialize Mini Map if coordinates exist
+    if (window.L && location.lat && location.lng) {
+        setTimeout(() => {
+            const map = L.map('modal-tracking-map', { zoomControl: false }).setView([location.lat, location.lng], 4);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO'
+            }).addTo(map);
 
-                const icon = L.divIcon({
-                    html: '<i class="fas fa-ship" style="font-size: 24px; color: #4ade80;"></i>',
-                    className: 'ship-marker-modal',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                });
+            const icon = L.divIcon({
+                html: '<i class="fas fa-ship" style="font-size: 24px; color: #4ade80;"></i>',
+                className: 'ship-marker-modal',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
 
-                L.marker([location.lat, location.lng], { icon: icon }).addTo(map)
-                    .bindPopup(`<b>${data.vesselName}</b><br>${location.name}`).openPopup();
-            }, 100);
-        }
-    },
+            L.marker([location.lat, location.lng], { icon: icon }).addTo(map)
+                .bindPopup(`<b>${data.vesselName}</b><br>${location.name}`).openPopup();
+        }, 100);
+    }
+},
 
 
     async renderAudit() {
-        this.viewContainer.innerHTML = `
+    this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div>
                         <h1>Journal d'Activité</h1>
@@ -10362,20 +10380,20 @@ const app = {
                 </div>
             `;
 
-        try {
-            const response = await ApiService.getAuditLogs();
-            const container = document.getElementById('audit-timeline');
+    try {
+        const response = await ApiService.getAuditLogs();
+        const container = document.getElementById('audit-timeline');
 
-            if (!response.success || response.data.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Aucune activité enregistrée.</p>';
-                return;
-            }
+        if (!response.success || response.data.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Aucune activité enregistrée.</p>';
+            return;
+        }
 
-            container.innerHTML = response.data.map(log => {
-                const date = new Date(log.createdAt);
-                const actionClass = log.action.toLowerCase();
+        container.innerHTML = response.data.map(log => {
+            const date = new Date(log.createdAt);
+            const actionClass = log.action.toLowerCase();
 
-                return `
+            return `
                         <div class="audit-item" style="display: flex; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-glass);">
                             <div class="audit-icon ${actionClass}" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(99, 102, 241, 0.1); flex-shrink: 0;">
                                 <i class="fas ${this.getAuditIcon(log.action)}"></i>
@@ -10404,26 +10422,26 @@ const app = {
                             </div>
                         </div>
                     `;
-            }).join('');
+        }).join('');
 
-        } catch (error) {
-            console.error("Error rendering audit logs:", error);
-            this.showToast("Erreur lors du chargement des journaux", "error");
-        }
-    },
+    } catch (error) {
+        console.error("Error rendering audit logs:", error);
+        this.showToast("Erreur lors du chargement des journaux", "error");
+    }
+},
 
-    getAuditIcon(action) {
-        switch (action) {
-            case 'CREATE': return 'fa-plus-circle';
-            case 'UPDATE': return 'fa-edit';
-            case 'DELETE': return 'fa-trash-alt';
-            case 'LOGIN': return 'fa-sign-in-alt';
-            default: return 'fa-info-circle';
-        }
-    },
+getAuditIcon(action) {
+    switch (action) {
+        case 'CREATE': return 'fa-plus-circle';
+        case 'UPDATE': return 'fa-edit';
+        case 'DELETE': return 'fa-trash-alt';
+        case 'LOGIN': return 'fa-sign-in-alt';
+        default: return 'fa-info-circle';
+    }
+},
 
-    renderGlobalTracking() {
-        this.viewContainer.innerHTML = `
+renderGlobalTracking() {
+    this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div class="header-info">
                         <h1>Carte Mondiale du Suivi</h1>
@@ -10436,40 +10454,40 @@ const app = {
                 </div>
             `;
 
-        const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
-            .filter(s => s.currentLat && s.currentLng && !s.isArchived);
+    const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+        .filter(s => s.currentLat && s.currentLng && !s.isArchived);
 
-        if (window.L) {
-            setTimeout(() => {
-                const map = L.map('global-map', { zoomControl: false }).setView([20, 0], 2);
-                L.control.zoom({ position: 'topright' }).addTo(map);
+    if (window.L) {
+        setTimeout(() => {
+            const map = L.map('global-map', { zoomControl: false }).setView([20, 0], 2);
+            L.control.zoom({ position: 'topright' }).addTo(map);
 
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; CARTO'
-                }).addTo(map);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO'
+            }).addTo(map);
 
-                shipments.forEach(s => {
-                    const isError = s.status === 'Erreur Tracking' || s.status === 'Tracking Error' || s.status === 'No API Key';
-                    const color = isError ? '#ef4444' : '#4ade80';
-                    const shadowColor = isError ? 'rgba(239, 68, 68, 0.5)' : 'rgba(74, 222, 128, 0.5)';
+            shipments.forEach(s => {
+                const isError = s.status === 'Erreur Tracking' || s.status === 'Tracking Error' || s.status === 'No API Key';
+                const color = isError ? '#ef4444' : '#4ade80';
+                const shadowColor = isError ? 'rgba(239, 68, 68, 0.5)' : 'rgba(74, 222, 128, 0.5)';
 
-                    const icon = L.divIcon({
-                        html: `<i class="fas fa-ship" style="font-size: 20px; color: ${color}; text-shadow: 0 0 10px ${shadowColor};"></i>`,
-                        className: 'global-ship-marker',
-                        iconSize: [20, 20],
-                        iconAnchor: [10, 10]
-                    });
+                const icon = L.divIcon({
+                    html: `<i class="fas fa-ship" style="font-size: 20px; color: ${color}; text-shadow: 0 0 10px ${shadowColor};"></i>`,
+                    className: 'global-ship-marker',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
 
-                    const hasHistory = s.trackingHistory && s.trackingHistory.length > 20;
-                    const safeId = s.id ? s.id.replace(/'/g, "\\'") : '';
-                    const safeVoyage = s.voyage ? s.voyage.replace(/'/g, "\\'") : '';
-                    const action = hasHistory ? `app.showLocalTracking('${safeId}')` : `app.showLiveVoyageTracking('${safeVoyage}')`;
-                    const actionText = hasHistory ? 'Voir Historique' : 'Localiser (Sat)';
-                    const actionColor = hasHistory ? '#10b981' : '#6366f1';
+                const hasHistory = s.trackingHistory && s.trackingHistory.length > 20;
+                const safeId = s.id ? s.id.replace(/'/g, "\\'") : '';
+                const safeVoyage = s.voyage ? s.voyage.replace(/'/g, "\\'") : '';
+                const action = hasHistory ? `app.showLocalTracking('${safeId}')` : `app.showLiveVoyageTracking('${safeVoyage}')`;
+                const actionText = hasHistory ? 'Voir Historique' : 'Localiser (Sat)';
+                const actionColor = hasHistory ? '#10b981' : '#6366f1';
 
-                    L.marker([s.currentLat, s.currentLng], { icon: icon })
-                        .addTo(map)
-                        .bindPopup(`
+                L.marker([s.currentLat, s.currentLng], { icon: icon })
+                    .addTo(map)
+                    .bindPopup(`
                                 <div style="color: #333; min-width: 150px;">
                                     <div style="font-weight: bold; font-size: 1rem; margin-bottom: 5px;">${s.vesselName || s.carrier || 'Navire'}</div>
                                     <div style="font-size: 0.85rem; margin-bottom: 3px;">Voyage: <b>${s.voyage || 'N/A'}</b></div>
@@ -10482,171 +10500,171 @@ const app = {
                                     </button>
                                 </div>
                             `);
-                });
-            }, 100);
-        }
-    },
+            });
+        }, 100);
+    }
+},
 
-    showShipmentMap(id) {
-        // Switch to global tracking and potentially zoom?
-        // Or if there is a specific single shipment map, use it.
-        // For now, let's switch to dashboard or global tracking.
-        // The most logical thing is to switch to dashboard map where we already implemented red markers.
-        this.switchView('dashboard');
-        // Wait for render then zoom
-        setTimeout(() => {
-            this.zoomToShipment(id);
-        }, 500);
-    },
+showShipmentMap(id) {
+    // Switch to global tracking and potentially zoom?
+    // Or if there is a specific single shipment map, use it.
+    // For now, let's switch to dashboard or global tracking.
+    // The most logical thing is to switch to dashboard map where we already implemented red markers.
+    this.switchView('dashboard');
+    // Wait for render then zoom
+    setTimeout(() => {
+        this.zoomToShipment(id);
+    }, 500);
+},
 
-    showLocalTracking(shipmentId) {
-        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-        const shipment = shipments.find(s => s.id === shipmentId);
-        if (shipment && shipment.trackingHistory) {
-            try {
-                const events = JSON.parse(shipment.trackingHistory);
-                const data = {
-                    events: events,
-                    location: {
-                        lat: shipment.currentLat,
-                        lng: shipment.currentLng,
-                        name: 'Dernière position connue'
-                    },
-                    vesselName: shipment.shipStatus || shipment.vesselName || 'Navire',
-                    status: shipment.status
-                };
-                app.showTrackingModal(data, `Détails Navire: ${shipment.vesselName}`);
-            } catch (e) {
-                console.error("Local tracking parse error", e);
-                this.showToast("Erreur de données locales", "error");
-            }
-        } else {
-            this.showToast("Pas d'historique local disponible", "warning");
+showLocalTracking(shipmentId) {
+    const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+    const shipment = shipments.find(s => s.id === shipmentId);
+    if (shipment && shipment.trackingHistory) {
+        try {
+            const events = JSON.parse(shipment.trackingHistory);
+            const data = {
+                events: events,
+                location: {
+                    lat: shipment.currentLat,
+                    lng: shipment.currentLng,
+                    name: 'Dernière position connue'
+                },
+                vesselName: shipment.shipStatus || shipment.vesselName || 'Navire',
+                status: shipment.status
+            };
+            app.showTrackingModal(data, `Détails Navire: ${shipment.vesselName}`);
+        } catch (e) {
+            console.error("Local tracking parse error", e);
+            this.showToast("Erreur de données locales", "error");
         }
-    },
+    } else {
+        this.showToast("Pas d'historique local disponible", "warning");
+    }
+},
 
     async toggleVoyageTracking(voyageName, active) {
-        try {
-            this.showToast(`Mise à jour du tracking pour ${voyageName}...`, "info");
-            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}/toggle`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active })
-            });
-            const res = await response.json();
-            if (res.success) {
-                this.showToast(res.message, "success");
-                await StorageService.syncAll();
-                this.renderView(this.currentView);
-            } else {
-                throw new Error(res.message);
-            }
-        } catch (error) {
-            console.error("Toggle error:", error);
-            this.showToast("Erreur lors du changement de statut", "error");
+    try {
+        this.showToast(`Mise à jour du tracking pour ${voyageName}...`, "info");
+        const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active })
+        });
+        const res = await response.json();
+        if (res.success) {
+            this.showToast(res.message, "success");
+            await StorageService.syncAll();
             this.renderView(this.currentView);
+        } else {
+            throw new Error(res.message);
         }
-    },
+    } catch (error) {
+        console.error("Toggle error:", error);
+        this.showToast("Erreur lors du changement de statut", "error");
+        this.renderView(this.currentView);
+    }
+},
 
-    showShipmentTrackingHistory(shipmentId) {
-        console.log("🔍 Affichage de l'historique pour l'expédition:", shipmentId);
-        try {
-            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-            const shipment = shipments.find(s => s.id === shipmentId);
+showShipmentTrackingHistory(shipmentId) {
+    console.log("🔍 Affichage de l'historique pour l'expédition:", shipmentId);
+    try {
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const shipment = shipments.find(s => s.id === shipmentId);
 
-            if (!shipment) {
-                this.showToast("Expédition introuvable", "error");
-                return;
-            }
-
-            console.log("📊 Expédition trouvée:", shipment);
-
-            let events = [];
-            let source = 'Données Locales';
-
-            // Try to get tracking history from shipment
-            if (shipment.trackingHistory) {
-                try {
-                    const parsed = typeof shipment.trackingHistory === 'string' ?
-                        JSON.parse(shipment.trackingHistory) : shipment.trackingHistory;
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        events = parsed;
-                        source = shipment.carrier || 'Transporteur';
-                    }
-                } catch (e) {
-                    console.error("❌ Erreur parse shipment history:", e);
-                }
-            }
-
-            // If no tracking history, create events from shipment data
-            if (events.length === 0) {
-                if (shipment.shipmentDate) {
-                    events.push({
-                        date: shipment.shipmentDate,
-                        description: 'Expédition créée',
-                        location: shipment.loadingPort || 'Port de départ',
-                        isActual: true
-                    });
-                }
-                if (shipment.etd) {
-                    events.push({
-                        date: shipment.etd,
-                        description: 'Départ prévu (ETD)',
-                        location: shipment.loadingPort || 'Port de départ',
-                        isActual: false
-                    });
-                }
-                if (shipment.eta) {
-                    events.push({
-                        date: shipment.eta,
-                        description: 'Arrivée prévue (ETA)',
-                        location: shipment.destination || 'Port de destination',
-                        isActual: false
-                    });
-                }
-                if (shipment.arrivalDate) {
-                    events.push({
-                        date: shipment.arrivalDate,
-                        description: 'Arrivée confirmée',
-                        location: shipment.destination || 'Port de destination',
-                        isActual: true
-                    });
-                }
-                if (shipment.customsClearanceDate) {
-                    events.push({
-                        date: shipment.customsClearanceDate,
-                        description: 'Dédouanement effectué',
-                        location: shipment.destination || 'Douane',
-                        isActual: true
-                    });
-                }
-                if (shipment.pickupDate) {
-                    events.push({
-                        date: shipment.pickupDate,
-                        description: 'Véhicule enlevé',
-                        location: 'Livraison finale',
-                        isActual: true
-                    });
-                }
-
-                // Sort events by date
-                events.sort((a, b) => new Date(a.date) - new Date(b.date));
-            }
-
-            console.log("✅ Événements à afficher:", events.length);
-
-            this.renderTrackingHistoryModal(shipment, events, source);
-        } catch (error) {
-            console.error("Error showing tracking history:", error);
-            this.showToast("Erreur lors de l'affichage de l'historique", "danger");
+        if (!shipment) {
+            this.showToast("Expédition introuvable", "error");
+            return;
         }
-    },
 
-    renderTrackingHistoryModal(shipment, events, source) {
-        // Sort by date desc (double check)
-        events.sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp));
+        console.log("📊 Expédition trouvée:", shipment);
 
-        const modalHtml = `
+        let events = [];
+        let source = 'Données Locales';
+
+        // Try to get tracking history from shipment
+        if (shipment.trackingHistory) {
+            try {
+                const parsed = typeof shipment.trackingHistory === 'string' ?
+                    JSON.parse(shipment.trackingHistory) : shipment.trackingHistory;
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    events = parsed;
+                    source = shipment.carrier || 'Transporteur';
+                }
+            } catch (e) {
+                console.error("❌ Erreur parse shipment history:", e);
+            }
+        }
+
+        // If no tracking history, create events from shipment data
+        if (events.length === 0) {
+            if (shipment.shipmentDate) {
+                events.push({
+                    date: shipment.shipmentDate,
+                    description: 'Expédition créée',
+                    location: shipment.loadingPort || 'Port de départ',
+                    isActual: true
+                });
+            }
+            if (shipment.etd) {
+                events.push({
+                    date: shipment.etd,
+                    description: 'Départ prévu (ETD)',
+                    location: shipment.loadingPort || 'Port de départ',
+                    isActual: false
+                });
+            }
+            if (shipment.eta) {
+                events.push({
+                    date: shipment.eta,
+                    description: 'Arrivée prévue (ETA)',
+                    location: shipment.destination || 'Port de destination',
+                    isActual: false
+                });
+            }
+            if (shipment.arrivalDate) {
+                events.push({
+                    date: shipment.arrivalDate,
+                    description: 'Arrivée confirmée',
+                    location: shipment.destination || 'Port de destination',
+                    isActual: true
+                });
+            }
+            if (shipment.customsClearanceDate) {
+                events.push({
+                    date: shipment.customsClearanceDate,
+                    description: 'Dédouanement effectué',
+                    location: shipment.destination || 'Douane',
+                    isActual: true
+                });
+            }
+            if (shipment.pickupDate) {
+                events.push({
+                    date: shipment.pickupDate,
+                    description: 'Véhicule enlevé',
+                    location: 'Livraison finale',
+                    isActual: true
+                });
+            }
+
+            // Sort events by date
+            events.sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+
+        console.log("✅ Événements à afficher:", events.length);
+
+        this.renderTrackingHistoryModal(shipment, events, source);
+    } catch (error) {
+        console.error("Error showing tracking history:", error);
+        this.showToast("Erreur lors de l'affichage de l'historique", "danger");
+    }
+},
+
+renderTrackingHistoryModal(shipment, events, source) {
+    // Sort by date desc (double check)
+    events.sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp));
+
+    const modalHtml = `
              <div class="modal-overlay" onclick="app.closeModal()">
                  <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
                      <div class="modal-header">
@@ -10660,8 +10678,8 @@ const app = {
                      </div>
                      <div class="modal-body" style="overflow-y: auto; padding: 20px;">
                          ${events.length === 0 ?
-                '<div style="text-align: center; color: var(--text-secondary); padding: 40px; opacity: 0.6;"><i class="fas fa-ghost fa-3x mb-3"></i><br>Aucun historique disponible</div>' :
-                `<div class="timeline-vertical" style="display: flex; flex-direction: column; gap: 20px;">
+            '<div style="text-align: center; color: var(--text-secondary); padding: 40px; opacity: 0.6;"><i class="fas fa-ghost fa-3x mb-3"></i><br>Aucun historique disponible</div>' :
+            `<div class="timeline-vertical" style="display: flex; flex-direction: column; gap: 20px;">
                                  ${events.map((e, i) => `
                                      <div class="timeline-event" style="display: flex; gap: 15px; position: relative;">
                                          <div class="timeline-line" style="position: absolute; left: 11px; top: 25px; bottom: -20px; width: 2px; background: var(--border-glass); height: calc(100% + 5px); display: ${i === events.length - 1 ? 'none' : 'block'}"></div>
@@ -10679,7 +10697,7 @@ const app = {
                                      </div>
                                  `).join('')}
                              </div>`
-            }
+        }
                      </div>
                      <div class="modal-footer" style="padding: 15px; border-top: 1px solid var(--border-glass);">
                          <button class="btn-secondary" style="width: 100%;" onclick="app.closeModal()">Fermer</button>
@@ -10687,62 +10705,62 @@ const app = {
                  </div>
              </div>
          `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    },
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+},
 
 
-    showVoyageTrackingHistory(voyageName) {
-        console.log("🔍 Tentative d'affichage de l'historique pour:", voyageName);
-        try {
-            const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
-            const voyageEntity = voyages.find(v => v.name === voyageName || v.id == voyageName);
+showVoyageTrackingHistory(voyageName) {
+    console.log("🔍 Tentative d'affichage de l'historique pour:", voyageName);
+    try {
+        const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
+        const voyageEntity = voyages.find(v => v.name === voyageName || v.id == voyageName);
 
-            const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
-                .filter(s => s.voyage === voyageName || (voyageEntity && s.voyageId === voyageEntity.id));
+        const shipments = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+            .filter(s => s.voyage === voyageName || (voyageEntity && s.voyageId === voyageEntity.id));
 
-            console.log("📊 Données trouvées:", {
-                voyageFound: !!voyageEntity,
-                shipmentsCount: shipments.length
-            });
+        console.log("📊 Données trouvées:", {
+            voyageFound: !!voyageEntity,
+            shipmentsCount: shipments.length
+        });
 
-            let events = [];
-            let source = 'Données Satellite';
-            let count = shipments.length;
+        let events = [];
+        let source = 'Données Satellite';
+        let count = shipments.length;
 
-            // 1. Try Voyage Entity
-            if (voyageEntity && voyageEntity.trackingHistory) {
+        // 1. Try Voyage Entity
+        if (voyageEntity && voyageEntity.trackingHistory) {
+            try {
+                const parsed = typeof voyageEntity.trackingHistory === 'string' ?
+                    JSON.parse(voyageEntity.trackingHistory) : voyageEntity.trackingHistory;
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    events = parsed;
+                    source = voyageEntity.shipStatus || 'Suivi Voyage';
+                }
+            } catch (e) {
+                console.error("❌ Erreur parse voyage history:", e);
+            }
+        }
+
+        // 2. Try Shipments if still empty
+        if (events.length === 0) {
+            const shipmentWithHistory = shipments.find(s => s.trackingHistory && s.trackingHistory.length > 5);
+            if (shipmentWithHistory) {
                 try {
-                    const parsed = typeof voyageEntity.trackingHistory === 'string' ?
-                        JSON.parse(voyageEntity.trackingHistory) : voyageEntity.trackingHistory;
-                    if (Array.isArray(parsed) && parsed.length > 0) {
+                    const parsed = typeof shipmentWithHistory.trackingHistory === 'string' ?
+                        JSON.parse(shipmentWithHistory.trackingHistory) : shipmentWithHistory.trackingHistory;
+                    if (Array.isArray(parsed)) {
                         events = parsed;
-                        source = voyageEntity.shipStatus || 'Suivi Voyage';
+                        source = shipmentWithHistory.shipStatus || source;
                     }
                 } catch (e) {
-                    console.error("❌ Erreur parse voyage history:", e);
+                    console.error("❌ Erreur parse shipment history:", e);
                 }
             }
+        }
 
-            // 2. Try Shipments if still empty
-            if (events.length === 0) {
-                const shipmentWithHistory = shipments.find(s => s.trackingHistory && s.trackingHistory.length > 5);
-                if (shipmentWithHistory) {
-                    try {
-                        const parsed = typeof shipmentWithHistory.trackingHistory === 'string' ?
-                            JSON.parse(shipmentWithHistory.trackingHistory) : shipmentWithHistory.trackingHistory;
-                        if (Array.isArray(parsed)) {
-                            events = parsed;
-                            source = shipmentWithHistory.shipStatus || source;
-                        }
-                    } catch (e) {
-                        console.error("❌ Erreur parse shipment history:", e);
-                    }
-                }
-            }
+        console.log("✅ Événements à afficher:", events.length);
 
-            console.log("✅ Événements à afficher:", events.length);
-
-            const modalHtml = `
+        const modalHtml = `
                 <div class="modal-overlay" onclick="app.closeModal()">
                     <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 700px; max-width: 95vw;">
                         <div class="modal-header">
@@ -10790,42 +10808,42 @@ const app = {
                     </div>
                 </div>
             `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        } catch (err) {
-            console.error("💥 Erreur critique showVoyageTrackingHistory:", err);
-            this.showToast("Erreur d'affichage: " + err.message, "danger");
-        }
-    },
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    } catch (err) {
+        console.error("💥 Erreur critique showVoyageTrackingHistory:", err);
+        this.showToast("Erreur d'affichage: " + err.message, "danger");
+    }
+},
 
     async trackVoyage(voyageName) {
-        this.showToast(`Mise à jour du suivi satellite pour ${voyageName}...`, "info");
-        try {
-            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
-            const res = await response.json();
-            if (res.success) {
-                this.showToast("Données satellite récupérées avec succès", "success");
-                await StorageService.syncAll();
-                this.renderView(this.currentView);
-                this.closeModal();
-                setTimeout(() => this.showVoyageTrackingHistory(voyageName), 500);
-            } else {
-                // Show carrier links modal if available
-                const carrierInfo = res.data?.carrierInfo;
-                this.closeModal();
-                this.showCarrierLinksModal(voyageName, carrierInfo, res.message);
-            }
-        } catch (err) {
-            console.error("Voyage tracking error:", err);
-            this.showCarrierLinksModal(voyageName, null, err.message);
+    this.showToast(`Mise à jour du suivi satellite pour ${voyageName}...`, "info");
+    try {
+        const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
+        const res = await response.json();
+        if (res.success) {
+            this.showToast("Données satellite récupérées avec succès", "success");
+            await StorageService.syncAll();
+            this.renderView(this.currentView);
+            this.closeModal();
+            setTimeout(() => this.showVoyageTrackingHistory(voyageName), 500);
+        } else {
+            // Show carrier links modal if available
+            const carrierInfo = res.data?.carrierInfo;
+            this.closeModal();
+            this.showCarrierLinksModal(voyageName, carrierInfo, res.message);
         }
-    },
+    } catch (err) {
+        console.error("Voyage tracking error:", err);
+        this.showCarrierLinksModal(voyageName, null, err.message);
+    }
+},
 
-    showCarrierLinksModal(voyageName, carrierInfo, errorMessage) {
-        let linksHtml = '';
-        if (carrierInfo) {
-            const links = carrierInfo.trackingUrls || (carrierInfo.trackingUrl ? [{ label: carrierInfo.carrier, url: carrierInfo.trackingUrl }] : []);
-            if (links.length > 0) {
-                linksHtml = `
+showCarrierLinksModal(voyageName, carrierInfo, errorMessage) {
+    let linksHtml = '';
+    if (carrierInfo) {
+        const links = carrierInfo.trackingUrls || (carrierInfo.trackingUrl ? [{ label: carrierInfo.carrier, url: carrierInfo.trackingUrl }] : []);
+        if (links.length > 0) {
+            linksHtml = `
                     <p style="margin-bottom: 15px; color: var(--text-secondary);">Transporteur détecté : <strong>${carrierInfo.carrier}</strong></p>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         ${links.map(l => `
@@ -10840,18 +10858,18 @@ const app = {
                             </a>
                         `).join('')}
                     </div>`;
-            }
         }
+    }
 
-        if (!linksHtml) {
-            linksHtml = `
+    if (!linksHtml) {
+        linksHtml = `
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     ${[
-                    { label: 'Grimaldi Lines', url: `https://www.grimaldi-lines.com/ro-ro-cargo/tracking/` },
-                    { label: 'MSC', url: 'https://www.msc.com/track-a-shipment' },
-                    { label: 'Maersk', url: 'https://www.maersk.com/tracking/' },
-                    { label: 'CMA CGM', url: 'https://www.cma-cgm.com/ebusiness/tracking' }
-                ].map(l => `
+                { label: 'Grimaldi Lines', url: `https://www.grimaldi-lines.com/ro-ro-cargo/tracking/` },
+                { label: 'MSC', url: 'https://www.msc.com/track-a-shipment' },
+                { label: 'Maersk', url: 'https://www.maersk.com/tracking/' },
+                { label: 'CMA CGM', url: 'https://www.cma-cgm.com/ebusiness/tracking' }
+            ].map(l => `
                         <a href="${l.url}" target="_blank" rel="noopener noreferrer"
                            style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px; text-decoration: none; color: var(--text-primary); transition: all 0.2s;"
                            onmouseover="this.style.background='rgba(99,102,241,0.18)'" onmouseout="this.style.background='rgba(99,102,241,0.08)'">
@@ -10860,9 +10878,9 @@ const app = {
                         </a>
                     `).join('')}
                 </div>`;
-        }
+    }
 
-        const modalHtml = `
+    const modalHtml = `
             <div class="modal-overlay" onclick="app.closeModal()">
                 <div class="modal-content glass" onclick="event.stopPropagation()" style="width: 520px; max-width: 95vw;">
                     <div class="modal-header">
@@ -10884,183 +10902,183 @@ const app = {
                     </div>
                 </div>
             </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    },
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+},
 
 
 
     async refreshAllVoyages() {
-        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+    const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
 
-        // Extract unique, non-empty voyage names
-        const voyageNames = [...new Set(shipments
-            .map(s => s.voyage ? s.voyage.trim() : '')
-            .filter(v => v !== '' && v !== 'SANS VOYAGE')
-        )].sort();
+    // Extract unique, non-empty voyage names
+    const voyageNames = [...new Set(shipments
+        .map(s => s.voyage ? s.voyage.trim() : '')
+        .filter(v => v !== '' && v !== 'SANS VOYAGE')
+    )].sort();
 
-        if (voyageNames.length === 0) {
-            this.showToast("Aucun voyage à actualiser.", "info");
+    if (voyageNames.length === 0) {
+        this.showToast("Aucun voyage à actualiser.", "info");
+        return;
+    }
+
+    if (!confirm(`Voulez-vous lancer l'actualisation de ${voyageNames.length} voyages ? Cela peut prendre plusieurs secondes.`)) {
+        return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < voyageNames.length; i++) {
+        const vName = voyageNames[i];
+        const progress = `(${i + 1}/${voyageNames.length})`;
+        this.showToast(`Mise à jour du voyage ${progress}: ${vName}...`, "info");
+
+        try {
+            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(vName)}`);
+            const res = await response.json();
+            if (res.success) {
+                successCount++;
+            } else {
+                console.warn(`Failed to update ${vName}: ${res.message}`);
+                failCount++;
+            }
+        } catch (err) {
+            console.error(`Error updating ${vName}:`, err);
+            failCount++;
+        }
+
+        // Small delay to be nice to the server/external API
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Final sync and refresh
+    await StorageService.syncAll();
+    this.renderView(this.currentView);
+
+    if (failCount === 0) {
+        this.showToast(`Succès ! ${successCount} voyages actualisés.`, "success");
+    } else {
+        this.showToast(`Terminé. ${successCount} succès, ${failCount} échecs.`, "warning");
+    }
+},
+
+isOutdated(dateString) {
+    if (!dateString) return true;
+    const lastUpdate = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now - lastUpdate) / (1000 * 60 * 60);
+    return diffInHours > 24;
+},
+
+// --- CLIENT IMPORT FEATURE ---
+
+downloadClientCSVTemplate() {
+    // Updated header to match Client structure more closely, using French labels
+    const headers = ["Reference;Prenom;Nom;Email;Telephone;Adresse;Entreprise;Passeport;NIN"];
+    // Providing 2 examples
+    const example1 = "CL-AUTO-1;Jean;Dupont;jean.dupont@email.com;0600000000;123 Rue Exemple;Dupont SARL;AB123456;123456789";
+    const example2 = "CL-AUTO-2;Marie;Curie;marie.curie@email.com;0700000000;456 Avenue Science;;CD789012;";
+
+    const csvContent = [headers, example1, example2].join("\n");
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    this._triggerDownload(blob, "modele_import_clients.csv");
+},
+
+    async handleClientImport(inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+        this.showToast("Veuillez sélectionner un fichier .csv valide", "error");
+        inputElement.value = ''; // Reset
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target.result;
+        const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+
+        if (lines.length < 2) {
+            this.showToast("Le fichier semble vide ou ne contient pas d'entêtes.", "warning");
             return;
         }
 
-        if (!confirm(`Voulez-vous lancer l'actualisation de ${voyageNames.length} voyages ? Cela peut prendre plusieurs secondes.`)) {
+        const headers = lines[0].split(';').map(h => h.trim().toLowerCase());
+        // Basic validation of headers
+        if (!headers.includes('prenom') || !headers.includes('nom')) {
+            this.showToast("Format CSV invalide. Utilisez le modèle.", "error");
             return;
         }
 
         let successCount = 0;
-        let failCount = 0;
+        let errorCount = 0;
+        const existingClients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
 
-        for (let i = 0; i < voyageNames.length; i++) {
-            const vName = voyageNames[i];
-            const progress = `(${i + 1}/${voyageNames.length})`;
-            this.showToast(`Mise à jour du voyage ${progress}: ${vName}...`, "info");
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(';');
+            if (cols.length < 3) continue; // Skip malformed lines
+
+            // Helper to safely get value by header index
+            const getVal = (headerPartial) => {
+                const idx = headers.findIndex(h => h.includes(headerPartial));
+                return idx !== -1 && cols[idx] ? cols[idx].trim() : '';
+            };
+
+            const email = getVal('email');
+            const firstName = getVal('prenom');
+            const lastName = getVal('nom');
+
+            // Skip duplicate emails if present
+            if (email && existingClients.some(c => c.email && c.email.toLowerCase() === email.toLowerCase())) {
+                console.log(`Skipping duplicate email: ${email}`);
+                errorCount++; // Count as error/skip
+                continue;
+            }
+
+            const newClient = {
+                id: `c-imp-${Date.now()}-${i}`,
+                reference: getVal('reference') || `CL-IMP-${Date.now()}-${i}`,
+                firstName: firstName || 'Inconnu',
+                lastName: lastName || 'Inconnu',
+                email: email || '',
+                phone: getVal('telephone') || '',
+                address: getVal('adresse') || '',
+                company: getVal('entreprise') || '',
+                passportNumber: getVal('passeport') || '',
+                nin: getVal('nin') || '',
+                showroom: 'Showroom Principal', // Default
+                archived: false
+            };
 
             try {
-                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(vName)}`);
-                const res = await response.json();
-                if (res.success) {
-                    successCount++;
-                } else {
-                    console.warn(`Failed to update ${vName}: ${res.message}`);
-                    failCount++;
-                }
+                await StorageService.add(STORAGE_KEYS.CLIENTS, newClient);
+                successCount++;
             } catch (err) {
-                console.error(`Error updating ${vName}:`, err);
-                failCount++;
+                console.error('Import error row ' + i, err);
+                errorCount++;
             }
-
-            // Small delay to be nice to the server/external API
-            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        // Final sync and refresh
+        inputElement.value = ''; // Reset input
+        this.showToast(`Import terminé : ${successCount} ajoutés, ${errorCount} ignorés/erreurs.`, successCount > 0 ? "success" : "warning");
+
+        // If we are on settings page, no need to rerender everything immediately, but good practice to sync
         await StorageService.syncAll();
-        this.renderView(this.currentView);
+    };
 
-        if (failCount === 0) {
-            this.showToast(`Succès ! ${successCount} voyages actualisés.`, "success");
-        } else {
-            this.showToast(`Terminé. ${successCount} succès, ${failCount} échecs.`, "warning");
-        }
-    },
+    reader.readAsText(file);
+},
 
-    isOutdated(dateString) {
-        if (!dateString) return true;
-        const lastUpdate = new Date(dateString);
-        const now = new Date();
-        const diffInHours = (now - lastUpdate) / (1000 * 60 * 60);
-        return diffInHours > 24;
-    },
+// --- REPORTS & EXPORTS FEATURE ---
 
-    // --- CLIENT IMPORT FEATURE ---
+showReportsModal() {
+    const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+    const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
+    const today = new Date().toISOString().split('T')[0];
+    const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-    downloadClientCSVTemplate() {
-        // Updated header to match Client structure more closely, using French labels
-        const headers = ["Reference;Prenom;Nom;Email;Telephone;Adresse;Entreprise;Passeport;NIN"];
-        // Providing 2 examples
-        const example1 = "CL-AUTO-1;Jean;Dupont;jean.dupont@email.com;0600000000;123 Rue Exemple;Dupont SARL;AB123456;123456789";
-        const example2 = "CL-AUTO-2;Marie;Curie;marie.curie@email.com;0700000000;456 Avenue Science;;CD789012;";
-
-        const csvContent = [headers, example1, example2].join("\n");
-        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        this._triggerDownload(blob, "modele_import_clients.csv");
-    },
-
-    async handleClientImport(inputElement) {
-        const file = inputElement.files[0];
-        if (!file) return;
-
-        if (!file.name.endsWith('.csv')) {
-            this.showToast("Veuillez sélectionner un fichier .csv valide", "error");
-            inputElement.value = ''; // Reset
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const text = e.target.result;
-            const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
-
-            if (lines.length < 2) {
-                this.showToast("Le fichier semble vide ou ne contient pas d'entêtes.", "warning");
-                return;
-            }
-
-            const headers = lines[0].split(';').map(h => h.trim().toLowerCase());
-            // Basic validation of headers
-            if (!headers.includes('prenom') || !headers.includes('nom')) {
-                this.showToast("Format CSV invalide. Utilisez le modèle.", "error");
-                return;
-            }
-
-            let successCount = 0;
-            let errorCount = 0;
-            const existingClients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const cols = lines[i].split(';');
-                if (cols.length < 3) continue; // Skip malformed lines
-
-                // Helper to safely get value by header index
-                const getVal = (headerPartial) => {
-                    const idx = headers.findIndex(h => h.includes(headerPartial));
-                    return idx !== -1 && cols[idx] ? cols[idx].trim() : '';
-                };
-
-                const email = getVal('email');
-                const firstName = getVal('prenom');
-                const lastName = getVal('nom');
-
-                // Skip duplicate emails if present
-                if (email && existingClients.some(c => c.email && c.email.toLowerCase() === email.toLowerCase())) {
-                    console.log(`Skipping duplicate email: ${email}`);
-                    errorCount++; // Count as error/skip
-                    continue;
-                }
-
-                const newClient = {
-                    id: `c-imp-${Date.now()}-${i}`,
-                    reference: getVal('reference') || `CL-IMP-${Date.now()}-${i}`,
-                    firstName: firstName || 'Inconnu',
-                    lastName: lastName || 'Inconnu',
-                    email: email || '',
-                    phone: getVal('telephone') || '',
-                    address: getVal('adresse') || '',
-                    company: getVal('entreprise') || '',
-                    passportNumber: getVal('passeport') || '',
-                    nin: getVal('nin') || '',
-                    showroom: 'Showroom Principal', // Default
-                    archived: false
-                };
-
-                try {
-                    await StorageService.add(STORAGE_KEYS.CLIENTS, newClient);
-                    successCount++;
-                } catch (err) {
-                    console.error('Import error row ' + i, err);
-                    errorCount++;
-                }
-            }
-
-            inputElement.value = ''; // Reset input
-            this.showToast(`Import terminé : ${successCount} ajoutés, ${errorCount} ignorés/erreurs.`, successCount > 0 ? "success" : "warning");
-
-            // If we are on settings page, no need to rerender everything immediately, but good practice to sync
-            await StorageService.syncAll();
-        };
-
-        reader.readAsText(file);
-    },
-
-    // --- REPORTS & EXPORTS FEATURE ---
-
-    showReportsModal() {
-        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
-        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-        const today = new Date().toISOString().split('T')[0];
-        const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
-        const modalHtml = `
+    const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 500px;">
                         <div class="modal-header">
@@ -11140,256 +11158,256 @@ const app = {
                     </div>
                 </div>
             `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    },
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+},
 
-    toggleReportFilters() {
-        const type = document.getElementById('report-type').value;
+toggleReportFilters() {
+    const type = document.getElementById('report-type').value;
 
-        // Hide all specific filters first
-        document.getElementById('filter-client-group').style.display = 'none';
-        document.getElementById('filter-showroom-group').style.display = 'none';
-        document.getElementById('filter-status-group').style.display = 'none';
+    // Hide all specific filters first
+    document.getElementById('filter-client-group').style.display = 'none';
+    document.getElementById('filter-showroom-group').style.display = 'none';
+    document.getElementById('filter-status-group').style.display = 'none';
 
-        // Show relevant ones
-        if (type === 'client') {
-            document.getElementById('filter-client-group').style.display = 'block';
-        } else if (type === 'showroom') {
-            document.getElementById('filter-showroom-group').style.display = 'block';
-        } else if (type === 'orders') {
-            document.getElementById('filter-status-group').style.display = 'block';
-            document.getElementById('filter-showroom-group').style.display = 'block'; // Also useful for orders
-        }
-    },
+    // Show relevant ones
+    if (type === 'client') {
+        document.getElementById('filter-client-group').style.display = 'block';
+    } else if (type === 'showroom') {
+        document.getElementById('filter-showroom-group').style.display = 'block';
+    } else if (type === 'orders') {
+        document.getElementById('filter-status-group').style.display = 'block';
+        document.getElementById('filter-showroom-group').style.display = 'block'; // Also useful for orders
+    }
+},
 
-    generateReport(format) {
-        const type = document.getElementById('report-type').value;
-        const start = document.getElementById('report-start').value;
-        const end = document.getElementById('report-end').value;
+generateReport(format) {
+    const type = document.getElementById('report-type').value;
+    const start = document.getElementById('report-start').value;
+    const end = document.getElementById('report-end').value;
 
-        const filters = {
-            start,
-            end,
-            clientId: document.getElementById('report-client').value,
-            showroom: document.getElementById('report-showroom').value,
-            status: document.getElementById('report-status') ? document.getElementById('report-status').value : ''
-        };
+    const filters = {
+        start,
+        end,
+        clientId: document.getElementById('report-client').value,
+        showroom: document.getElementById('report-showroom').value,
+        status: document.getElementById('report-status') ? document.getElementById('report-status').value : ''
+    };
 
-        if (type === 'client' && !filters.clientId) {
-            this.showToast('Veuillez sélectionner un client', 'warning');
-            return;
-        }
+    if (type === 'client' && !filters.clientId) {
+        this.showToast('Veuillez sélectionner un client', 'warning');
+        return;
+    }
 
-        this.showToast(`Génération du rapport ${type.toUpperCase()} (${format})...`, 'info');
+    this.showToast(`Génération du rapport ${type.toUpperCase()} (${format})...`, 'info');
 
-        // Logic switch
-        if (format === 'pdf') {
-            this._generatePDFReport(type, filters);
-        } else {
-            this._generateCSVReport(type, filters);
-        }
-    },
+    // Logic switch
+    if (format === 'pdf') {
+        this._generatePDFReport(type, filters);
+    } else {
+        this._generateCSVReport(type, filters);
+    }
+},
 
-    _generatePDFReport(type, filters) {
-        if (!window.jspdf || !window.jspdf.jsPDF) return alert("Bibliothèque PDF manquante.");
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('l', 'mm', 'a4');
-        const reportingCurrency = StorageService.get(STORAGE_KEYS.SETTINGS)?.reportingCurrency || 'AED';
+_generatePDFReport(type, filters) {
+    if (!window.jspdf || !window.jspdf.jsPDF) return alert("Bibliothèque PDF manquante.");
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const reportingCurrency = StorageService.get(STORAGE_KEYS.SETTINGS)?.reportingCurrency || 'AED';
 
-        // DATA GATHERING
-        let title = "";
-        let columns = [];
-        let rows = [];
-        let summaryText = [];
+    // DATA GATHERING
+    let title = "";
+    let columns = [];
+    let rows = [];
+    let summaryText = [];
 
-        const startDate = new Date(filters.start);
-        const endDate = new Date(filters.end);
-        endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(filters.start);
+    const endDate = new Date(filters.end);
+    endDate.setHours(23, 59, 59, 999);
 
-        // --- CASH REPORT ---
-        if (type === 'cash') {
-            title = "Rapport État de Caisse";
-            columns = ["Date", "Type", "Catégorie", "Description", "Montant", "Utilisateur"];
+    // --- CASH REPORT ---
+    if (type === 'cash') {
+        title = "Rapport État de Caisse";
+        columns = ["Date", "Type", "Catégorie", "Description", "Montant", "Utilisateur"];
 
-            const cashFlow = StorageService.get(STORAGE_KEYS.CASH_FLOW) || [];
-            const filteredCash = cashFlow.filter(c => {
-                const d = new Date(c.date);
-                return d >= startDate && d <= endDate;
-            }).sort((a, b) => new Date(b.date) - new Date(a.date));
+        const cashFlow = StorageService.get(STORAGE_KEYS.CASH_FLOW) || [];
+        const filteredCash = cashFlow.filter(c => {
+            const d = new Date(c.date);
+            return d >= startDate && d <= endDate;
+        }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            let totalIn = 0;
-            let totalOut = 0;
+        let totalIn = 0;
+        let totalOut = 0;
 
-            filteredCash.forEach(c => {
-                const amount = parseFloat(c.amount);
-                if (c.type === 'IN') totalIn += amount;
-                else totalOut += amount;
+        filteredCash.forEach(c => {
+            const amount = parseFloat(c.amount);
+            if (c.type === 'IN') totalIn += amount;
+            else totalOut += amount;
 
-                rows.push([
-                    new Date(c.date).toLocaleDateString(),
-                    c.type === 'IN' ? 'ENTRÉE' : 'SORTIE',
-                    c.category,
-                    c.description,
-                    this.formatCurrency(amount, c.currency, reportingCurrency),
-                    c.user
-                ]);
-            });
-
-            summaryText.push(`Total Entrées: ${this.formatCurrency(totalIn, reportingCurrency, reportingCurrency)}`);
-            summaryText.push(`Total Sorties: ${this.formatCurrency(totalOut, reportingCurrency, reportingCurrency)}`);
-            summaryText.push(`Balance Période: ${this.formatCurrency(totalIn - totalOut, reportingCurrency, reportingCurrency)}`);
-        }
-
-        // --- CLIENT REPORT ---
-        else if (type === 'client') {
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
-            const client = clients.find(c => c.id === filters.clientId);
-            title = `Situation Client - ${client.firstName} ${client.lastName}`;
-
-            summaryText.push(`Email: ${client.email}`);
-            summaryText.push(`Tel: ${client.phone}`);
-
-            columns = ["Date", "Commande", "Véhicule", "Total", "Payé", "Reste"];
-
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS).filter(o => o.clientId === client.id);
-
-            orders.forEach(o => {
-                const netPrice = (o.totalAmount || 0) - (o.discount || 0);
-                const paid = this.getPaidAmount(o.id);
-                rows.push([
-                    new Date(o.date).toLocaleDateString(),
-                    `#${o.id}`,
-                    o.vehicleName,
-                    this.formatCurrency(netPrice),
-                    this.formatCurrency(paid),
-                    this.formatCurrency(Math.max(0, netPrice - paid))
-                ]);
-            });
-        }
-
-        // --- ORDERS REPORT ---
-        else if (type === 'orders') {
-            title = "Rapport Commandes";
-            columns = ["Date", "Client", "Véhicule", "Showroom", "Statut", "Montant"];
-
-            let orders = StorageService.get(STORAGE_KEYS.ORDERS);
-            orders = orders.filter(o => {
-                const d = new Date(o.date);
-                const dateMatch = d >= startDate && d <= endDate;
-                const showroomMatch = !filters.showroom || o.showroom === filters.showroom;
-                const statusMatch = !filters.status || o.status === filters.status;
-                return dateMatch && showroomMatch && statusMatch;
-            });
-
-            let totalSales = 0;
-            orders.forEach(o => {
-                const netPrice = (o.totalAmount || 0) - (o.discount || 0);
-                totalSales += this.convertCurrency(netPrice, o.currency, reportingCurrency);
-                rows.push([
-                    new Date(o.date).toLocaleDateString(),
-                    o.clientName,
-                    o.vehicleName,
-                    o.showroom || 'N/A',
-                    o.status,
-                    this.formatCurrency(netPrice)
-                ]);
-            });
-            summaryText.push(`Total Ventes (Période): ${this.formatCurrency(totalSales, reportingCurrency)}`);
-        }
-
-        // --- SHOWROOM REPORT ---
-        else if (type === 'showroom') {
-            title = "Situation Showroom";
-            // For Showroom, maybe a summary of Stock?
-            // Let's do a Stock list for that showroom + Sales summary
-            const targetShowroom = filters.showroom || "Tous";
-            title += ` (${targetShowroom})`;
-
-            columns = ["Modèle", "Année", "VIN", "Prix Achat", "Prix Vente", "Statut"];
-
-            const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
-            const filteredVehicles = vehicles.filter(v =>
-                !v.isArchived &&
-                (!filters.showroom || v.showroom === filters.showroom)
-            );
-
-            let totalStockValue = 0;
-            filteredVehicles.forEach(v => {
-                totalStockValue += (v.purchasePrice || 0);
-                rows.push([
-                    `${v.brand} ${v.model}`,
-                    v.year,
-                    v.chassisNumber || '-',
-                    this.formatCurrency(v.purchasePrice),
-                    this.formatCurrency(v.salePrice || 0),
-                    v.status
-                ]);
-            });
-            summaryText.push(`Véhicules en Stock: ${filteredVehicles.length}`);
-            summaryText.push(`Valeur Stock (Achat): ${this.formatCurrency(totalStockValue)}`);
-        }
-
-        // GENERATE PDF
-        doc.setFontSize(18);
-        doc.text(title, 14, 20);
-
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(`Période: ${filters.start} au ${filters.end}`, 14, 28);
-
-        // Print Summary Text
-        let yPos = 35;
-        summaryText.forEach(line => {
-            doc.text(line, 14, yPos);
-            yPos += 6;
+            rows.push([
+                new Date(c.date).toLocaleDateString(),
+                c.type === 'IN' ? 'ENTRÉE' : 'SORTIE',
+                c.category,
+                c.description,
+                this.formatCurrency(amount, c.currency, reportingCurrency),
+                c.user
+            ]);
         });
 
-        doc.autoTable({
-            head: [columns],
-            body: rows,
-            startY: yPos + 5,
-            theme: 'grid',
-            headStyles: { fillColor: [66, 66, 66] }
+        summaryText.push(`Total Entrées: ${this.formatCurrency(totalIn, reportingCurrency, reportingCurrency)}`);
+        summaryText.push(`Total Sorties: ${this.formatCurrency(totalOut, reportingCurrency, reportingCurrency)}`);
+        summaryText.push(`Balance Période: ${this.formatCurrency(totalIn - totalOut, reportingCurrency, reportingCurrency)}`);
+    }
+
+    // --- CLIENT REPORT ---
+    else if (type === 'client') {
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+        const client = clients.find(c => c.id === filters.clientId);
+        title = `Situation Client - ${client.firstName} ${client.lastName}`;
+
+        summaryText.push(`Email: ${client.email}`);
+        summaryText.push(`Tel: ${client.phone}`);
+
+        columns = ["Date", "Commande", "Véhicule", "Total", "Payé", "Reste"];
+
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS).filter(o => o.clientId === client.id);
+
+        orders.forEach(o => {
+            const netPrice = (o.totalAmount || 0) - (o.discount || 0);
+            const paid = this.getPaidAmount(o.id);
+            rows.push([
+                new Date(o.date).toLocaleDateString(),
+                `#${o.id}`,
+                o.vehicleName,
+                this.formatCurrency(netPrice),
+                this.formatCurrency(paid),
+                this.formatCurrency(Math.max(0, netPrice - paid))
+            ]);
+        });
+    }
+
+    // --- ORDERS REPORT ---
+    else if (type === 'orders') {
+        title = "Rapport Commandes";
+        columns = ["Date", "Client", "Véhicule", "Showroom", "Statut", "Montant"];
+
+        let orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        orders = orders.filter(o => {
+            const d = new Date(o.date);
+            const dateMatch = d >= startDate && d <= endDate;
+            const showroomMatch = !filters.showroom || o.showroom === filters.showroom;
+            const statusMatch = !filters.status || o.status === filters.status;
+            return dateMatch && showroomMatch && statusMatch;
         });
 
-        doc.save(`rapport_${type}_${new Date().toISOString().split('T')[0]}.pdf`);
-        this.closeModal();
-        this.showToast('PDF Généré', 'success');
-    },
+        let totalSales = 0;
+        orders.forEach(o => {
+            const netPrice = (o.totalAmount || 0) - (o.discount || 0);
+            totalSales += this.convertCurrency(netPrice, o.currency, reportingCurrency);
+            rows.push([
+                new Date(o.date).toLocaleDateString(),
+                o.clientName,
+                o.vehicleName,
+                o.showroom || 'N/A',
+                o.status,
+                this.formatCurrency(netPrice)
+            ]);
+        });
+        summaryText.push(`Total Ventes (Période): ${this.formatCurrency(totalSales, reportingCurrency)}`);
+    }
 
-    _generateCSVReport(type, filters) {
-        // Simplified CSV export logic similar to PDF data gathering
-        // Reuse common logic if strictly necessary, but for now copying structure for speed
-        // This is a "MVP" implementation request.
+    // --- SHOWROOM REPORT ---
+    else if (type === 'showroom') {
+        title = "Situation Showroom";
+        // For Showroom, maybe a summary of Stock?
+        // Let's do a Stock list for that showroom + Sales summary
+        const targetShowroom = filters.showroom || "Tous";
+        title += ` (${targetShowroom})`;
 
-        let csvContent = "";
-        const reportingCurrency = StorageService.get(STORAGE_KEYS.SETTINGS)?.reportingCurrency || 'AED';
+        columns = ["Modèle", "Année", "VIN", "Prix Achat", "Prix Vente", "Statut"];
 
-        if (type === 'cash') {
-            csvContent += "Date,Type,Categorie,Description,Montant,Utilisateur\n";
-            const cashFlow = StorageService.get(STORAGE_KEYS.CASH_FLOW) || [];
-            // Filter...
-            // For brevity, exporting simplified logic
-            cashFlow.forEach(c => {
-                csvContent += `${c.date},${c.type},${c.category},"${c.description}",${c.amount},${c.user}\n`;
-            });
-        }
-        else {
-            // Generic fallback for other types in CSV for now or alert not implemented if too complex
-            // Implementing CLIENT CSV for example
-            csvContent += "Export CSV simplifié. Veuillez utiliser le PDF pour le rapport complet formatté.\n";
-        }
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
+        const filteredVehicles = vehicles.filter(v =>
+            !v.isArchived &&
+            (!filters.showroom || v.showroom === filters.showroom)
+        );
 
-        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        this._triggerDownload(blob, `rapport_${type}.csv`);
-        this.closeModal();
-    },
+        let totalStockValue = 0;
+        filteredVehicles.forEach(v => {
+            totalStockValue += (v.purchasePrice || 0);
+            rows.push([
+                `${v.brand} ${v.model}`,
+                v.year,
+                v.chassisNumber || '-',
+                this.formatCurrency(v.purchasePrice),
+                this.formatCurrency(v.salePrice || 0),
+                v.status
+            ]);
+        });
+        summaryText.push(`Véhicules en Stock: ${filteredVehicles.length}`);
+        summaryText.push(`Valeur Stock (Achat): ${this.formatCurrency(totalStockValue)}`);
+    }
 
-    renderBrandModelsSection() {
-        const modelsMap = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-        const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+    // GENERATE PDF
+    doc.setFontSize(18);
+    doc.text(title, 14, 20);
 
-        return `
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Période: ${filters.start} au ${filters.end}`, 14, 28);
+
+    // Print Summary Text
+    let yPos = 35;
+    summaryText.forEach(line => {
+        doc.text(line, 14, yPos);
+        yPos += 6;
+    });
+
+    doc.autoTable({
+        head: [columns],
+        body: rows,
+        startY: yPos + 5,
+        theme: 'grid',
+        headStyles: { fillColor: [66, 66, 66] }
+    });
+
+    doc.save(`rapport_${type}_${new Date().toISOString().split('T')[0]}.pdf`);
+    this.closeModal();
+    this.showToast('PDF Généré', 'success');
+},
+
+_generateCSVReport(type, filters) {
+    // Simplified CSV export logic similar to PDF data gathering
+    // Reuse common logic if strictly necessary, but for now copying structure for speed
+    // This is a "MVP" implementation request.
+
+    let csvContent = "";
+    const reportingCurrency = StorageService.get(STORAGE_KEYS.SETTINGS)?.reportingCurrency || 'AED';
+
+    if (type === 'cash') {
+        csvContent += "Date,Type,Categorie,Description,Montant,Utilisateur\n";
+        const cashFlow = StorageService.get(STORAGE_KEYS.CASH_FLOW) || [];
+        // Filter...
+        // For brevity, exporting simplified logic
+        cashFlow.forEach(c => {
+            csvContent += `${c.date},${c.type},${c.category},"${c.description}",${c.amount},${c.user}\n`;
+        });
+    }
+    else {
+        // Generic fallback for other types in CSV for now or alert not implemented if too complex
+        // Implementing CLIENT CSV for example
+        csvContent += "Export CSV simplifié. Veuillez utiliser le PDF pour le rapport complet formatté.\n";
+    }
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    this._triggerDownload(blob, `rapport_${type}.csv`);
+    this.closeModal();
+},
+
+renderBrandModelsSection() {
+    const modelsMap = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+    const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+
+    return `
             <div class="settings-section">
                 <h3><i class="fas fa-car-side"></i> Modèles par Marque</h3>
                 <div class="config-grid">
@@ -11411,32 +11429,32 @@ const app = {
                 </div>
             </div>
         `;
-    },
+},
 
-    manageModels(brand) {
-        // Find brand in BRANDS_RAW to get its ID
-        const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-        const brandObj = brandsRaw.find(b => b.name === brand);
+manageModels(brand) {
+    // Find brand in BRANDS_RAW to get its ID
+    const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+    const brandObj = brandsRaw.find(b => b.name === brand);
 
-        if (!brandObj) {
-            return this.showToast("Erreur: Marque introuvable.", "error");
-        }
+    if (!brandObj) {
+        return this.showToast("Erreur: Marque introuvable.", "error");
+    }
 
-        // Use the existing logic or placeholder
-        alert("Gestion détaillée des modèles pour " + brand + " (ID: " + brandObj.id + ") à venir.\nEn attendant, vous pouvez ajouter des modèles via le champ 'Ajouter un modèle' ci-dessous dans la vue Configuration.");
-    },
+    // Use the existing logic or placeholder
+    alert("Gestion détaillée des modèles pour " + brand + " (ID: " + brandObj.id + ") à venir.\nEn attendant, vous pouvez ajouter des modèles via le champ 'Ajouter un modèle' ci-dessous dans la vue Configuration.");
+},
 
-    showShipmentMap(shipmentId) {
-        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-        const shipment = shipments.find(s => s.id === shipmentId);
-        if (!shipment) return this.showToast("Expédition introuvable", "error");
+showShipmentMap(shipmentId) {
+    const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+    const shipment = shipments.find(s => s.id === shipmentId);
+    if (!shipment) return this.showToast("Expédition introuvable", "error");
 
-        // Use coordinates if available, otherwise fallback to Dakar
-        const hasCoords = shipment.currentLat && shipment.currentLng;
-        const locationQuery = hasCoords ? `${shipment.currentLat},${shipment.currentLng}` : (shipment.currentLocation || 'Dakar, Senegal');
-        const displayLocation = hasCoords ? `Lat: ${shipment.currentLat}, Lng: ${shipment.currentLng}` : (shipment.currentLocation || 'Position non disponible');
+    // Use coordinates if available, otherwise fallback to Dakar
+    const hasCoords = shipment.currentLat && shipment.currentLng;
+    const locationQuery = hasCoords ? `${shipment.currentLat},${shipment.currentLng}` : (shipment.currentLocation || 'Dakar, Senegal');
+    const displayLocation = hasCoords ? `Lat: ${shipment.currentLat}, Lng: ${shipment.currentLng}` : (shipment.currentLocation || 'Position non disponible');
 
-        const modalHtml = `
+    const modalHtml = `
             <div class="modal-overlay">
                 <div class="modal-content glass" style="width: 90%; max-width: 900px; height: 80vh; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
                     <div class="modal-header" style="padding: 20px;">
@@ -11462,8 +11480,8 @@ const app = {
                 </div>
             </div>
         `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    }
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
 };
 
 // Initialize App
