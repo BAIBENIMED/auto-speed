@@ -8561,9 +8561,8 @@ const app = {
                     <button class="close-btn" onclick="document.getElementById('modal-overlay').remove()"><i class="fas fa-times"></i></button>
                 </div>
                 <form id="po-form" class="modal-body">
-                    ${!id ? `
                         <div class="section-header" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                            <h3>1. Sélectionner les Commandes Client</h3>
+                            <h3>1. ${!id ? 'Sélectionner les Commandes Client' : 'Véhicules de la Commande'}</h3>
                             <button type="button" class="btn-secondary btn-sm" onclick="app.addStockRowToPO()">
                                 <i class="fas fa-plus"></i> Ajouter Véhicule Stock
                             </button>
