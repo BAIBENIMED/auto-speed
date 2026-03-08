@@ -8662,7 +8662,6 @@ const app = {
                                 </tbody>
                             </table>
                         </div>
-                        `}
 
                     <div class="section-header" style="margin-top: 20px; margin-bottom: 15px;">
                         <h3>2. Détails de l'Achat</h3>
