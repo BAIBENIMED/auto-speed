@@ -8549,17 +8549,12 @@ const app = {
         const eligibleOrders = orders.filter(o =>
             o.isValidated &&
             !['ANNULÉE', 'ANNULÉ'].includes(o.status) &&
-            !o.vehicleId &&
-            (!existingPOs.find(p => p.orderId === o.id) || (po && po.orderId === o.id))
+            !o.vehicleId
         );
 
-        if (!eligibleOrders.length && !id) {
-            this.showToast("Aucune commande client validée et non affectée disponible pour un achat.", "warning");
-            return;
-        }
 
         const modalHtml = `
-        < div id = "modal-overlay" class="modal-overlay" >
+        <div id="modal-overlay" class="modal-overlay">
             <div class="modal glass" style="max-width: 900px; width: 95%;">
                 <div class="modal-header">
                     <h2>${id ? 'Modifier' : 'Nouveaux'} Achats</h2>
@@ -8567,9 +8562,13 @@ const app = {
                 </div>
                 <form id="po-form" class="modal-body">
                     ${!id ? `
-                        <div class="section-header" style="margin-bottom: 15px;">
+                        <div class="section-header" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
                             <h3>1. Sélectionner les Commandes Client</h3>
+                            <button type="button" class="btn-secondary btn-sm" onclick="app.addStockRowToPO()">
+                                <i class="fas fa-plus"></i> Ajouter Véhicule Stock
+                            </button>
                         </div>
+
                         <div class="data-table-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
                             <table class="data-table">
                                 <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card);">
@@ -8697,9 +8696,9 @@ const app = {
                         <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Annuler</button>
                         <button type="submit" class="btn-primary">${id ? 'Mettre à jour' : 'Créer les commandes'}</button>
                     </div>
-                </form >
-            </div >
-            </div >
+                </form>
+            </div>
+        </div>
     `;
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
@@ -8724,14 +8723,17 @@ const app = {
 
             if (!id) {
                 const selectedCheckboxes = document.querySelectorAll('.po-order-checkbox:checked');
-                if (selectedCheckboxes.length === 0) {
-                    this.showToast("Veuillez sélectionner au moins une commande client.", "warning");
+                const stockRows = document.querySelectorAll('.po-stock-row');
+
+                if (selectedCheckboxes.length === 0 && stockRows.length === 0) {
+                    this.showToast("Veuillez sélectionner au moins une commande client ou ajouter un véhicule de stock.", "warning");
                     return;
                 }
 
+
                 const loadingToast = this.showToast("Création de la commande d'achat en cours...", "info", 0);
 
-                const vehiclesToCreate = Array.from(selectedCheckboxes).map(cb => {
+                const orderVehicles = Array.from(selectedCheckboxes).map(cb => {
                     const tr = cb.closest('tr');
                     const orderId = cb.value;
                     const order = orders.find(o => o.id === orderId);
@@ -8748,6 +8750,23 @@ const app = {
                         purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
                     };
                 });
+
+                const stockVehicles = Array.from(stockRows).map(tr => {
+                    return {
+                        orderId: null,
+                        brand: tr.querySelector('.brand-input').value || 'STOCK',
+                        model: tr.querySelector('.model-input').value || '',
+                        chassisNumber: tr.querySelector('.vin-input').value,
+                        color: tr.querySelector('.color-select').value,
+                        category: tr.querySelector('.category-select').value,
+                        mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
+                        purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
+                        purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
+                    };
+                });
+
+                const vehiclesToCreate = [...orderVehicles, ...stockVehicles];
+
 
                 const data = {
                     ...baseData,
@@ -8798,6 +8817,56 @@ const app = {
         });
     },
 
+    addStockRowToPO() {
+        const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
+        const colors = StorageService.get(STORAGE_KEYS.COLORS) || [];
+        const currencies = StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD'];
+
+        const tbody = document.querySelector('#po-form .data-table tbody');
+        if (!tbody) return;
+
+        const row = document.createElement('tr');
+        row.className = 'po-stock-row';
+        row.innerHTML = `
+            <td style="text-align: center;"><button type="button" class="btn-icon danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+            <td><strong>STOCK</strong></td>
+            <td>N/A</td>
+            <td>
+                <input type="text" class="glass-input brand-input" placeholder="Marque" required style="width: 80px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;">
+                <br>
+                <input type="text" class="glass-input model-input" placeholder="Modèle" style="width: 80px; padding: 4px; font-size: 0.8rem;">
+            </td>
+            <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
+            <td>
+                <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
+                    <option value="">Couleur</option>
+                    ${colors.map(c => `<option value="${c}">${c}</option>`).join('')}
+                </select>
+                <br>
+                <select class="glass-select category-select" style="padding: 2px; font-size: 0.8rem; width: 100px;">
+                    <option value="">Catégorie</option>
+                    ${categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+                </select>
+            </td>
+            <td><input type="number" class="glass-input mileage-input" placeholder="0" value="0" style="width: 70px; padding: 4px; font-size: 0.8rem;"></td>
+            <td>
+                <input type="number" class="glass-input price-input" placeholder="Prix" style="width: 90px; padding: 4px; font-size: 0.8rem;">
+                <br>
+                <select class="glass-select currency-select" style="padding: 2px; font-size: 0.8rem; margin-top: 2px; width: 90px;">
+                    ${currencies.map(c => `<option value="${c}">${c}</option>`).join('')}
+                </select>
+            </td>
+        `;
+
+        // If 'No records found' row exists, remove it
+        if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+            tbody.innerHTML = '';
+        }
+
+        tbody.appendChild(row);
+    },
+
+
     async deletePurchaseOrder(id) {
         if (confirm("Êtes-vous sûr de vouloir supprimer cette commande d'achat ?")) {
             try {
@@ -8815,10 +8884,10 @@ const app = {
         const templates = StorageService.get(STORAGE_KEYS.BL_TEMPLATES);
 
         const viewHtml = `
-    < div class="view-header" >
+    <div class="view-header">
                     <h1><i class="fas fa-file-contract"></i> Vérification Papier</h1>
                     <p class="subtitle">Analyse et vérification automatique des documents de transport (BL)</p>
-                </div >
+                </div>
 
     <div class="verification-container" style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; height: calc(100vh - 180px);">
         <!-- Control Panel -->
