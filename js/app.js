@@ -1234,6 +1234,9 @@ const app = {
         const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === id);
         if (!vehicle) return;
 
+        const order = vehicle.orderId ? StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === vehicle.orderId) : null;
+        const client = order ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId) : null;
+
         const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 550px;">
@@ -1245,6 +1248,7 @@ const app = {
                             <div class="details-section">
                                 <h3><i class="fas fa-info-circle"></i> Identification</h3>
                                 <p><strong>Marque/Modèle:</strong> ${vehicle.brand} ${vehicle.model || ''}</p>
+                                ${client ? `<p><strong>Client Affecté:</strong> <span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-weight: 600;">${client.name}</span></p>` : ''}
                                 <p><strong>Châssis (VIN):</strong> <code class="chassis">${vehicle.chassisNumber || 'N/A'}</code></p>
                                 <p><strong>Année/Mois:</strong> ${vehicle.year || 'N/A'} ${vehicle.month ? '/ ' + vehicle.month : ''}</p>
                             </div>
