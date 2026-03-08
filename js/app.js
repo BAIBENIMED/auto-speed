@@ -2738,11 +2738,11 @@ const app = {
                             <tr>
                                 <th>ID</th>
                                 <th>Véhicule</th>
+                                <th>Source (Achat)</th>
                                 <th>Châssis (VIN)</th>
                                 <th>Specs Tech.</th>
                                 ${canViewPurchasePrice ? '<th>Prix Achat</th>' : ''}
                                 <th>DD (Est.)</th>
-                                <th>Prix Vente</th>
                                 <th>Statut</th>
                                 <th>Actions</th>
                             </tr>
@@ -2753,32 +2753,37 @@ const app = {
             let statusClass = 'available';
             let statusLabel = 'Disponible';
 
-            switch (v.status) {
-                case 'Reserved':
-                    statusClass = 'warning';
-                    statusLabel = 'Réservé';
-                    break;
-                case 'In Transit':
-                    statusClass = 'primary'; // reuse primary or add special class
-                    statusLabel = 'Expédié';
-                    break;
-                case 'Arrived':
-                    statusClass = 'success';
-                    statusLabel = 'Arrivé';
-                    break;
-                case 'Sold':
-                    statusClass = 'danger';
-                    statusLabel = 'Vendu';
-                    break;
-                default:
-                    // Fallback for legacy data sanity
-                    if (v.shipmentId) {
-                        statusClass = 'success';
-                        statusLabel = 'Expédié';
-                    } else if (v.orderId) {
+            // Enhance status with PO info
+            if (v.status === 'Available' && v.purchaseOrderId) {
+                statusClass = 'success';
+                statusLabel = 'En Stock (Achat)';
+            } else {
+                switch (v.status) {
+                    case 'Reserved':
                         statusClass = 'warning';
                         statusLabel = 'Réservé';
-                    }
+                        break;
+                    case 'In Transit':
+                        statusClass = 'primary';
+                        statusLabel = 'Expédié';
+                        break;
+                    case 'Arrived':
+                        statusClass = 'success';
+                        statusLabel = 'Arrivé';
+                        break;
+                    case 'Sold':
+                        statusClass = 'danger';
+                        statusLabel = 'Vendu';
+                        break;
+                    default:
+                        if (v.shipmentId) {
+                            statusClass = 'success';
+                            statusLabel = 'Expédié';
+                        } else if (v.orderId) {
+                            statusClass = 'warning';
+                            statusLabel = 'Réservé';
+                        }
+                }
             }
 
             const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
@@ -2797,6 +2802,9 @@ const app = {
                                             </div>
                                         </div>
                                     </td>
+                                    <td style="font-size: 0.85rem;">
+                                        ${v.purchaseOrderId ? `<span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.renderPurchases('${v.purchaseOrderId}')">${v.purchaseOrderId}</span>` : '<span style="color:var(--text-dim);">Entrée Directe</span>'}
+                                    </td>
                                     <td><code style="font-size: 0.8rem;">${v.chassisNumber || '-'}</code></td>
                                     <td>
                                         <div style="font-size: 0.85rem;"><strong>Mot.:</strong> ${v.motorization || '-'}</div>
@@ -2804,7 +2812,6 @@ const app = {
                                     </td>
                                     ${canViewPurchasePrice ? `<td style="font-weight: 500;">${this.formatCurrency(v.purchasePrice || 0, v.purchaseCurrency)}</td>` : ''}
                                     <td style="font-weight: 500; color: var(--text-secondary);">${this.formatCurrency(v.estimatedCustomsDuty || 0, (StorageService.get(STORAGE_KEYS.SETTINGS)?.customsCurrency || 'XAF'))}</td>
-                                    <td style="font-weight: 600; color: var(--primary);">${this.formatCurrency(v.sellingPrice || v.price || 0, v.sellingCurrency)}</td>
                                     <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                                     <td>
                                         <div class="table-actions">
@@ -2870,6 +2877,13 @@ const app = {
                                     <div class="form-group">
                                         <label>Fournisseur</label>
                                         <input type="text" name="supplier" class="glass-input" placeholder="Fournisseur d'origine">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Commande d'Achat (PO)</label>
+                                        <select name="purchaseOrderId" class="glass-select">
+                                            <option value="">(Aucune / Entrée Directe)</option>
+                                            ${(StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || []).map(p => `<option value="${p.id}">${p.id} - ${p.supplierName || ''}</option>`).join('')}
+                                        </select>
                                     </div>
                                 </div>
                             </fieldset>
@@ -3045,6 +3059,7 @@ const app = {
                 remarks: formData.get('remarks'),
                 options: formData.get('options'),
                 category: formData.get('category'),
+                purchaseOrderId: formData.get('purchaseOrderId') || (existingVehicle ? existingVehicle.purchaseOrderId : null),
                 orderId: existingVehicle ? existingVehicle.orderId : null,
                 shipmentId: existingVehicle ? existingVehicle.shipmentId : null
             };
@@ -3235,6 +3250,13 @@ const app = {
                                             <div class="form-group">
                                                 <label>Fournisseur</label>
                                                 <input type="text" name="supplier" value="${vehicle.supplier || ''}" class="glass-input">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Commande d'Achat (PO)</label>
+                                                <select name="purchaseOrderId" class="glass-select">
+                                                    <option value="">(Aucune / Entrée Directe)</option>
+                                                    ${(StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || []).map(p => `<option value="${p.id}" ${vehicle.purchaseOrderId === p.id ? 'selected' : ''}>${p.id} - ${p.supplierName || ''}</option>`).join('')}
+                                                </select>
                                             </div>
                                         </div>
                                     </fieldset>
@@ -8366,7 +8388,9 @@ const app = {
                                             ${p.vehicles && p.vehicles.length > 0 ?
                             `<div style="font-size: 0.85rem; max-height: 80px; overflow-y: auto;">
                                                 ${p.vehicles.map(v =>
-                                `<div style="margin-bottom: 2px;">• <strong>${v.order?.clientName || 'N/A'}</strong> : ${v.brand} ${v.model || ''} <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span></div>`
+                                `<div style="margin-bottom: 2px; cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails du véhicule">
+                                        • <strong>${v.order?.clientName || 'STOCK'}</strong> : ${v.brand} ${v.model || ''} <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span>
+                                    </div>`
                             ).join('')}
                                                 </div>`
                             : '-'}
