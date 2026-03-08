@@ -8572,20 +8572,23 @@ const app = {
                         <div class="data-table-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
                             <table class="data-table">
                                 <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card);">
-                                    <tr>
-                                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-po-orders"></th>
-                                        <th>Commande</th>
-                                        <th>Client</th>
-                                        <th>Véhicule (Marque/Modèle)</th>
-                                        <th>VIN Châssis</th>
-                                        <th>Couleur/Cat.</th>
-                                        <th>Kilo.</th>
-                                        <th>Prix Achat</th>
-                                    </tr>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">#</th>
+                                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-po-orders"></th>
+                                    <th>Commande</th>
+                                    <th>Client</th>
+                                    <th>Véhicule (Marque/Modèle)</th>
+                                    <th>VIN Châssis</th>
+                                    <th>Couleur/Cat.</th>
+                                    <th>Kilo.</th>
+                                    <th>Prix Achat</th>
+                                    <th>Actions</th>
+                                </tr>
                                 </thead>
                                 <tbody>
-                                    ${eligibleOrders.map(o => `
-                                    <tr data-order-id="${o.id}">
+                                    ${eligibleOrders.map((o, index) => `
+                                    <tr data-order-id="${o.id}" class="po-row">
+                                        <td class="row-index" style="text-align: center; font-weight: bold; color: var(--primary);">${index + 1}</td>
                                         <td style="text-align: center;"><input type="checkbox" name="selectedOrders" value="${o.id}" class="po-order-checkbox"></td>
                                         <td><strong>#${o.id}</strong></td>
                                         <td>${o.clientName}</td>
@@ -8610,31 +8613,40 @@ const app = {
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${c === 'EUR' ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </td>
+                                        <td>
+                                            <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
+                                        </td>
                                     </tr>
                                     `).join('')}
                                 </tbody>
                             </table>
                         </div>
                         ` : `
-                        <div class="section-header" style="margin-bottom: 15px;">
+                        <div class="section-header" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
                             <h3>1. Véhicules de la Commande</h3>
+                            <button type="button" class="btn-secondary btn-sm" onclick="app.addStockRowToPO()">
+                                <i class="fas fa-plus"></i> Ajouter Véhicule Stock
+                            </button>
                         </div>
                         <div class="data-table-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
                             <table class="data-table">
                                 <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card);">
                                     <tr>
+                                        <th style="width: 40px; text-align: center;">#</th>
                                         <th>Client</th>
                                         <th>Véhicule</th>
                                         <th>VIN Châssis</th>
                                         <th>Couleur/Cat.</th>
                                         <th>Kilo.</th>
                                         <th>Prix Achat</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${po.vehicles ? po.vehicles.map(v => `
-                                    <tr data-vehicle-id="${v.id}">
-                                        <td>${v.order?.clientName || 'N/A'}</td>
+                                    ${po.vehicles ? po.vehicles.map((v, index) => `
+                                    <tr data-vehicle-id="${v.id}" data-order-id="${v.orderId || ''}" class="po-row">
+                                        <td class="row-index" style="text-align: center; font-weight: bold; color: var(--primary);">${index + 1}</td>
+                                        <td>${v.order?.clientName || 'STOCK'}</td>
                                         <td>${v.brand || ''} ${v.model || ''}</td>
                                         <td><input type="text" class="glass-input vin-input" value="${v.chassisNumber || ''}" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
@@ -8656,8 +8668,12 @@ const app = {
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${v.purchaseCurrency === c ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </td>
+                                        <td>
+                                            <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
+                                            <button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                        </td>
                                     </tr>
-                                    `).join('') : '<tr><td colspan="6" style="text-align: center;">Aucun véhicule lié</td></tr>'}
+                                    `).join('') : '<tr><td colspan="8" style="text-align: center;">Aucun véhicule lié</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
@@ -8784,11 +8800,14 @@ const app = {
                     return;
                 }
             } else {
-                // Update mode
-                const vehicleRows = document.querySelectorAll('tr[data-vehicle-id]');
-                const vehiclesToUpdate = Array.from(vehicleRows).map(tr => {
+                // Update mode - collect both existing vehicles and newly added stock vehicles
+                const allRows = document.querySelectorAll('#po-form .data-table tbody tr.po-row, #po-form .data-table tbody tr[data-vehicle-id]');
+                const vehiclesToUpdate = Array.from(allRows).map(tr => {
                     return {
-                        id: tr.getAttribute('data-vehicle-id'),
+                        id: tr.getAttribute('data-vehicle-id') || null, // null for new ones
+                        orderId: tr.getAttribute('data-order-id') || null,
+                        brand: tr.querySelector('.brand-input')?.value || tr.cells[4].textContent.trim().split(' ')[0] || '',
+                        model: tr.querySelector('.model-input')?.value || tr.cells[4].textContent.trim().split(' ').slice(1).join(' ') || '',
                         chassisNumber: tr.querySelector('.vin-input').value,
                         color: tr.querySelector('.color-select').value,
                         category: tr.querySelector('.category-select').value,
@@ -8826,9 +8845,10 @@ const app = {
         if (!tbody) return;
 
         const row = document.createElement('tr');
-        row.className = 'po-stock-row';
+        row.className = 'po-stock-row po-row';
         row.innerHTML = `
-            <td style="text-align: center;"><button type="button" class="btn-icon danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+            <td class="row-index" style="text-align: center; font-weight: bold; color: var(--primary);">0</td>
+            <td style="text-align: center;"><button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();"><i class="fas fa-trash"></i></button></td>
             <td><strong>STOCK</strong></td>
             <td>N/A</td>
             <td>
@@ -8856,6 +8876,9 @@ const app = {
                     ${currencies.map(c => `<option value="${c}">${c}</option>`).join('')}
                 </select>
             </td>
+            <td>
+                <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
+            </td>
         `;
 
         // If 'No records found' row exists, remove it
@@ -8864,6 +8887,54 @@ const app = {
         }
 
         tbody.appendChild(row);
+        this.reindexPORows();
+    },
+
+    duplicatePORow(button) {
+        const sourceRow = button.closest('tr');
+        const isStock = sourceRow.classList.contains('po-stock-row');
+        const clone = sourceRow.cloneNode(true);
+
+        // Copy input values
+        sourceRow.querySelectorAll('input, select, textarea').forEach((input, i) => {
+            const cloneInputs = clone.querySelectorAll('input, select, textarea');
+            if (cloneInputs[i]) cloneInputs[i].value = input.value;
+        });
+
+        // If a non-stock row is duplicated, it becomes a stock row
+        if (!isStock) {
+            clone.className = 'po-stock-row po-row';
+            clone.removeAttribute('data-order-id');
+            const cells = clone.cells;
+
+            // Cell 1: Checkbox area -> Replace with Trash button
+            cells[1].innerHTML = `<button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();"><i class="fas fa-trash"></i></button>`;
+
+            // Cell 4: Brand/Model -> Convert to inputs
+            if (!cells[4].querySelector('input')) {
+                const text = cells[4].textContent.trim();
+                const parts = text.split(' ');
+                const brand = parts[0] || '';
+                const model = parts.slice(1).join(' ') || '';
+                cells[4].innerHTML = `
+                    <input type="text" class="glass-input brand-input" value="${brand}" required style="width: 80px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;">
+                    <br>
+                    <input type="text" class="glass-input model-input" value="${model}" style="width: 80px; padding: 4px; font-size: 0.8rem;">
+                `;
+            }
+        }
+
+        sourceRow.parentNode.insertBefore(clone, sourceRow.nextSibling);
+        this.reindexPORows();
+    },
+
+    reindexPORows() {
+        document.querySelectorAll('#po-form .po-row').forEach((row, idx) => {
+            const indexCell = row.querySelector('.row-index');
+            if (indexCell) {
+                indexCell.textContent = idx + 1;
+            }
+        });
     },
 
 
