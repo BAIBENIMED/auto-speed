@@ -162,8 +162,8 @@ const ApiService = {
     // Purchase Orders
     getPurchaseOrders: () => ApiService.request('/purchase-orders'),
     createPurchaseOrder: (data) => ApiService.request('/purchase-orders', { method: 'POST', body: data }),
-    updatePurchaseOrder: (id, data) => ApiService.request(`/purchase-orders/${id}`, { method: 'PUT', body: data }),
-    deletePurchaseOrder: (id) => ApiService.request(`/purchase-orders/${id}`, { method: 'DELETE' }),
+    updatePurchaseOrder: (id, data) => ApiService.request(`/purchase-orders/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
+    deletePurchaseOrder: (id) => ApiService.request(`/purchase-orders/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
     // Suppliers
     getSuppliers: () => ApiService.request('/suppliers'),
