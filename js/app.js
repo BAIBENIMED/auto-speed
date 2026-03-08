@@ -8408,7 +8408,7 @@ const app = {
             }
 
             this.viewContainer.innerHTML = `
-                    < div class="view-header" >
+                    <div class="view-header">
                         <div>
                             <h1><i class="fas fa-truck-field"></i> Fournisseurs</h1>
                             <p class="subtitle">Gestion du carnet d'adresses des partenaires fournisseurs</p>
@@ -8418,7 +8418,7 @@ const app = {
                                 <i class="fas fa-plus"></i> Nouveau Fournisseur
                             </button>
                         </div>
-                    </div >
+                    </div>
 
         <div class="glass" style="padding: 0; overflow: hidden;">
             <table class="data-table">
@@ -8465,7 +8465,7 @@ const app = {
         }
 
         const modalHtml = `
-        < div id = "modal-overlay" class="modal-overlay" >
+        <div id="modal-overlay" class="modal-overlay">
             <div class="modal glass" style="max-width: 500px; width: 95%;">
                 <div class="modal-header">
                     <h2>${id ? 'Modifier' : 'Nouveau'} Fournisseur</h2>
@@ -8498,7 +8498,7 @@ const app = {
                     </div>
                 </form>
             </div>
-            </div >
+        </div>
         `;
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
