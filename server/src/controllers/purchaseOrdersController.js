@@ -29,7 +29,7 @@ const purchaseOrdersController = {
             // Generate PO ID: CMD/ANNEE/FOURNISSEUR/SEQUENCE
             const year = new Date().getFullYear();
             const supplier = await Supplier.findByPk(supplierId);
-            const supplierCode = supplier ? supplier.code : 'UNKNOWN';
+            const supplierRef = supplier ? supplier.name : 'UNKNOWN';
 
             // Assuming sequence is global per year
             const { Op } = require('sequelize');
@@ -41,7 +41,7 @@ const purchaseOrdersController = {
                 }
             });
             const seq = (count + 1).toString().padStart(3, '0');
-            const poId = `CMD/${year}/${supplierCode}/${seq}`;
+            const poId = `CMD/${year}/${supplierRef}/${seq}`;
 
             const po = await PurchaseOrder.create({
                 id: poId,
