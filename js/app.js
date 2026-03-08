@@ -59,7 +59,17 @@ const app = {
         showArchived: false
     },
     vehicleFilters: {
+        brand: '',
+        model: '',
+        status: '',
+        supplier: '',
         showArchived: false
+    },
+    purchaseFilters: {
+        supplier: '',
+        status: '',
+        startDate: '',
+        endDate: ''
     },
     shipmentFilters: {
         showArchived: false
@@ -2715,6 +2725,22 @@ const app = {
             );
         }
 
+        // Apply advanced filters
+        if (this.vehicleFilters) {
+            if (this.vehicleFilters.brand) {
+                vehicles = vehicles.filter(v => v.brand === this.vehicleFilters.brand);
+            }
+            if (this.vehicleFilters.model) {
+                vehicles = vehicles.filter(v => v.model === this.vehicleFilters.model);
+            }
+            if (this.vehicleFilters.status) {
+                vehicles = vehicles.filter(v => v.status === this.vehicleFilters.status);
+            }
+            if (this.vehicleFilters.supplier) {
+                vehicles = vehicles.filter(v => v.supplier === this.vehicleFilters.supplier);
+            }
+        }
+
         if (!this.vehicleFilters.showArchived) {
             vehicles = vehicles.filter(v => !v.archived);
         }
@@ -2732,10 +2758,43 @@ const app = {
                         ` : ''}
                     </div>
                 </div>
-                <div class="glass filter-bar" style="margin-bottom: 20px; padding: 15px; display: flex; align-items: center; justify-content: flex-end;">
-                     <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                        <label for="filter-vehicle-archived" style="font-size: 0.85rem; cursor: pointer; margin: 0;">Voir les archives</label>
+                <div class="glass" style="margin-bottom: 20px; padding: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Recherche Rapide</label>
+                            <input type="text" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" placeholder="VIN, Marque, ID..." value="${query || ''}" oninput="app.renderVehicles(this.value)">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Marque</label>
+                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, brand: this.value, model: ''}; app.renderVehicles()">
+                                <option value="">Toutes les marques</option>
+                                ${(StorageService.get(STORAGE_KEYS.BRANDS) || []).map(b => `<option value="${b}" ${this.vehicleFilters.brand === b ? 'selected' : ''}>${b}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Modèle</label>
+                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, model: this.value}; app.renderVehicles()">
+                                <option value="">Tous les modèles</option>
+                                ${this.vehicleFilters.brand ? (StorageService.get(STORAGE_KEYS.BRAND_MODELS)[this.vehicleFilters.brand] || []).map(m => `<option value="${m}" ${this.vehicleFilters.model === m ? 'selected' : ''}>${m}</option>`).join('') : ''}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Statut Stock</label>
+                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, status: this.value}; app.renderVehicles()">
+                                <option value="">Tous les statuts</option>
+                                <option value="Available" ${this.vehicleFilters.status === 'Available' ? 'selected' : ''}>Disponible</option>
+                                <option value="Reserved" ${this.vehicleFilters.status === 'Reserved' ? 'selected' : ''}>Réservé (Client)</option>
+                                <option value="In Progress" ${this.vehicleFilters.status === 'In Progress' ? 'selected' : ''}>En Transit</option>
+                                <option value="Delivered" ${this.vehicleFilters.status === 'Delivered' ? 'selected' : ''}>Livré</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
+                            <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
+                            <label for="filter-vehicle-archived" style="font-size: 0.8rem; cursor: pointer; margin: 0; color: var(--text-dim);">Archives</label>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; width: 100%;" onclick="app.vehicleFilters = {showArchived: false}; app.renderVehicles()"><i class="fas fa-undo"></i> Reset</button>
+                        </div>
                     </div>
                 </div>
                 <div class="glass data-table-container">
@@ -8344,13 +8403,31 @@ const app = {
 
         try {
             const response = await ApiService.getPurchaseOrders();
-            let purchases = response.data || [];
+            let purchases = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
+
+            // Apply filters
+            if (this.purchaseFilters) {
+                if (this.purchaseFilters.supplier) {
+                    purchases = purchases.filter(p => p.supplierName === this.purchaseFilters.supplier);
+                }
+                if (this.purchaseFilters.status) {
+                    purchases = purchases.filter(p => p.status === this.purchaseFilters.status);
+                }
+                if (this.purchaseFilters.startDate) {
+                    const start = new Date(this.purchaseFilters.startDate);
+                    purchases = purchases.filter(p => new Date(p.purchaseDate) >= start);
+                }
+                if (this.purchaseFilters.endDate) {
+                    const end = new Date(this.purchaseFilters.endDate);
+                    purchases = purchases.filter(p => new Date(p.purchaseDate) <= end);
+                }
+            }
 
             if (query) {
                 const q = query.toLowerCase();
                 purchases = purchases.filter(p =>
-                    p.supplierName.toLowerCase().includes(q) ||
-                    (p.orderId && p.orderId.toLowerCase().includes(q))
+                    (p.supplierName && p.supplierName.toLowerCase().includes(q)) ||
+                    (p.id && p.id.toLowerCase().includes(q))
                 );
             }
 
@@ -8367,6 +8444,42 @@ const app = {
                             <button class="btn-primary" onclick="app.showPurchaseOrderModal()">
                                 <i class="fas fa-plus"></i> Nouveau Achat
                             </button>
+                        </div>
+                    </div>
+
+                    <div class="glass" style="padding: 20px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.8rem; color: var(--text-dim);">Recherche Rapide</label>
+                                <input type="text" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" placeholder="ID ou Fournisseur..." value="${query || ''}" oninput="app.renderPurchases(this.value)">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.8rem; color: var(--text-dim);">Fournisseur</label>
+                                <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), supplier: this.value}; app.renderPurchases()">
+                                    <option value="">Tous les fournisseurs</option>
+                                    ${(StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => `<option value="${s.name}" ${this.purchaseFilters?.supplier === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.8rem; color: var(--text-dim);">Statut Achat</label>
+                                <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), status: this.value}; app.renderPurchases()">
+                                    <option value="">Tous les statuts</option>
+                                    <option value="Ordered" ${this.purchaseFilters?.status === 'Ordered' ? 'selected' : ''}>Commandé</option>
+                                    <option value="Paid" ${this.purchaseFilters?.status === 'Paid' ? 'selected' : ''}>Payé</option>
+                                    <option value="Partial" ${this.purchaseFilters?.status === 'Partial' ? 'selected' : ''}>Partiel</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.8rem; color: var(--text-dim);">Date Début</label>
+                                <input type="date" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" value="${this.purchaseFilters?.startDate || ''}" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), startDate: this.value}; app.renderPurchases()">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.8rem; color: var(--text-dim);">Date Fin</label>
+                                <input type="date" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" value="${this.purchaseFilters?.endDate || ''}" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), endDate: this.value}; app.renderPurchases()">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0; display: flex; gap: 5px;">
+                                <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; flex: 1;" onclick="app.purchaseFilters = null; app.renderPurchases()"><i class="fas fa-undo"></i></button>
+                            </div>
                         </div>
                     </div>
 
@@ -8405,8 +8518,9 @@ const app = {
                                         <td><span class="status-badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${p.status}</span></td>
                                         <td>
                                             <div class="actions-cell">
+                                                <button class="btn-icon" onclick="app.showPurchaseOrderDetails('${p.id}')" title="Détails" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);"><i class="fas fa-eye"></i></button>
                                                 <button class="btn-icon" onclick="app.showPurchaseOrderModal('${p.id}')" title="Modifier"><i class="fas fa-edit"></i></button>
-                                                <button class="btn-icon danger" onclick="app.deletePurchaseOrder('${p.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                                <button class="btn-icon variant-danger" onclick="app.deletePurchaseOrder('${p.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -8564,6 +8678,89 @@ const app = {
                 this.showToast("Erreur lors de la suppression", "error");
             }
         }
+    },
+
+    async showPurchaseOrderDetails(id) {
+        const p = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS).find(po => po.id === id);
+        if (!p) return;
+
+        const modalHtml = `
+                    <div class="modal-overlay">
+                        <div class="modal-content glass" style="width: 1000px; max-width: 95vw;">
+                            <div class="modal-header">
+                                <div>
+                                    <h2>Détails Commande d'Achat #${p.id}</h2>
+                                    <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A'}</p>
+                                </div>
+                                <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                            </div>
+                            <div class="order-details-content" style="padding: 20px;">
+                                <div class="glass" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Marque / Modèle</th>
+                                                <th>Identification</th>
+                                                <th>Client Affecté</th>
+                                                <th>Statut Livraison Client</th>
+                                                <th>Détails</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${(p.vehicles || []).map(v => {
+            const order = v.orderId ? StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId) : null;
+            const client = order ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId) : null;
+            const orderStatus = order ? this.calculateOrderStatus(order) : 'N/A';
+
+            let deliveryStatusClass = 'available';
+            let deliveryStatusLabel = 'En Stock';
+
+            if (orderStatus === 'Enlevée' || orderStatus === 'Livrée') {
+                deliveryStatusClass = 'success';
+                deliveryStatusLabel = 'Livré au Client';
+            } else if (order) {
+                deliveryStatusClass = 'warning';
+                deliveryStatusLabel = `En cours (${orderStatus})`;
+            }
+
+            return `
+                                                <tr>
+                                                    <td>
+                                                        <div style="font-weight: 600;">${v.brand} ${v.model || ''}</div>
+                                                        <div style="font-size: 0.8rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div style="font-size: 0.85rem;"><strong>VIN:</strong> <code style="font-family: monospace;">${v.chassisNumber || 'N/A'}</code></div>
+                                                        <div style="font-size: 0.85rem;"><strong>ID:</strong> #${v.id}</div>
+                                                    </td>
+                                                    <td>
+                                                        ${client ? `
+                                                            <div style="font-weight: 500;">${client.name}</div>
+                                                            <div style="font-size: 0.8rem; color: var(--primary);">CMD #${order.id}</div>
+                                                        ` : '<span style="color: var(--text-dim);">STOCK</span>'}
+                                                    </td>
+                                                    <td>
+                                                        <span class="status-badge ${deliveryStatusClass}">${deliveryStatusLabel}</span>
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn-icon" onclick="app.closeModal(); app.showVehicleDetails('${v.id}')" title="Voir véhicule"><i class="fas fa-external-link-alt"></i></button>
+                                                    </td>
+                                                </tr>
+                                            `;
+        }).join('')}
+                                            ${(p.vehicles || []).length === 0 ? '<tr><td colspan="5" style="text-align: center; padding: 20px;">Aucun véhicule lié</td></tr>' : ''}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                                <button class="btn-primary" onclick="app.closeModal(); app.showPurchaseOrderModal('${p.id}')"><i class="fas fa-edit"></i> Modifier l'Achat</button>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
     async showPurchaseOrderModal(id = null) {
