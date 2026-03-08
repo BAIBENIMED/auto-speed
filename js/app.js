@@ -8574,7 +8574,7 @@ const app = {
                                 <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card);">
                                 <tr>
                                     <th style="width: 40px; text-align: center;">#</th>
-                                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-po-orders"></th>
+                                    <th style="width: 40px; text-align: center;">Actions</th>
                                     <th>Commande</th>
                                     <th>Client</th>
                                     <th>Véhicule (Marque/Modèle)</th>
@@ -8582,17 +8582,21 @@ const app = {
                                     <th>Couleur/Cat.</th>
                                     <th>Kilo.</th>
                                     <th>Prix Achat</th>
-                                    <th>Actions</th>
+                                    <th>Copie</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                    ${eligibleOrders.map((o, index) => `
+                                    ${!id ? eligibleOrders.map((o, index) => `
                                     <tr data-order-id="${o.id}" class="po-row">
                                         <td class="row-index" style="text-align: center; font-weight: bold; color: var(--primary);">${index + 1}</td>
                                         <td style="text-align: center;"><input type="checkbox" name="selectedOrders" value="${o.id}" class="po-order-checkbox"></td>
                                         <td><strong>#${o.id}</strong></td>
                                         <td>${o.clientName}</td>
-                                        <td>${o.requestedBrand || ''} ${o.requestedModel || ''}</td>
+                                        <td>
+                                            <span class="brand-text">${o.requestedBrand || ''}</span> <span class="model-text">${o.requestedModel || ''}</span>
+                                            <input type="hidden" class="brand-input" value="${o.requestedBrand || ''}">
+                                            <input type="hidden" class="model-input" value="${o.requestedModel || ''}">
+                                        </td>
                                         <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
@@ -8617,37 +8621,19 @@ const app = {
                                             <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
                                         </td>
                                     </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                        ` : `
-                        <div class="section-header" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                            <h3>1. Véhicules de la Commande</h3>
-                            <button type="button" class="btn-secondary btn-sm" onclick="app.addStockRowToPO()">
-                                <i class="fas fa-plus"></i> Ajouter Véhicule Stock
-                            </button>
-                        </div>
-                        <div class="data-table-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
-                            <table class="data-table">
-                                <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card);">
-                                    <tr>
-                                        <th style="width: 40px; text-align: center;">#</th>
-                                        <th>Client</th>
-                                        <th>Véhicule</th>
-                                        <th>VIN Châssis</th>
-                                        <th>Couleur/Cat.</th>
-                                        <th>Kilo.</th>
-                                        <th>Prix Achat</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${po.vehicles ? po.vehicles.map((v, index) => `
+                                    `).join('') : (po.vehicles ? po.vehicles.map((v, index) => `
                                     <tr data-vehicle-id="${v.id}" data-order-id="${v.orderId || ''}" class="po-row">
                                         <td class="row-index" style="text-align: center; font-weight: bold; color: var(--primary);">${index + 1}</td>
-                                        <td>${v.order?.clientName || 'STOCK'}</td>
-                                        <td>${v.brand || ''} ${v.model || ''}</td>
+                                        <td style="text-align: center;">
+                                            <button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                        <td><strong>${v.orderId ? '#' + v.orderId : 'STOCK'}</strong></td>
+                                        <td>${v.order?.clientName || 'N/A'}</td>
+                                        <td>
+                                            <span class="brand-text">${v.brand || ''}</span> <span class="model-text">${v.model || ''}</span>
+                                            <input type="hidden" class="brand-input" value="${v.brand || ''}">
+                                            <input type="hidden" class="model-input" value="${v.model || ''}">
+                                        </td>
                                         <td><input type="text" class="glass-input vin-input" value="${v.chassisNumber || ''}" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
@@ -8670,10 +8656,9 @@ const app = {
                                         </td>
                                         <td>
                                             <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
-                                            <button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();" title="Supprimer"><i class="fas fa-trash"></i></button>
                                         </td>
                                     </tr>
-                                    `).join('') : '<tr><td colspan="8" style="text-align: center;">Aucun véhicule lié</td></tr>'}
+                                    `).join('') : '<tr><td colspan="10" style="text-align: center;">Aucun véhicule lié</td></tr>')}
                                 </tbody>
                             </table>
                         </div>
@@ -8739,50 +8724,36 @@ const app = {
 
             if (!id) {
                 const selectedCheckboxes = document.querySelectorAll('.po-order-checkbox:checked');
-                const stockRows = document.querySelectorAll('.po-stock-row');
+                const allRows = document.querySelectorAll('#po-form .data-table tbody tr.po-row');
 
-                if (selectedCheckboxes.length === 0 && stockRows.length === 0) {
+                // For new PO: collect selected client orders and all stock rows
+                const vehiclesToCreate = [];
+
+                allRows.forEach(tr => {
+                    const cb = tr.querySelector('.po-order-checkbox');
+                    const isNewStock = tr.classList.contains('po-stock-row');
+
+                    if (isNewStock || (cb && cb.checked)) {
+                        vehiclesToCreate.push({
+                            orderId: tr.getAttribute('data-order-id') || null,
+                            brand: tr.querySelector('.brand-input')?.value || '',
+                            model: tr.querySelector('.model-input')?.value || '',
+                            chassisNumber: tr.querySelector('.vin-input').value,
+                            color: tr.querySelector('.color-select').value,
+                            category: tr.querySelector('.category-select').value,
+                            mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
+                            purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
+                            purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
+                        });
+                    }
+                });
+
+                if (vehiclesToCreate.length === 0) {
                     this.showToast("Veuillez sélectionner au moins une commande client ou ajouter un véhicule de stock.", "warning");
                     return;
                 }
 
-
                 const loadingToast = this.showToast("Création de la commande d'achat en cours...", "info", 0);
-
-                const orderVehicles = Array.from(selectedCheckboxes).map(cb => {
-                    const tr = cb.closest('tr');
-                    const orderId = cb.value;
-                    const order = orders.find(o => o.id === orderId);
-
-                    return {
-                        orderId: orderId,
-                        brand: order?.requestedBrand || '',
-                        model: order?.requestedModel || '',
-                        chassisNumber: tr.querySelector('.vin-input').value,
-                        color: tr.querySelector('.color-select').value,
-                        category: tr.querySelector('.category-select').value,
-                        mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
-                        purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
-                        purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
-                    };
-                });
-
-                const stockVehicles = Array.from(stockRows).map(tr => {
-                    return {
-                        orderId: null,
-                        brand: tr.querySelector('.brand-input').value || 'STOCK',
-                        model: tr.querySelector('.model-input').value || '',
-                        chassisNumber: tr.querySelector('.vin-input').value,
-                        color: tr.querySelector('.color-select').value,
-                        category: tr.querySelector('.category-select').value,
-                        mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
-                        purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
-                        purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
-                    };
-                });
-
-                const vehiclesToCreate = [...orderVehicles, ...stockVehicles];
-
 
                 const data = {
                     ...baseData,
@@ -8800,14 +8771,14 @@ const app = {
                     return;
                 }
             } else {
-                // Update mode - collect both existing vehicles and newly added stock vehicles
-                const allRows = document.querySelectorAll('#po-form .data-table tbody tr.po-row, #po-form .data-table tbody tr[data-vehicle-id]');
+                // Update mode
+                const allRows = document.querySelectorAll('#po-form .data-table tbody tr.po-row');
                 const vehiclesToUpdate = Array.from(allRows).map(tr => {
                     return {
-                        id: tr.getAttribute('data-vehicle-id') || null, // null for new ones
+                        id: tr.getAttribute('data-vehicle-id') || null,
                         orderId: tr.getAttribute('data-order-id') || null,
-                        brand: tr.querySelector('.brand-input')?.value || tr.cells[4].textContent.trim().split(' ')[0] || '',
-                        model: tr.querySelector('.model-input')?.value || tr.cells[4].textContent.trim().split(' ').slice(1).join(' ') || '',
+                        brand: tr.querySelector('.brand-input')?.value || '',
+                        model: tr.querySelector('.model-input')?.value || '',
                         chassisNumber: tr.querySelector('.vin-input').value,
                         color: tr.querySelector('.color-select').value,
                         category: tr.querySelector('.category-select').value,
@@ -8895,33 +8866,32 @@ const app = {
         const isStock = sourceRow.classList.contains('po-stock-row');
         const clone = sourceRow.cloneNode(true);
 
-        // Copy input values
-        sourceRow.querySelectorAll('input, select, textarea').forEach((input, i) => {
-            const cloneInputs = clone.querySelectorAll('input, select, textarea');
+        // Copy current input/select values
+        const sourceInputs = sourceRow.querySelectorAll('input, select, textarea');
+        const cloneInputs = clone.querySelectorAll('input, select, textarea');
+        sourceInputs.forEach((input, i) => {
             if (cloneInputs[i]) cloneInputs[i].value = input.value;
         });
 
-        // If a non-stock row is duplicated, it becomes a stock row
-        if (!isStock) {
-            clone.className = 'po-stock-row po-row';
-            clone.removeAttribute('data-order-id');
-            const cells = clone.cells;
+        // Duplicated rows always become stock rows
+        clone.className = 'po-stock-row po-row';
+        clone.removeAttribute('data-vehicle-id');
+        clone.setAttribute('data-order-id', '');
+        const cells = clone.cells;
 
-            // Cell 1: Checkbox area -> Replace with Trash button
-            cells[1].innerHTML = `<button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();"><i class="fas fa-trash"></i></button>`;
+        // Ensure action cell (Index 1) has trash button
+        cells[1].innerHTML = `<button type="button" class="btn-icon danger" onclick="this.closest('tr').remove(); app.reindexPORows();" title="Supprimer"><i class="fas fa-trash"></i></button>`;
 
-            // Cell 4: Brand/Model -> Convert to inputs
-            if (!cells[4].querySelector('input')) {
-                const text = cells[4].textContent.trim();
-                const parts = text.split(' ');
-                const brand = parts[0] || '';
-                const model = parts.slice(1).join(' ') || '';
-                cells[4].innerHTML = `
-                    <input type="text" class="glass-input brand-input" value="${brand}" required style="width: 80px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;">
-                    <br>
-                    <input type="text" class="glass-input model-input" value="${model}" style="width: 80px; padding: 4px; font-size: 0.8rem;">
-                `;
-            }
+        // Ensure brand/model cell (Index 4) has visible inputs
+        const bInput = clone.querySelector('.brand-input');
+        if (!bInput || bInput.type === 'hidden') {
+            const brand = sourceRow.querySelector('.brand-input')?.value || '';
+            const model = sourceRow.querySelector('.model-input')?.value || '';
+            cells[4].innerHTML = `
+                <input type="text" class="glass-input brand-input" value="${brand}" required style="width: 80px; padding: 4px; font-size: 0.8rem; margin-bottom: 2px;">
+                <br>
+                <input type="text" class="glass-input model-input" value="${model}" style="width: 80px; padding: 4px; font-size: 0.8rem;">
+            `;
         }
 
         sourceRow.parentNode.insertBefore(clone, sourceRow.nextSibling);
