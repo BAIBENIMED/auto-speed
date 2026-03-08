@@ -154,6 +154,56 @@ app.get('/api/db-verify', async (req, res) => {
     }
 });
 
+// Diagnostic/Migration endpoint for Purchase Orders logic
+app.get('/api/migrate-po', async (req, res) => {
+    try {
+        let logs = [];
+        logs.push('🔧 Starting migration...');
+
+        // Add purchase_order_id to vehicles
+        try {
+            await sequelize.query(`ALTER TABLE vehicles ADD COLUMN purchase_order_id VARCHAR(50)`);
+            logs.push('✅ Added purchase_order_id to vehicles table');
+        } catch (err) {
+            if (err.message.includes('Duplicate column')) {
+                logs.push('⚠️ purchase_order_id already exists in vehicles table, skipping...');
+            } else {
+                logs.push(`Error adding purchase_order_id: ${err.message}`);
+            }
+        }
+
+        // Drop unique constraint on order_id in purchase_orders
+        try {
+            const [results] = await sequelize.query(`
+                SELECT CONSTRAINT_NAME
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_NAME = 'purchase_orders' AND COLUMN_NAME = 'orderId'
+            `);
+            if (results && results.length > 0) {
+                const constraintName = results[0].CONSTRAINT_NAME;
+                await sequelize.query(`ALTER TABLE purchase_orders DROP INDEX \`${constraintName}\``);
+                logs.push(`✅ Dropped unique constraint/index ${constraintName} on purchase_orders.orderId`);
+            }
+        } catch (err) {
+            logs.push(`⚠️ Could not drop index on purchase_orders (maybe it does not exist or named differently): ${err.message}`);
+        }
+
+        // Ensure order_id is nullable (MySQL syntax)
+        try {
+            await sequelize.query(`ALTER TABLE purchase_orders MODIFY orderId VARCHAR(50) NULL`);
+            logs.push('✅ Made orderId nullable in purchase_orders');
+        } catch (err) {
+            logs.push(`⚠️ Could not modify orderId: ${err.message}`);
+        }
+
+        logs.push('✅ Migration completed successfully!');
+        res.json({ success: true, logs });
+    } catch (error) {
+        console.error('Migration failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({ success: false, message: 'Route non trouvée' });
