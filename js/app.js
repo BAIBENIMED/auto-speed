@@ -605,6 +605,10 @@ const app = {
 
                 clientSelect.innerHTML = opts;
             });
+
+            clientSelect.addEventListener('change', () => {
+                refreshVehicles();
+            });
         }
         // ---------------------------
 
@@ -620,6 +624,7 @@ const app = {
             const model = modelFilter.value;
             const category = categoryFilter.value;
             const showroom = showroomFilter.value;
+            const currentSelectedClientId = clientSelect ? clientSelect.value : '';
 
             let filtered = allAvailableVehicles;
 
@@ -631,6 +636,9 @@ const app = {
             } else if (category === 'Recent') {
                 filtered = filtered.filter(v => v.year >= (currentYear - 3));
             }
+
+            // Allow vehicle only if it has no clientId assigned OR it matches the selected client
+            filtered = filtered.filter(v => !v.clientId || v.clientId === currentSelectedClientId);
 
             vehicleSelect.innerHTML = '<option value="">Choisir un véhicule...</option>';
             filtered.forEach(v => {
@@ -3067,6 +3075,13 @@ const app = {
                                             ${(StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || []).map(p => `<option value="${p.id}">${p.id} - ${p.supplierName || ''}</option>`).join('')}
                                         </select>
                                     </div>
+                                    <div class="form-group">
+                                        <label>Affecter à un Client</label>
+                                        <select name="clientId" class="glass-select">
+                                            <option value="">Stock Libre (Aucun client)</option>
+                                            ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}">${c.firstName} ${c.lastName}</option>`).join('')}
+                                        </select>
+                                    </div>
                                 </div>
                             </fieldset>
 
@@ -3242,6 +3257,7 @@ const app = {
                 options: formData.get('options'),
                 category: formData.get('category'),
                 purchaseOrderId: formData.get('purchaseOrderId') || (existingVehicle ? existingVehicle.purchaseOrderId : null),
+                clientId: formData.get('clientId') || null,
                 orderId: existingVehicle ? existingVehicle.orderId : null,
                 shipmentId: existingVehicle ? existingVehicle.shipmentId : null
             };
@@ -3438,6 +3454,13 @@ const app = {
                                                 <select name="purchaseOrderId" class="glass-select">
                                                     <option value="">(Aucune / Entrée Directe)</option>
                                                     ${(StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || []).map(p => `<option value="${p.id}" ${vehicle.purchaseOrderId === p.id ? 'selected' : ''}>${p.id} - ${p.supplierName || ''}</option>`).join('')}
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Affecter à un Client</label>
+                                                <select name="clientId" class="glass-select">
+                                                    <option value="">Stock Libre (Aucun client)</option>
+                                                    ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}" ${vehicle.clientId === c.id ? 'selected' : ''}>${c.firstName} ${c.lastName}</option>`).join('')}
                                                 </select>
                                             </div>
                                         </div>
@@ -8804,7 +8827,7 @@ const app = {
 
         const modalHtml = `
                     <div class="modal-overlay">
-                        <div class="modal-content glass" style="width: 1000px; max-width: 95vw;">
+                        <div class="modal-content glass" style="width: 1000px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
                             <div class="modal-header">
                                 <div>
                                     <h2>Détails Commande d'Achat #${p.id}</h2>
@@ -8857,7 +8880,7 @@ const app = {
                                                     </td>
                                                     <td>
                                                         ${client ? `
-                                                            <div style="font-weight: 500;">${client.name}</div>
+                                                            <div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>
                                                             <div style="font-size: 0.8rem; color: var(--primary);">CMD #${order.id}</div>
                                                         ` : '<span style="color: var(--text-dim);">STOCK</span>'}
                                                     </td>
