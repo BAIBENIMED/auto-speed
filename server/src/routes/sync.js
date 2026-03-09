@@ -39,7 +39,13 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             models.ExchangeRate.findAll({ order: [['date', 'DESC']] }),
             models.CashTransaction.findAll(),
             models.DynamicAttribute.findAll({ order: [['sortOrder', 'ASC']] }),
-            models.PurchaseOrder.findAll(),
+            models.PurchaseOrder.findAll({
+                include: [{
+                    model: models.Vehicle,
+                    as: 'vehicles',
+                    include: [{ model: models.Order, as: 'order' }]
+                }]
+            }),
             models.Supplier.findAll(),
             models.Notification.findAll({ order: [['createdAt', 'DESC']], limit: 100 }).catch(err => {
                 console.warn('⚠️ Could not fetch notifications (Table missing?):', err.message);
