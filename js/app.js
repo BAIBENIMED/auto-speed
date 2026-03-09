@@ -4300,6 +4300,7 @@ const app = {
                 }
             }, 300);
         }, 3000);
+        return toast;
     },
 
     renderShowroomSection(showrooms) {
@@ -8796,7 +8797,7 @@ const app = {
         if (!p) return;
 
         const modalHtml = `
-                    <div class="modal-overlay">
+                    <div id="modal-overlay" class="modal-overlay">
                         <div class="modal-content glass" style="width: 1000px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
                             <div class="modal-header">
                                 <div>
@@ -9132,7 +9133,7 @@ const app = {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Annuler</button>
+                        <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
                         <button type="submit" class="btn-primary">${id ? 'Mettre à jour' : 'Créer les commandes'}</button>
                     </div>
                 </form>
@@ -9249,7 +9250,7 @@ const app = {
                 }
             }
 
-            document.getElementById('modal-overlay').remove();
+            app.closeModal();
             this.renderPurchases(this.searchQuery);
         });
     },
@@ -9992,7 +9993,7 @@ const app = {
         <div class="modal glass" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h2>${id ? 'Modifier' : 'Nouveau'} Modèle</h2>
-                <button class="close-btn" onclick="app.showTemplateManagerModal(); document.getElementById('modal-overlay').remove();"><i class="fas fa-times"></i></button>
+                <button class="close-btn" onclick="app.showTemplateManagerModal(); app.closeModal();"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
                 <form id="template-form">
@@ -10068,7 +10069,7 @@ const app = {
                     </div>
 
                     <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').remove(); app.showTemplateManagerModal()">Retour</button>
+                        <button type="button" class="btn-secondary" onclick="app.closeModal(); app.showTemplateManagerModal()">Retour</button>
                         <button type="submit" class="btn-primary">Enregistrer</button>
                     </div>
                 </form>
@@ -10114,7 +10115,7 @@ const app = {
             await StorageService.save(STORAGE_KEYS.BL_TEMPLATES, currentTemplates);
             this.showToast('Modèle enregistré avec succès', 'success');
 
-            document.getElementById('modal-overlay').remove();
+            app.closeModal();
             this.showTemplateManagerModal();
 
             // Refresh dropdown in main view if needed
@@ -10243,7 +10244,7 @@ const app = {
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <span style="font-size: 0.9rem; color: #aaa;">Sélectionnez une zone sur le document</span>
                     <button class="btn-primary" onclick="app.saveVisualZones('${templateId}')">Enregistrer le Masque</button>
-                    <button class="close-btn" onclick="document.getElementById('modal-overlay').remove(); app.showTemplateManagerModal();"><i class="fas fa-times"></i></button>
+                    <button class="close-btn" onclick="app.closeModal(); app.showTemplateManagerModal();"><i class="fas fa-times"></i></button>
                 </div>
             </div>
             <div style="display: flex; flex: 1; overflow: hidden;">
