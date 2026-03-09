@@ -646,7 +646,7 @@ const app = {
 
     calculateOrderStatus(order) {
         if (!order) return 'N/A';
-        if (order.status === 'ANNULÉE' || order.status === 'LIVRÉE' || order.status === 'ANNULÉ') return order.status;
+        if (['ANNULÉE', 'LIVRÉE', 'ANNULÉ', 'CONCLUE', 'EN COURS'].includes(order.status)) return order.status;
         if (!order.isValidated) return 'EN ATTENTE DE VALIDATION';
 
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
@@ -831,10 +831,10 @@ const app = {
 
         const orderStatus = (this.calculateOrderStatus(order) || '').toLowerCase();
 
-        const isAboard = ['a bord', 'en mer', 'arrivée', 'enlevée'].includes(orderStatus);
-        const isAtSea = ['en mer', 'arrivée', 'enlevée'].includes(orderStatus);
-        const isArrived = ['arrivée', 'enlevée'].includes(orderStatus);
-        const isDelivered = orderStatus === 'enlevée' || orderStatus === 'livrée';
+        const isAboard = ['a bord', 'en mer', 'arrivée', 'enlevée', 'conclue'].includes(orderStatus);
+        const isAtSea = ['en mer', 'arrivée', 'enlevée', 'conclue'].includes(orderStatus);
+        const isArrived = ['arrivée', 'enlevée', 'conclue'].includes(orderStatus);
+        const isDelivered = orderStatus === 'enlevée' || orderStatus === 'livrée' || orderStatus === 'conclue';
 
         const steps = [
             { id: 'validation', label: 'Validation', icon: 'fa-check-double', completed: order.isValidated || !!order.vehicleId },
@@ -1139,8 +1139,11 @@ const app = {
                                 <select name="status" class="glass-select">
                                     <option value="${order.status}" selected>${order.status} (Actuel)</option>
                                     <option value="EN ATTENTE DE VALIDATION">EN ATTENTE DE VALIDATION</option>
+                                    <option value="EN COURS">EN COURS</option>
                                     <option value="ATTENTE AFFECTATION VÉHICULE">ATTENTE AFFECTATION VÉHICULE</option>
                                     <option value="ATTENTE EXPÉDITION">ATTENTE EXPÉDITION</option>
+                                    <option value="ENLEVÉE">ENLEVÉE</option>
+                                    <option value="CONCLUE">CONCLUE</option>
                                     <option value="ANNULÉE" style="color: var(--danger);">ANNULÉE</option>
                                 </select>
                                 <p style="font-size: 0.7rem; color: var(--text-dim); margin-top: 4px;">Attention: Changer le statut manuellement peut impacter le cycle auto.</p>
@@ -2201,12 +2204,14 @@ const app = {
                         <select id="filter-order-status" class="glass-select" style="padding: 8px;">
                             <option value="">Tous les statuts</option>
                             <option value="EN ATTENTE DE VALIDATION" ${this.orderFilters.status === 'EN ATTENTE DE VALIDATION' ? 'selected' : ''}>Validation</option>
+                            <option value="EN COURS" ${this.orderFilters.status === 'EN COURS' ? 'selected' : ''}>En Cours</option>
                             <option value="ATTENTE AFFECTATION VÉHICULE" ${this.orderFilters.status === 'ATTENTE AFFECTATION VÉHICULE' ? 'selected' : ''}>Affectation</option>
                             <option value="ATTENTE EXPÉDITION" ${this.orderFilters.status === 'ATTENTE EXPÉDITION' ? 'selected' : ''}>Expédition</option>
                             <option value="A BORD" ${this.orderFilters.status === 'A BORD' ? 'selected' : ''}>A Bord</option>
                             <option value="EN MER" ${this.orderFilters.status === 'EN MER' ? 'selected' : ''}>En Mer</option>
                             <option value="ARRIVÉE" ${this.orderFilters.status === 'ARRIVÉE' ? 'selected' : ''}>Arrivée</option>
                             <option value="ENLEVÉE" ${this.orderFilters.status === 'ENLEVÉE' ? 'selected' : ''}>Enlevée</option>
+                            <option value="CONCLUE" ${this.orderFilters.status === 'CONCLUE' ? 'selected' : ''}>Conclue</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">

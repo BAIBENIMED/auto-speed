@@ -642,6 +642,18 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
+.status-badge.en-cours {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.status-badge.conclue {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
 /* Tracking Alerts & Switches */
 .switch-container input[type="checkbox"] {
     accent-color: var(--primary);
