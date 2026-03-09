@@ -24,7 +24,7 @@ const purchaseOrdersController = {
 
     create: async (req, res) => {
         try {
-            const { supplierId, status, purchaseDate, notes, vehicles } = req.body;
+            const { supplierId, status, purchaseDate, documentStatus, documentsReceived, notes, vehicles } = req.body;
 
             // Generate PO ID: CMD/ANNEE/FOURNISSEUR/SEQUENCE
             const year = new Date().getFullYear();
@@ -49,6 +49,8 @@ const purchaseOrdersController = {
                 supplierName: supplier ? supplier.name : null,
                 status: status || 'En cours',
                 purchaseDate: purchaseDate || new Date(),
+                documentStatus,
+                documentsReceived,
                 notes
             });
 
@@ -131,7 +133,7 @@ const purchaseOrdersController = {
     update: async (req, res) => {
         try {
             const { id } = req.params;
-            const { supplierId, status, purchaseDate, notes, vehicles } = req.body;
+            const { supplierId, status, purchaseDate, documentStatus, documentsReceived, notes, vehicles } = req.body;
 
             const po = await PurchaseOrder.findByPk(id);
             if (!po) {
@@ -145,6 +147,8 @@ const purchaseOrdersController = {
                 supplierName: supplier ? supplier.name : po.supplierName,
                 status: status !== undefined ? status : po.status,
                 purchaseDate: purchaseDate !== undefined ? purchaseDate : po.purchaseDate,
+                documentStatus: documentStatus !== undefined ? documentStatus : po.documentStatus,
+                documentsReceived: documentsReceived !== undefined ? documentsReceived : po.documentsReceived,
                 notes: notes !== undefined ? notes : po.notes
             });
 
