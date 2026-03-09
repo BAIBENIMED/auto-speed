@@ -82,31 +82,31 @@ const ApiService = {
     // Clients
     getClients: () => ApiService.request('/clients'),
     createClient: (data) => ApiService.request('/clients', { method: 'POST', body: data }),
-    updateClient: (id, data) => ApiService.request(`/clients/${id}`, { method: 'PUT', body: data }),
-    deleteClient: (id) => ApiService.request(`/clients/${id}`, { method: 'DELETE' }),
+    updateClient: (id, data) => ApiService.request(`/clients/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
+    deleteClient: (id) => ApiService.request(`/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
     // Vehicles
     getVehicles: (archived) => ApiService.request(`/vehicles${archived !== undefined ? `?archived=${archived}` : ''}`),
-    getVehicleById: (id) => ApiService.request(`/vehicles/${id}`),
+    getVehicleById: (id) => ApiService.request(`/vehicles/${encodeURIComponent(id)}`),
     createVehicle: (data) => ApiService.request('/vehicles', { method: 'POST', body: data }),
-    updateVehicle: (id, data) => ApiService.request(`/vehicles/${id}`, { method: 'PUT', body: data }),
-    deleteVehicle: (id) => ApiService.request(`/vehicles/${id}`, { method: 'DELETE' }),
-    archiveVehicle: (id) => ApiService.request(`/vehicles/${id}/archive`, { method: 'PATCH' }),
+    updateVehicle: (id, data) => ApiService.request(`/vehicles/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
+    deleteVehicle: (id) => ApiService.request(`/vehicles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    archiveVehicle: (id) => ApiService.request(`/vehicles/${encodeURIComponent(id)}/archive`, { method: 'PATCH' }),
 
     // Orders
     getOrders: (archived) => ApiService.request(`/orders${archived !== undefined ? `?archived=${archived}` : ''}`),
-    getOrderById: (id) => ApiService.request(`/orders/${id}`),
+    getOrderById: (id) => ApiService.request(`/orders/${encodeURIComponent(id)}`),
     createOrder: (data) => ApiService.request('/orders', { method: 'POST', body: data }),
-    updateOrder: (id, data) => ApiService.request(`/orders/${id}`, { method: 'PUT', body: data }),
-    deleteOrder: (id) => ApiService.request(`/orders/${id}`, { method: 'DELETE' }),
-    validateOrder: (id) => ApiService.request(`/orders/${id}/validate`, { method: 'PATCH' }),
+    updateOrder: (id, data) => ApiService.request(`/orders/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
+    deleteOrder: (id) => ApiService.request(`/orders/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    validateOrder: (id) => ApiService.request(`/orders/${encodeURIComponent(id)}/validate`, { method: 'PATCH' }),
 
     // Shipments
     getShipments: (archived) => ApiService.request(`/shipments${archived !== undefined ? `?archived=${archived}` : ''}`),
-    getShipmentById: (id) => ApiService.request(`/shipments/${id}`),
+    getShipmentById: (id) => ApiService.request(`/shipments/${encodeURIComponent(id)}`),
     createShipment: (data) => ApiService.request('/shipments', { method: 'POST', body: data }),
-    updateShipment: (id, data) => ApiService.request(`/shipments/${id}`, { method: 'PUT', body: data }),
-    deleteShipment: (id) => ApiService.request(`/shipments/${id}`, { method: 'DELETE' }),
+    updateShipment: (id, data) => ApiService.request(`/shipments/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
+    deleteShipment: (id) => ApiService.request(`/shipments/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     getTrackingData: () => ApiService.request('/shipments/tracking'),
 
     // Cash
