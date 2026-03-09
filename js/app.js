@@ -2530,9 +2530,15 @@ const app = {
                                     <input type="text" name="phone" class="glass-input">
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>Adresse</label>
-                                <input type="text" name="address" required class="glass-input">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Adresse</label>
+                                    <input type="text" name="address" required class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Code Postal</label>
+                                    <input type="text" name="postalCode" class="glass-input">
+                                </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
@@ -2573,6 +2579,7 @@ const app = {
                 address: formData.get('address'),
                 passportNumber: formData.get('passportNumber'),
                 nin: formData.get('nin'),
+                postalCode: formData.get('postalCode'),
                 reference: formData.get('reference') || this.generateClientReference(),
                 showroom: formData.get('showroom') || 'Showroom Principal'
             };
@@ -2621,7 +2628,7 @@ const app = {
                         <div class="form-body" style="padding: 1.5rem;">
                             <div class="alert info" style="margin-bottom: 1.5rem; background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
                                 <i class="fas fa-info-circle"></i> Copiez et collez vos données depuis Excel (ou utilisez le <b>point-virgule ;</b> comme séparateur). L'ordre des colonnes doit être :<br>
-                                <strong>Référence | Prénom | Nom | Email | Téléphone | Adresse | Passeport | NIN | Showroom | Entreprise</strong>
+                                <strong>Référence | Prénom | Nom | Email | Téléphone | Adresse | Code Postal | Passeport | NIN | Showroom | Entreprise</strong>
                             </div>
                             <div class="form-group">
                                 <label>Données Clients (Une ligne par client)</label>
@@ -2692,7 +2699,7 @@ const app = {
 
                 const [
                     reference, firstName, lastName, email, phone,
-                    address, passport, nin, showroom, company
+                    address, postalCode, passport, nin, showroom, company
                 ] = cleanParts;
 
                 if (!firstName || !lastName) {
@@ -2708,6 +2715,7 @@ const app = {
                     email: email || '',
                     phone: phone || '',
                     address: address || '',
+                    postalCode: postalCode || '',
                     passportNumber: passport || '',
                     nin: nin || '',
                     showroom: showroom || '',
@@ -2782,9 +2790,15 @@ const app = {
                                     <input type="text" name="phone" value="${client.phone}" class="glass-input">
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>Adresse</label>
-                                <input type="text" name="address" value="${client.address}" required class="glass-input">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Adresse</label>
+                                    <input type="text" name="address" value="${client.address}" required class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Code Postal</label>
+                                    <input type="text" name="postalCode" value="${client.postalCode || ''}" class="glass-input">
+                                </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
@@ -11371,10 +11385,10 @@ const app = {
 
     downloadClientCSVTemplate() {
         // Updated header to match Client structure more closely, using French labels
-        const headers = ["Reference;Prenom;Nom;Email;Telephone;Adresse;Entreprise;Passeport;NIN"];
+        const headers = ["Reference;Prenom;Nom;Email;Telephone;Adresse;CodePostal;Entreprise;Passeport;NIN"];
         // Providing 2 examples
-        const example1 = "CL-AUTO-1;Jean;Dupont;jean.dupont@email.com;0600000000;123 Rue Exemple;Dupont SARL;AB123456;123456789";
-        const example2 = "CL-AUTO-2;Marie;Curie;marie.curie@email.com;0700000000;456 Avenue Science;;CD789012;";
+        const example1 = "CL-AUTO-1;Jean;Dupont;jean.dupont@email.com;0600000000;123 Rue Exemple;75001;Dupont SARL;AB123456;123456789";
+        const example2 = "CL-AUTO-2;Marie;Curie;marie.curie@email.com;0700000000;456 Avenue Science;69000;;CD789012;";
 
         const csvContent = [headers, example1, example2].join("\n");
         const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -11441,6 +11455,7 @@ const app = {
                     email: email || '',
                     phone: getVal('telephone') || '',
                     address: getVal('adresse') || '',
+                    postalCode: getVal('code') || '',
                     company: getVal('entreprise') || '',
                     passportNumber: getVal('passeport') || '',
                     nin: getVal('nin') || '',
@@ -11603,6 +11618,76 @@ const app = {
         } else {
             this._generateCSVReport(type, filters);
         }
+    },
+
+    exportPurchaseOrdersToPDF() {
+        if (!window.jspdf || !window.jspdf.jsPDF) return alert("Bibliothèque PDF manquante.");
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4');
+
+        const purchaseOrders = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+
+        const columns = [
+            "ID Commande", "Nom Client", "Passport", "NIN",
+            "Marque", "Modèle", "Couleur", "VIN",
+            "Adresse", "C.P."
+        ];
+
+        const rows = [];
+
+        purchaseOrders.forEach(po => {
+            const poVehicles = po.vehicles || [];
+            poVehicles.forEach(v => {
+                let client = null;
+                if (v.clientId) {
+                    client = clients.find(c => c.id === v.clientId);
+                } else if (v.orderId) {
+                    const order = orders.find(o => o.id === v.orderId);
+                    if (order && order.clientId) {
+                        client = clients.find(c => c.id === order.clientId);
+                    }
+                }
+
+                rows.push([
+                    po.id,
+                    client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
+                    client ? (client.passportNumber || "-") : "-",
+                    client ? (client.nin || "-") : "-",
+                    v.brand || "-",
+                    v.model || "-",
+                    v.color || "-",
+                    v.chassisNumber || "-",
+                    client ? (client.address || "-") : "-",
+                    client ? (client.postalCode || "-") : "-"
+                ]);
+            });
+        });
+
+        // Generate PDF
+        doc.setFontSize(18);
+        doc.text("État des Commandes d'Achat", 14, 20);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 28);
+
+        doc.autoTable({
+            head: [columns],
+            body: rows,
+            startY: 35,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229] }, // matching primary color
+            styles: { fontSize: 8 },
+            columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 35 }
+            }
+        });
+
+        doc.save(`etat_achats_${new Date().toISOString().split('T')[0]}.pdf`);
+        this.showToast('État des achats généré', 'success');
     },
 
     _generatePDFReport(type, filters) {

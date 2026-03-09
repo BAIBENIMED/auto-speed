@@ -41,6 +41,10 @@ const Client = sequelize.define('Client', {
     },
     reference: {
         type: DataTypes.STRING(50)
+    },
+    postalCode: {
+        type: DataTypes.STRING(20),
+        field: 'postal_code'
     }
 }, {
     tableName: 'clients',
