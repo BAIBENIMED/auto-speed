@@ -49,6 +49,27 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
         type: DataTypes.STRING(10),
         defaultValue: 'Non',
         field: 'documents_received'
+    },
+    loadingPort: {
+        type: DataTypes.STRING(100),
+        field: 'loading_port'
+    },
+    loadingDate: {
+        type: DataTypes.DATE,
+        field: 'loading_date'
+    },
+    etd: {
+        type: DataTypes.DATE,
+        field: 'etd'
+    },
+    eta: {
+        type: DataTypes.DATE,
+        field: 'eta'
+    },
+    isLoaded: {
+        type: DataTypes.STRING(10),
+        defaultValue: 'Non',
+        field: 'is_loaded'
     }
 }, {
     tableName: 'purchase_orders',

@@ -8875,6 +8875,36 @@ const app = {
                                         </tbody>
                                     </table>
                                 </div>
+
+                                <div class="glass" style="margin-top: 15px; padding: 15px; background: rgba(var(--primary-rgb), 0.05); border-left: 4px solid var(--primary); border-radius: 8px;">
+                                    <h3 style="font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                                        <i class="fas fa-ship"></i> Expédition & Logistique
+                                    </h3>
+                                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                                        <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Statut Chargement</p>
+                                            <span class="status-badge ${p.isLoaded === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.85rem; padding: 4px 10px;">
+                                                <i class="fas ${p.isLoaded === 'Oui' ? 'fa-check-circle' : 'fa-clock'}"></i> ${p.isLoaded === 'Oui' ? 'CHARGÉ' : 'EN ATTENTE'}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Port de Chargement</p>
+                                            <strong style="font-size: 0.9rem;">${p.loadingPort || 'N/A'}</strong>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Date de Chargement</p>
+                                            <strong style="font-size: 0.9rem;">${p.loadingDate ? new Date(p.loadingDate).toLocaleDateString() : 'N/A'}</strong>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">ETD (Départ)</p>
+                                            <strong style="font-size: 0.9rem; color: var(--primary);">${p.etd ? new Date(p.etd).toLocaleDateString() : 'N/A'}</strong>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">ETA (Arrivée)</p>
+                                            <strong style="font-size: 0.9rem; color: var(--success);">${p.eta ? new Date(p.eta).toLocaleDateString() : 'N/A'}</strong>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="modal-footer">
                                 <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
@@ -9064,6 +9094,35 @@ const app = {
                                 </select>
                             </div>
                         </div>
+
+                        <div style="background: rgba(var(--primary-rgb), 0.03); padding: 15px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
+                            <h4 style="margin-bottom: 10px; font-size: 0.9rem; color: var(--primary);"><i class="fas fa-ship"></i> Logistique & Expédition</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                                <div class="form-group">
+                                    <label>Port de Chargement</label>
+                                    <input type="text" name="loadingPort" value="${po && po.loadingPort ? po.loadingPort : ''}" class="glass-input" placeholder="Nom du port">
+                                </div>
+                                <div class="form-group">
+                                    <label>Date de Chargement</label>
+                                    <input type="date" name="loadingDate" value="${po && po.loadingDate ? po.loadingDate.split('T')[0] : ''}" class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Chargement Effectué ?</label>
+                                    <select name="isLoaded" class="glass-select">
+                                        <option value="Non" ${po && po.isLoaded === 'Non' ? 'selected' : ''}>Non</option>
+                                        <option value="Oui" ${po && po.isLoaded === 'Oui' ? 'selected' : ''}>Oui</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>ETD (Estimation Départ)</label>
+                                    <input type="date" name="etd" value="${po && po.etd ? po.etd.split('T')[0] : ''}" class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>ETA (Estimation Arrivée)</label>
+                                    <input type="date" name="eta" value="${po && po.eta ? po.eta.split('T')[0] : ''}" class="glass-input">
+                                </div>
+                            </div>
+                        </div>
                         <div class="form-group full-width">
                             <label>Notes</label>
                             <textarea name="notes" class="code-input" rows="3">${po ? po.notes : ''}</textarea>
@@ -9097,6 +9156,11 @@ const app = {
                 purchaseDate: formData.get('purchaseDate'),
                 documentStatus: formData.get('documentStatus'),
                 documentsReceived: formData.get('documentsReceived'),
+                loadingPort: formData.get('loadingPort'),
+                loadingDate: formData.get('loadingDate') || null,
+                etd: formData.get('etd') || null,
+                eta: formData.get('eta') || null,
+                isLoaded: formData.get('isLoaded'),
                 notes: formData.get('notes')
             };
 

@@ -24,7 +24,12 @@ const purchaseOrdersController = {
 
     create: async (req, res) => {
         try {
-            const { supplierId, status, purchaseDate, documentStatus, documentsReceived, notes, vehicles } = req.body;
+            const {
+                supplierId, status, purchaseDate,
+                documentStatus, documentsReceived,
+                loadingPort, loadingDate, etd, eta, isLoaded,
+                notes, vehicles
+            } = req.body;
 
             // Generate PO ID: CMD/ANNEE/FOURNISSEUR/SEQUENCE
             const year = new Date().getFullYear();
@@ -51,6 +56,11 @@ const purchaseOrdersController = {
                 purchaseDate: purchaseDate || new Date(),
                 documentStatus,
                 documentsReceived,
+                loadingPort,
+                loadingDate,
+                etd,
+                eta,
+                isLoaded,
                 notes
             });
 
@@ -133,7 +143,12 @@ const purchaseOrdersController = {
     update: async (req, res) => {
         try {
             const { id } = req.params;
-            const { supplierId, status, purchaseDate, documentStatus, documentsReceived, notes, vehicles } = req.body;
+            const {
+                supplierId, status, purchaseDate,
+                documentStatus, documentsReceived,
+                loadingPort, loadingDate, etd, eta, isLoaded,
+                notes, vehicles
+            } = req.body;
 
             const po = await PurchaseOrder.findByPk(id);
             if (!po) {
@@ -149,6 +164,11 @@ const purchaseOrdersController = {
                 purchaseDate: purchaseDate !== undefined ? purchaseDate : po.purchaseDate,
                 documentStatus: documentStatus !== undefined ? documentStatus : po.documentStatus,
                 documentsReceived: documentsReceived !== undefined ? documentsReceived : po.documentsReceived,
+                loadingPort: loadingPort !== undefined ? loadingPort : po.loadingPort,
+                loadingDate: loadingDate !== undefined ? loadingDate : po.loadingDate,
+                etd: etd !== undefined ? etd : po.etd,
+                eta: eta !== undefined ? eta : po.eta,
+                isLoaded: isLoaded !== undefined ? isLoaded : po.isLoaded,
                 notes: notes !== undefined ? notes : po.notes
             });
 
