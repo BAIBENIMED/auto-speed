@@ -316,7 +316,8 @@ const startServer = async () => {
                 { table: 'orders', name: 'document_status', def: "VARCHAR(50) DEFAULT 'Rien'" },
                 { table: 'orders', name: 'documents_received', def: "VARCHAR(10) DEFAULT 'Non'" },
                 { table: 'vehicles', name: 'motorization', def: 'VARCHAR(200)' },
-                { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' }
+                { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' },
+                { table: 'vehicles', name: 'client_id', def: 'VARCHAR(50)' }
             ];
 
             for (const col of columnsToEnsure) {
