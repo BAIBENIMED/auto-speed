@@ -172,6 +172,11 @@ const purchaseOrdersController = {
                 notes: notes !== undefined ? notes : po.notes
             });
 
+            // If supplier changed, update it on all vehicles linked to this PO
+            if (supplier && supplier.name !== po.supplierName) {
+                await Vehicle.update({ supplier: supplier.name }, { where: { purchaseOrderId: id } });
+            }
+
             // Optionally, handle updating the list of vehicles here if necessary.
             // For now, updating existing vehicles' details via the vehicles array if they have IDs.
             if (vehicles && Array.isArray(vehicles)) {

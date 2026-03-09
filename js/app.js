@@ -8502,6 +8502,9 @@ const app = {
 
         try {
             const response = await ApiService.getPurchaseOrders();
+            if (response.success && response.data) {
+                await StorageService.save(STORAGE_KEYS.PURCHASE_ORDERS, response.data);
+            }
             let purchases = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
 
             // Apply filters
