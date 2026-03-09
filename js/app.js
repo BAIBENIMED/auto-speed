@@ -538,23 +538,7 @@ const app = {
                                 </div>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label><i class="fas fa-file-contract"></i> Statut Documents</label>
-                                    <select name="documentStatus" class="glass-select">
-                                        <option value="Rien">Rien</option>
-                                        <option value="BL Draft">BL Draft</option>
-                                        <option value="BL Finale">BL Finale</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label><i class="fas fa-check-circle"></i> Documents Reçus</label>
-                                    <select name="documentsReceived" class="glass-select">
-                                        <option value="Non">Non</option>
-                                        <option value="Oui">Oui</option>
-                                    </select>
-                                </div>
-                            </div>
+
 
                             <div class="modal-footer">
                                 <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
@@ -976,23 +960,7 @@ const app = {
                                 
                                 <p style="margin-top: 10px;"><strong>Prix Total:</strong> ${this.formatCurrency(order.totalAmount)}</p>
                             </div>
-                            <div class="details-section" style="background: rgba(var(--primary-rgb), 0.05); border-left: 4px solid var(--primary);">
-                                <h3><i class="fas fa-file-invoice"></i> État des Documents</h3>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                    <div>
-                                        <p style="margin-bottom: 5px; color: var(--text-dim); font-size: 0.8rem;">Statut Documents</p>
-                                        <span class="status-badge ${order.documentStatus === 'BL Finale' ? 'success' : (order.documentStatus === 'BL Draft' ? 'warning' : 'neutral')}" style="font-size: 0.9rem; padding: 5px 12px;">
-                                            ${order.documentStatus || 'Rien'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <p style="margin-bottom: 5px; color: var(--text-dim); font-size: 0.8rem;">Documents Reçus</p>
-                                        <span class="status-badge ${order.documentsReceived === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.9rem; padding: 5px 12px;">
-                                             <i class="fas ${order.documentsReceived === 'Oui' ? 'fa-check' : 'fa-times'}"></i> ${order.documentsReceived || 'Non'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+
                             <div class="details-section">
                                 <h3><i class="fas fa-money-bill-wave"></i> Détail Financier</h3>
                                 <div class="financial-breakdown" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
@@ -1160,23 +1128,6 @@ const app = {
                                 <textarea name="remarks" class="glass-input" rows="3" placeholder="Notes particulières...">${order.remarks || ''}</textarea>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label><i class="fas fa-file-contract"></i> Statut Documents</label>
-                                    <select name="documentStatus" class="glass-select">
-                                        <option value="Rien" ${order.documentStatus === 'Rien' ? 'selected' : ''}>Rien</option>
-                                        <option value="BL Draft" ${order.documentStatus === 'BL Draft' ? 'selected' : ''}>BL Draft</option>
-                                        <option value="BL Finale" ${order.documentStatus === 'BL Finale' ? 'selected' : ''}>BL Finale</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label><i class="fas fa-check-circle"></i> Documents Reçus</label>
-                                    <select name="documentsReceived" class="glass-select">
-                                        <option value="Non" ${order.documentsReceived === 'Non' ? 'selected' : ''}>Non</option>
-                                        <option value="Oui" ${order.documentsReceived === 'Oui' ? 'selected' : ''}>Oui</option>
-                                    </select>
-                                </div>
-                            </div>
                             <div class="form-group">
                                 <label>Statut</label>
                                 <select name="status" class="glass-select">
@@ -2355,13 +2306,6 @@ const app = {
                 })() : ''}
                                         </div>
                                     </td>
-                                    <td>
-                                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                                            <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Doc: ${order.documentStatus || 'Rien'}</span>
-                                            <span class="status-badge ${order.documentsReceived === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.65rem; padding: 2px 6px; width: fit-content;">
-                                                REC: ${order.documentsReceived || 'Non'}
-                                            </span>
-                                        </div>
                                     </td>
                                     <td>
                                         ${order.isValidated ?
@@ -8647,6 +8591,7 @@ const app = {
                                     <th>Nb Véhicules</th>
                                     <th>Détails Véhicules</th>
                                     <th>Date Commande</th>
+                                    <th>Documents</th>
                                     <th>Statut</th>
                                     <th>Actions</th>
                                 </tr>
@@ -8670,6 +8615,14 @@ const app = {
                             : '-'}
                                         </td>
                                         <td>${p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A'}</td>
+                                        <td>
+                                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Doc: ${p.documentStatus || 'Rien'}</span>
+                                                <span class="status-badge ${p.documentsReceived === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.65rem; padding: 2px 6px; width: fit-content;">
+                                                    REC: ${p.documentsReceived || 'Non'}
+                                                </span>
+                                            </div>
+                                        </td>
                                         <td><span class="status-badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${p.status}</span></td>
                                         <td>
                                             <div class="actions-cell">
@@ -8846,6 +8799,14 @@ const app = {
                                 <div>
                                     <h2>Détails Commande d'Achat #${p.id}</h2>
                                     <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A'}</p>
+                                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                                        <span class="status-badge ${p.documentStatus === 'BL Finale' ? 'success' : (p.documentStatus === 'BL Draft' ? 'warning' : 'neutral')}" style="font-size: 0.75rem; padding: 2px 8px;">
+                                            Statut Doc: ${p.documentStatus || 'Rien'}
+                                        </span>
+                                        <span class="status-badge ${p.documentsReceived === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.75rem; padding: 2px 8px;">
+                                            DOC REC: ${p.documentsReceived || 'Non'}
+                                        </span>
+                                    </div>
                                 </div>
                                 <button class="btn-close" onclick="app.closeModal()">&times;</button>
                             </div>
@@ -9086,6 +9047,23 @@ const app = {
                             <label>Date d'achat</label>
                             <input type="date" name="purchaseDate" value="${po ? po.purchaseDate.split('T')[0] : new Date().toISOString().split('T')[0]}" class="code-input" required>
                         </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label><i class="fas fa-file-contract"></i> Statut Documents</label>
+                                <select name="documentStatus" class="glass-select">
+                                    <option value="Rien" ${po && po.documentStatus === 'Rien' ? 'selected' : ''}>Rien</option>
+                                    <option value="BL Draft" ${po && po.documentStatus === 'BL Draft' ? 'selected' : ''}>BL Draft</option>
+                                    <option value="BL Finale" ${po && po.documentStatus === 'BL Finale' ? 'selected' : ''}>BL Finale</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label><i class="fas fa-check-circle"></i> Documents Reçus</label>
+                                <select name="documentsReceived" class="glass-select">
+                                    <option value="Non" ${po && po.documentsReceived === 'Non' ? 'selected' : ''}>Non</option>
+                                    <option value="Oui" ${po && po.documentsReceived === 'Oui' ? 'selected' : ''}>Oui</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="form-group full-width">
                             <label>Notes</label>
                             <textarea name="notes" class="code-input" rows="3">${po ? po.notes : ''}</textarea>
@@ -9117,6 +9095,8 @@ const app = {
                 supplierId: formData.get('supplierId'),
                 status: formData.get('status'),
                 purchaseDate: formData.get('purchaseDate'),
+                documentStatus: formData.get('documentStatus'),
+                documentsReceived: formData.get('documentsReceived'),
                 notes: formData.get('notes')
             };
 
