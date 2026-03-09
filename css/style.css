@@ -345,6 +345,17 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     transform: scale(1.1);
 }
 
+.btn-action.success-alt {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.btn-action.success-alt:hover {
+    background: var(--success);
+    color: white;
+}
+
 /* Main Content */
 .main-content {
     flex: 1;
@@ -912,13 +923,30 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     width: 600px;
     max-width: 95%;
     max-height: 90vh;
-    /* Restore viewport limit */
     overflow-y: auto;
-    /* Enable vertical scroll */
-    background: var(--bg-glass);
-    /* Ensure background is set if not already by .glass class, though .glass adds it too. Keeping consistent with previous style which relied on .glass usually being added in HTML. Wait, previous CSS didn't have background here, it relied on the class 'glass' in HTML? No, let's check HTML. */
+    background: var(--bg-dark);
     padding: 35px;
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Custom Modal Scrollbar */
+.modal-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+    opacity: 0.5;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
 }
 
 .modal-header {

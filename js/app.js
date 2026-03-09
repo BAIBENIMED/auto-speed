@@ -63,6 +63,7 @@ const app = {
         model: '',
         status: '',
         supplier: '',
+        purchaseOrderId: '',
         showArchived: false
     },
     purchaseFilters: {
@@ -431,13 +432,16 @@ const app = {
         }
     },
 
-    showOrderModal() {
+    showOrderModal(vehicleId = null) {
         const allAvailableVehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => !v.orderId && !v.archived);
         const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
         const brands = StorageService.get(STORAGE_KEYS.BRANDS);
         const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
         const colors = StorageService.get(STORAGE_KEYS.COLORS);
+        const motors = StorageService.get(STORAGE_KEYS.MOTORS) || [];
         const currentYear = new Date().getFullYear();
+
+        const preSelectedVehicle = vehicleId ? StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === vehicleId) : null;
 
         const modalHtml = `
                 <div class="modal-overlay">
@@ -479,6 +483,13 @@ const app = {
                                         <label>Modèle</label>
                                         <select id="filter-model" name="requestedModel" class="glass-select">
                                             <option value="">Tous les modèles</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Motorisation</label>
+                                        <select name="requestedMotorization" id="filter-motor" class="glass-select">
+                                            <option value="">Toutes</option>
+                                            ${motors.map(m => `<option value="${m}">${m}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div class="form-group">
@@ -555,6 +566,27 @@ const app = {
             `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // --- PRE-SELECTION LOGIC (from Affecter Client) ---
+        if (preSelectedVehicle) {
+            const v = preSelectedVehicle;
+            if (v.brand) document.querySelector('#order-form [name="requestedBrand"]').value = v.brand;
+            if (v.brand && brandModels[v.brand]) {
+                const modelSel = document.getElementById('filter-model');
+                const opts = brandModels[v.brand].map(m => `<option value="${m}">${m}</option>`).join('');
+                modelSel.innerHTML = '<option value="">Tous les modèles</option>' + opts;
+                if (v.model) modelSel.value = v.model;
+            }
+            if (v.motorization) document.getElementById('filter-motor').value = v.motorization;
+            if (v.color) document.querySelector('#order-form [name="requestedColor"]').value = v.color;
+            if (v.showroom) document.querySelector('#order-form select[name="showroom"]').value = v.showroom;
+            const vSelect = document.getElementById('order-vehicle-select');
+            vSelect.disabled = false;
+            vSelect.innerHTML = `<option value="${v.id}" selected>${v.brand} ${v.model || ''} (${v.chassisNumber || v.id})</option>`;
+            const price = v.sellingPrice || v.price || 0;
+            document.getElementById('order-total-amount').value = price;
+        }
+        // ---------------------------------------------------
+
         // --- CLIENT SEARCH LOGIC ---
         const clientSearch = document.getElementById('client-search');
         const clientSelect = document.getElementById('client-select');
@@ -578,6 +610,7 @@ const app = {
 
         const brandFilter = document.getElementById('filter-brand');
         const modelFilter = document.getElementById('filter-model');
+        const motorFilter = document.getElementById('filter-motor');
         const categoryFilter = document.getElementById('filter-category');
         const showroomFilter = document.getElementById('filter-showroom');
         const vehicleSelect = document.getElementById('order-vehicle-select');
@@ -740,6 +773,7 @@ const app = {
                         vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.motorization || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''}`,
                         requestedBrand: formData.get('requestedBrand') || '',
                         requestedModel: formData.get('requestedModel') || '',
+                        requestedMotorization: formData.get('requestedMotorization') || '',
                         requestedColor: formData.get('requestedColor') || '',
                         totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
                         discount: 0,
@@ -779,6 +813,7 @@ const app = {
                     vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''}`,
                     requestedBrand: formData.get('requestedBrand') || '',
                     requestedModel: formData.get('requestedModel') || '',
+                    requestedMotorization: formData.get('requestedMotorization') || '',
                     requestedColor: formData.get('requestedColor') || '',
                     date: new Date().toISOString(),
                     totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
@@ -2810,6 +2845,9 @@ const app = {
             if (this.vehicleFilters.supplier) {
                 vehicles = vehicles.filter(v => v.supplier === this.vehicleFilters.supplier);
             }
+            if (this.vehicleFilters.purchaseOrderId) {
+                vehicles = vehicles.filter(v => v.purchaseOrderId === this.vehicleFilters.purchaseOrderId);
+            }
         }
 
         if (!this.vehicleFilters.showArchived) {
@@ -2862,6 +2900,13 @@ const app = {
                         <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
                             <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
                             <label for="filter-vehicle-archived" style="font-size: 0.8rem; cursor: pointer; margin: 0; color: var(--text-dim);">Archives</label>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Commande d'Achat</label>
+                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, purchaseOrderId: this.value}; app.renderVehicles()">
+                                <option value="">Toutes les sources</option>
+                                ${[...new Set((StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => v.purchaseOrderId).map(v => v.purchaseOrderId))].map(poId => `<option value="${poId}" ${this.vehicleFilters.purchaseOrderId === poId ? 'selected' : ''}>${poId}</option>`).join('')}
+                            </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; width: 100%;" onclick="app.vehicleFilters = {showArchived: false}; app.renderVehicles()"><i class="fas fa-undo"></i> Reset</button>
@@ -2954,6 +2999,7 @@ const app = {
                                             <button class="btn-action" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails">
                                                 <i class="fas fa-eye"></i>
                                             </button>
+                                            ${!v.orderId ? `<button class="btn-action success-alt" onclick="app.showOrderModal('${v.id}')" title="Affecter un client"><i class="fas fa-user-plus"></i></button>` : ''}
                                             ${canEdit ? `<button class="btn-action" onclick="app.showEditVehicleModal('${v.id}')" title="Modifier"><i class="fas fa-edit"></i></button>` : ''}
                                             ${canDelete ? `<button class="btn-action danger" onclick="app.deleteVehicle('${v.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>` : ''}
                                         </div>
