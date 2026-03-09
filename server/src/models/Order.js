@@ -67,6 +67,16 @@ const Order = sequelize.define('Order', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
         field: 'is_archived'
+    },
+    documentStatus: {
+        type: DataTypes.STRING(50),
+        defaultValue: 'Rien',
+        field: 'document_status'
+    },
+    documentsReceived: {
+        type: DataTypes.STRING(10),
+        defaultValue: 'Non',
+        field: 'documents_received'
     }
 }, {
     tableName: 'orders',

@@ -527,6 +527,24 @@ const app = {
                                 </div>
                             </div>
 
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label><i class="fas fa-file-contract"></i> Statut Documents</label>
+                                    <select name="documentStatus" class="glass-select">
+                                        <option value="Rien">Rien</option>
+                                        <option value="BL Draft">BL Draft</option>
+                                        <option value="BL Finale">BL Finale</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label><i class="fas fa-check-circle"></i> Documents Reçus</label>
+                                    <select name="documentsReceived" class="glass-select">
+                                        <option value="Non">Non</option>
+                                        <option value="Oui">Oui</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <div class="modal-footer">
                                 <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
                                 <button type="submit" class="btn-primary">Créer la commande</button>
@@ -728,7 +746,9 @@ const app = {
                         date: (formData.get('date') && formData.get('date').trim() !== '') ? new Date(formData.get('date')).toISOString() : orders[orderIndex].date,
                         remarks: formData.get('remarks') || '',
                         showroom: formData.get('showroom') || orders[orderIndex].showroom || 'Showroom Principal',
-                        status: formData.get('status') || orders[orderIndex].status
+                        status: formData.get('status') || orders[orderIndex].status,
+                        documentStatus: formData.get('documentStatus') || orders[orderIndex].documentStatus || 'Rien',
+                        documentsReceived: formData.get('documentsReceived') || orders[orderIndex].documentsReceived || 'Non'
                     };
 
                     // Calculate status normally UNLESS it was manually set to ANNULÉE
@@ -767,6 +787,8 @@ const app = {
                     date: (formData.get('date') && formData.get('date').trim() !== '') ? new Date(formData.get('date')).toISOString() : new Date().toISOString(),
                     remarks: formData.get('remarks') || '',
                     showroom: formData.get('showroom') || 'Showroom Principal',
+                    documentStatus: formData.get('documentStatus') || 'Rien',
+                    documentsReceived: formData.get('documentsReceived') || 'Non',
                     isValidated: false
                 };
                 newOrder.status = this.calculateOrderStatus(newOrder);
@@ -910,6 +932,23 @@ const app = {
                                 ` : ''}
                                 
                                 <p style="margin-top: 10px;"><strong>Prix Total:</strong> ${this.formatCurrency(order.totalAmount)}</p>
+                            </div>
+                            <div class="details-section" style="background: rgba(var(--primary-rgb), 0.05); border-left: 4px solid var(--primary);">
+                                <h3><i class="fas fa-file-invoice"></i> État des Documents</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div>
+                                        <p style="margin-bottom: 5px; color: var(--text-dim); font-size: 0.8rem;">Statut Documents</p>
+                                        <span class="status-badge ${order.documentStatus === 'BL Finale' ? 'success' : (order.documentStatus === 'BL Draft' ? 'warning' : 'neutral')}" style="font-size: 0.9rem; padding: 5px 12px;">
+                                            ${order.documentStatus || 'Rien'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p style="margin-bottom: 5px; color: var(--text-dim); font-size: 0.8rem;">Documents Reçus</p>
+                                        <span class="status-badge ${order.documentsReceived === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.9rem; padding: 5px 12px;">
+                                             <i class="fas ${order.documentsReceived === 'Oui' ? 'fa-check' : 'fa-times'}"></i> ${order.documentsReceived || 'Non'}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="details-section">
                                 <h3><i class="fas fa-money-bill-wave"></i> Détail Financier</h3>
@@ -1076,6 +1115,24 @@ const app = {
                             <div class="form-group">
                                 <label>Commentaires / Remarques</label>
                                 <textarea name="remarks" class="glass-input" rows="3" placeholder="Notes particulières...">${order.remarks || ''}</textarea>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label><i class="fas fa-file-contract"></i> Statut Documents</label>
+                                    <select name="documentStatus" class="glass-select">
+                                        <option value="Rien" ${order.documentStatus === 'Rien' ? 'selected' : ''}>Rien</option>
+                                        <option value="BL Draft" ${order.documentStatus === 'BL Draft' ? 'selected' : ''}>BL Draft</option>
+                                        <option value="BL Finale" ${order.documentStatus === 'BL Finale' ? 'selected' : ''}>BL Finale</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label><i class="fas fa-check-circle"></i> Documents Reçus</label>
+                                    <select name="documentsReceived" class="glass-select">
+                                        <option value="Non" ${order.documentsReceived === 'Non' ? 'selected' : ''}>Non</option>
+                                        <option value="Oui" ${order.documentsReceived === 'Oui' ? 'selected' : ''}>Oui</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Statut</label>
@@ -2188,6 +2245,7 @@ const app = {
                                 <th>Véhicule</th>
                                 <th>Date</th>
                                 <th style="text-align: center;">Statut</th>
+                                <th>Documents</th>
                                 <th>Validation</th>
                                 ${canViewFinancials ? `
                                 <th>Total</th>
@@ -2247,6 +2305,14 @@ const app = {
                                                     </div>
                                                 `;
                 })() : ''}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                            <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Doc: ${order.documentStatus || 'Rien'}</span>
+                                            <span class="status-badge ${order.documentsReceived === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.65rem; padding: 2px 6px; width: fit-content;">
+                                                REC: ${order.documentsReceived || 'Non'}
+                                            </span>
                                         </div>
                                     </td>
                                     <td>
@@ -7656,6 +7722,7 @@ const app = {
                                         <p class="stat-value success">+ ${this.formatCurrency(totalIn)}</p>
                                     </div>
                                 </div>
+
                                 <div class="stat-card glass">
                                     <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
                                         <i class="fas fa-arrow-up"></i>
