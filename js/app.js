@@ -8601,8 +8601,8 @@ const app = {
                     purchases.map(p => `
                                     <tr>
                                         <td><strong>${p.id}</strong></td>
-                                        <td>${p.supplierDetails ? `<span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 5px 10px;">${p.supplierDetails.code}</span> ${p.supplierDetails.name}` : p.supplierName || 'N/A'}</td>
-                                        <td><span class="badge">${p.vehicles ? p.vehicles.length : 0}</span></td>
+                                        <td>${p.supplierDetails ? `<span style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(var(--primary-rgb), 0.2);">${p.supplierDetails.code}</span> ${p.supplierDetails.name}` : p.supplierName || 'N/A'}</td>
+                                        <td><span style="background: rgba(255,255,255,0.05); color: var(--text-primary); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">${p.vehicles ? p.vehicles.length : 0}</span></td>
                                         <td>
                                             ${p.vehicles && p.vehicles.length > 0 ?
                             `<div style="font-size: 0.85rem; max-height: 80px; overflow-y: auto;">
