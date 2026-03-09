@@ -54,23 +54,58 @@ const purchaseOrdersController = {
 
             // If vehicles were passed, create them and link them to the newly created PO
             if (vehicles && Array.isArray(vehicles) && vehicles.length > 0) {
-                const vehiclesToCreate = vehicles.map((v, index) => {
-                    return {
+                const vehiclesToCreate = [];
+                for (let i = 0; i < vehicles.length; i++) {
+                    const v = vehicles[i];
+                    const brand = (v.brand || 'UNKNOWN').toUpperCase().replace(/\s+/g, '');
+
+                    // Get next sequence for this brand
+                    const { Op } = require('sequelize');
+                    const lastVehicle = await Vehicle.findOne({
+                        where: {
+                            id: { [Op.like]: `${brand}/%` }
+                        },
+                        order: [['createdAt', 'DESC']]
+                    });
+
+                    let nextSeq = 1;
+                    if (lastVehicle && lastVehicle.id.includes('/')) {
+                        const parts = lastVehicle.id.split('/');
+                        const lastNum = parseInt(parts[1]);
+                        if (!isNaN(lastNum)) nextSeq = lastNum + 1;
+                    }
+
+                    // Ensure uniqueness by checking if ID already exists (in case of gaps/deletions)
+                    let finalId = `${brand}/${nextSeq.toString().padStart(5, '0')}`;
+                    let exists = await Vehicle.findByPk(finalId);
+                    while (exists) {
+                        nextSeq++;
+                        finalId = `${brand}/${nextSeq.toString().padStart(5, '0')}`;
+                        exists = await Vehicle.findByPk(finalId);
+                    }
+
+                    // Determine status: Stock (Available) unless order is CONCLUE
+                    let vehicleStatus = 'Available';
+                    if (v.orderId) {
+                        const linkedOrder = await Order.findByPk(v.orderId);
+                        if (linkedOrder && linkedOrder.status === 'CONCLUE') {
+                            vehicleStatus = 'Livrée';
+                        }
+                    }
+
+                    vehiclesToCreate.push({
                         ...v,
-                        id: `VH-${Date.now()}-${index}`,
+                        id: finalId,
                         purchaseOrderId: poId,
                         supplier: supplier ? supplier.name : null,
                         purchasePrice: v.purchasePrice || 0,
                         purchaseCurrency: v.purchaseCurrency || 'EUR',
-                        status: 'Available' // Or something else if in PO
-                    };
-                });
+                        status: vehicleStatus
+                    });
+                }
 
                 await Vehicle.bulkCreate(vehiclesToCreate);
 
-                // For each vehicle, if it's linked to an Order, we might want to update the Order's vehicleId 
-                // but the old logic didn't do this directly. We'll link Vehicle -> Order, wait, Order.vehicleId is used?
-                // Actually the Vehicle has orderId.
                 for (const v of vehiclesToCreate) {
                     if (v.orderId) {
                         await Order.update({ vehicleId: v.id }, { where: { id: v.orderId } });
@@ -121,14 +156,44 @@ const purchaseOrdersController = {
                         await Vehicle.update(v, { where: { id: v.id, purchaseOrderId: id } });
                     } else {
                         // Create new vehicle appended to this PO
+                        const brand = (v.brand || 'UNKNOWN').toUpperCase().replace(/\s+/g, '');
+                        const { Op } = require('sequelize');
+                        const lastVehicle = await Vehicle.findOne({
+                            where: { id: { [Op.like]: `${brand}/%` } },
+                            order: [['createdAt', 'DESC']]
+                        });
+
+                        let nextSeq = 1;
+                        if (lastVehicle && lastVehicle.id.includes('/')) {
+                            const parts = lastVehicle.id.split('/');
+                            const lastNum = parseInt(parts[1]);
+                            if (!isNaN(lastNum)) nextSeq = lastNum + 1;
+                        }
+
+                        let finalId = `${brand}/${nextSeq.toString().padStart(5, '0')}`;
+                        let exists = await Vehicle.findByPk(finalId);
+                        while (exists) {
+                            nextSeq++;
+                            finalId = `${brand}/${nextSeq.toString().padStart(5, '0')}`;
+                            exists = await Vehicle.findByPk(finalId);
+                        }
+
+                        let vehicleStatus = 'Available';
+                        if (v.orderId) {
+                            const linkedOrder = await Order.findByPk(v.orderId);
+                            if (linkedOrder && linkedOrder.status === 'CONCLUE') {
+                                vehicleStatus = 'Livrée';
+                            }
+                        }
+
                         const newVehicle = await Vehicle.create({
                             ...v,
-                            id: `VH-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                            id: finalId,
                             purchaseOrderId: id,
                             supplier: supplier ? supplier.name : po.supplierName,
                             purchasePrice: v.purchasePrice || 0,
                             purchaseCurrency: v.purchaseCurrency || 'EUR',
-                            status: 'Available'
+                            status: vehicleStatus
                         });
                         if (newVehicle.orderId) {
                             await Order.update({ vehicleId: newVehicle.id }, { where: { id: newVehicle.orderId } });

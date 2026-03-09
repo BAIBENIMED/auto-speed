@@ -311,18 +311,25 @@ const startServer = async () => {
                 { table: 'voyages', name: 'current_lat', def: 'DECIMAL(10, 8)' },
                 { table: 'voyages', name: 'current_lng', def: 'DECIMAL(11, 8)' },
                 { table: 'voyages', name: 'ship_status', def: 'VARCHAR(100)' },
-                { table: 'voyages', name: 'tracking_history', def: 'LONGTEXT' }
+                { table: 'voyages', name: 'tracking_history', def: 'LONGTEXT' },
+                { table: 'voyages', name: 'last_update', def: 'DATETIME' },
+                { table: 'orders', name: 'document_status', def: 'VARCHAR(50) DEFAULT "Rien"' },
+                { table: 'orders', name: 'documents_received', def: 'VARCHAR(10) DEFAULT "Non"' },
+                { table: 'vehicles', name: 'motorization', def: 'VARCHAR(200)' },
+                { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' }
             ];
 
             for (const col of columnsToEnsure) {
                 try {
-                    const [results] = await sequelize.query(`SHOW COLUMNS FROM ${col.table} LIKE '${col.name}'`);
-                    if (results.length === 0) {
-                        console.log(`🔧 Adding missing column ${col.name} to ${col.table}...`);
-                        await sequelize.query(`ALTER TABLE ${col.table} ADD COLUMN ${col.name} ${col.def}`);
-                    }
+                    await sequelize.query(`ALTER TABLE ${col.table} ADD COLUMN ${col.name} ${col.def}`);
+                    console.log(`🔧 Column checked/added: ${col.table}.${col.name}`);
                 } catch (colErr) {
-                    console.error(`⚠️ Could not verify/add column ${col.name}:`, colErr.message);
+                    // Ignore "Duplicate column name" error as it means column already exists
+                    if (colErr.message.includes('Duplicate column') || colErr.original?.code === 'ER_DUP_FIELDNAME') {
+                        // Column already exists, this is fine
+                    } else {
+                        console.error(`⚠️ Could not verify/add column ${col.name} to ${col.table}:`, colErr.message);
+                    }
                 }
             }
         } catch (schemaErr) {

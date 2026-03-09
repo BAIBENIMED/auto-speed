@@ -76,6 +76,11 @@ const Voyage = sequelize.define('Voyage', {
         type: DataTypes.TEXT('long'),
         allowNull: true,
         field: 'tracking_history'
+    },
+    lastUpdate: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'last_update'
     }
 }, {
     tableName: 'voyages',

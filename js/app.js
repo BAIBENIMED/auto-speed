@@ -8580,7 +8580,7 @@ const app = {
                             `<div style="font-size: 0.85rem; max-height: 80px; overflow-y: auto;">
                                                 ${p.vehicles.map(v =>
                                 `<div style="margin-bottom: 2px; cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails du véhicule">
-                                        • <strong>${v.order?.clientName || 'STOCK'}</strong> : ${v.brand} ${v.model || ''} <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span>
+                                    • <strong>${v.order?.clientName || 'STOCK'}</strong> : ${v.brand} ${v.model || ''} ${v.motorization ? `[${v.motorization}]` : ''} <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span>
                                     </div>`
                             ).join('')}
                                                 </div>`
@@ -8773,6 +8773,7 @@ const app = {
                                             <tr>
                                                 <th>Marque / Modèle</th>
                                                 <th>Identification</th>
+                                                <th>Motorisation</th>
                                                 <th>Client Affecté</th>
                                                 <th>Statut Livraison Client</th>
                                                 <th>Détails</th>
@@ -8804,6 +8805,9 @@ const app = {
                                                     <td>
                                                         <div style="font-size: 0.85rem;"><strong>VIN:</strong> <code style="font-family: monospace;">${v.chassisNumber || 'N/A'}</code></div>
                                                         <div style="font-size: 0.85rem;"><strong>ID:</strong> #${v.id}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div style="font-size: 0.85rem;">${v.motorization || '-'}</div>
                                                     </td>
                                                     <td>
                                                         ${client ? `
@@ -8878,6 +8882,7 @@ const app = {
                                     <th>Commande</th>
                                     <th>Client</th>
                                     <th>Véhicule (Marque/Modèle)</th>
+                                    <th>Motorisation</th>
                                     <th>VIN Châssis</th>
                                     <th>Couleur/Cat.</th>
                                     <th>Kilo.</th>
@@ -8897,6 +8902,7 @@ const app = {
                                             <input type="hidden" class="brand-input" value="${o.requestedBrand || ''}">
                                             <input type="hidden" class="model-input" value="${o.requestedModel || ''}">
                                         </td>
+                                        <td><input type="text" class="glass-input motorization-input" placeholder="Motorisation" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
@@ -8940,6 +8946,7 @@ const app = {
                                                 ${(brandModels[v.brand] || []).map(m => `<option value="${m}" ${v.model === m ? 'selected' : ''}>${m}</option>`).join('')}
                                             </select>
                                         </td>
+                                        <td><input type="text" class="glass-input motorization-input" value="${v.motorization || ''}" placeholder="Motorisation" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td><input type="text" class="glass-input vin-input" value="${v.chassisNumber || ''}" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
@@ -8964,7 +8971,7 @@ const app = {
                                             <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
                                         </td>
                                     </tr>
-                                    `).join('') : '<tr><td colspan="10" style="text-align: center;">Aucun véhicule lié</td></tr>')}
+                                    `).join('') : '<tr><td colspan="11" style="text-align: center;">Aucun véhicule lié</td></tr>')}
                                 </tbody>
                             </table>
                         </div>
@@ -9042,6 +9049,7 @@ const app = {
                             orderId: tr.getAttribute('data-order-id') || null,
                             brand: tr.querySelector('.brand-input')?.value || '',
                             model: tr.querySelector('.model-input')?.value || '',
+                            motorization: tr.querySelector('.motorization-input').value,
                             chassisNumber: tr.querySelector('.vin-input').value,
                             color: tr.querySelector('.color-select').value,
                             category: tr.querySelector('.category-select').value,
@@ -9067,7 +9075,7 @@ const app = {
                 try {
                     await ApiService.createPurchaseOrder(data);
                     if (loadingToast && loadingToast.remove) loadingToast.remove();
-                    this.showToast("Commande d'achat créée avec succès", "success");
+                    this.showToast("Commande d'achat créée avec succès. Les véhicules ont été créés en stock.", "success");
                 } catch (err) {
                     if (loadingToast && loadingToast.remove) loadingToast.remove();
                     console.error("Error creating PO:", err);
@@ -9083,6 +9091,7 @@ const app = {
                         orderId: tr.getAttribute('data-order-id') || null,
                         brand: tr.querySelector('.brand-input')?.value || '',
                         model: tr.querySelector('.model-input')?.value || '',
+                        motorization: tr.querySelector('.motorization-input').value,
                         chassisNumber: tr.querySelector('.vin-input').value,
                         color: tr.querySelector('.color-select').value,
                         category: tr.querySelector('.category-select').value,
@@ -9149,6 +9158,7 @@ const app = {
                     <option value="">Modèle</option>
                 </select>
             </td>
+            <td><input type="text" class="glass-input motorization-input" placeholder="Motorisation" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
             <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
             <td>
                 <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">

@@ -71,7 +71,32 @@ const vehiclesController = {
                 }
             }
 
-            const vehicle = await Vehicle.create(req.body, {
+            const brand = (req.body.brand || 'UNKNOWN').toUpperCase().replace(/\s+/g, '');
+            const { Op } = require('sequelize');
+            const lastVehicle = await Vehicle.findOne({
+                where: { id: { [Op.like]: `${brand}/%` } },
+                order: [['createdAt', 'DESC']]
+            });
+
+            let nextSeq = 1;
+            if (lastVehicle && lastVehicle.id.includes('/')) {
+                const parts = lastVehicle.id.split('/');
+                const lastNum = parseInt(parts[1]);
+                if (!isNaN(lastNum)) nextSeq = lastNum + 1;
+            }
+
+            let finalId = `${brand}/${nextSeq.toString().padStart(5, '0')}`;
+            let exists = await Vehicle.findByPk(finalId);
+            while (exists) {
+                nextSeq++;
+                finalId = `${brand}/${nextSeq.toString().padStart(5, '0')}`;
+                exists = await Vehicle.findByPk(finalId);
+            }
+
+            const vehicle = await Vehicle.create({
+                ...req.body,
+                id: finalId
+            }, {
                 userId: req.user.id,
                 userName: req.user.name
             });
