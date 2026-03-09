@@ -307,14 +307,14 @@ const startServer = async () => {
                 { table: 'voyages', name: 'arrivalDate', def: 'DATE' },
                 { table: 'voyages', name: 'notes', def: 'TEXT' },
                 { table: 'voyages', name: 'active', def: 'TINYINT(1) DEFAULT 1' },
-                { table: 'voyages', name: 'status', def: 'VARCHAR(50) DEFAULT "Planifié"' },
+                { table: 'voyages', name: 'status', def: "VARCHAR(50) DEFAULT 'Planifié'" },
                 { table: 'voyages', name: 'current_lat', def: 'DECIMAL(10, 8)' },
                 { table: 'voyages', name: 'current_lng', def: 'DECIMAL(11, 8)' },
                 { table: 'voyages', name: 'ship_status', def: 'VARCHAR(100)' },
                 { table: 'voyages', name: 'tracking_history', def: 'LONGTEXT' },
                 { table: 'voyages', name: 'last_update', def: 'DATETIME' },
-                { table: 'orders', name: 'document_status', def: 'VARCHAR(50) DEFAULT "Rien"' },
-                { table: 'orders', name: 'documents_received', def: 'VARCHAR(10) DEFAULT "Non"' },
+                { table: 'orders', name: 'document_status', def: "VARCHAR(50) DEFAULT 'Rien'" },
+                { table: 'orders', name: 'documents_received', def: "VARCHAR(10) DEFAULT 'Non'" },
                 { table: 'vehicles', name: 'motorization', def: 'VARCHAR(200)' },
                 { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' }
             ];
