@@ -8851,7 +8851,10 @@ const app = {
                                         <tbody>
                                             ${(p.vehicles || []).map(v => {
             const order = v.orderId ? StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId) : null;
-            const client = order ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId) : null;
+            const client = order
+                ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId)
+                : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
+
             const orderStatus = order ? this.calculateOrderStatus(order) : 'N/A';
 
             let deliveryStatusClass = 'available';
@@ -8881,7 +8884,7 @@ const app = {
                                                     <td>
                                                         ${client ? `
                                                             <div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>
-                                                            <div style="font-size: 0.8rem; color: var(--primary);">CMD #${order.id}</div>
+                                                            ${order ? `<div style="font-size: 0.8rem; color: var(--primary);">CMD #${order.id}</div>` : '<div style="font-size: 0.8rem; color: var(--success);">RÉSERVÉ</div>'}
                                                         ` : '<span style="color: var(--text-dim);">STOCK</span>'}
                                                     </td>
                                                     <td>
@@ -8893,7 +8896,7 @@ const app = {
                                                 </tr>
                                             `;
         }).join('')}
-                                            ${(p.vehicles || []).length === 0 ? '<tr><td colspan="5" style="text-align: center; padding: 20px;">Aucun véhicule lié</td></tr>' : ''}
+                                            ${(p.vehicles || []).length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px;">Aucun véhicule lié</td></tr>' : ''}
                                         </tbody>
                                     </table>
                                 </div>
