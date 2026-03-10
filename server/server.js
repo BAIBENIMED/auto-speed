@@ -185,6 +185,30 @@ app.get('/api/migrate-po', async (req, res) => {
             }
         }
 
+        // Add tasks to orders
+        try {
+            await sequelize.query(`ALTER TABLE orders ADD COLUMN tasks JSON NULL`);
+            logs.push('✅ Added tasks column to orders table');
+        } catch (err) {
+            if (err.message.includes('Duplicate column') || err.original?.code === 'ER_DUP_FIELDNAME') {
+                logs.push('ℹ️ tasks column already exists in orders table');
+            } else {
+                logs.push(`❌ Error adding tasks to orders: ${err.message}`);
+            }
+        }
+
+        // Add purchase_order_id to vehicles (Fail-safe)
+        try {
+            await sequelize.query(`ALTER TABLE vehicles ADD COLUMN purchase_order_id VARCHAR(50) NULL`);
+            logs.push('✅ Added purchase_order_id to vehicles table');
+        } catch (err) {
+            if (err.message.includes('Duplicate column') || err.original?.code === 'ER_DUP_FIELDNAME') {
+                logs.push('ℹ️ purchase_order_id already exists in vehicles table');
+            } else {
+                logs.push(`❌ Error adding purchase_order_id to vehicles: ${err.message}`);
+            }
+        }
+
         logs.push('✅ Migration completed successfully!');
         res.json({ success: true, logs });
     } catch (error) {
@@ -312,10 +336,11 @@ const startServer = async () => {
                 { table: 'purchase_orders', name: 'supplierId', def: 'INT' },
                 { table: 'purchase_orders', name: 'supplierName', def: 'VARCHAR(100)' },
                 { table: 'purchase_orders', name: 'purchaseDate', def: 'DATETIME' },
-                { table: 'vehicles', name: 'motorization', def: 'VARCHAR(200)' },
+                { table: 'vehicles', name: 'motorization', def: 'VARCHAR(100)' },
                 { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' },
                 { table: 'vehicles', name: 'client_id', def: 'VARCHAR(50)' },
-                { table: 'clients', name: 'postal_code', def: 'VARCHAR(20)' }
+                { table: 'clients', name: 'postal_code', def: 'VARCHAR(20)' },
+                { table: 'orders', name: 'tasks', def: 'JSON' }
             ];
 
             for (const col of columnsToEnsure) {
