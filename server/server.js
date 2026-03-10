@@ -159,41 +159,30 @@ app.get('/api/migrate-po', async (req, res) => {
     try {
         let logs = [];
         logs.push('🔧 Starting migration...');
+        const poColumns = [
+            { name: 'document_status', def: "VARCHAR(50) DEFAULT 'Rien'" },
+            { name: 'documents_received', def: "VARCHAR(10) DEFAULT 'Non'" },
+            { name: 'loading_port', def: 'VARCHAR(100) NULL' },
+            { name: 'loading_date', def: 'DATETIME NULL' },
+            { name: 'etd', def: 'DATETIME NULL' },
+            { name: 'eta', def: 'DATETIME NULL' },
+            { name: 'is_loaded', def: "VARCHAR(10) DEFAULT 'Non'" },
+            { name: 'supplierId', def: 'INT NULL' },
+            { name: 'supplierName', def: 'VARCHAR(100) NULL' },
+            { name: 'status', def: "VARCHAR(50) DEFAULT 'En cours'" }
+        ];
 
-        // Add purchase_order_id to vehicles
-        try {
-            await sequelize.query(`ALTER TABLE vehicles ADD COLUMN purchase_order_id VARCHAR(50)`);
-            logs.push('✅ Added purchase_order_id to vehicles table');
-        } catch (err) {
-            if (err.message.includes('Duplicate column')) {
-                logs.push('⚠️ purchase_order_id already exists in vehicles table, skipping...');
-            } else {
-                logs.push(`Error adding purchase_order_id: ${err.message}`);
+        for (const col of poColumns) {
+            try {
+                await sequelize.query(`ALTER TABLE purchase_orders ADD COLUMN ${col.name} ${col.def}`);
+                logs.push(`✅ Added ${col.name} to purchase_orders`);
+            } catch (err) {
+                if (err.message.includes('Duplicate column') || err.original?.code === 'ER_DUP_FIELDNAME') {
+                    logs.push(`ℹ️ ${col.name} already exists in purchase_orders`);
+                } else {
+                    logs.push(`❌ Error adding ${col.name}: ${err.message}`);
+                }
             }
-        }
-
-        // Drop unique constraint on order_id in purchase_orders
-        try {
-            const [results] = await sequelize.query(`
-                SELECT CONSTRAINT_NAME
-                FROM information_schema.KEY_COLUMN_USAGE
-                WHERE TABLE_NAME = 'purchase_orders' AND COLUMN_NAME = 'orderId'
-            `);
-            if (results && results.length > 0) {
-                const constraintName = results[0].CONSTRAINT_NAME;
-                await sequelize.query(`ALTER TABLE purchase_orders DROP INDEX \`${constraintName}\``);
-                logs.push(`✅ Dropped unique constraint/index ${constraintName} on purchase_orders.orderId`);
-            }
-        } catch (err) {
-            logs.push(`⚠️ Could not drop index on purchase_orders (maybe it does not exist or named differently): ${err.message}`);
-        }
-
-        // Ensure order_id is nullable (MySQL syntax)
-        try {
-            await sequelize.query(`ALTER TABLE purchase_orders MODIFY orderId VARCHAR(50) NULL`);
-            logs.push('✅ Made orderId nullable in purchase_orders');
-        } catch (err) {
-            logs.push(`⚠️ Could not modify orderId: ${err.message}`);
         }
 
         logs.push('✅ Migration completed successfully!');
@@ -320,6 +309,9 @@ const startServer = async () => {
                 { table: 'purchase_orders', name: 'etd', def: 'DATETIME' },
                 { table: 'purchase_orders', name: 'eta', def: 'DATETIME' },
                 { table: 'purchase_orders', name: 'is_loaded', def: "VARCHAR(10) DEFAULT 'Non'" },
+                { table: 'purchase_orders', name: 'supplierId', def: 'INT' },
+                { table: 'purchase_orders', name: 'supplierName', def: 'VARCHAR(100)' },
+                { table: 'purchase_orders', name: 'purchaseDate', def: 'DATETIME' },
                 { table: 'vehicles', name: 'motorization', def: 'VARCHAR(200)' },
                 { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' },
                 { table: 'vehicles', name: 'client_id', def: 'VARCHAR(50)' },

@@ -8705,7 +8705,7 @@ const app = {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${purchases.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 40px;">Aucune commande d\'achat trouvée</td></tr>' :
+                                ${purchases.length === 0 ? '<tr><td colspan="8" style="text-align: center; padding: 40px;">Aucune commande d\'achat trouvée</td></tr>' :
                     purchases.map(p => `
                                     <tr>
                                         <td><strong>${p.id}</strong></td>
@@ -8714,11 +8714,13 @@ const app = {
                                         <td>
                                             ${p.vehicles && p.vehicles.length > 0 ?
                             `<div style="font-size: 0.85rem; max-height: 80px; overflow-y: auto;">
-                                                ${p.vehicles.map(v =>
-                                `<div style="margin-bottom: 2px; cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails du véhicule">
-                                    • <strong>${v.order?.clientName || 'STOCK'}</strong> : ${v.brand} ${v.model || ''} ${v.motorization ? `[${v.motorization}]` : ''} <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span>
-                                    </div>`
-                            ).join('')}
+                                                ${p.vehicles.map(v => {
+                                    const client = v.orderId ? (StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId)?.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId).clientId) : null) : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
+                                    const clientName = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || client.name : 'STOCK';
+                                    return `<div style="margin-bottom: 2px; cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails du véhicule">
+                                    • <strong>${clientName}</strong> : ${v.brand} ${v.model || ''} ${v.motorization ? `[${v.motorization}]` : ''} <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span>
+                                    </div>`;
+                                }).join('')}
                                                 </div>`
                             : '-'}
                                         </td>
@@ -8747,7 +8749,7 @@ const app = {
                 `;
         } catch (err) {
             console.error("Error rendering purchases:", err);
-            this.showToast("Erreur lors du chargement des achats", "error");
+            this.showToast(`Erreur lors du chargement des achats: ${err.message}`, "error");
         }
     },
 
