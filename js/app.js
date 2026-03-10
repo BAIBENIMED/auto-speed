@@ -825,6 +825,7 @@ const app = {
             // Link vehicle to order if provided
             if (vehicle) {
                 vehicle.orderId = finalOrderId;
+                vehicle.status = 'Reserved';
                 vehicle.showroom = formData.get('showroom') || 'Showroom Principal';
                 await StorageService.update(STORAGE_KEYS.VEHICLES, vehicle.id, vehicle);
             }
@@ -2857,10 +2858,11 @@ const app = {
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Statut Stock</label>
                             <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, status: this.value}; app.renderVehicles()">
                                 <option value="">Tous les statuts</option>
-                                <option value="Available" ${this.vehicleFilters.status === 'Available' ? 'selected' : ''}>Disponible</option>
-                                <option value="Reserved" ${this.vehicleFilters.status === 'Reserved' ? 'selected' : ''}>Réservé (Client)</option>
-                                <option value="In Progress" ${this.vehicleFilters.status === 'In Progress' ? 'selected' : ''}>En Transit</option>
-                                <option value="Delivered" ${this.vehicleFilters.status === 'Delivered' ? 'selected' : ''}>Livré</option>
+                                <option value="Available" ${this.vehicleFilters.status === 'Available' ? 'selected' : ''}>Disponible (Libre)</option>
+                                <option value="Reserved" ${this.vehicleFilters.status === 'Reserved' ? 'selected' : ''}>Réservé (Affecté)</option>
+                                <option value="In Transit" ${this.vehicleFilters.status === 'In Transit' ? 'selected' : ''}>En Expédition (Transit)</option>
+                                <option value="Arrived" ${this.vehicleFilters.status === 'Arrived' ? 'selected' : ''}>Arrivé (Port)</option>
+                                <option value="Sold" ${this.vehicleFilters.status === 'Sold' ? 'selected' : ''}>Vendu (Livré)</option>
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
@@ -2886,6 +2888,7 @@ const app = {
                                 <th>ID</th>
                                 <th>Véhicule</th>
                                 <th>Source (Achat)</th>
+                                <th>Client / Affectation</th>
                                 <th>Châssis (VIN)</th>
                                 <th>Specs Tech.</th>
                                 ${canViewPurchasePrice ? '<th>Prix Achat</th>' : ''}
@@ -2900,8 +2903,12 @@ const app = {
             let statusClass = 'available';
             let statusLabel = 'Disponible';
 
-            // Enhance status with PO info
-            if (v.status === 'Available' && v.purchaseOrderId) {
+            // Check for reservation first
+            if (v.orderId || v.clientId) {
+                statusClass = 'warning';
+                statusLabel = 'Réservé';
+            } else if (v.status === 'Available' && v.purchaseOrderId) {
+                // Keep the PO stock sub-status as requested previously
                 statusClass = 'success';
                 statusLabel = 'En Stock (Achat)';
             } else {
@@ -2951,6 +2958,16 @@ const app = {
                                     </td>
                                     <td style="font-size: 0.85rem;">
                                         ${v.purchaseOrderId ? `<span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.renderPurchases('${v.purchaseOrderId}')">${v.purchaseOrderId}</span>` : '<span style="color:var(--text-dim);">Entrée Directe</span>'}
+                                    </td>
+                                    <td>
+                                        ${(() => {
+                    const clientId = v.clientId || (v.orderId ? (StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId)?.clientId) : null);
+                    if (clientId) {
+                        const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
+                        return client ? `<div style="font-weight: 500;">${client.firstName} ${client.lastName}</div><div style="font-size: 0.75rem; color: var(--primary);">${v.orderId ? `CMD #${v.orderId}` : 'AFFECTATION DIRECTE'}</div>` : '<span style="color:red;">Erreur Client</span>';
+                    }
+                    return '<span style="color:var(--text-dim);">STOCK LIBRE</span>';
+                })()}
                                     </td>
                                     <td><code style="font-size: 0.8rem;">${v.chassisNumber || '-'}</code></td>
                                     <td>
@@ -3217,7 +3234,8 @@ const app = {
                 purchaseOrderId: formData.get('purchaseOrderId') || (existingVehicle ? existingVehicle.purchaseOrderId : null),
                 clientId: formData.get('clientId') || null,
                 orderId: existingVehicle ? existingVehicle.orderId : null,
-                shipmentId: existingVehicle ? existingVehicle.shipmentId : null
+                shipmentId: existingVehicle ? existingVehicle.shipmentId : null,
+                status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
             };
 
             if (vehicleId) {
