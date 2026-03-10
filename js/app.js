@@ -8822,7 +8822,7 @@ const app = {
                                     <h2>Détails Commande d'Achat #${p.id}</h2>
                                     <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A'}</p>
                                     <div style="display: flex; gap: 10px; margin-top: 5px;">
-                                        <span class="status-badge ${p.documentStatus === 'BL Finale' ? 'success' : (p.documentStatus === 'BL Draft' ? 'warning' : 'neutral')}" style="font-size: 0.75rem; padding: 2px 8px;">
+                                        <span class="status-badge ${p.documentStatus === 'BL Finale' ? 'success' : (['BL Draft', 'BL EN COURS DE MODIFICATIONS'].includes(p.documentStatus) ? 'warning' : 'neutral')}" style="font-size: 0.75rem; padding: 2px 8px;">
                                             Statut Doc: ${p.documentStatus || 'Rien'}
                                         </span>
                                         <span class="status-badge ${p.documentsReceived === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.75rem; padding: 2px 8px;">
@@ -9105,6 +9105,7 @@ const app = {
                                 <select name="documentStatus" class="glass-select">
                                     <option value="Rien" ${po && po.documentStatus === 'Rien' ? 'selected' : ''}>Rien</option>
                                     <option value="BL Draft" ${po && po.documentStatus === 'BL Draft' ? 'selected' : ''}>BL Draft</option>
+                                    <option value="BL EN COURS DE MODIFICATIONS" ${po && po.documentStatus === 'BL EN COURS DE MODIFICATIONS' ? 'selected' : ''}>BL EN COURS DE MODIFICATIONS</option>
                                     <option value="BL Finale" ${po && po.documentStatus === 'BL Finale' ? 'selected' : ''}>BL Finale</option>
                                 </select>
                             </div>
