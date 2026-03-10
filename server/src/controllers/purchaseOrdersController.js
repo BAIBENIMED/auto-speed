@@ -18,7 +18,11 @@ const purchaseOrdersController = {
             res.json({ success: true, data: pos });
         } catch (error) {
             console.error('Error fetching purchase orders:', error);
-            res.status(500).json({ success: false, message: 'Erreur lors de la récupération des commandes d\'achat' });
+            res.status(500).json({ 
+                success: false, 
+                message: 'Erreur lors de la récupération des commandes d\'achat: ' + error.message,
+                details: error.name === 'SequelizeDatabaseError' ? error.parent?.sqlMessage : error.message
+            });
         }
     },
 
