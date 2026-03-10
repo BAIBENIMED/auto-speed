@@ -1399,9 +1399,9 @@ const app = {
                             <div class="details-section">
                                 <h3><i class="fas fa-info-circle"></i> Identification</h3>
                                 <p><strong>Marque/Modèle:</strong> ${vehicle.brand} ${vehicle.model || ''}</p>
-                                ${client ? `<p><strong>Client Affecté:</strong> <span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-weight: 600;">${client.name}</span></p>` : ''}
+                                ${client ? `<p><strong>Client Affecté:</strong> <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-weight: 600;">${client.name}</span></p>` : ''}
                                 <p><strong>Provenance/Fournisseur:</strong> ${vehicle.supplier || 'N/A'}</p>
-                                ${vehicle.purchaseOrderId ? `<p><strong>Commande d'Achat (PO):</strong> <span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.closeModal(); app.renderPurchases('${vehicle.purchaseOrderId}')">${vehicle.purchaseOrderId}</span></p>` : ''}
+                                ${vehicle.purchaseOrderId ? `<p><strong>Commande d'Achat (PO):</strong> <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.closeModal(); app.renderPurchases('${vehicle.purchaseOrderId}')">${vehicle.purchaseOrderId}</span></p>` : ''}
                                 <p><strong>Châssis (VIN):</strong> <code class="chassis">${vehicle.chassisNumber || 'N/A'}</code></p>
                                 <p><strong>Année/Mois:</strong> ${vehicle.year || 'N/A'} ${vehicle.month ? '/ ' + vehicle.month : ''}</p>
                             </div>
@@ -3043,7 +3043,7 @@ const app = {
                                         </div>
                                     </td>
                                     <td style="font-size: 0.85rem;">
-                                        ${v.purchaseOrderId ? `<span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.renderPurchases('${v.purchaseOrderId}')">${v.purchaseOrderId}</span>` : '<span style="color:var(--text-dim);">Entrée Directe</span>'}
+                                        ${v.purchaseOrderId ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.renderPurchases('${v.purchaseOrderId}')">${v.purchaseOrderId}</span>` : '<span style="color:var(--text-dim);">Entrée Directe</span>'}
                                     </td>
                                     <td>
                                         ${(() => {
@@ -3076,7 +3076,7 @@ const app = {
                                 </tr>
                             `;
         }).join('')}
-                            ${vehicles.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 3rem;">Aucun véhicule trouvé.</td></tr>' : ''}
+                            ${vehicles.length === 0 ? `<tr><td colspan="${canViewPurchasePrice ? 10 : 9}" style="text-align: center; padding: 3rem;">Aucun véhicule trouvé.</td></tr>` : ''}
                         </tbody>
                     </table>
                 </div>
@@ -5628,7 +5628,7 @@ const app = {
                                     ${s.lastUpdate ? `
                                         <div style="font-size: 0.65rem; color: ${this.isOutdated(s.lastUpdate) ? 'var(--danger)' : 'var(--text-dim)'}; margin-top: 4px; font-weight: ${this.isOutdated(s.lastUpdate) ? '600' : '400'}">
                                             <i class="fas fa-clock"></i> MàJ: ${new Date(s.lastUpdate).toLocaleString()}
-                                            ${this.isOutdated(s.lastUpdate) ? ' <span class="badge" style="background: var(--danger); font-size: 0.55rem;">Alerte +24h</span>' : ''}
+                                            ${this.isOutdated(s.lastUpdate) ? ' <span class="badge-pill" style="background: var(--danger); font-size: 0.55rem;">Alerte +24h</span>' : ''}
                                         </div>
                                     ` : '<div style="font-size: 0.65rem; color: var(--danger); margin-top: 4px; font-weight: 600;"><i class="fas fa-exclamation-circle"></i> Jamais synchronisé</div>'}
                                 </td>
@@ -5984,7 +5984,7 @@ const app = {
                         <span class="port-name">${to.split(',')[0]}</span>
                     </div>
                     <div style="text-align: right;">
-                        <span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); font-size: 0.6rem;">${offer.type}</span>
+                        <span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); font-size: 0.6rem;">${offer.type}</span>
                     </div>
                 </div>
                 <div class="offer-details">
