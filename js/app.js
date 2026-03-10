@@ -444,8 +444,8 @@ const app = {
         const preSelectedVehicle = vehicleId ? StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === vehicleId) : null;
 
         const modalHtml = `
-                <div class="modal-overlay">
-                    <div class="modal-content glass" style="width: 600px;">
+                <div id="modal-overlay" class="modal-overlay">
+                    <div class="modal-content glass" style="width: 600px; max-height: 90vh; overflow-y: auto;">
                         <div class="modal-header">
                             <h2>Nouvelle Commande</h2>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
@@ -665,7 +665,7 @@ const app = {
     },
 
     closeModal() {
-        const modal = document.querySelector('.modal-overlay');
+        const modal = document.getElementById('modal-overlay') || document.querySelector('.modal-overlay');
         if (modal) modal.remove();
     },
 
@@ -8722,10 +8722,10 @@ const app = {
 
         const modalHtml = `
         <div id="modal-overlay" class="modal-overlay">
-            <div class="modal glass" style="max-width: 500px; width: 95%;">
+            <div class="modal glass" style="max-width: 500px; width: 95%; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <h2>${id ? 'Modifier' : 'Nouveau'} Fournisseur</h2>
-                    <button class="close-btn" onclick="document.getElementById('modal-overlay').remove()"><i class="fas fa-times"></i></button>
+                    <button class="close-btn" onclick="app.closeModal()"><i class="fas fa-times"></i></button>
                 </div>
                 <form id="supplier-form" class="modal-body">
                     <div class="form-group">
@@ -8749,7 +8749,7 @@ const app = {
                         <textarea name="address" class="code-input" rows="2">${supplier ? (supplier.address || '') : ''}</textarea>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Annuler</button>
+                        <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
                         <button type="submit" class="btn-primary">${id ? 'Mettre à jour' : 'Enregistrer'}</button>
                     </div>
                 </form>
@@ -8772,7 +8772,7 @@ const app = {
                     await ApiService.createSupplier(data);
                     this.showToast("Fournisseur créé avec succès", "success");
                 }
-                document.getElementById('modal-overlay').remove();
+                app.closeModal();
                 this.renderSuppliers();
             } catch (err) {
                 this.showToast(err.message, "error");
@@ -8941,10 +8941,10 @@ const app = {
 
         const modalHtml = `
         <div id="modal-overlay" class="modal-overlay">
-            <div class="modal glass" style="max-width: 1000px; width: 95%;">
+            <div class="modal glass" style="max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <h2>${id ? 'Modifier' : 'Nouveaux'} Achats</h2>
-                    <button class="close-btn" onclick="document.getElementById('modal-overlay').remove()"><i class="fas fa-times"></i></button>
+                    <button class="close-btn" onclick="app.closeModal()"><i class="fas fa-times"></i></button>
                 </div>
                 <form id="po-form" class="modal-body">
                         <div class="section-header" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
