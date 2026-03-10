@@ -845,6 +845,81 @@ const app = {
         }
     },
 
+    renderOrderTasks(order) {
+        const tasks = order.tasks || [];
+        if (tasks.length === 0) {
+            return '<p style="color: var(--text-dim); font-size: 0.9rem; font-style: italic; text-align: center; padding: 10px;">Aucune action prévue.</p>';
+        }
+
+        return tasks.map((task, index) => `
+            <div class="task-item" style="display: flex; align-items: center; gap: 10px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; margin-bottom: 5px; border: 1px solid rgba(255,255,255,0.05);">
+                <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                    onchange="app.toggleOrderTask('${order.id}', ${index})" 
+                    style="width: 18px; height: 18px; cursor: pointer;">
+                <span style="flex: 1; font-size: 0.9rem; ${task.completed ? 'text-decoration: line-through; color: var(--text-dim);' : ''}">
+                    ${task.text}
+                </span>
+                <button class="btn-icon danger" onclick="app.deleteOrderTask('${order.id}', ${index})" style="padding: 4px 8px; font-size: 0.75rem;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `).join('');
+    },
+
+    async addOrderTask(orderId) {
+        const text = prompt("Quelle action souhaitez-vous ajouter ?");
+        if (!text || !text.trim()) return;
+
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        if (!order.tasks) order.tasks = [];
+        order.tasks.push({ text: text.trim(), completed: false, createdAt: new Date().toISOString() });
+
+        try {
+            await StorageService.update(STORAGE_KEYS.ORDERS, orderId, order);
+            const container = document.getElementById(`tasks-container-${orderId}`);
+            if (container) container.innerHTML = this.renderOrderTasks(order);
+        } catch (err) {
+            this.showToast("Erreur lors de l'ajout de la tâche", "error");
+        }
+    },
+
+    async toggleOrderTask(orderId, taskIndex) {
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const order = orders.find(o => o.id === orderId);
+        if (!order || !order.tasks || !order.tasks[taskIndex]) return;
+
+        order.tasks[taskIndex].completed = !order.tasks[taskIndex].completed;
+
+        try {
+            await StorageService.update(STORAGE_KEYS.ORDERS, orderId, order);
+            const container = document.getElementById(`tasks-container-${orderId}`);
+            if (container) container.innerHTML = this.renderOrderTasks(order);
+        } catch (err) {
+            this.showToast("Erreur lors de la mise à jour de la tâche", "error");
+        }
+    },
+
+    async deleteOrderTask(orderId, taskIndex) {
+        if (!confirm("Supprimer cette action ?")) return;
+
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const order = orders.find(o => o.id === orderId);
+        if (!order || !order.tasks) return;
+
+        order.tasks.splice(taskIndex, 1);
+
+        try {
+            await StorageService.update(STORAGE_KEYS.ORDERS, orderId, order);
+            const container = document.getElementById(`tasks-container-${orderId}`);
+            if (container) container.innerHTML = this.renderOrderTasks(order);
+        } catch (err) {
+            this.showToast("Erreur lors de la suppression de la tâche", "error");
+        }
+    },
+
     showOrderDetails(id) {
         const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === id);
         const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId);
@@ -1030,6 +1105,17 @@ const app = {
                                 <p><strong>Date Bc:</strong> ${new Date(order.date).toLocaleDateString()}</p>
                                 <p><strong>Statut:</strong> <span class="status-badge ${(order.status || 'N/A').toLowerCase().replace(/\s+/g, '-')}">${order.status || 'N/A'}</span></p>
                                 ${order.remarks ? `<p><strong>Commentaires:</strong> <i style="color: var(--text-dim);">${order.remarks}</i></p>` : ''}
+                            </div>
+
+                            <!-- Actions à faire (To-Do List) -->
+                            <div class="details-section" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                                <h3 style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span><i class="fas fa-clipboard-list"></i> Actions à faire</span>
+                                    <button class="btn-action success-alt" onclick="app.addOrderTask('${order.id}')" title="Ajouter une action"><i class="fas fa-plus"></i></button>
+                                </h3>
+                                <div id="tasks-container-${order.id}" class="tasks-list" style="margin-top: 15px;">
+                                    ${this.renderOrderTasks(order)}
+                                </div>
                             </div>
                         </div>
                         <div class="modal-footer">

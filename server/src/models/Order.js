@@ -67,6 +67,11 @@ const Order = sequelize.define('Order', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
         field: 'is_archived'
+    },
+    tasks: {
+        type: DataTypes.JSON,
+        defaultValue: [],
+        allowNull: true
     }
 }, {
     tableName: 'orders',
