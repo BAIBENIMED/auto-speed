@@ -70,6 +70,10 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
         type: DataTypes.STRING(10),
         defaultValue: 'Non',
         field: 'is_loaded'
+    },
+    tasks: {
+        type: DataTypes.JSON,
+        allowNull: true
     }
 }, {
     tableName: 'purchase_orders',

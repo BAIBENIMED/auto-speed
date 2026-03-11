@@ -32,7 +32,7 @@ const purchaseOrdersController = {
                 supplierId, status, purchaseDate,
                 documentStatus, documentsReceived,
                 loadingPort, loadingDate, etd, eta, isLoaded,
-                notes, vehicles
+                notes, vehicles, tasks
             } = req.body;
 
             // Generate PO ID: CMD/ANNEE/FOURNISSEUR/SEQUENCE
@@ -65,7 +65,8 @@ const purchaseOrdersController = {
                 etd,
                 eta,
                 isLoaded,
-                notes
+                notes,
+                tasks: tasks || []
             });
 
             // If vehicles were passed, create them and link them to the newly created PO
@@ -151,7 +152,7 @@ const purchaseOrdersController = {
                 supplierId, status, purchaseDate,
                 documentStatus, documentsReceived,
                 loadingPort, loadingDate, etd, eta, isLoaded,
-                notes, vehicles
+                notes, vehicles, tasks
             } = req.body;
 
             const po = await PurchaseOrder.findByPk(id);
@@ -173,7 +174,8 @@ const purchaseOrdersController = {
                 etd: etd !== undefined ? etd : po.etd,
                 eta: eta !== undefined ? eta : po.eta,
                 isLoaded: isLoaded !== undefined ? isLoaded : po.isLoaded,
-                notes: notes !== undefined ? notes : po.notes
+                notes: notes !== undefined ? notes : po.notes,
+                tasks: tasks !== undefined ? tasks : po.tasks
             });
 
             // If supplier changed, update it on all vehicles linked to this PO
