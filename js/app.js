@@ -3325,6 +3325,24 @@ const app = {
             }
         });
 
+        // Client search filter logic
+        const clientSearchInput = document.getElementById('client-search-input');
+        const clientSelect = document.getElementById('vehicle-client-select');
+        if (clientSearchInput && clientSelect) {
+            clientSearchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const options = clientSelect.querySelectorAll('option');
+                options.forEach(option => {
+                    if (option.value === "") { // Always show "Stock Libre"
+                        option.style.display = "";
+                    } else {
+                        const text = option.textContent.toLowerCase();
+                        option.style.display = text.includes(query) ? "" : "none";
+                    }
+                });
+            });
+        }
+
         document.getElementById('vehicle-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleVehicleSubmission(new FormData(e.target));
@@ -3592,10 +3610,13 @@ const app = {
                                             </div>
                                             <div class="form-group">
                                                 <label>Affecter à un Client</label>
-                                                <select name="clientId" class="glass-select">
-                                                    <option value="">Stock Libre (Aucun client)</option>
-                                                    ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}" ${vehicle.clientId === c.id ? 'selected' : ''}>${c.firstName} ${c.lastName}</option>`).join('')}
-                                                </select>
+                                                <div class="search-select-wrapper" style="position: relative; display: flex; flex-direction: column; gap: 5px;">
+                                                    <input type="text" id="client-search-input" placeholder="Rechercher un client..." class="glass-input" style="font-size: 0.85rem; padding: 6px 12px;">
+                                                    <select name="clientId" id="vehicle-client-select" class="glass-select">
+                                                        <option value="">Stock Libre (Aucun client)</option>
+                                                        ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}" ${vehicle.clientId === c.id ? 'selected' : ''}>${c.firstName} ${c.lastName}</option>`).join('')}
+                                                    </select>
+                                                </div>
                                             </div>
                                         </div>
                                     </fieldset>
@@ -11858,14 +11879,76 @@ const app = {
         }
     },
 
-    exportPurchaseOrdersToPDF() {
+    showPurchaseOrderPrintFiltersModal() {
+        const suppliers = StorageService.get(STORAGE_KEYS.SUPPLIERS) || [];
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 400px;">
+                    <div class="modal-header">
+                        <h2>Filtres d'Impression (Achats)</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <form id="print-filters-form" style="display: flex; flex-direction: column; gap: 1rem; padding: 15px;">
+                        <div class="form-group">
+                            <label>Fournisseur</label>
+                            <select name="supplierName" class="glass-select">
+                                <option value="">Tous les fournisseurs</option>
+                                ${suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Date Début</label>
+                            <input type="date" name="startDate" class="glass-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Date Fin</label>
+                            <input type="date" name="endDate" class="glass-input">
+                        </div>
+                        <div class="modal-footer" style="padding: 10px 0 0 0;">
+                            <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
+                            <button type="submit" class="btn-primary"><i class="fas fa-file-pdf"></i> Générer PDF</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('print-filters-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const filters = {
+                supplierName: formData.get('supplierName'),
+                startDate: formData.get('startDate'),
+                endDate: formData.get('endDate')
+            };
+            this.closeModal();
+            this.exportPurchaseOrdersToPDF(filters);
+        });
+    },
+
+    exportPurchaseOrdersToPDF(filters = {}) {
         if (!window.jspdf || !window.jspdf.jsPDF) return alert("Bibliothèque PDF manquante.");
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('l', 'mm', 'a4');
 
-        const purchaseOrders = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
+        let purchaseOrders = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
         const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+
+        // Apply filters
+        if (filters.supplierName) {
+            purchaseOrders = purchaseOrders.filter(po => po.supplierName === filters.supplierName);
+        }
+        if (filters.startDate) {
+            const start = new Date(filters.startDate);
+            purchaseOrders = purchaseOrders.filter(po => new Date(po.purchaseDate) >= start);
+        }
+        if (filters.endDate) {
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            purchaseOrders = purchaseOrders.filter(po => new Date(po.purchaseDate) <= end);
+        }
 
         const columns = [
             "ID Commande", "Nom Client", "Passport", "NIN",
@@ -11874,7 +11957,6 @@ const app = {
         ];
 
         const rows = [];
-
         purchaseOrders.forEach(po => {
             const poVehicles = po.vehicles || [];
             poVehicles.forEach(v => {
