@@ -8738,7 +8738,7 @@ const app = {
                             <p class="subtitle">Gestion des acquisitions auprès des fournisseurs</p>
                         </div>
                         <div class="header-actions">
-                            <button class="btn-secondary" onclick="app.exportPurchaseOrdersToPDF()" style="background: rgba(79, 70, 229, 0.1); color: #4f46e5; border-color: rgba(79, 70, 229, 0.2);" title="Imprimer l'état des achats">
+                            <button class="btn-secondary" onclick="app.showPurchaseOrderPrintFiltersModal()" style="background: rgba(79, 70, 229, 0.1); color: #4f46e5; border-color: rgba(79, 70, 229, 0.2);" title="Imprimer l'état des achats avec filtres">
                                 <i class="fas fa-print"></i> IMPRIMER
                             </button>
                             <button class="btn-primary" onclick="app.showPurchaseOrderModal()">
