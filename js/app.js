@@ -3161,7 +3161,9 @@ const app = {
                                 <th>ID</th>
                                 <th>Véhicule</th>
                                 <th>Source (Achat)</th>
-                                <th>Client / Affectation</th>
+                                <th>Client</th>
+                                <th>N° Vente</th>
+                                <th>Showroom</th>
                                 <th>Châssis (VIN)</th>
                                 <th>Specs Tech.</th>
                                 ${canViewPurchasePrice ? '<th>Prix Achat</th>' : ''}
@@ -3232,16 +3234,31 @@ const app = {
                                     <td style="font-size: 0.85rem;">
                                         ${v.purchaseOrderId ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.renderPurchases('${v.purchaseOrderId}')">${v.purchaseOrderId}</span>` : '<span style="color:var(--text-dim);">Entrée Directe</span>'}
                                     </td>
-                                    <td>
-                                        ${(() => {
-                    const clientId = v.clientId || (v.orderId ? (StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId)?.clientId) : null);
-                    if (clientId) {
-                        const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
-                        return client ? `<div style="font-weight: 500;">${client.firstName} ${client.lastName}</div><div style="font-size: 0.75rem; color: var(--primary);">${v.orderId ? `CMD #${v.orderId}` : 'AFFECTATION DIRECTE'}</div>` : '<span style="color:red;">Erreur Client</span>';
-                    }
-                    return '<span style="color:var(--text-dim);">STOCK LIBRE</span>';
-                })()}
-                                    </td>
+                                    ${(() => {
+                                        const clientId = v.clientId || (v.orderId ? (StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId)?.clientId) : null);
+                                        let clientName = '<span style="color:var(--text-dim);">STOCK LIBRE</span>';
+                                        let showroom = '-';
+                                        
+                                        if (clientId) {
+                                            const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
+                                            if (client) {
+                                                clientName = `<div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>`;
+                                                showroom = client.showroom || '-';
+                                            } else {
+                                                clientName = '<span style="color:red;">Erreur Client</span>';
+                                            }
+                                        }
+                                        
+                                        return `
+                                            <td style="font-size: 0.85rem;">${clientName}</td>
+                                            <td style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">
+                                                ${v.orderId ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); padding: 2px 6px;">#${v.orderId}</span>` : '-'}
+                                            </td>
+                                            <td style="font-size: 0.85rem;">
+                                                ${showroom !== '-' ? `<span class="badge-pill" style="background: rgba(255,255,255,0.05);">${showroom}</span>` : '-'}
+                                            </td>
+                                        `;
+                                    })()}
                                     <td><code style="font-size: 0.8rem;">${v.chassisNumber || '-'}</code></td>
                                     <td>
                                         <div style="font-size: 0.85rem;"><strong>Mot.:</strong> ${v.motorization || '-'}</div>
