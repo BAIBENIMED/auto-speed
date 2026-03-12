@@ -1458,7 +1458,8 @@ const app = {
         if (!vehicle) return;
 
         const order = vehicle.orderId ? StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === vehicle.orderId) : null;
-        const client = order ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId) : null;
+        const clientId = vehicle.clientId || (order ? order.clientId : null);
+        const client = clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId)) : null;
 
         const modalHtml = `
                 <div class="modal-overlay">
@@ -1471,7 +1472,17 @@ const app = {
                             <div class="details-section">
                                 <h3><i class="fas fa-info-circle"></i> Identification</h3>
                                 <p><strong>Marque/Modèle:</strong> ${vehicle.brand} ${vehicle.model || ''}</p>
-                                ${client ? `<p><strong>Client Affecté:</strong> <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-weight: 600;">${client.name}</span></p>` : ''}
+                                ${client ? `
+                                <div class="details-section" style="background: rgba(var(--primary-rgb), 0.03); border-radius: 10px; padding: 15px; border: 1px solid rgba(var(--primary-rgb), 0.1);">
+                                    <h3 style="margin-bottom: 12px; font-size: 1rem;"><i class="fas fa-user-check"></i> Client Affecté</h3>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem;">
+                                        <p><strong>Nom:</strong> <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-weight: 600;">${client.firstName} ${client.lastName}</span></p>
+                                        <p><strong>ID Client:</strong> #${client.id || 'N/A'}</p>
+                                        <p><strong>Showroom:</strong> ${client.showroom || 'N/A'}</p>
+                                        <p><strong>NIN:</strong> ${client.nin || 'N/A'}</p>
+                                        <p><strong>Passeport:</strong> ${client.passportNumber || 'N/A'}</p>
+                                    </div>
+                                </div>` : ''}
                                 <p><strong>Provenance/Fournisseur:</strong> ${vehicle.supplier || 'N/A'}</p>
                                 ${vehicle.purchaseOrderId ? `<p><strong>Commande d'Achat (PO):</strong> <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.closeModal(); app.renderPurchases('${vehicle.purchaseOrderId}')">${vehicle.purchaseOrderId}</span></p>` : ''}
                                 <p><strong>Châssis (VIN):</strong> <code class="chassis">${vehicle.chassisNumber || 'N/A'}</code></p>
@@ -3210,10 +3221,16 @@ const app = {
                                     </div>
                                     <div class="form-group">
                                         <label>Affecter à un Client</label>
-                                        <select name="clientId" class="glass-select">
-                                            <option value="">Stock Libre (Aucun client)</option>
-                                            ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}">${c.firstName} ${c.lastName}</option>`).join('')}
-                                        </select>
+                                        <div class="search-select-wrapper" style="position: relative; display: flex; flex-direction: column; gap: 5px;">
+                                            <input type="text" id="client-search-input" placeholder="Rechercher (Nom, ID, NIN, Passeport)..." class="glass-input" style="font-size: 0.85rem; padding: 6px 12px;">
+                                            <select name="clientId" id="vehicle-client-select" class="glass-select">
+                                                <option value="">Stock Libre (Aucun client)</option>
+                                                ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}" data-search="${(c.firstName + ' ' + c.lastName + ' ' + (c.id || '') + ' ' + (c.nin || '') + ' ' + (c.passportNumber || '')).toLowerCase()}">${c.firstName} ${c.lastName} ${c.id ? `(#${c.id})` : ''}</option>`).join('')}
+                                            </select>
+                                            <div id="client-info-display" style="margin-top: 5px; padding: 8px; background: rgba(var(--primary-rgb), 0.1); border-radius: 6px; font-size: 0.8rem; display: none; border: 1px solid rgba(var(--primary-rgb), 0.2);">
+                                                <!-- Dynamic Info -->
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </fieldset>
@@ -3325,9 +3342,38 @@ const app = {
             }
         });
 
-        // Client search filter logic
+        // Client search filter and info display logic
         const clientSearchInput = document.getElementById('client-search-input');
         const clientSelect = document.getElementById('vehicle-client-select');
+        const clientInfoDisplay = document.getElementById('client-info-display');
+
+        const updateClientInfo = (id) => {
+            if (!id) {
+                clientInfoDisplay.style.display = 'none';
+                return;
+            }
+            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+            const client = clients.find(c => String(c.id) === String(id));
+            if (client) {
+                clientInfoDisplay.innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                        <div><strong>ID:</strong> #${client.id}</div>
+                        <div><strong>Showroom:</strong> ${client.showroom || '-'}</div>
+                        <div><strong>NIN:</strong> ${client.nin || '-'}</div>
+                        <div><strong>Passeport:</strong> ${client.passportNumber || '-'}</div>
+                    </div>
+                `;
+                clientInfoDisplay.style.display = 'block';
+            } else {
+                clientInfoDisplay.style.display = 'none';
+            }
+        };
+
+        if (clientSelect) {
+            clientSelect.addEventListener('change', (e) => updateClientInfo(e.target.value));
+            // Initial update for edit modal
+            if (clientSelect.value) updateClientInfo(clientSelect.value);
+        }
         if (clientSearchInput && clientSelect) {
             clientSearchInput.addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase();
@@ -3336,8 +3382,8 @@ const app = {
                     if (option.value === "") { // Always show "Stock Libre"
                         option.style.display = "";
                     } else {
-                        const text = option.textContent.toLowerCase();
-                        option.style.display = text.includes(query) ? "" : "none";
+                        const searchStr = option.getAttribute('data-search') || option.textContent.toLowerCase();
+                        option.style.display = searchStr.includes(query) ? "" : "none";
                     }
                 });
             });
@@ -3611,11 +3657,14 @@ const app = {
                                             <div class="form-group">
                                                 <label>Affecter à un Client</label>
                                                 <div class="search-select-wrapper" style="position: relative; display: flex; flex-direction: column; gap: 5px;">
-                                                    <input type="text" id="client-search-input" placeholder="Rechercher un client..." class="glass-input" style="font-size: 0.85rem; padding: 6px 12px;">
+                                                    <input type="text" id="client-search-input" placeholder="Rechercher (Nom, ID, NIN, Passeport)..." class="glass-input" style="font-size: 0.85rem; padding: 6px 12px;">
                                                     <select name="clientId" id="vehicle-client-select" class="glass-select">
                                                         <option value="">Stock Libre (Aucun client)</option>
-                                                        ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}" ${vehicle.clientId === c.id ? 'selected' : ''}>${c.firstName} ${c.lastName}</option>`).join('')}
+                                                        ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}" ${vehicle.clientId === c.id ? 'selected' : ''} data-search="${(c.firstName + ' ' + c.lastName + ' ' + (c.id || '') + ' ' + (c.nin || '') + ' ' + (c.passportNumber || '')).toLowerCase()}">${c.firstName} ${c.lastName} ${c.id ? `(#${c.id})` : ''}</option>`).join('')}
                                                     </select>
+                                                    <div id="client-info-display" style="margin-top: 5px; padding: 8px; background: rgba(var(--primary-rgb), 0.1); border-radius: 6px; font-size: 0.8rem; display: none; border: 1px solid rgba(var(--primary-rgb), 0.2);">
+                                                        <!-- Dynamic Info -->
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
