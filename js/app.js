@@ -12055,7 +12055,7 @@ const app = {
             "N°", "ID Commande", "Nom Client", "Passport", "NIN",
             "Marque", "Modèle", "Couleur", "VIN",
             "Adresse", "C.P."
-        ];
+        ].map(c => c.toUpperCase());
 
         const rows = [];
         let rowNum = 1;
@@ -12072,7 +12072,7 @@ const app = {
                     }
                 }
 
-                rows.push([
+                const row = [
                     rowNum++,
                     po.id,
                     client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
@@ -12084,7 +12084,9 @@ const app = {
                     v.chassisNumber || "-",
                     client ? (client.address || "-") : "-",
                     client ? (client.postalCode || "-") : "-"
-                ]);
+                ].map(val => String(val || "-").toUpperCase());
+
+                rows.push(row);
             });
         });
 
@@ -12131,7 +12133,7 @@ const app = {
             "N°", "ID Commande", "Nom Client", "Passport", "NIN",
             "Marque", "Modèle", "Couleur", "VIN",
             "Adresse", "C.P."
-        ];
+        ].map(c => c.toUpperCase());
 
         const rows = [];
         let rowNum = 1;
@@ -12147,7 +12149,7 @@ const app = {
                 }
             }
 
-            rows.push([
+            const row = [
                 rowNum++,
                 po.id,
                 client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
@@ -12159,7 +12161,9 @@ const app = {
                 v.chassisNumber || "-",
                 client ? (client.address || "-") : "-",
                 client ? (client.postalCode || "-") : "-"
-            ]);
+            ].map(val => String(val || "-").toUpperCase());
+
+            rows.push(row);
         });
 
         // Logo Simulation (Red & Black)
