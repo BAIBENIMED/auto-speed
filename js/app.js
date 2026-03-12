@@ -3162,8 +3162,8 @@ const app = {
                                 <th>Véhicule</th>
                                 <th>Source (Achat)</th>
                                 <th>Client</th>
-                                <th>N° Vente</th>
                                 <th>Showroom</th>
+                                <th>N° Vente</th>
                                 <th>Châssis (VIN)</th>
                                 <th>Specs Tech.</th>
                                 ${canViewPurchasePrice ? '<th>Prix Achat</th>' : ''}
@@ -3243,7 +3243,8 @@ const app = {
                                             const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
                                             if (client) {
                                                 clientName = `<div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>`;
-                                                showroom = client.showroom || '-';
+                                                let rawShowroom = client.showroom || '-';
+                                                showroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
                                             } else {
                                                 clientName = '<span style="color:red;">Erreur Client</span>';
                                             }
@@ -3251,11 +3252,11 @@ const app = {
                                         
                                         return `
                                             <td style="font-size: 0.85rem;">${clientName}</td>
-                                            <td style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">
-                                                ${v.orderId ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); padding: 2px 6px;">#${v.orderId}</span>` : '-'}
-                                            </td>
                                             <td style="font-size: 0.85rem;">
                                                 ${showroom !== '-' ? `<span class="badge-pill" style="background: rgba(255,255,255,0.05);">${showroom}</span>` : '-'}
+                                            </td>
+                                            <td style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">
+                                                ${v.orderId ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); padding: 2px 6px;">#${v.orderId}</span>` : '-'}
                                             </td>
                                         `;
                                     })()}
@@ -12069,7 +12070,7 @@ const app = {
         }
 
         const columns = [
-            "N°", "ID Achat", "N° Vente", "Nom Client", "Showroom", "Passport", "NIN",
+            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN",
             "Marque", "Modèle", "Couleur", "VIN",
             "Adresse", "C.P."
         ].map(c => c.toUpperCase());
@@ -12089,12 +12090,15 @@ const app = {
                     }
                 }
 
+                const rawShowroom = client ? (client.showroom || "-") : "-";
+                const displayShowroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
+
                 const row = [
                     rowNum++,
                     po.id,
+                    displayShowroom,
                     v.orderId || "-",
                     client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
-                    client ? (client.showroom || "-") : "-",
                     client ? (client.passportNumber || "-") : "-",
                     client ? (client.nin || "-") : "-",
                     v.brand || "-",
@@ -12128,9 +12132,9 @@ const app = {
             columnStyles: {
                 0: { cellWidth: 8, halign: 'center' }, // N°
                 1: { cellWidth: 15 }, // ID Achat
-                2: { cellWidth: 15 }, // N° Vente
-                3: { cellWidth: 30 }, // Nom Client
-                4: { cellWidth: 20 }  // Showroom
+                2: { cellWidth: 20 }, // Showroom
+                3: { cellWidth: 15 }, // N° Vente
+                4: { cellWidth: 30 }  // Nom Client
             }
         });
 
@@ -12151,7 +12155,7 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "N°", "ID Achat", "N° Vente", "Nom Client", "Showroom", "Passport", "NIN",
+            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN",
             "Marque", "Modèle", "Couleur", "VIN",
             "Adresse", "C.P."
         ].map(c => c.toUpperCase());
@@ -12170,12 +12174,15 @@ const app = {
                 }
             }
 
+            const rawShowroom = client ? (client.showroom || "-") : "-";
+            const displayShowroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
+
             const row = [
                 rowNum++,
                 po.id,
+                displayShowroom,
                 v.orderId || "-",
                 client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
-                client ? (client.showroom || "-") : "-",
                 client ? (client.passportNumber || "-") : "-",
                 client ? (client.nin || "-") : "-",
                 v.brand || "-",
@@ -12229,9 +12236,9 @@ const app = {
             columnStyles: {
                 0: { cellWidth: 8, halign: 'center' }, // N°
                 1: { cellWidth: 15 }, // ID Achat
-                2: { cellWidth: 15 }, // N° Vente
-                3: { cellWidth: 30 }, // Nom Client
-                4: { cellWidth: 20 }  // Showroom
+                2: { cellWidth: 20 }, // Showroom
+                3: { cellWidth: 15 }, // N° Vente
+                4: { cellWidth: 30 }  // Nom Client
             }
         });
 
