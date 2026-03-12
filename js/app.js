@@ -3428,7 +3428,7 @@ const app = {
             }
         });
 
-        });
+
 
         this.initClientSelectionTable();
 
