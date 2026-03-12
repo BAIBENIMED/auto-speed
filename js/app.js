@@ -3017,7 +3017,7 @@ const app = {
                             <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, status: this.value}; app.renderVehicles()">
                                 <option value="">Tous les statuts</option>
                                 <option value="Available" ${this.vehicleFilters.status === 'Available' ? 'selected' : ''}>Disponible (Libre)</option>
-                                <option value="Reserved" ${this.vehicleFilters.status === 'Reserved' ? 'selected' : ''}>Réservé (Affecté)</option>
+                                <option value="Reserved" ${this.vehicleFilters.status === 'Reserved' ? 'selected' : ''}>SHOWROOM (Affecté)</option>
                                 <option value="In Transit" ${this.vehicleFilters.status === 'In Transit' ? 'selected' : ''}>En Expédition (Transit)</option>
                                 <option value="Arrived" ${this.vehicleFilters.status === 'Arrived' ? 'selected' : ''}>Arrivé (Port)</option>
                                 <option value="Sold" ${this.vehicleFilters.status === 'Sold' ? 'selected' : ''}>Vendu (Livré)</option>
@@ -3064,7 +3064,7 @@ const app = {
             // Check for reservation first
             if (v.orderId || v.clientId) {
                 statusClass = 'warning';
-                statusLabel = 'Réservé';
+                statusLabel = 'SHOWROOM';
             } else if (v.status === 'Available' && v.purchaseOrderId) {
                 // Keep the PO stock sub-status as requested previously
                 statusClass = 'success';
@@ -3073,7 +3073,7 @@ const app = {
                 switch (v.status) {
                     case 'Reserved':
                         statusClass = 'warning';
-                        statusLabel = 'Réservé';
+                        statusLabel = 'SHOWROOM';
                         break;
                     case 'In Transit':
                         statusClass = 'primary';
@@ -3093,7 +3093,7 @@ const app = {
                             statusLabel = 'Expédié';
                         } else if (v.orderId) {
                             statusClass = 'warning';
-                            statusLabel = 'Réservé';
+                            statusLabel = 'SHOWROOM';
                         }
                 }
             }
@@ -9063,7 +9063,7 @@ const app = {
                                                     <td>
                                                         ${client ? `
                                                             <div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>
-                                                            ${order ? `<div style="font-size: 0.8rem; color: var(--primary);">CMD #${order.id}</div>` : '<div style="font-size: 0.8rem; color: var(--success);">RÉSERVÉ</div>'}
+                                                            ${order ? `<div style="font-size: 0.8rem; color: var(--primary);">CMD #${order.id}</div>` : '<div style="font-size: 0.8rem; color: var(--success);">SHOWROOM</div>'}
                                                         ` : '<span style="color: var(--text-dim);">STOCK</span>'}
                                                     </td>
                                                     <td>
