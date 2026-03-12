@@ -2985,6 +2985,43 @@ const app = {
         `;
     },
 
+    initClientSelectionTable() {
+        const tableContainer = document.getElementById('client-selection-table-container');
+        if (!tableContainer) return;
+
+        const hiddenInput = document.getElementById('selected-client-id');
+        const searchInputs = tableContainer.querySelectorAll('.multi-filter-input');
+        const rows = tableContainer.querySelectorAll('.client-row');
+
+        const filterRows = () => {
+            const filters = Array.from(searchInputs).map(input => ({
+                index: input.dataset.colIndex,
+                value: input.value.toLowerCase()
+            }));
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 5) {
+                    // Skip "Stock Libre" or handle differently (always show or ignore)
+                    row.style.display = ''; 
+                    return;
+                }
+                const match = filters.every(f => (cells[f.index]?.textContent || '').toLowerCase().includes(f.value));
+                row.style.display = match ? '' : 'none';
+            });
+        };
+
+        searchInputs.forEach(input => input.addEventListener('input', filterRows));
+
+        rows.forEach(row => {
+            row.addEventListener('click', () => {
+                rows.forEach(r => r.classList.remove('selected-row'));
+                row.classList.add('selected-row');
+                hiddenInput.value = row.dataset.id || '';
+            });
+        });
+    },
+
     renderVehicles(query = '') {
         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
         const canCreate = this.canAccess('vehicles.create');
@@ -3391,41 +3428,9 @@ const app = {
             }
         });
 
-        // Client selection table interactivity
-        const tableContainer = document.getElementById('client-selection-table-container');
-        if (tableContainer) {
-            const hiddenInput = document.getElementById('selected-client-id');
-            const searchInputs = tableContainer.querySelectorAll('.multi-filter-input');
-            const rows = tableContainer.querySelectorAll('.client-row');
+        });
 
-            const filterRows = () => {
-                const filters = Array.from(searchInputs).map(input => ({
-                    index: input.dataset.colIndex,
-                    value: input.value.toLowerCase()
-                }));
-
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    const match = filters.every(f => cells[f.index].textContent.toLowerCase().includes(f.value));
-                    row.style.display = match ? '' : 'none';
-                });
-            };
-
-            searchInputs.forEach(input => input.addEventListener('input', filterRows));
-
-            rows.forEach(row => {
-                row.addEventListener('click', () => {
-                    rows.forEach(r => r.classList.remove('selected-row'));
-                    const clientId = row.dataset.id;
-                    if (hiddenInput.value === clientId) {
-                        hiddenInput.value = ''; // Deselect
-                    } else {
-                        row.classList.add('selected-row');
-                        hiddenInput.value = clientId;
-                    }
-                });
-            });
-        }
+        this.initClientSelectionTable();
 
         document.getElementById('vehicle-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -3820,6 +3825,8 @@ const app = {
         brandSelect.addEventListener('change', (e) => {
             populateModels(e.target.value);
         });
+
+        this.initClientSelectionTable();
 
         document.getElementById('vehicle-form').addEventListener('submit', (e) => {
             e.preventDefault();
