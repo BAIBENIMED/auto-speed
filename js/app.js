@@ -2940,6 +2940,51 @@ const app = {
         });
     },
 
+    renderClientSelectionTable(selectedId = null) {
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        return `
+            <div class="excel-table-wrapper" style="max-height: 250px; overflow-y: auto;">
+                <table class="excel-like-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead style="position: sticky; top: 0; background: var(--bg-dark); z-index: 10;">
+                        <tr style="background: rgba(255,255,255,0.05);">
+                            <th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1); text-align: left;">ID</th>
+                            <th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1); text-align: left;">Nom</th>
+                            <th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1); text-align: left;">Showroom</th>
+                            <th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1); text-align: left;">NIN</th>
+                            <th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1); text-align: left;">Passeport</th>
+                        </tr>
+                        <tr class="filter-row" style="background: rgba(255,255,255,0.02);">
+                            <th style="padding: 5px; border: 1px solid rgba(255,255,255,0.1);"><input type="text" class="multi-filter-input glass-input" style="width: 100%; font-size: 0.75rem; padding: 4px;" data-col-index="0" placeholder="Filtre ID..."></th>
+                            <th style="padding: 5px; border: 1px solid rgba(255,255,255,0.1);"><input type="text" class="multi-filter-input glass-input" style="width: 100%; font-size: 0.75rem; padding: 4px;" data-col-index="1" placeholder="Filtre Nom..."></th>
+                            <th style="padding: 5px; border: 1px solid rgba(255,255,255,0.1);"><input type="text" class="multi-filter-input glass-input" style="width: 100%; font-size: 0.75rem; padding: 4px;" data-col-index="2" placeholder="Filtre Showroom..."></th>
+                            <th style="padding: 5px; border: 1px solid rgba(255,255,255,0.1);"><input type="text" class="multi-filter-input glass-input" style="width: 100%; font-size: 0.75rem; padding: 4px;" data-col-index="3" placeholder="Filtre NIN..."></th>
+                            <th style="padding: 5px; border: 1px solid rgba(255,255,255,0.1);"><input type="text" class="multi-filter-input glass-input" style="width: 100%; font-size: 0.75rem; padding: 4px;" data-col-index="4" placeholder="Filtre Passeport..."></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="client-row ${!selectedId ? 'selected-row' : ''}" data-id="" style="cursor: pointer; transition: all 0.2s;">
+                            <td colspan="5" style="padding: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.1); font-style: italic;">Stock Libre (Aucun client)</td>
+                        </tr>
+                        ${clients.map(c => `
+                            <tr class="client-row ${selectedId === c.id ? 'selected-row' : ''}" data-id="${c.id}" style="cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">#${c.id}</td>
+                                <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1); font-weight: 500;">${c.firstName} ${c.lastName}</td>
+                                <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">${c.showroom || '-'}</td>
+                                <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">${c.nin || '-'}</td>
+                                <td style="padding: 8px 10px;">${c.passportNumber || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <style>
+                .client-row:hover { background: rgba(var(--primary-rgb), 0.05); }
+                .client-row.selected-row { background: rgba(var(--primary-rgb), 0.2) !important; color: white; }
+                .multi-filter-input:focus { border-color: var(--primary) !important; outline: none; }
+            </style>
+        `;
+    },
+
     renderVehicles(query = '') {
         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
         const canCreate = this.canAccess('vehicles.create');
@@ -2977,6 +3022,9 @@ const app = {
             }
             if (this.vehicleFilters.status) {
                 vehicles = vehicles.filter(v => v.status === this.vehicleFilters.status);
+            }
+            if (this.vehicleFilters.color) {
+                vehicles = vehicles.filter(v => v.color === this.vehicleFilters.color);
             }
             if (this.vehicleFilters.supplier) {
                 vehicles = vehicles.filter(v => v.supplier === this.vehicleFilters.supplier);
@@ -3032,6 +3080,13 @@ const app = {
                                 <option value="In Transit" ${this.vehicleFilters.status === 'In Transit' ? 'selected' : ''}>En Expédition (Transit)</option>
                                 <option value="Arrived" ${this.vehicleFilters.status === 'Arrived' ? 'selected' : ''}>Arrivé (Port)</option>
                                 <option value="Sold" ${this.vehicleFilters.status === 'Sold' ? 'selected' : ''}>Vendu (Livré)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Couleur</label>
+                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, color: this.value}; app.renderVehicles()">
+                                <option value="">Toutes les couleurs</option>
+                                ${(StorageService.get(STORAGE_KEYS.COLORS) || []).map(c => `<option value="${c}" ${this.vehicleFilters.color === c ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
@@ -3219,18 +3274,12 @@ const app = {
                                             ${(StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || []).map(p => `<option value="${p.id}">${p.id} - ${p.supplierName || ''}</option>`).join('')}
                                         </select>
                                     </div>
-                                    <div class="form-group">
-                                        <label>Affecter à un Client</label>
-                                        <div class="search-select-wrapper" style="position: relative; display: flex; flex-direction: column; gap: 5px;">
-                                            <input type="text" id="client-search-input" placeholder="Rechercher (Nom, ID, NIN, Passeport)..." class="glass-input" style="font-size: 0.85rem; padding: 6px 12px;">
-                                            <select name="clientId" id="vehicle-client-select" class="glass-select">
-                                                <option value="">Stock Libre (Aucun client)</option>
-                                                ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}" data-search="${(c.firstName + ' ' + c.lastName + ' ' + (c.id || '') + ' ' + (c.nin || '') + ' ' + (c.passportNumber || '')).toLowerCase()}">${c.firstName} ${c.lastName} ${c.id ? `(#${c.id})` : ''}</option>`).join('')}
-                                            </select>
-                                            <div id="client-info-display" style="margin-top: 5px; padding: 8px; background: rgba(var(--primary-rgb), 0.1); border-radius: 6px; font-size: 0.8rem; display: none; border: 1px solid rgba(var(--primary-rgb), 0.2);">
-                                                <!-- Dynamic Info -->
-                                            </div>
+                                    <div class="form-group" style="grid-column: span 2;">
+                                        <label>Affecter à un Client (Sélection par Tableau)</label>
+                                        <div id="client-selection-table-container" class="glass" style="margin-top: 5px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                                            ${this.renderClientSelectionTable()}
                                         </div>
+                                        <input type="hidden" name="clientId" id="selected-client-id">
                                     </div>
                                 </div>
                             </fieldset>
@@ -3342,48 +3391,37 @@ const app = {
             }
         });
 
-        // Client search filter and info display logic
-        const clientSearchInput = document.getElementById('client-search-input');
-        const clientSelect = document.getElementById('vehicle-client-select');
-        const clientInfoDisplay = document.getElementById('client-info-display');
+        // Client selection table interactivity
+        const tableContainer = document.getElementById('client-selection-table-container');
+        if (tableContainer) {
+            const hiddenInput = document.getElementById('selected-client-id');
+            const searchInputs = tableContainer.querySelectorAll('.multi-filter-input');
+            const rows = tableContainer.querySelectorAll('.client-row');
 
-        const updateClientInfo = (id) => {
-            if (!id) {
-                clientInfoDisplay.style.display = 'none';
-                return;
-            }
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
-            const client = clients.find(c => String(c.id) === String(id));
-            if (client) {
-                clientInfoDisplay.innerHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-                        <div><strong>ID:</strong> #${client.id}</div>
-                        <div><strong>Showroom:</strong> ${client.showroom || '-'}</div>
-                        <div><strong>NIN:</strong> ${client.nin || '-'}</div>
-                        <div><strong>Passeport:</strong> ${client.passportNumber || '-'}</div>
-                    </div>
-                `;
-                clientInfoDisplay.style.display = 'block';
-            } else {
-                clientInfoDisplay.style.display = 'none';
-            }
-        };
+            const filterRows = () => {
+                const filters = Array.from(searchInputs).map(input => ({
+                    index: input.dataset.colIndex,
+                    value: input.value.toLowerCase()
+                }));
 
-        if (clientSelect) {
-            clientSelect.addEventListener('change', (e) => updateClientInfo(e.target.value));
-            // Initial update for edit modal
-            if (clientSelect.value) updateClientInfo(clientSelect.value);
-        }
-        if (clientSearchInput && clientSelect) {
-            clientSearchInput.addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase();
-                const options = clientSelect.querySelectorAll('option');
-                options.forEach(option => {
-                    if (option.value === "") { // Always show "Stock Libre"
-                        option.style.display = "";
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    const match = filters.every(f => cells[f.index].textContent.toLowerCase().includes(f.value));
+                    row.style.display = match ? '' : 'none';
+                });
+            };
+
+            searchInputs.forEach(input => input.addEventListener('input', filterRows));
+
+            rows.forEach(row => {
+                row.addEventListener('click', () => {
+                    rows.forEach(r => r.classList.remove('selected-row'));
+                    const clientId = row.dataset.id;
+                    if (hiddenInput.value === clientId) {
+                        hiddenInput.value = ''; // Deselect
                     } else {
-                        const searchStr = option.getAttribute('data-search') || option.textContent.toLowerCase();
-                        option.style.display = searchStr.includes(query) ? "" : "none";
+                        row.classList.add('selected-row');
+                        hiddenInput.value = clientId;
                     }
                 });
             });
@@ -3654,18 +3692,12 @@ const app = {
                                                     ${(StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || []).map(p => `<option value="${p.id}" ${vehicle.purchaseOrderId === p.id ? 'selected' : ''}>${p.id} - ${p.supplierName || ''}</option>`).join('')}
                                                 </select>
                                             </div>
-                                            <div class="form-group">
-                                                <label>Affecter à un Client</label>
-                                                <div class="search-select-wrapper" style="position: relative; display: flex; flex-direction: column; gap: 5px;">
-                                                    <input type="text" id="client-search-input" placeholder="Rechercher (Nom, ID, NIN, Passeport)..." class="glass-input" style="font-size: 0.85rem; padding: 6px 12px;">
-                                                    <select name="clientId" id="vehicle-client-select" class="glass-select">
-                                                        <option value="">Stock Libre (Aucun client)</option>
-                                                        ${(StorageService.get(STORAGE_KEYS.CLIENTS) || []).map(c => `<option value="${c.id}" ${vehicle.clientId === c.id ? 'selected' : ''} data-search="${(c.firstName + ' ' + c.lastName + ' ' + (c.id || '') + ' ' + (c.nin || '') + ' ' + (c.passportNumber || '')).toLowerCase()}">${c.firstName} ${c.lastName} ${c.id ? `(#${c.id})` : ''}</option>`).join('')}
-                                                    </select>
-                                                    <div id="client-info-display" style="margin-top: 5px; padding: 8px; background: rgba(var(--primary-rgb), 0.1); border-radius: 6px; font-size: 0.8rem; display: none; border: 1px solid rgba(var(--primary-rgb), 0.2);">
-                                                        <!-- Dynamic Info -->
-                                                    </div>
+                                            <div class="form-group" style="grid-column: span 2;">
+                                                <label>Affecter à un Client (Sélection par Tableau)</label>
+                                                <div id="client-selection-table-container" class="glass" style="margin-top: 5px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                                                    ${this.renderClientSelectionTable(vehicle.clientId)}
                                                 </div>
+                                                <input type="hidden" name="clientId" id="selected-client-id" value="${vehicle.clientId || ''}">
                                             </div>
                                         </div>
                                     </fieldset>
