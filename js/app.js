@@ -12052,7 +12052,7 @@ const app = {
         }
 
         const columns = [
-            "N°", "ID Commande", "Nom Client", "Passport", "NIN",
+            "N°", "ID Achat", "N° Vente", "Nom Client", "Showroom", "Passport", "NIN",
             "Marque", "Modèle", "Couleur", "VIN",
             "Adresse", "C.P."
         ].map(c => c.toUpperCase());
@@ -12075,7 +12075,9 @@ const app = {
                 const row = [
                     rowNum++,
                     po.id,
+                    v.orderId || "-",
                     client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
+                    client ? (client.showroom || "-") : "-",
                     client ? (client.passportNumber || "-") : "-",
                     client ? (client.nin || "-") : "-",
                     v.brand || "-",
@@ -12107,9 +12109,11 @@ const app = {
             styles: { fontSize: 8 },
             rowPageBreak: 'avoid',
             columnStyles: {
-                0: { cellWidth: 10, halign: 'center' }, // N°
-                1: { cellWidth: 20 }, // ID
-                2: { cellWidth: 35 } // Client
+                0: { cellWidth: 8, halign: 'center' }, // N°
+                1: { cellWidth: 15 }, // ID Achat
+                2: { cellWidth: 15 }, // N° Vente
+                3: { cellWidth: 30 }, // Nom Client
+                4: { cellWidth: 20 }  // Showroom
             }
         });
 
@@ -12130,7 +12134,7 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "N°", "ID Commande", "Nom Client", "Passport", "NIN",
+            "N°", "ID Achat", "N° Vente", "Nom Client", "Showroom", "Passport", "NIN",
             "Marque", "Modèle", "Couleur", "VIN",
             "Adresse", "C.P."
         ].map(c => c.toUpperCase());
@@ -12152,7 +12156,9 @@ const app = {
             const row = [
                 rowNum++,
                 po.id,
+                v.orderId || "-",
                 client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
+                client ? (client.showroom || "-") : "-",
                 client ? (client.passportNumber || "-") : "-",
                 client ? (client.nin || "-") : "-",
                 v.brand || "-",
@@ -12204,9 +12210,11 @@ const app = {
             styles: { fontSize: 8 },
             rowPageBreak: 'avoid',
             columnStyles: {
-                0: { cellWidth: 10, halign: 'center' }, // N°
-                1: { cellWidth: 20 }, // ID
-                2: { cellWidth: 35 } // Client
+                0: { cellWidth: 8, halign: 'center' }, // N°
+                1: { cellWidth: 15 }, // ID Achat
+                2: { cellWidth: 15 }, // N° Vente
+                3: { cellWidth: 30 }, // Nom Client
+                4: { cellWidth: 20 }  // Showroom
             }
         });
 
