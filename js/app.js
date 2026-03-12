@@ -2962,11 +2962,11 @@ const app = {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr class="client-row ${!selectedId ? 'selected-row' : ''}" data-id="" style="cursor: pointer; transition: all 0.2s;">
+                        <tr class="client-row ${!selectedId || selectedId === '' ? 'selected-row' : ''}" data-id="" style="cursor: pointer; transition: all 0.2s;">
                             <td colspan="5" style="padding: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.1); font-style: italic;">Stock Libre (Aucun client)</td>
                         </tr>
                         ${clients.map(c => `
-                            <tr class="client-row ${selectedId === c.id ? 'selected-row' : ''}" data-id="${c.id}" style="cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <tr class="client-row ${String(selectedId) === String(c.id) ? 'selected-row' : ''}" data-id="${c.id}" style="cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);">
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">#${c.id}</td>
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1); font-weight: 500;">${c.firstName} ${c.lastName}</td>
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">${c.showroom || '-'}</td>
@@ -2978,8 +2978,15 @@ const app = {
                 </table>
             </div>
             <style>
-                .client-row:hover { background: rgba(var(--primary-rgb), 0.05); }
-                .client-row.selected-row { background: rgba(var(--primary-rgb), 0.2) !important; color: white; }
+                .client-row:hover { background: rgba(255, 255, 255, 0.05); }
+                .client-row.selected-row { 
+                    background: var(--primary, #6366f1) !important; 
+                    color: #fff !important;
+                }
+                .client-row.selected-row td {
+                    color: #fff !important;
+                    border-right-color: rgba(255,255,255,0.2) !important;
+                }
                 .multi-filter-input:focus { border-color: var(--primary) !important; outline: none; }
             </style>
         `;
@@ -3014,10 +3021,15 @@ const app = {
         searchInputs.forEach(input => input.addEventListener('input', filterRows));
 
         rows.forEach(row => {
-            row.addEventListener('click', () => {
+            row.addEventListener('click', (e) => {
+                // Prevent click on input from triggering row select
+                if (e.target.tagName === 'INPUT') return;
+                
                 rows.forEach(r => r.classList.remove('selected-row'));
                 row.classList.add('selected-row');
-                hiddenInput.value = row.dataset.id || '';
+                const clientId = row.dataset.id || '';
+                hiddenInput.value = clientId;
+                console.log('Selected client ID:', clientId);
             });
         });
     },
