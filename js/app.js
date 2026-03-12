@@ -12052,12 +12052,13 @@ const app = {
         }
 
         const columns = [
-            "ID Commande", "Nom Client", "Passport", "NIN",
+            "N°", "ID Commande", "Nom Client", "Passport", "NIN",
             "Marque", "Modèle", "Couleur", "VIN",
             "Adresse", "C.P."
         ];
 
         const rows = [];
+        let rowNum = 1;
         purchaseOrders.forEach(po => {
             const poVehicles = po.vehicles || [];
             poVehicles.forEach(v => {
@@ -12072,6 +12073,7 @@ const app = {
                 }
 
                 rows.push([
+                    rowNum++,
                     po.id,
                     client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
                     client ? (client.passportNumber || "-") : "-",
@@ -12101,9 +12103,11 @@ const app = {
             theme: 'grid',
             headStyles: { fillColor: [79, 70, 229] }, // matching primary color
             styles: { fontSize: 8 },
+            rowPageBreak: 'avoid',
             columnStyles: {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 35 }
+                0: { cellWidth: 10, halign: 'center' }, // N°
+                1: { cellWidth: 20 }, // ID
+                2: { cellWidth: 35 } // Client
             }
         });
 
@@ -12124,12 +12128,13 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "ID Commande", "Nom Client", "Passport", "NIN",
+            "N°", "ID Commande", "Nom Client", "Passport", "NIN",
             "Marque", "Modèle", "Couleur", "VIN",
             "Adresse", "C.P."
         ];
 
         const rows = [];
+        let rowNum = 1;
         const poVehicles = po.vehicles || [];
         poVehicles.forEach(v => {
             let client = null;
@@ -12143,6 +12148,7 @@ const app = {
             }
 
             rows.push([
+                rowNum++,
                 po.id,
                 client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
                 client ? (client.passportNumber || "-") : "-",
@@ -12192,9 +12198,11 @@ const app = {
             theme: 'grid',
             headStyles: { fillColor: [213, 0, 0] },
             styles: { fontSize: 8 },
+            rowPageBreak: 'avoid',
             columnStyles: {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 35 }
+                0: { cellWidth: 10, halign: 'center' }, // N°
+                1: { cellWidth: 20 }, // ID
+                2: { cellWidth: 35 } // Client
             }
         });
 
