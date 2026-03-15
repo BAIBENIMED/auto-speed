@@ -669,6 +669,37 @@ const app = {
         if (modal) modal.remove();
     },
 
+    generateNextOrderId(showroomName) {
+        const year = new Date().getFullYear();
+        // Get first 3 letters of showroom, default to SHR if not provided
+        const showroomCode = (showroomName && showroomName.trim() !== '') 
+            ? showroomName.trim().substring(0, 3).toUpperCase() 
+            : 'SHR';
+        
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+        
+        // Find existing orders for this showroom and year
+        const prefix = `${showroomCode}/${year}/`;
+        const relevantOrders = orders.filter(o => o.id && o.id.startsWith(prefix));
+        
+        let maxSeq = 0;
+        for (const order of relevantOrders) {
+            const parts = order.id.split('/');
+            if (parts.length === 3) {
+                const seq = parseInt(parts[2], 10);
+                if (!isNaN(seq) && seq > maxSeq) {
+                    maxSeq = seq;
+                }
+            }
+        }
+        
+        const nextSeq = maxSeq + 1;
+        // Pad with zeros to 5 positions
+        const paddedSeq = String(nextSeq).padStart(5, '0');
+        
+        return `${prefix}${paddedSeq}`;
+    },
+
     calculateOrderStatus(order) {
         if (!order) return 'N/A';
         if (['ANNULÉE', 'LIVRÉE', 'ANNULÉ', 'CONCLUE', 'EN COURS'].includes(order.status)) return order.status;
@@ -796,7 +827,8 @@ const app = {
                 }
             } else {
                 // Create new order
-                finalOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+                const selectedShowroom = formData.get('showroom') || 'Showroom Principal';
+                finalOrderId = this.generateNextOrderId(selectedShowroom);
                 const newOrder = {
                     id: finalOrderId,
                     clientId: client.id,
