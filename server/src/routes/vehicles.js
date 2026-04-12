@@ -11,5 +11,7 @@ router.post('/', vehiclesController.create);
 router.put('/:id', vehiclesController.update);
 router.delete('/:id', vehiclesController.delete);
 router.patch('/:id/archive', vehiclesController.archive);
+router.post('/:id/transfer', vehiclesController.transfer);
+router.get('/:id/transfers', vehiclesController.getTransfers);
 
 module.exports = router;

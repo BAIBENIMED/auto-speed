@@ -1,0 +1,687 @@
+
+Line
+----
+    generateVehicleId(brand) {
+    generateClientReference() {
+    getTrackingUrl(carrier, number) {
+    isOutdated(dateStr) {
+    async init() {
+        if (currentUser && currentUser.token) {
+                if (!synced) {
+            } catch (error) {
+                if (session && session.token && this.appContainer?.style.display !== 'none') {
+                    if (refreshed && this.currentView !== 'login') {
+            } catch (err) {
+    checkSession() {
+        if (currentUser && currentUser.id) {
+    renderLogin() {
+    async handleLogin() {
+            if (response.success) {
+                    if (rolesResponse.success && rolesResponse.data) {
+                } catch (error) {
+        } catch (error) {
+    async handleLogout() {
+        } catch (error) {
+    applyTheme(themeName = null) {
+        if (theme === 'dark') {
+    setupEventListeners() {
+        if (mobileMenuBtn) {
+        if (sidebarOverlay) {
+        if (btnLogout) {
+        if (btnNewOrder) {
+        if (searchInput) {
+    async validateOrder(id) {
+        if (order) {
+    async unvalidateOrder(id) {
+        if (order.vehicleId) {
+            for (const vToRelease of linkedVehicles) {
+    showOrderModal(vehicleId = null) {
+        if (preSelectedVehicle) {
+            if (v.brand && brandModels[v.brand]) {
+        if (clientSearch && clientSelect) {
+            if (category === 'Neuf') {
+            } else if (category === 'Recent') {
+            if (brand && brandModels[brand]) {
+    closeModal() {
+    generateNextOrderId(showroomName) {
+        for (const order of relevantOrders) {
+            if (parts.length === 3) {
+    calculateOrderStatus(order) {
+    async syncOrderStatuses() {
+        for (const order of orders) {
+            if (order.status !== newStatus) {
+    async handleOrderSubmission(formData) {
+        if (submitBtn) {
+            if (!client) {
+            if (vehicleId) {
+                if (vehicle.orderId && vehicle.orderId !== orderId) {
+            if (orderId) {
+                if (orderIndex !== -1) {
+                    if (previousVehicleId && previousVehicleId !== vehicleId) {
+                        if (prevVehicle) {
+                    if (updatedOrder.status !== 'ANNULÉE') {
+                        for (const vToRelease of linkedVehicles) {
+            if (vehicle) {
+        } catch (error) {
+            if (submitBtn) {
+    renderOrderTasks(order) {
+        if (tasks.length === 0) {
+    async addOrderTask(orderId) {
+        } catch (err) {
+    async toggleOrderTask(orderId, taskIndex) {
+        } catch (err) {
+    async deleteOrderTask(orderId, taskIndex) {
+        } catch (err) {
+    showOrderDetails(id) {
+        for (let i = steps.length - 1; i >= 0; i--) {
+            if (steps[i].completed) {
+        for (let i = 0; i <= activeIndex; i++) {
+    renderPurchaseOrderTasks(po) {
+        if (!po.tasks || po.tasks.length === 0) {
+    async addPurchaseOrderTask(poId) {
+        } catch (err) {
+    async togglePurchaseOrderTask(poId, taskIndex) {
+        } catch (err) {
+    async deletePurchaseOrderTask(poId, taskIndex) {
+        } catch (err) {
+    showEditOrderModal(id) {
+            if (brand && brandModels[brand]) {
+    showConfirmModal(message, onConfirm) {
+    deleteOrder(id) {
+                if (vehicle) {
+                    if (!vehicle.shipmentId) {
+            } catch (error) {
+    archiveOrder(id) {
+        if (balance > 0) {
+        if (order.status !== 'ENLEVÉE') {
+            if (vehicleId) {
+                if (vehicle) {
+                    if (shipmentId) {
+                        if (shipment) {
+    deleteClient(id) {
+    showVehicleDetails(id) {
+    async deleteVehicle(id) {
+    switchView(viewName) {
+        if (searchInput) {
+    attachDashboardListeners() {
+        if (showroomFilter) {
+        if (startFilter) {
+        if (endFilter) {
+        if (resetBtn) {
+        if (syncBtn) {
+                } catch (e) {
+    renderView(viewName) {
+        switch (viewName) {
+    async renderDashboard() {
+            if (this.searchQuery) {
+            if (this.dashboardFilters.showroom) {
+            if (this.dashboardFilters.startDate) {
+            if (this.dashboardFilters.endDate) {
+                if (v.shipmentId) {
+                    if (shipment) {
+                        if (normalizedStatus === 'en route' || normalizedStatus === 'en mer' || normalizedStatus === 'e…
+                        } else if (normalizedStatus === 'arrivé' || normalizedStatus === 'arrive' || normalizedStatus =…
+                        } else if (normalizedStatus === 'livré' || normalizedStatus === 'livre' || normalizedStatus ===…
+                if (!v.shipmentId && v.orderId) {
+            if (dataChanged) {
+        } catch (err) {
+    initDashboardCharts(orders, vehicles, cash, reportingCurrency) {
+        if (perfCanvas) {
+            for (let i = 11; i >= 0; i--) {
+                    if (index !== -1) {
+            if (globalCb) {
+        if (caCanvas) {
+            if (valCb) {
+            if (qtyCb) {
+    initDashboardMap(shipments) {
+        if (activeShipments.length === 0) {
+        if (activeShipments.length > 0) {
+    renderOrders(query = '') {
+        if (query) {
+        if (this.orderFilters.status) {
+        if (this.orderFilters.showroom) {
+        if (this.orderFilters.startDate) {
+        if (this.orderFilters.endDate) {
+        if (!this.orderFilters.showArchived) {
+    attachOrderFilterListeners() {
+    resetOrderFilters() {
+    renderClients(query = '') {
+        if (query) {
+    showClientModal() {
+    async handleClientSubmission(formData) {
+            if (clientId) {
+                if (submitBtn) {
+                } catch (addError) {
+                    if (submitBtn) {
+        } catch (error) {
+    showBatchClientModal() {
+    async handleBatchClientSubmission(formData) {
+            if (submitBtn) {
+                if (parts.length < 3) {
+                if (!firstName || !lastName) {
+                if (!client.reference) {
+                } catch (err) {
+        } catch (error) {
+    showEditClientModal(id) {
+    renderClientSelectionTable(selectedId = null) {
+    initClientSelectionTable() {
+                if (cells.length < 5) {
+    renderVehicles(query = '') {
+        } catch (e) {
+        if (query) {
+        if (this.vehicleFilters) {
+            if (this.vehicleFilters.brand) {
+            if (this.vehicleFilters.model) {
+            if (this.vehicleFilters.status) {
+            if (this.vehicleFilters.color) {
+            if (this.vehicleFilters.supplier) {
+            if (this.vehicleFilters.purchaseOrderId) {
+        if (!this.vehicleFilters.showArchived) {
+            if (v.orderId || v.clientId) {
+            } else if (v.status === 'Available' && v.purchaseOrderId) {
+                switch (v.status) {
+                        if (v.shipmentId) {
+                        } else if (v.orderId) {
+                                        if (clientId) {
+                                            if (client) {
+        if (vArchivedF) {
+    showVehicleModal() {
+            if (selectedBrand && brandModels[selectedBrand]) {
+    setupVehiclePhotoUpload() {
+                if (res.success) {
+            } catch (err) {
+    async handleVehicleSubmission(formData) {
+            if (vehicleId) {
+                if (submitBtn) {
+                } catch (addError) {
+                    if (submitBtn) {
+        } catch (error) {
+    showBatchVehicleModal() {
+    async handleBatchVehicleSubmission(formData) {
+                if (!brand || !chassisNumber) {
+                } catch (err) {
+        } catch (error) {
+    showEditVehicleModal(id) {
+            if (brand && brandModels[brand]) {
+    renderSettings() {
+            if (!this.viewContainer) {
+        } catch (error) {
+    async handleGlobalStatusHeal() {
+            if (result.success) {
+        } catch (error) {
+    async syncAllData() {
+        } catch (err) {
+    async handleResetData() {
+            } catch (err) {
+    renderBrandsSection(brands) {
+    renderShowroomSection(showrooms) {
+    async addBrand() {
+    async removeBrand(id) {
+        if (brand) {
+            if (legacyIndex > -1) {
+    async editBrand(id) {
+        if (newName && newName !== brand.name) {
+            if (idx > -1) {
+    async addShowroom() {
+    async removeShowroom(id) {
+        if (showroom) {
+            if (lIdx > -1) {
+    async editShowroom(id) {
+        if (newName && newName !== room.name) {
+            if (idx > -1) {
+    renderBrandModelsSection() {
+    deleteVehicle(id) {
+            } catch (error) {
+    deleteOrder(id) {
+            } catch (error) {
+    deleteClient(id) {
+            } catch (error) {
+    async addBrandModel(brandName) {
+        if (!brandObj) {
+            if (res.success) {
+        } catch (error) {
+    async removeBrandModel(brandName, modelName) {
+        if (!modelObj) {
+            if (res.success) {
+                if (brandModels[brandName]) {
+        } catch (error) {
+    async addConfigItem(type) {
+        if (type === 'BRANDS') {
+            if (!brandModels[value]) {
+    async removeConfigItem(type, value) {
+        if (type === 'BRANDS') {
+    showToast(message, type = 'info') {
+    renderShowroomSection(showrooms) {
+    editShowroom(id) {
+            } catch (error) {
+    renderBrandsSection(brands) {
+    editBrand(id) {
+                if (res.success) {
+            } catch (err) {
+                if (res.success) {
+                    if (index !== -1) {
+            } catch (error) {
+    renderUserManagementSection() {
+    async addUser() {
+        if (!name || !username || !password || !role) {
+    showEditUserModal(id) {
+                if (currentUser && currentUser.id === updatedUser.id) {
+                    if (freshUser) {
+            } catch (error) {
+    removeUser(id) {
+    async resetAdminPassword() {
+            if (res.success) {
+        } catch (error) {
+    canAccess(view) {
+    renderSidebar() {
+        if (profileArea) {
+        if (auditLink) {
+    logout() {
+    renderRoleManagementSection() {
+    async addRole() {
+        if (!id || !name) {
+        } catch (error) {
+    async refreshShipmentTracking(id, btnElement) {
+    showTrackingHistoryModal(shipmentId) {
+        try { events = JSON.parse(s.trackingHistory || '[]'); } catch (e) { events = []; }
+    removeRole(id) {
+            } catch (error) {
+    showEditRoleModal(roleId) {
+            if (index !== -1) {
+    renderExchangeRates(query = '') {
+    showExchangeRateModal() {
+    showEditExchangeRateModal(id) {
+    async handleExchangeRateSubmission(formData) {
+            if (newRate.fromCurrency === newRate.toCurrency) {
+            if (id) {
+        } catch (error) {
+    deleteExchangeRate(id) {
+    renderShipments(query = '') {
+        if (query) {
+        if (!this.shipmentFilters.showArchived) {
+                    const events = (() => { try { return JSON.parse(s.trackingHistory || '[]'); } catch (e) { return []…
+        if (archivedFilter) {
+    initInlineShipmentForm() {
+            if (el) {
+        if (tableSearch) {
+        if (draft) {
+        if (vehicleList) {
+                if (e.target.name === 'inline-vehicle-ids') {
+    updateInlineVehicleList() {
+    async handleInlineShipmentCreation() {
+        if (btn) {
+        if (!container) {
+            if (btn) {
+        if (vehicleIds.length === 0) {
+            if (btn) {
+            for (const v of vehicles) {
+        } catch (error) {
+            if (btn) {
+    handleShipmentTableSearch(term) {
+    switchLogisticsTab(tab, el) {
+        if (mode === 'ocean') {
+        } else if (mode === 'air') {
+    performLogisticsSearch() {
+        if (!from || !to) {
+    renderSpecialOffers(from = 'Antwerp/Zeebrugge', to = 'Dakar, Sénégal') {
+    renderVoyages() {
+            if (!acc[voyageName]) {
+    async refreshAllVoyages() {
+            if (success) {
+        } catch (error) {
+    showVoyageShipmentsModal(voyageName) {
+    showLegacyVoyageModal(voyageName) {
+    async handleLegacyVoyageSubmission(formData) {
+        if (submitBtn) {
+            if (updates.status === 'Arrivé' && !arrivalDate) {
+            for (const shipment of voyageShipments) {
+                for (const vehicle of shipmentVehicles) {
+                    if (updates.status === 'Arrivé') {
+                    } else if (updates.status === 'Livré') {
+                    if (vehicle.orderId) {
+                        if (order) {
+        } catch (error) {
+            if (submitBtn) {
+    showShipmentBLUploadModal() {
+    async handleShipmentBLUpload(file) {
+            if (file.type === 'application/pdf') {
+        } catch (error) {
+    async performOCR(imageUrl, progressBar, statusText) {
+                if (m.status === 'recognizing text') {
+    showShipmentBLVerificationModal(data) {
+    handleShipmentBLSubmission(data) {
+            if (carrierSelect && data.carrier) {
+            if (data.chassisNumber && data.chassisNumber !== 'Non trouvé') {
+                if (matchedVehicle) {
+                    if (searchInput) {
+                            if (checkbox) {
+    formatDateForInput(dateStr) {
+        } catch (e) { }
+    _triggerDownload(blob, filename) {
+    exportOrdersToCSV() {
+        if (orders.length === 0) {
+    exportOrdersToPDF() {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+            if (orders.length === 0) {
+                didParseCell: function (data) {
+                    if (data.column.index === 7) {
+        } catch (e) {
+    exportPendingOrdersMatrixToPDF() {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+            if (pendingOrders.length === 0) {
+            if (nsIndex > -1) {
+                didParseCell: function (data) {
+                    if (data.row.index === tableRows.length - 1) {
+        } catch (e) {
+    showShipmentModal(preSelectedVehicleId = null) {
+        if (voyageSelect) {
+                if (voyageId) {
+                    if (voyage) {
+            if (filteredVehicles.length === 0) {
+                    if (e.target.checked) {
+        if (statusSelect && arrivalDateInput) {
+                if (e.target.value === 'Arrivé' && !arrivalDateInput.value) {
+    showEditShipmentModal(id) {
+        if (voyageSelect) {
+                if (voyageId) {
+                    if (voyage) {
+    async handleShipmentSubmission(formData) {
+        if (submitBtn) {
+            if (selectedVehicleIds.length === 0) {
+            if (voyageId) {
+            if (status === 'Arrivé' && !arrivalDate) {
+            if (shipmentId) {
+            if (shipmentId) {
+                for (const v of vehicles) {
+                    if (v.shipmentId === shipmentId || v.shipmentId === shipmentData.id) {
+            for (const vId of selectedVehicleIds) {
+                if (vehicle) {
+                    if (shipmentData.status === 'Arrivé') {
+                    } else if (shipmentData.status === 'Livré') {
+                    if (vehicle.orderId) {
+                        if (order) {
+        } catch (error) {
+            if (submitBtn) {
+    async handleManualShipmentRefresh(shipmentId) {
+            if (!shipment) {
+            if (result.success) {
+        } catch (error) {
+    showVoyageModal(id = null) {
+    async handleVoyageSubmission(formData) {
+            if (voyageData.status === 'Arrivé' && !arrivalDate) {
+            if (id) {
+                if (voyageData.propagateToShipments) {
+                    for (const shipment of voyageShipments) {
+                        for (const vehicle of shipmentVehicles) {
+                            if (updatedShipment.status === 'Arrivé') {
+                            } else if (updatedShipment.status === 'Livré') {
+                            if (vehicle.orderId) {
+                                if (order) {
+        } catch (error) {
+    async trackShipment(shipmentId) {
+            if (res.success) {
+        } catch (error) {
+    async zoomToShipment(shipmentId) {
+            if (shipment && shipment.currentLat && shipment.currentLng && this.mapTracking) {
+    renderCash(query = '', filter = 'all', showroomFilter = '') {
+        if (query) {
+        if (filter === 'in') {
+        } else if (filter === 'out') {
+        if (showroomFilter) {
+    exportCashJournalPDF(showroomFilter = '') {
+        if (showroomFilter) {
+        if (showroomFilter) {
+    showCashModal(orderId = null) {
+        if (orderId) {
+            if (preSelectedOrder) {
+                if (client && client.showroom) {
+    showEditCashModal(id) {
+    handleCashTypeChange(type) {
+        if (type === 'Out') {
+            if (orderSelect) {
+            if (clientInput) {
+    handleClientSelectInCash(clientId) {
+        if (!clientId) {
+            if (clientInput) {
+        if (clientInput && client) {
+        if (showroomSelect && client && client.showroom) {
+        if (unpaidOrders.length > 0) {
+    handleOrderSelectInCash(orderId) {
+        if (!orderId) {
+            if (clientInput) {
+        if (order) {
+            if (clientInput) {
+            if (amountInput && !amountInput.value) {
+    async handleCashSubmission(data) {
+            if (isUpdate) {
+            if (data.orderId) {
+            if (this.currentView) {
+        } catch (error) {
+    async deleteCashTransaction(id) {
+    getPaidAmount(orderId) {
+    deleteShipment(id) {
+            if (shipment) {
+                for (const v of vehicles) {
+                    if (v.shipmentId === id) {
+        if (!rateEntry) {
+        if (rateEntry) {
+    formatCurrency(amount, type = 'selling') {
+        if (type === 'purchase') {
+        } else if (type && type.length === 3) {
+        } catch (e) {
+    renderAlerts() {
+            if (s.arrivalDate && s.status !== 'Arrivé') {
+                if (arrival > now && arrival <= tenDaysFromNow) {
+            if (o.isValidated && !o.vehicleId && o.status !== 'ANNULÉE' && o.status !== 'ANNULÉ') {
+            if (v.shipmentId && !v.orderId && !v.archived) {
+            if (!n.isRead) {
+                switch (n.type) {
+    async renderPurchases(query = '') {
+            if (response.success && response.data) {
+            if (this.purchaseFilters) {
+                if (this.purchaseFilters.supplier) {
+                if (this.purchaseFilters.status) {
+                if (this.purchaseFilters.startDate) {
+                if (this.purchaseFilters.endDate) {
+            if (query) {
+        } catch (err) {
+    async renderSuppliers(query = '') {
+            if (query) {
+        } catch (err) {
+    async showSupplierModal(id = null) {
+        if (id) {
+                if (id) {
+            } catch (err) {
+    async deleteSupplier(id) {
+            } catch (err) {
+    async showPurchaseOrderDetails(id) {
+            if (orderStatus === 'Enlevée' || orderStatus === 'Livrée') {
+            } else if (order) {
+    async showPurchaseOrderModal(id = null) {
+        if (selectAll) {
+            if (!id) {
+                if (vehiclesToCreate.length === 0) {
+                } catch (err) {
+                } catch (err) {
+    updatePOVehicleModel(brandSelect) {
+    addStockRowToPO() {
+        if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+    duplicatePORow(button) {
+        if (!bSelect) {
+    reindexPORows() {
+            if (indexCell) {
+    async deletePurchaseOrder(id) {
+            } catch (err) {
+    renderVerification() {
+            if (e.dataTransfer.files.length > 0) {
+            if (e.target.files.length > 0) {
+    async handleBLUpload(file) {
+            if (file.type === 'application/pdf') {
+            if (useOCR) {
+                        if (m.status === 'loading tesseract core') {
+                        } else if (m.status === 'initializing tesseract') {
+                        } else if (m.status === 'loading language traineddata') {
+                        if (m.status === 'recognizing text') {
+                if (file.type !== 'application/pdf') {
+                } catch (error) {
+        } catch (error) {
+    async extractTextFromPdf(pdf) {
+        for (let i = 1; i <= numPages; i++) {
+    async convertPdfToImage(pdf) {
+    async processOCRData(text, templateId, file = null) {
+        if (!text) {
+        if (templateId) {
+            if (templates && templates.length > 0) {
+                for (const t of templates) {
+        if (settings.useAiExtraction && text.length > 20) {
+            } catch (aiError) {
+        if (template && template.useZonal && template.zones && file) {
+                if (file.type === 'application/pdf') {
+            } catch (zError) {
+                } catch (e) {
+    showTemplateManagerModal() {
+    showEditTemplateModal(id = null) {
+            if (templateId) { // Use templateId here
+    async deleteTemplate(id) {
+    displayVerificationResults(data) {
+        if (data.chassis !== 'Non trouvé') {
+        if (vehicleMatch && vehicleMatch.orderId) {
+        if (vehicleMatch) {
+            if (orderMatch) {
+        if (status === 'MATCH') {
+        } else if (status === 'PARTIAL') {
+    startVisualMapping(templateId) {
+            if (e.target.files.length > 0) {
+    async showVisualEditor(file, templateId) {
+            if (file.type === 'application/pdf') {
+                if (dragMode === 'draw') {
+                if (dragMode === 'draw') {
+                } else if (dragMode === 'move') {
+                } else if (dragMode === 'resize') {
+                    if (handleId === 'tl') { z.x += dx; z.y += dy; z.w -= dx; z.h -= dy; }
+                    else if (handleId === 'tr') { z.y += dy; z.w += dx; z.h -= dy; }
+                    else if (handleId === 'bl') { z.x += dx; z.w -= dx; z.h += dy; }
+                    else if (handleId === 'br') { z.w += dx; z.h += dy; }
+                if (z.w < 0) { z.x += z.w; z.w = Math.abs(z.w); }
+                if (z.h < 0) { z.y += z.h; z.h = Math.abs(z.h); }
+        } catch (err) {
+    setActiveZone(fieldId, animate = true) {
+        if (activeEl) {
+    redrawZones(canvas, ctx) {
+            if (isActive) {
+    updateZoneUI(fieldId) {
+    async saveVisualZones(templateId) {
+    async toggleAiExtraction() {
+        if (!settings.useAiExtraction && !settings.geminiApiKey) {
+        if (btn) {
+    async testGeminiConnection() {
+        if (!key) {
+            for (const model of potentialModels) {
+                    if (response.ok) {
+                    } else if (response.status === 429) {
+                } catch (e) {
+            if (workingModel) {
+            } else if (quotaErrorCount > 0) {
+        } catch (err) {
+    async listGeminiModels() {
+        if (!key) {
+            if (response.ok) {
+        } catch (err) {
+    async callGeminiAI(text) {
+        if (!settings.geminiApiKey) {
+        for (const model of uniqueModels) {
+                if (response.ok) {
+                    if (model !== settings.activeModel) {
+                    if (response.status !== 404 && response.status !== 429) {
+            } catch (err) {
+        if (!lastResponse) {
+        } catch (pErr) {
+    async showLiveVoyageTracking(voyageName) {
+        } catch (error) {
+    showTrackingModal(data, title = "Détails du Suivi") {
+        if (window.L && location.lat && location.lng) {
+    async renderAudit() {
+            if (!response.success || response.data.length === 0) {
+        } catch (error) {
+    getAuditIcon(action) {
+        switch (action) {
+    renderGlobalTracking() {
+        if (window.L) {
+    showShipmentMap(id) {
+    showLocalTracking(shipmentId) {
+        if (shipment && shipment.trackingHistory) {
+            } catch (e) {
+    async toggleVoyageTracking(voyageName, active) {
+            if (res.success) {
+        } catch (error) {
+    showShipmentTrackingHistory(shipmentId) {
+            if (!shipment) {
+            if (shipment.trackingHistory) {
+                } catch (e) {
+            if (events.length === 0) {
+                if (shipment.shipmentDate) {
+                if (shipment.etd) {
+                if (shipment.eta) {
+                if (shipment.arrivalDate) {
+                if (shipment.customsClearanceDate) {
+                if (shipment.pickupDate) {
+        } catch (error) {
+    renderTrackingHistoryModal(shipment, events, source) {
+    showVoyageTrackingHistory(voyageName) {
+            if (voyageEntity && voyageEntity.trackingHistory) {
+                } catch (e) {
+            if (events.length === 0) {
+                if (shipmentWithHistory) {
+                    } catch (e) {
+        } catch (err) {
+    async trackVoyage(voyageName) {
+            if (res.success) {
+        } catch (err) {
+    showCarrierLinksModal(voyageName, carrierInfo, errorMessage) {
+        if (carrierInfo) {
+            if (links.length > 0) {
+        if (!linksHtml) {
+    async refreshAllVoyages() {
+        if (voyageNames.length === 0) {
+        for (let i = 0; i < voyageNames.length; i++) {
+                if (res.success) {
+            } catch (err) {
+        if (failCount === 0) {
+    isOutdated(dateString) {
+    downloadClientCSVTemplate() {
+    async handleClientImport(inputElement) {
+            if (lines.length < 2) {
+            for (let i = 1; i < lines.length; i++) {
+                } catch (err) {
+    showReportsModal() {
+    toggleReportFilters() {
+        if (type === 'client') {
+        } else if (type === 'showroom') {
+        } else if (type === 'orders') {
+    generateReport(format) {
+        if (type === 'client' && !filters.clientId) {
+        if (format === 'pdf') {
+    showPurchaseOrderPrintFiltersModal() {
+    exportPurchaseOrdersToPDF(filters = {}) {
+        if (filters.supplierName) {
+        if (filters.startDate) {
+        if (filters.endDate) {
+                if (v.clientId) {
+                } else if (v.orderId) {
+                    if (order && order.clientId) {
+    exportSinglePurchaseOrderToPDF(poId) {
+            if (v.clientId) {
+            } else if (v.orderId) {
+                if (order && order.clientId) {
+    _generatePDFReport(type, filters) {
+        if (type === 'cash') {
+        else if (type === 'client') {
+        else if (type === 'orders') {
+        else if (type === 'showroom') {
+    _generateCSVReport(type, filters) {
+        if (type === 'cash') {
+    renderBrandModelsSection() {
+    manageModels(brand) {
+        if (!brandObj) {
+    showShipmentMap(shipmentId) {
+

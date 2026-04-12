@@ -92,6 +92,8 @@ const ApiService = {
     updateVehicle: (id, data) => ApiService.request(`/vehicles/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
     deleteVehicle: (id) => ApiService.request(`/vehicles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     archiveVehicle: (id) => ApiService.request(`/vehicles/${encodeURIComponent(id)}/archive`, { method: 'PATCH' }),
+    transferVehicle: (id, data) => ApiService.request(`/vehicles/${encodeURIComponent(id)}/transfer`, { method: 'POST', body: data }),
+    getVehicleTransfers: (id) => ApiService.request(`/vehicles/${encodeURIComponent(id)}/transfers`),
 
     // Orders
     getOrders: (archived) => ApiService.request(`/orders${archived !== undefined ? `?archived=${archived}` : ''}`),

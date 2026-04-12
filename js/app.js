@@ -1152,6 +1152,9 @@ const app = {
                         </div>
                         <div class="modal-footer">
                             <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                            <button class="btn-action warning-alt" style="margin-right: auto;" onclick="app.showOrderAmendmentModal('${order.id}')">
+                                <i class="fas fa-edit"></i> Amendement (Changer Client)
+                            </button>
                             <button class="btn-primary" onclick="app.showCashModal('${order.id}')">
                                 <i class="fas fa-cash-register"></i> Nouveau Règlement
                             </button>
@@ -1545,15 +1548,260 @@ const app = {
                         </div>
                         <div class="modal-footer">
                             <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                            <button class="btn-action warning-alt" style="margin-right: auto;" onclick="app.showTransferModal('${vehicle.id}')">
+                                <i class="fas fa-edit"></i> Amendement (Changer Client)
+                            </button>
                             <button class="btn-primary" onclick="app.showEditVehicleModal('${vehicle.id}')">
                                 <i class="fas fa-edit"></i> Modifier
                             </button>
                         </div>
+                        <div id="transfer-history-container" style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: none;">
+                            <h3 style="font-size: 1rem; margin-bottom: 10px;"><i class="fas fa-history"></i> Historique des Transferts</h3>
+                            <div id="transfer-history-list" style="font-size: 0.85rem;">
+                                <!-- History items will be loaded here -->
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+        this.loadTransferHistory(id);
     },
+
+    async loadTransferHistory(vehicleId) {
+        try {
+            const response = await ApiService.getVehicleTransfers(vehicleId);
+            const container = document.getElementById('transfer-history-container');
+            const list = document.getElementById('transfer-history-list');
+
+            if (response.success && response.data && response.data.length > 0) {
+                container.style.display = 'block';
+                list.innerHTML = response.data.map(t => `
+                    <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600;">Transfert vers : ${t.ToClient?.firstName || ''} ${t.ToClient?.lastName || 'Client Supprimé'}</div>
+                            <div style="color: var(--text-dim); font-size: 0.8rem;">
+                                ${new Date(t.transferDate).toLocaleDateString()} | ${t.withBL ? '<span style="color: var(--success);">Avec BL</span>' : '<span style="color: var(--warning);">Sans BL</span>'}
+                            </div>
+                            ${t.notes ? `<div style="font-style: italic; margin-top: 4px;">"${t.notes}"</div>` : ''}
+                        </div>
+                        <div style="text-align: right; color: var(--text-dim);">
+                            Précédent : ${t.FromClient?.firstName || ''} ${t.FromClient?.lastName || 'Stock/N/A'}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } catch (err) {
+            console.error("Error loading transfer history:", err);
+        }
+    },
+
+    showOrderAmendmentModal(orderId) {
+        const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === orderId);
+        if (!order) return;
+        this.showGenericTransferModal({
+            targetId: orderId,
+            type: 'order',
+            title: `Amender la Commande #${orderId}`,
+            vehicleId: order.vehicleId,
+            currentClientId: order.clientId
+        });
+    },
+
+    showTransferModal(vehicleId) {
+        const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === vehicleId);
+        if (!vehicle) return;
+        this.showGenericTransferModal({
+            targetId: vehicleId,
+            type: 'vehicle',
+            title: `Transférer le Véhicule #${vehicle.id}`,
+            vehicleId: vehicleId,
+            currentClientId: vehicle.clientId
+        });
+    },
+
+    showGenericTransferModal({ targetId, type, title, vehicleId, currentClientId }) {
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        
+        const modalHtml = `
+            <div id="transfer-modal-overlay" class="modal-overlay" style="z-index: 1100;">
+                <div class="modal-content glass" style="width: 500px;">
+                    <div class="modal-header">
+                        <h2>${title}</h2>
+                        <button class="btn-close" onclick="document.getElementById('transfer-modal-overlay').remove()">&times;</button>
+                    </div>
+                    <form id="transfer-form" style="padding: 20px;">
+                        <input type="hidden" name="targetId" value="${targetId}">
+                        <input type="hidden" name="transferType" value="${type}">
+                        
+                        <div class="form-group" id="client-selection-group">
+                            <label>Nouveau Client</label>
+                            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
+                                <select name="toClientId" id="transfer-client-select" class="glass-select" style="flex: 1;">
+                                    <option value="">Sélectionner un client existant...</option>
+                                    ${clients.filter(c => String(c.id) !== String(currentClientId)).map(c => `<option value="${c.id}">${c.firstName} ${c.lastName}</option>`).join('')}
+                                </select>
+                                <button type="button" class="btn-secondary" onclick="app.toggleNewClientFields()" title="Créer un nouveau client">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="new-client-fields" style="display: none; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px dashed rgba(255,255,255,0.1);">
+                            <h3 style="font-size: 0.9rem; margin-bottom: 10px; color: var(--primary);">Informations Nouveau Client</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div class="form-group">
+                                    <label>Prénom</label>
+                                    <input type="text" name="newClientFirstName" class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Nom</label>
+                                    <input type="text" name="newClientLastName" class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Téléphone</label>
+                                    <input type="text" name="newClientPhone" class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Showroom</label>
+                                    <select name="newClientShowroom" class="glass-select">
+                                        ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map(s => `<option value="${s}">${s}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-secondary" style="margin-top: 10px; width: 100%;" onclick="app.toggleNewClientFields(false)">
+                                Annuler et choisir client existant
+                            </button>
+                        </div>
+
+                        ${type === 'vehicle' ? `
+                        <div class="form-group">
+                            <label>Option de Transfert</label>
+                            <div style="display: flex; gap: 20px; margin-top: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="radio" name="withBL" value="true" checked> Avec BL
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="radio" name="withBL" value="false"> Sans BL
+                                </label>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <div class="form-group">
+                            <label>Notes / Motif</label>
+                            <textarea name="notes" class="glass-input" rows="2" placeholder="Ex: Transfert suite à désistement..."></textarea>
+                        </div>
+
+                        ${type === 'vehicle' ? `
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--warning);">
+                                <input type="checkbox" name="transferOrderAsWell" value="true" checked> Transférer également la commande liée ?
+                            </label>
+                        </div>
+                        ` : ''}
+
+                        <div class="modal-footer" style="padding: 0; margin-top: 20px;">
+                            <button type="button" class="btn-secondary" onclick="document.getElementById('transfer-modal-overlay').remove()">Annuler</button>
+                            <button type="submit" class="btn-primary">Confirmer le ${type === 'vehicle' ? 'Transfert' : 'Amendement'}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('transfer-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleGenericTransferSubmission(new FormData(e.target));
+        });
+    },
+
+    toggleNewClientFields(show = true) {
+        const fields = document.getElementById('new-client-fields');
+        const selection = document.getElementById('client-selection-group');
+        const select = document.getElementById('transfer-client-select');
+
+        if (show) {
+            fields.style.display = 'block';
+            selection.style.display = 'none';
+            select.value = ''; // Reset select
+        } else {
+            fields.style.display = 'none';
+            selection.style.display = 'block';
+        }
+    },
+
+    async handleGenericTransferSubmission(formData) {
+        const targetId = formData.get('targetId');
+        const transferType = formData.get('transferType');
+        const submitBtn = document.querySelector('#transfer-form button[type="submit"]');
+        
+        const data = {
+            toClientId: formData.get('toClientId'),
+            withBL: formData.get('withBL') === 'true',
+            notes: formData.get('notes'),
+            transferOrderAsWell: formData.get('transferOrderAsWell') === 'true'
+        };
+
+        // If new client info provided
+        if (formData.get('newClientFirstName')) {
+            data.newClient = {
+                firstName: formData.get('newClientFirstName'),
+                lastName: formData.get('newClientLastName'),
+                phone: formData.get('newClientPhone'),
+                showroom: formData.get('newClientShowroom')
+            };
+        }
+
+        if (!data.toClientId && !data.newClient) {
+            return this.showToast("Veuillez sélectionner ou créer un client", "error");
+        }
+
+        try {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
+
+            let result;
+            if (transferType === 'vehicle') {
+                result = await ApiService.transferVehicle(targetId, data);
+            } else {
+                // If it's an order amendment, we need the vehicleId first
+                const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === targetId);
+                if (order && order.vehicleId) {
+                    // For orders, we force transferOrderAsWell to true because that's the point of the amendment
+                    data.transferOrderAsWell = true;
+                    result = await ApiService.transferVehicle(order.vehicleId, data);
+                } else {
+                    // Simple client change on order without vehicle? 
+                    // (Backend might need a direct order transfer endpoint if vehicle is not assigned)
+                    // For now, let's assume vehicles are usually assigned or we need a direct endpoint.
+                    // Let's assume the user wants to change client on the order.
+                    // We'll reuse the vehicle transfer logic if vehicleId exists, otherwise we'd need a new endpoint.
+                    throw new Error("Cette commande n'a pas de véhicule affecté. Transfert direct non supporté dans cet amendement.");
+                }
+            }
+            
+            if (result.success) {
+                this.showToast(transferType === 'vehicle' ? "Véhicule transféré avec succès" : "Commande amendée avec succès", "success");
+                const overlay = document.getElementById('transfer-modal-overlay');
+                if (overlay) overlay.remove();
+                this.closeModal(); // Close vehicle details or order details
+                
+                // Sync data and refresh view
+                await StorageService.syncAll();
+                this.renderView(this.currentView);
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (err) {
+            this.showToast(err.message || "Erreur lors du traitement", "error");
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Confirmer';
+        }
+    },
+
 
     async deleteVehicle(id) {
         this.showConfirmModal('Êtes-vous sûr de vouloir supprimer ce véhicule du stock ?', async () => {

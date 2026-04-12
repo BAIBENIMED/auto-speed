@@ -1,4 +1,4 @@
-const { Vehicle, Order, Shipment } = require('../models');
+const { Vehicle, Order, Shipment, VehicleTransfer, Client } = require('../models');
 
 const vehiclesController = {
     getAll: async (req, res) => {
@@ -171,6 +171,90 @@ const vehiclesController = {
             res.json({ success: true, data: vehicle });
         } catch (error) {
             res.status(500).json({ success: false, message: 'Erreur lors de l\'archivage' });
+        }
+    },
+
+    transfer: async (req, res) => {
+        try {
+            const { toClientId, newClientData, withBL, notes, transferOrderAsWell } = req.body;
+            const vehicle = await Vehicle.findByPk(req.params.id);
+            
+            if (!vehicle) {
+                return res.status(404).json({ success: false, message: 'Véhicule non trouvé' });
+            }
+
+            let assignedClientId = toClientId;
+
+            // Handle New Client creation
+            if (newClientData && Object.keys(newClientData).length > 0) {
+                const newClient = await Client.create(newClientData, {
+                    userId: req.user.id,
+                    userName: req.user.name
+                });
+                assignedClientId = newClient.id;
+            }
+
+            if (!assignedClientId) {
+                return res.status(400).json({ success: false, message: 'Un client valide est requis pour le transfert' });
+            }
+
+            // Create VehicleTransfer record
+            const transferLog = await VehicleTransfer.create({
+                vehicleId: vehicle.id,
+                fromClientId: vehicle.clientId,
+                toClientId: assignedClientId,
+                withBL: withBL || false,
+                notes: notes || '',
+                transferDate: new Date()
+            }, {
+                userId: req.user.id,
+                userName: req.user.name
+            });
+
+            // Update Vehicle
+            vehicle.clientId = assignedClientId;
+            // Unlink original order if the transfer means a distinct sale, or update it
+            if (vehicle.orderId && !transferOrderAsWell) {
+                // Typically reassigning client without changing order means modifying it directly, but let's just null it or leave it
+                // We'll leave order alone unless specified
+            }
+            await vehicle.save({
+                userId: req.user.id,
+                userName: req.user.name
+            });
+
+            if (transferOrderAsWell && vehicle.orderId) {
+                const order = await Order.findByPk(vehicle.orderId);
+                if (order) {
+                    order.clientId = assignedClientId;
+                    await order.save({
+                        userId: req.user.id,
+                        userName: req.user.name
+                    });
+                }
+            }
+
+            res.json({ success: true, message: 'Véhicule transféré avec succès', data: transferLog });
+        } catch (error) {
+            console.error('Error transferring vehicle:', error);
+            res.status(500).json({ success: false, message: 'Erreur lors du transfert du véhicule' });
+        }
+    },
+
+    getTransfers: async (req, res) => {
+        try {
+            const transfers = await VehicleTransfer.findAll({
+                where: { vehicleId: req.params.id },
+                include: [
+                    { model: Client, as: 'fromClient', attributes: ['id', 'name', 'phone'] },
+                    { model: Client, as: 'toClient', attributes: ['id', 'name', 'phone'] }
+                ],
+                order: [['transferDate', 'DESC']]
+            });
+            res.json({ success: true, data: transfers });
+        } catch (error) {
+            console.error('Error fetching transfers:', error);
+            res.status(500).json({ success: false, message: 'Erreur lors de la récupération de l\'historique des transferts' });
         }
     }
 };
