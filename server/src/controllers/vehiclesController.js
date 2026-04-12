@@ -176,7 +176,7 @@ const vehiclesController = {
 
     transfer: async (req, res) => {
         try {
-            const { toClientId, newClientData, withBL, notes, transferOrderAsWell } = req.body;
+            const { toClientId, newClientData, withBL, amendmentRequestSent, newBLReceived, notes, transferOrderAsWell } = req.body;
             const vehicle = await Vehicle.findByPk(req.params.id);
             
             if (!vehicle) {
@@ -204,6 +204,8 @@ const vehiclesController = {
                 fromClientId: vehicle.clientId,
                 toClientId: assignedClientId,
                 withBL: withBL || false,
+                amendmentRequestSent: amendmentRequestSent || false,
+                newBLReceived: newBLReceived || false,
                 notes: notes || '',
                 transferDate: new Date()
             }, {
@@ -246,15 +248,32 @@ const vehiclesController = {
             const transfers = await VehicleTransfer.findAll({
                 where: { vehicleId: req.params.id },
                 include: [
-                    { model: Client, as: 'fromClient', attributes: ['id', 'name', 'phone'] },
-                    { model: Client, as: 'toClient', attributes: ['id', 'name', 'phone'] }
+                    { model: Client, as: 'fromClient', attributes: ['id', 'firstName', 'lastName', 'phone'] },
+                    { model: Client, as: 'toClient', attributes: ['id', 'firstName', 'lastName', 'phone'] }
                 ],
                 order: [['transferDate', 'DESC']]
             });
             res.json({ success: true, data: transfers });
         } catch (error) {
             console.error('Error fetching transfers:', error);
-            res.status(500).json({ success: false, message: 'Erreur lors de la récupération de l\'historique des transferts' });
+            res.status(500).json({ success: false, message: 'Erreur lors de la récupération de l\'historique' });
+        }
+    },
+
+    getAllTransfers: async (req, res) => {
+        try {
+            const transfers = await VehicleTransfer.findAll({
+                include: [
+                    { model: Client, as: 'fromClient', attributes: ['id', 'firstName', 'lastName'] },
+                    { model: Client, as: 'toClient', attributes: ['id', 'firstName', 'lastName'] },
+                    { model: Vehicle, attributes: ['id', 'brand', 'model', 'chassisNumber'] }
+                ],
+                order: [['transferDate', 'DESC']]
+            });
+            res.json({ success: true, data: transfers });
+        } catch (error) {
+            console.error('Error fetching all transfers:', error);
+            res.status(500).json({ success: false, message: 'Erreur lors de la récupération des transferts' });
         }
     }
 };

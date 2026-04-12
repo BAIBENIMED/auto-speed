@@ -1677,6 +1677,20 @@ const app = {
                             </button>
                         </div>
 
+                        <div class="form-group" style="background: rgba(255,193,7,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,193,7,0.1); margin-bottom: 15px;">
+                            <label style="color: var(--warning); font-weight: 600; font-size: 0.85rem; margin-bottom: 10px; display: block;">
+                                <i class="fas fa-tasks"></i> Suivi de l'Amendement
+                            </label>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem;">
+                                    <input type="checkbox" name="amendmentRequestSent" value="true"> 1. Demande d'amendement envoyée
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem;">
+                                    <input type="checkbox" name="newBLReceived" value="true"> 2. Nouveau BL reçu
+                                </label>
+                            </div>
+                        </div>
+
                         ${type === 'vehicle' ? `
                         <div class="form-group">
                             <label>Option de Transfert</label>
@@ -1743,6 +1757,8 @@ const app = {
         const data = {
             toClientId: formData.get('toClientId'),
             withBL: formData.get('withBL') === 'true',
+            amendmentRequestSent: formData.get('amendmentRequestSent') === 'true',
+            newBLReceived: formData.get('newBLReceived') === 'true',
             notes: formData.get('notes'),
             transferOrderAsWell: formData.get('transferOrderAsWell') === 'true'
         };
@@ -2075,6 +2091,20 @@ const app = {
                 return isArrivingSoon && !hasDocs;
             });
 
+            // Amendment tracking
+            let pendingAmendments = [];
+            let missingNewBLs = [];
+            try {
+                const transfersResponse = await ApiService.getAllTransfers();
+                if (transfersResponse.success) {
+                    const allTransfers = transfersResponse.data || [];
+                    pendingAmendments = allTransfers.filter(t => !t.amendmentRequestSent);
+                    missingNewBLs = allTransfers.filter(t => t.amendmentRequestSent && !t.newBLReceived);
+                }
+            } catch (err) {
+                console.warn("Failed to fetch transfers for dashboard:", err);
+            }
+
             // --- 2. RENDER HTML ---
             this.viewContainer.innerHTML = `
                 <div class="view-header">
@@ -2280,6 +2310,50 @@ const app = {
                                     <div class="alert-desc">
                                         Vérifiez les virements pour les commandes validées il y a plus de 2 jours.
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Dashboard Tracking: Amendements à demander -->
+                            <div class="alert-card animate" style="border-left: 4px solid var(--primary);">
+                                <div class="alert-icon" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);"><i class="fas fa-edit"></i></div>
+                                <div class="alert-content">
+                                    <div class="alert-title">
+                                        Amendements à demander
+                                        <span class="alert-badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">À Envoyer</span>
+                                    </div>
+                                    <div class="alert-desc">
+                                        ${pendingAmendments.length > 0 
+                                            ? `<strong>${pendingAmendments.length} amendement(s)</strong> nécessitent l'envoi de la demande.`
+                                            : "Toutes les demandes ont été envoyées."}
+                                    </div>
+                                    ${pendingAmendments.length > 0 ? `
+                                        <ul style="font-size: 0.75rem; margin-top: 5px; color: var(--text-dim); padding-left: 15px;">
+                                            ${pendingAmendments.slice(0, 3).map(pa => `<li>Veh. #${pa.vehicleId} (Nouveau: ${pa.toClientName || 'Client ID ' + pa.toClientId})</li>`).join('')}
+                                            ${pendingAmendments.length > 3 ? '<li>...</li>' : ''}
+                                        </ul>
+                                    ` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Dashboard Tracking: BL Amendement non reçu -->
+                            <div class="alert-card animate" style="border-left: 4px solid #8b5cf6;">
+                                <div class="alert-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;"><i class="fas fa-file-contract"></i></div>
+                                <div class="alert-content">
+                                    <div class="alert-title">
+                                        BL Amendement non reçu
+                                        <span class="alert-badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">Attente BL</span>
+                                    </div>
+                                    <div class="alert-desc">
+                                        ${missingNewBLs.length > 0 
+                                            ? `<strong>${missingNewBLs.length} nouveau(x) BL</strong> non encore reçus.`
+                                            : "Tous les nouveaux BL ont été reçus."}
+                                    </div>
+                                    ${missingNewBLs.length > 0 ? `
+                                        <ul style="font-size: 0.75rem; margin-top: 5px; color: var(--text-dim); padding-left: 15px;">
+                                            ${missingNewBLs.slice(0, 3).map(mbl => `<li>Veh. #${mbl.vehicleId} (${mbl.toClientName || 'Client ID ' + mbl.toClientId})</li>`).join('')}
+                                            ${missingNewBLs.length > 3 ? '<li>...</li>' : ''}
+                                        </ul>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>

@@ -32,6 +32,16 @@ const VehicleTransfer = sequelize.define('VehicleTransfer', {
         defaultValue: false,
         field: 'with_bl'
     },
+    amendmentRequestSent: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'amendment_request_sent'
+    },
+    newBLReceived: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'new_bl_received'
+    },
     notes: {
         type: DataTypes.TEXT
     }

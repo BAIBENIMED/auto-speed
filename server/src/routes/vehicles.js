@@ -12,6 +12,7 @@ router.put('/:id', vehiclesController.update);
 router.delete('/:id', vehiclesController.delete);
 router.patch('/:id/archive', vehiclesController.archive);
 router.post('/:id/transfer', vehiclesController.transfer);
+router.get('/transfers/all', vehiclesController.getAllTransfers);
 router.get('/:id/transfers', vehiclesController.getTransfers);
 
 module.exports = router;
