@@ -1548,9 +1548,11 @@ const app = {
                         </div>
                         <div class="modal-footer">
                             <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                            ${vehicle.orderId ? `
                             <button class="btn-action warning-alt" style="margin-right: auto;" onclick="app.showTransferModal('${vehicle.id}')">
                                 <i class="fas fa-edit"></i> Amendement (Changer Client)
                             </button>
+                            ` : ''}
                             <button class="btn-primary" onclick="app.showEditVehicleModal('${vehicle.id}')">
                                 <i class="fas fa-edit"></i> Modifier
                             </button>
