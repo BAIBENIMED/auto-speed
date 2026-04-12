@@ -9222,21 +9222,27 @@ const app = {
                     </div>
 
                     <div class="glass" style="padding: 20px; margin-bottom: 20px;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 0.8rem; color: var(--text-dim);">Recherche Rapide</label>
-                                <input type="text" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" placeholder="ID ou Fournisseur..." value="${query || ''}" oninput="app.renderPurchases(this.value)">
+                                <label style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; margin-bottom: 5px; display: block;">
+                                    <i class="fas fa-search"></i> Recherche Rapide
+                                </label>
+                                <input type="text" class="glass-input" style="padding: 10px 12px; font-size: 0.9rem;" placeholder="ID ou Fournisseur..." value="${query || ''}" oninput="app.renderPurchases(this.value)">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 0.8rem; color: var(--text-dim);">Fournisseur</label>
-                                <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), supplier: this.value}; app.renderPurchases()">
+                                <label style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; margin-bottom: 5px; display: block;">
+                                    <i class="fas fa-truck"></i> Fournisseur
+                                </label>
+                                <select class="glass-select" style="padding: 10px 12px; font-size: 0.9rem;" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), supplier: this.value}; app.renderPurchases()">
                                     <option value="">Tous les fournisseurs</option>
                                     ${(StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => `<option value="${s.name}" ${this.purchaseFilters?.supplier === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}
                                 </select>
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 0.8rem; color: var(--text-dim);">Statut Achat</label>
-                                <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), status: this.value}; app.renderPurchases()">
+                                <label style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; margin-bottom: 5px; display: block;">
+                                    <i class="fas fa-info-circle"></i> Statut Achat
+                                </label>
+                                <select class="glass-select" style="padding: 10px 12px; font-size: 0.9rem;" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), status: this.value}; app.renderPurchases()">
                                     <option value="">Tous les statuts</option>
                                     <option value="Ordered" ${this.purchaseFilters?.status === 'Ordered' ? 'selected' : ''}>Commandé</option>
                                     <option value="Paid" ${this.purchaseFilters?.status === 'Paid' ? 'selected' : ''}>Payé</option>
@@ -9244,15 +9250,18 @@ const app = {
                                 </select>
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 0.8rem; color: var(--text-dim);">Date Début</label>
-                                <input type="date" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" value="${this.purchaseFilters?.startDate || ''}" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), startDate: this.value}; app.renderPurchases()">
+                                <label style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; margin-bottom: 5px; display: block;">
+                                    <i class="fas fa-calendar-alt"></i> Période
+                                </label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="date" class="glass-input" style="padding: 10px 12px; font-size: 0.9rem; flex: 1;" value="${this.purchaseFilters?.startDate || ''}" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), startDate: this.value}; app.renderPurchases()" title="Date début">
+                                    <input type="date" class="glass-input" style="padding: 10px 12px; font-size: 0.9rem; flex: 1;" value="${this.purchaseFilters?.endDate || ''}" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), endDate: this.value}; app.renderPurchases()" title="Date fin">
+                                </div>
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 0.8rem; color: var(--text-dim);">Date Fin</label>
-                                <input type="date" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" value="${this.purchaseFilters?.endDate || ''}" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), endDate: this.value}; app.renderPurchases()">
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0; display: flex; gap: 5px;">
-                                <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; flex: 1;" onclick="app.purchaseFilters = null; app.renderPurchases()"><i class="fas fa-undo"></i></button>
+                            <div class="form-group" style="margin-bottom: 0; display: flex; gap: 10px;">
+                                <button class="btn-secondary" style="padding: 10px; height: 42px; width: 42px; min-width: 42px;" onclick="app.purchaseFilters = null; app.renderPurchases()" title="Réinitialiser les filtres">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
