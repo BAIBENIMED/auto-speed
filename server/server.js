@@ -210,7 +210,35 @@ app.get('/api/migrate-po', async (req, res) => {
             }
         }
 
-        logs.push('✅ Migration completed successfully!');
+// Endpoint temporaire pour renommer JOON/003 -> JOON/001 (Sans Shell)
+app.get('/api/rename-po-fix', async (req, res) => {
+    const oldId = 'CMD/2026/JOON/003';
+    const newId = 'CMD/2026/JOON/001';
+    
+    try {
+        const [pos] = await sequelize.query("SELECT id FROM purchase_orders WHERE id = ?", { replacements: [oldId] });
+        if (pos.length === 0) {
+            return res.json({ success: false, message: `Référence ${oldId} non trouvée.` });
+        }
+
+        await sequelize.transaction(async (t) => {
+            await sequelize.query("UPDATE vehicles SET purchase_order_id = ? WHERE purchase_order_id = ?", {
+                replacements: [newId, oldId],
+                transaction: t
+            });
+            await sequelize.query("UPDATE purchase_orders SET id = ? WHERE id = ?", {
+                replacements: [newId, oldId],
+                transaction: t
+            });
+        });
+
+        res.json({ success: true, message: `Succès ! ${oldId} a été renommé en ${newId}.` });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+logs.push('✅ Migration completed successfully!');
         res.json({ success: true, logs });
     } catch (error) {
         console.error('Migration failed:', error);
