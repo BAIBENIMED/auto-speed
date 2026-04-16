@@ -451,6 +451,10 @@ const app = {
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
                         <form id="order-form" autocomplete="off">
+                            <div class="form-group" style="background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; border: 1px dashed rgba(var(--primary-rgb), 0.3);">
+                                <label style="color: var(--primary); font-weight: 600;"><i class="fas fa-hashtag"></i> Numéro de Commande</label>
+                                <input type="text" name="orderIdOverride" id="order-id-override" class="glass-input" required style="font-weight: bold; font-family: monospace; font-size: 1.1rem; color: var(--primary);">
+                            </div>
                             <div class="form-group">
                                 <label>Client</label>
                                 <!-- Client Search Input -->
@@ -652,11 +656,23 @@ const app = {
         });
 
         modelFilter.addEventListener('change', refreshVehicles);
-        categoryFilter.addEventListener('change', refreshVehicles);
-        showroomFilter.addEventListener('change', refreshVehicles);
-
         // Initial population of vehicles
         refreshVehicles();
+        
+        // Setup initial order ID and auto-update it on showroom change IF it's a new order
+        const updateOrderId = () => {
+            const currentVal = document.getElementById('order-id-override').value;
+            // Only update if empty or if it seems to map to the old showroom formula
+            document.getElementById('order-id-override').value = this.generateNextOrderId(showroomFilter.value);
+        };
+        
+        showroomFilter.addEventListener('change', () => {
+            refreshVehicles();
+            updateOrderId();
+        });
+        
+        // Initial set with slight delay to ensure storage is ready if needed
+        setTimeout(updateOrderId, 50);
 
         document.getElementById('order-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -694,8 +710,8 @@ const app = {
         }
         
         const nextSeq = maxSeq + 1;
-        // Pad with zeros to 5 positions
-        const paddedSeq = String(nextSeq).padStart(5, '0');
+        // Pad with zeros to 4 positions
+        const paddedSeq = String(nextSeq).padStart(4, '0');
         
         return `${prefix}${paddedSeq}`;
     },
@@ -828,7 +844,7 @@ const app = {
             } else {
                 // Create new order
                 const selectedShowroom = formData.get('showroom') || 'Showroom Principal';
-                finalOrderId = this.generateNextOrderId(selectedShowroom);
+                finalOrderId = formData.get('orderIdOverride') && formData.get('orderIdOverride').trim() !== '' ? formData.get('orderIdOverride').trim() : this.generateNextOrderId(selectedShowroom);
                 const newOrder = {
                     id: finalOrderId,
                     clientId: client.id,
