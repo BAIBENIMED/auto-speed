@@ -91,6 +91,11 @@ const Vehicle = sequelize.define('Vehicle', {
     options: {
         type: DataTypes.TEXT
     },
+    soldRegistration: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'sold_registration'
+    },
     isArchived: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,

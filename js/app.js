@@ -3494,6 +3494,13 @@ const app = {
                                 ${(StorageService.get(STORAGE_KEYS.COLORS) || []).map(c => `<option value="${c}" ${this.vehicleFilters.color === c ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
                         </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Fournisseur</label>
+                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, supplier: this.value}; app.renderVehicles()">
+                                <option value="">Tous les fournisseurs</option>
+                                ${(StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => `<option value="${s.name}" ${this.vehicleFilters.supplier === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            </select>
+                        </div>
                         <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
                             <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
                             <label for="filter-vehicle-archived" style="font-size: 0.8rem; cursor: pointer; margin: 0; color: var(--text-dim);">Archives</label>
@@ -3595,12 +3602,16 @@ const app = {
                                         let clientName = '<span style="color:var(--text-dim);">STOCK LIBRE</span>';
                                         let showroom = '-';
                                         
+                                        if (v.soldRegistration) showroom = 'VENDU C.G';
+
                                         if (clientId) {
                                             const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
                                             if (client) {
                                                 clientName = `<div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>`;
-                                                let rawShowroom = client.showroom || '-';
-                                                showroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
+                                                if (!v.soldRegistration) {
+                                                    let rawShowroom = client.showroom || '-';
+                                                    showroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
+                                                }
                                             } else {
                                                 clientName = '<span style="color:red;">Erreur Client</span>';
                                             }
@@ -3788,6 +3799,13 @@ const app = {
                                     <textarea name="remarks" class="glass-input" rows="3" placeholder="Informations complémentaires..."></textarea>
                                 </div>
                             </div>
+                            
+                            <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px; background: rgba(var(--danger-rgb, 239, 68, 68), 0.1); border-radius: 8px; border: 1px solid rgba(var(--danger-rgb, 239, 68, 68), 0.2);">
+                                <input type="checkbox" name="soldRegistration" id="soldRegistration" style="width: 20px; height: 20px;">
+                                <label for="soldRegistration" style="color: var(--danger); font-weight: bold; margin: 0; cursor: pointer;">
+                                    Vendu Carte Grise (Affiche 'VENDU C.G' au lieu du Showroom)
+                                </label>
+                            </div>
 
                             <div class="modal-footer">
                                 <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
@@ -3886,6 +3904,7 @@ const app = {
                 clientId: formData.get('clientId') || null,
                 orderId: existingVehicle ? existingVehicle.orderId : null,
                 shipmentId: existingVehicle ? existingVehicle.shipmentId : null,
+                soldRegistration: formData.get('soldRegistration') === 'on' || formData.get('soldRegistration') === 'true',
                 status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
             };
 
@@ -4176,6 +4195,13 @@ const app = {
                                             <label>Remarques Internes</label>
                                             <textarea name="remarks" class="glass-input" rows="3">${vehicle.remarks || ''}</textarea>
                                         </div>
+                                    </div>
+
+                                    <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px; background: rgba(var(--danger-rgb, 239, 68, 68), 0.1); border-radius: 8px; border: 1px solid rgba(var(--danger-rgb, 239, 68, 68), 0.2);">
+                                        <input type="checkbox" name="soldRegistration" id="editSoldRegistration" style="width: 20px; height: 20px;" ${vehicle.soldRegistration ? 'checked' : ''}>
+                                        <label for="editSoldRegistration" style="color: var(--danger); font-weight: bold; margin: 0; cursor: pointer;">
+                                            Vendu Carte Grise (Affiche 'VENDU C.G' au lieu du Showroom)
+                                        </label>
                                     </div>
 
                                     <div class="modal-footer">
