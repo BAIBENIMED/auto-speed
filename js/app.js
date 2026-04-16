@@ -9521,6 +9521,14 @@ const app = {
         const p = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS).find(po => po.id === id);
         if (!p) return;
 
+        let allTransfers = [];
+        try {
+            const trRes = await ApiService.getAllTransfers();
+            if (trRes && trRes.success) allTransfers = trRes.data || [];
+        } catch (e) {
+            console.warn("Failed to fetch transfers for PO details:", e);
+        }
+
         const modalHtml = `
                     <div id="modal-overlay" class="modal-overlay">
                         <div class="modal-content glass" style="width: 1000px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
@@ -9555,11 +9563,38 @@ const app = {
                                         <tbody>
                                             ${(p.vehicles || []).map(v => {
             const order = v.orderId ? StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId) : null;
-            const client = order
+            let displayClient = order
                 ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId)
                 : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
 
+            let isAmendmentRevertedDisplay = false;
+
+            // Handle Amendment Display Logic
+            const vTransfers = allTransfers.filter(t => String(t.vehicleId) === String(v.id));
+            if (vTransfers.length > 0) {
+                // Get latest transfer
+                vTransfers.sort((a,b) => new Date(b.transferDate) - new Date(a.transferDate));
+                const latestTransfer = vTransfers[0];
+                
+                // If WITHOUT new BL, we display the OLD client
+                if (!latestTransfer.withBL) {
+                    const oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === latestTransfer.fromClientId);
+                    if (oldClient) {
+                        displayClient = oldClient;
+                        isAmendmentRevertedDisplay = true;
+                    }
+                }
+            }
+
             const orderStatus = order ? this.calculateOrderStatus(order) : 'N/A';
+
+            let showroomText = '-';
+            if (v.soldRegistration) {
+                showroomText = 'VENDU C.G';
+            } else if (displayClient) {
+                let rawShowroom = displayClient.showroom || '-';
+                showroomText = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
+            }
 
             let deliveryStatusClass = 'available';
             let deliveryStatusLabel = 'En Stock';
@@ -9586,9 +9621,13 @@ const app = {
                                                         <div style="font-size: 0.85rem;">${v.motorization || '-'}</div>
                                                     </td>
                                                     <td>
-                                                        ${client ? `
-                                                            <div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>
+                                                        ${displayClient ? `
+                                                            <div style="font-weight: 600; color: ${isAmendmentRevertedDisplay ? 'var(--warning)' : 'inherit'};">${displayClient.firstName} ${displayClient.lastName}</div>
+                                                            <div style="font-size: 0.8rem; font-weight: bold; color: ${v.soldRegistration ? 'var(--danger)' : 'var(--info)'}; padding: 2px 0;">
+                                                                <i class="fas fa-store"></i> ${showroomText}
+                                                            </div>
                                                             ${order ? `<div style="font-size: 0.8rem; color: var(--primary);">CMD #${order.id}</div>` : '<div style="font-size: 0.8rem; color: var(--success);">RÉSERVÉ</div>'}
+                                                            ${isAmendmentRevertedDisplay ? '<div style="font-size: 0.75rem; color: var(--warning);"><i class="fas fa-exclamation-triangle"></i> Sans chang. BL</div>' : ''}
                                                         ` : '<span style="color: var(--text-dim);">STOCK</span>'}
                                                     </td>
                                                     <td>
