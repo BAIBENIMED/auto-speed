@@ -451,9 +451,13 @@ const app = {
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
                         <form id="order-form" autocomplete="off">
-                            <div class="form-group" style="background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; border: 1px dashed rgba(var(--primary-rgb), 0.3);">
+                            <div class="form-group" style="display: none;">
                                 <label style="color: var(--primary); font-weight: 600;"><i class="fas fa-hashtag"></i> Numéro de Commande</label>
                                 <input type="text" name="orderIdOverride" id="order-id-override" class="glass-input" required style="font-weight: bold; font-family: monospace; font-size: 1.1rem; color: var(--primary);">
+                            </div>
+                            <div class="form-group" style="background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; border: 1px dashed rgba(var(--primary-rgb), 0.3);">
+                                <label style="color: var(--primary); font-weight: 600;"><i class="fas fa-link"></i> Référence Drive</label>
+                                <input type="text" name="referenceDrive" class="glass-input" placeholder="Lien ou référence libre..." style="font-size: 1rem;">
                             </div>
                             <div class="form-group">
                                 <label>Client</label>
@@ -766,6 +770,7 @@ const app = {
             const clientId = formData.get('clientId');
             const vehicleId = formData.get('vehicleId');
             const orderId = formData.get('orderId');
+            const referenceDrive = formData.get('referenceDrive');
 
             const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === clientId);
             const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
@@ -821,7 +826,8 @@ const app = {
                         showroom: formData.get('showroom') || orders[orderIndex].showroom || 'Showroom Principal',
                         status: formData.get('status') || orders[orderIndex].status,
                         documentStatus: formData.get('documentStatus') || orders[orderIndex].documentStatus || 'Rien',
-                        documentsReceived: formData.get('documentsReceived') || orders[orderIndex].documentsReceived || 'Non'
+                        documentsReceived: formData.get('documentsReceived') || orders[orderIndex].documentsReceived || 'Non',
+                        referenceDrive: referenceDrive || orders[orderIndex].referenceDrive || ''
                     };
 
                     // Calculate status normally UNLESS it was manually set to ANNULÉE
@@ -864,6 +870,7 @@ const app = {
                     showroom: formData.get('showroom') || 'Showroom Principal',
                     documentStatus: formData.get('documentStatus') || 'Rien',
                     documentsReceived: formData.get('documentsReceived') || 'Non',
+                    referenceDrive: referenceDrive || '',
                     isValidated: false
                 };
                 newOrder.status = this.calculateOrderStatus(newOrder);
@@ -1331,6 +1338,11 @@ const app = {
                             <div class="form-group">
                                 <label>Prix de Vente (Net)</label>
                                 <input type="number" name="totalAmount" id="edit-order-total" class="glass-input" value="${order.totalAmount || 0}" step="1">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Référence Drive</label>
+                                <input type="text" name="referenceDrive" class="glass-input" value="${order.referenceDrive || ''}" placeholder="Lien ou référence libre...">
                             </div>
 
                             <div class="form-group">

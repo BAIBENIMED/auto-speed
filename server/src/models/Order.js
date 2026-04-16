@@ -72,6 +72,10 @@ const Order = sequelize.define('Order', {
         type: DataTypes.JSON,
         defaultValue: [],
         allowNull: true
+    },
+    referenceDrive: {
+        type: DataTypes.STRING(100),
+        field: 'reference_drive'
     }
 }, {
     tableName: 'orders',
