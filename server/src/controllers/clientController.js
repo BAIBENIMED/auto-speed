@@ -23,7 +23,7 @@ exports.create = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
         }
 
-        const { reference, firstName, lastName } = req.body;
+        const { reference, firstName, lastName, passportNumber, nin } = req.body;
 
         // Check for duplicate Reference
         if (reference) {
@@ -45,6 +45,28 @@ exports.create = async (req, res) => {
             });
         }
 
+        // Check for duplicate Passport
+        if (passportNumber) {
+            const existingPassport = await Client.findOne({ where: { passportNumber } });
+            if (existingPassport) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Un client avec le numéro de passeport "${passportNumber}" existe déjà.`
+                });
+            }
+        }
+
+        // Check for duplicate NIN
+        if (nin) {
+            const existingNin = await Client.findOne({ where: { nin } });
+            if (existingNin) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Un client avec le NIN "${nin}" existe déjà.`
+                });
+            }
+        }
+
         const client = await Client.create(req.body);
         res.status(201).json({ success: true, data: client });
     } catch (error) {
@@ -63,6 +85,30 @@ exports.update = async (req, res) => {
 
         if (req.user && !['admin', 'commercial'].includes(req.user.roleId) && req.user.clientId !== client.id) {
             return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+        }
+
+        const { passportNumber, nin } = req.body;
+
+        // Check for duplicate Passport
+        if (passportNumber) {
+            const existingPassport = await Client.findOne({ where: { passportNumber } });
+            if (existingPassport && existingPassport.id !== id) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Un autre client avec le numéro de passeport "${passportNumber}" existe déjà.`
+                });
+            }
+        }
+
+        // Check for duplicate NIN
+        if (nin) {
+            const existingNin = await Client.findOne({ where: { nin } });
+            if (existingNin && existingNin.id !== id) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Un autre client avec le NIN "${nin}" existe déjà.`
+                });
+            }
         }
 
         await client.update(req.body);
