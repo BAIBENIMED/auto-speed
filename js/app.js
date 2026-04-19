@@ -1573,6 +1573,13 @@ const app = {
                                 <p style="font-style: italic;">${vehicle.remarks}</p>
                             </div>
                             ` : ''}
+
+                            ${vehicle.soldRegistrationOwner ? `
+                            <div class="details-section" style="background: rgba(var(--danger-rgb, 239, 68, 68), 0.05); border-left: 4px solid var(--danger); padding: 10px; border-radius: 4px;">
+                                <h3 style="color: var(--danger);"><i class="fas fa-user-tag"></i> Nouveau Propriétaire (C.G)</h3>
+                                <div style="white-space: pre-line; font-size: 0.9rem;">${vehicle.soldRegistrationOwner}</div>
+                            </div>
+                            ` : ''}
                         </div>
                         <div class="modal-footer">
                             <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
@@ -3829,10 +3836,15 @@ const app = {
                             </div>
                             
                             <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px; background: rgba(var(--danger-rgb, 239, 68, 68), 0.1); border-radius: 8px; border: 1px solid rgba(var(--danger-rgb, 239, 68, 68), 0.2);">
-                                <input type="checkbox" name="soldRegistration" id="soldRegistration" style="width: 20px; height: 20px;">
+                                <input type="checkbox" name="soldRegistration" id="soldRegistration" style="width: 20px; height: 20px;" onchange="document.getElementById('sold-owner-container').style.display = this.checked ? 'block' : 'none'">
                                 <label for="soldRegistration" style="color: var(--danger); font-weight: bold; margin: 0; cursor: pointer;">
                                     Vendu Carte Grise (Affiche 'VENDU C.G' au lieu du Showroom)
                                 </label>
+                            </div>
+                            
+                            <div id="sold-owner-container" class="form-group" style="display: none; margin-top: 10px;">
+                                <label>Détails du Nouveau Propriétaire</label>
+                                <textarea name="soldRegistrationOwner" class="glass-input" rows="2" placeholder="Nom, Prénom, Téléphone, etc."></textarea>
                             </div>
 
                             <div class="modal-footer">
@@ -3933,6 +3945,7 @@ const app = {
                 orderId: existingVehicle ? existingVehicle.orderId : null,
                 shipmentId: existingVehicle ? existingVehicle.shipmentId : null,
                 soldRegistration: formData.get('soldRegistration') === 'on' || formData.get('soldRegistration') === 'true',
+                soldRegistrationOwner: formData.get('soldRegistrationOwner') || '',
                 status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
             };
 
@@ -4226,10 +4239,15 @@ const app = {
                                     </div>
 
                                     <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px; background: rgba(var(--danger-rgb, 239, 68, 68), 0.1); border-radius: 8px; border: 1px solid rgba(var(--danger-rgb, 239, 68, 68), 0.2);">
-                                        <input type="checkbox" name="soldRegistration" id="editSoldRegistration" style="width: 20px; height: 20px;" ${vehicle.soldRegistration ? 'checked' : ''}>
+                                        <input type="checkbox" name="soldRegistration" id="editSoldRegistration" style="width: 20px; height: 20px;" ${vehicle.soldRegistration ? 'checked' : ''} onchange="document.getElementById('edit-sold-owner-container').style.display = this.checked ? 'block' : 'none'">
                                         <label for="editSoldRegistration" style="color: var(--danger); font-weight: bold; margin: 0; cursor: pointer;">
                                             Vendu Carte Grise (Affiche 'VENDU C.G' au lieu du Showroom)
                                         </label>
+                                    </div>
+
+                                    <div id="edit-sold-owner-container" class="form-group" style="display: ${vehicle.soldRegistration ? 'block' : 'none'}; margin-top: 10px;">
+                                        <label>Détails du Nouveau Propriétaire</label>
+                                        <textarea name="soldRegistrationOwner" class="glass-input" rows="2" placeholder="Nom, Prénom, Téléphone, etc.">${vehicle.soldRegistrationOwner || ''}</textarea>
                                     </div>
 
                                     <div class="modal-footer">

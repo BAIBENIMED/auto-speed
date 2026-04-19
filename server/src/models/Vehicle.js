@@ -100,6 +100,10 @@ const Vehicle = sequelize.define('Vehicle', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
         field: 'is_archived'
+    },
+    soldRegistrationOwner: {
+        type: DataTypes.TEXT,
+        field: 'sold_registration_owner'
     }
 }, {
     tableName: 'vehicles',
