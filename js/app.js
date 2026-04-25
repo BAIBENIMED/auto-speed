@@ -1617,14 +1617,23 @@ const app = {
                 list.innerHTML = response.data.map(t => `
                     <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: 600;">Transfert vers : ${t.ToClient?.firstName || ''} ${t.ToClient?.lastName || 'Client Supprimé'}</div>
+                            <div style="font-weight: 600;">Transfert vers : ${t.toClient?.firstName || ''} ${t.toClient?.lastName || 'Client Supprimé'}</div>
                             <div style="color: var(--text-dim); font-size: 0.8rem;">
                                 ${new Date(t.transferDate).toLocaleDateString()} | ${t.withBL ? '<span style="color: var(--success);">Avec BL</span>' : '<span style="color: var(--warning);">Sans BL</span>'}
+                            </div>
+                            <div style="margin-top: 6px; margin-bottom: 6px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; color: var(--text-dim);">
+                                <div style="color: ${t.amendmentRequestSent ? 'var(--warning)' : 'inherit'}">
+                                    <i class="${t.amendmentRequestSent ? 'fas fa-check-square' : 'far fa-square'}"></i> Amendement demandé : <strong>${t.amendmentRequestSent ? 'OUI' : 'NON'}</strong>
+                                    ${t.amendmentRequestSent ? `<span style="font-size: 0.75rem; margin-left: 5px;">(Date : ${new Date(t.transferDate).toLocaleDateString()})</span>` : ''}
+                                </div>
+                                <div style="color: ${t.newBLReceived ? 'var(--success)' : 'inherit'}">
+                                    <i class="${t.newBLReceived ? 'fas fa-check-square' : 'far fa-square'}"></i> Nouveau BL reçu : <strong>${t.newBLReceived ? 'OUI' : 'NON'}</strong>
+                                </div>
                             </div>
                             ${t.notes ? `<div style="font-style: italic; margin-top: 4px;">"${t.notes}"</div>` : ''}
                         </div>
                         <div style="text-align: right; color: var(--text-dim);">
-                            Précédent : ${t.FromClient?.firstName || ''} ${t.FromClient?.lastName || 'Stock/N/A'}
+                            Précédent : ${t.fromClient?.firstName || ''} ${t.fromClient?.lastName || 'Stock/N/A'}
                         </div>
                     </div>
                 `).join('');
