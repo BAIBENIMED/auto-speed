@@ -1,4 +1,4 @@
-const { Vehicle, Order, Shipment, VehicleTransfer, Client } = require('../models');
+﻿const { Vehicle, Order, Shipment, VehicleTransfer, Client } = require('../models');
 
 const vehiclesController = {
     getAll: async (req, res) => {
@@ -176,7 +176,8 @@ const vehiclesController = {
 
     transfer: async (req, res) => {
         try {
-            const { toClientId, newClientData, withBL, amendmentRequestSent, newBLReceived, notes, transferOrderAsWell } = req.body;
+            const { toClientId, newClientData, newClient, withBL, amendmentRequestSent, newBLReceived, notes, transferOrderAsWell } = req.body;
+            const clientData = newClientData || newClient;
             const vehicle = await Vehicle.findByPk(req.params.id);
             
             if (!vehicle) {
@@ -186,12 +187,12 @@ const vehiclesController = {
             let assignedClientId = toClientId;
 
             // Handle New Client creation
-            if (newClientData && Object.keys(newClientData).length > 0) {
-                const newClient = await Client.create(newClientData, {
+            if (clientData && Object.keys(clientData).length > 0) {
+                const createdClient = await Client.create(clientData, {
                     userId: req.user.id,
                     userName: req.user.name
                 });
-                assignedClientId = newClient.id;
+                assignedClientId = createdClient.id;
             }
 
             if (!assignedClientId) {

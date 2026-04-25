@@ -286,7 +286,8 @@ const startServer = async () => {
         // Fail-safe: Ensure specific tables exist (in case global sync failed)
         try {
             await models.Notification.sync({ alter: true });
-            console.log('🔧 Table Notification vérifiée/créée (Fail-safe).');
+            await models.VehicleTransfer.sync({ alter: true });
+            console.log('🔧 Tables Notification/VehicleTransfer vérifiées/créées (Fail-safe).');
 
             // Raw SQL Fail-safe for Voyages (Sequelize sync might be ignored due to index warnings)
             await sequelize.query(`
