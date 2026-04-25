@@ -1516,6 +1516,23 @@ const app = {
         });
     },
 
+    getAmendmentStatus(vehicleId) {
+        const transfers = StorageService.get(STORAGE_KEYS.TRANSFERS) || [];
+        const vehicleTransfers = transfers.filter(t => t.vehicleId === vehicleId && (t.withBL === true || t.withBL === 1));
+        
+        if (vehicleTransfers.length === 0) return null;
+
+        // Priority 1: Any transfer where request is not sent
+        const toRequest = vehicleTransfers.find(t => !t.amendmentRequestSent);
+        if (toRequest) return { status: 'pending', label: 'Amend. à demander', color: 'var(--warning)', id: toRequest.id };
+        
+        // Priority 2: Any transfer where request is sent but BL not received
+        const toReceive = vehicleTransfers.find(t => !t.newBLReceived);
+        if (toReceive) return { status: 'sent', label: 'Amend. envoyé', color: 'var(--primary)', id: toReceive.id };
+        
+        return null;
+    },
+
     showVehicleDetails(id) {
         const vehicle = StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === id);
         if (!vehicle) return;
@@ -1652,15 +1669,28 @@ const app = {
             const response = await ApiService.updateVehicleTransfer(transferId, data);
             if (response.success) {
                 this.showToast('Statut mis à jour', 'success');
-                this.loadTransferHistory(vehicleId);
+                
+                // Refresh dashboard if on dashboard
+                if (this.currentView === 'dashboard') {
+                    this.renderDashboard();
+                }
+                
+                // Refresh transfer history list if it exists in an open modal
+                if (document.getElementById('transfer-history-list')) {
+                    this.loadTransferHistory(vehicleId);
+                }
             } else {
                 this.showToast(response.message || 'Erreur', 'error');
-                this.loadTransferHistory(vehicleId); // revert UI
+                if (document.getElementById('transfer-history-list')) {
+                    this.loadTransferHistory(vehicleId);
+                }
             }
         } catch (e) {
             console.error(e);
             this.showToast('Erreur serveur', 'error');
-            this.loadTransferHistory(vehicleId); // revert UI
+            if (document.getElementById('transfer-history-list')) {
+                this.loadTransferHistory(vehicleId);
+            }
         }
     },
 
@@ -2156,20 +2186,17 @@ const app = {
                 return isArrivingSoon && !hasDocs;
             });
 
-            // Amendment tracking
-            let pendingAmendments = [];
-            let missingNewBLs = [];
-            try {
-                const transfersResponse = await ApiService.getAllTransfers();
-                if (transfersResponse.success) {
-                    const allTransfers = transfersResponse.data || [];
-                    // Only flag amendments for transfers done WITH BL where the request hasn't been sent
-                    pendingAmendments = allTransfers.filter(t => t.withBL && !t.amendmentRequestSent);
-                    missingNewBLs = allTransfers.filter(t => t.withBL && t.amendmentRequestSent && !t.newBLReceived);
-                }
-            } catch (err) {
-                console.warn("Failed to fetch transfers for dashboard:", err);
-            }
+            // Amendment tracking - Start with cached data if available, then fetch fresh in background
+            let pendingAmendments = StorageService.get(STORAGE_KEYS.TRANSFERS).filter(t => !t.amendmentRequestSent) || [];
+            let missingNewBLs = StorageService.get(STORAGE_KEYS.TRANSFERS).filter(t => t.amendmentRequestSent && !t.newBLReceived) || [];
+            
+            // Trigger background refresh
+            setTimeout(() => this.refreshDashboardTransfers(), 100);
+
+            const tibouVehicles = vehicles.filter(v => 
+                v.showroom && v.showroom.toUpperCase() === 'TIBOU' && 
+                v.status !== 'Sold' && !v.archived
+            );
 
             // --- 2. RENDER HTML ---
             this.viewContainer.innerHTML = `
@@ -2307,6 +2334,89 @@ const app = {
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Amendment & Tibou Section -->
+                    <div class="main-grid" style="margin-top: 30px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <div class="chart-section glass animate delay-3">
+                            <div class="section-title">
+                                <h2><i class="fas fa-file-signature"></i> Amendements à demander</h2>
+                                <span class="badge-pill" id="pending-amendments-count" style="background: var(--warning); color: #000; font-size: 0.8rem; padding: 2px 10px; font-weight: bold;">${pendingAmendments.length}</span>
+                            </div>
+                            <div class="glass-scroll" id="pending-amendments-list" style="max-height: 400px; padding: 15px; overflow-y: auto;">
+                                ${pendingAmendments.length === 0 ? '<div style="text-align: center; padding: 40px; color: var(--text-dim); opacity: 0.6;"><i class="fas fa-sync fa-spin" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Chargement des amendements...</div>' : `
+                                    <ul style="list-style: none; padding: 0;">
+                                        ${pendingAmendments.map(pa => `
+                                            <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                                <input type="checkbox" onchange="app.toggleTransferStatus('${pa.id}', 'amendmentRequestSent', this.checked, '${pa.vehicleId}')" style="cursor: pointer; width: 20px; height: 20px; accent-color: var(--warning);">
+                                                <div style="flex: 1;">
+                                                    <div style="font-weight: 600; color: var(--primary); font-size: 0.95rem;">${pa.vehicle ? pa.vehicle.brand + ' ' + (pa.vehicle.model || '') : pa.vehicleId}</div>
+                                                    <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2px;">
+                                                        <i class="fas fa-user-arrow-right"></i> Vers: <strong>${pa.toClient ? pa.toClient.firstName + ' ' + pa.toClient.lastName : 'Client ' + pa.toClientId}</strong>
+                                                    </div>
+                                                </div>
+                                                <div style="font-size: 0.7rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">
+                                                    ${new Date(pa.transferDate).toLocaleDateString()}
+                                                </div>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                `}
+                            </div>
+                        </div>
+                        <div class="chart-section glass animate delay-3">
+                            <div class="section-title">
+                                <h2><i class="fas fa-file-import"></i> BL Amendement attendu</h2>
+                                <span class="badge-pill" id="missing-bl-count" style="background: var(--primary); color: #fff; font-size: 0.8rem; padding: 2px 10px; font-weight: bold;">${missingNewBLs.length}</span>
+                            </div>
+                            <div class="glass-scroll" id="missing-bl-list" style="max-height: 400px; padding: 15px; overflow-y: auto;">
+                                ${missingNewBLs.length === 0 ? '<div style="text-align: center; padding: 40px; color: var(--text-dim); opacity: 0.6;"><i class="fas fa-sync fa-spin" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Chargement...</div>' : `
+                                    <ul style="list-style: none; padding: 0;">
+                                        ${missingNewBLs.map(mbl => `
+                                            <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                                <input type="checkbox" onchange="app.toggleTransferStatus('${mbl.id}', 'newBLReceived', this.checked, '${mbl.vehicleId}')" style="cursor: pointer; width: 20px; height: 20px; accent-color: var(--success);">
+                                                <div style="flex: 1;">
+                                                    <div style="font-weight: 600; color: var(--success); font-size: 0.95rem;">${mbl.vehicle ? mbl.vehicle.brand + ' ' + (mbl.vehicle.model || '') : mbl.vehicleId}</div>
+                                                    <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2px;">
+                                                        <i class="fas fa-user-check"></i> Pour: <strong>${mbl.toClient ? mbl.toClient.firstName + ' ' + mbl.toClient.lastName : 'Client ' + mbl.toClientId}</strong>
+                                                    </div>
+                                                </div>
+                                                <div style="font-size: 0.7rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">
+                                                    ${new Date(mbl.transferDate).toLocaleDateString()}
+                                                </div>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                `}
+                            </div>
+                        </div>
+                        <div class="chart-section glass animate delay-3">
+                            <div class="section-title">
+                                <h2><i class="fas fa-warehouse"></i> Stock Tibou</h2>
+                                <span class="badge-pill" style="background: var(--success); color: #fff; font-size: 0.8rem; padding: 2px 10px; font-weight: bold;">${tibouVehicles.length}</span>
+                            </div>
+                            <div class="glass-scroll" style="max-height: 400px; padding: 15px; overflow-y: auto;">
+                                ${tibouVehicles.length === 0 ? '<div style="text-align: center; padding: 40px; color: var(--text-dim); opacity: 0.6;"><i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Aucun véhicule à Tibou</div>' : `
+                                    <ul style="list-style: none; padding: 0;">
+                                        ${tibouVehicles.map(v => `
+                                            <li style="margin-bottom: 10px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
+                                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                                    <div style="font-weight: 600; color: var(--text-primary);">${v.brand} ${v.model || ''}</div>
+                                                    <span style="font-size: 0.65rem; background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 2px 6px; border-radius: 4px;">${v.year || '-'}</span>
+                                                </div>
+                                                <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
+                                                    <i class="fas fa-barcode"></i> ${v.chassisNumber || 'Sans VIN'}
+                                                </div>
+                                                <div style="margin-top: 6px; display: flex; gap: 5px;">
+                                                    <span class="badge-pill" style="font-size: 0.6rem; background: ${v.status === 'Available' ? 'var(--success)22' : 'var(--warning)22'}; color: ${v.status === 'Available' ? 'var(--success)' : 'var(--warning)'}; border: none;">${v.status}</span>
+                                                    ${v.color ? `<span class="badge-pill" style="font-size: 0.6rem; background: rgba(255,255,255,0.05); color: var(--text-dim); border: none;">${v.color}</span>` : ''}
+                                                </div>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                `}
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Alert Center -->
                     <div class="chart-section glass animate delay-3" style="margin-top: 30px; margin-bottom: 30px;">
@@ -2367,59 +2477,15 @@ const app = {
 
                             <!-- Payment Suggested Alert -->
                             <div class="alert-card animate">
-                                <div class="alert-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);"><i class="fas fa-clock"></i></div>
+                                <div class="alert-icon bg-success-soft"><i class="fas fa-hand-holding-usd"></i></div>
                                 <div class="alert-content">
                                     <div class="alert-title">
                                         Paiements Attendus
-                                        <span class="alert-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">48h+</span>
+                                        <span class="alert-badge bg-success-soft">Trésorerie</span>
                                     </div>
                                     <div class="alert-desc">
-                                        Vérifiez les virements pour les commandes validées il y a plus de 2 jours.
+                                        <strong>${unpaidAmount > 0 ? this.formatCurrency(unpaidAmount, reportingCurrency) : '0'}</strong> à recouvrer sur l'ensemble des commandes actives.
                                     </div>
-                                </div>
-                            </div>
-
-                            <!-- Dashboard Tracking: Amendements à demander -->
-                            <div class="alert-card animate" style="border-left: 4px solid var(--primary);">
-                                <div class="alert-icon" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);"><i class="fas fa-edit"></i></div>
-                                <div class="alert-content">
-                                    <div class="alert-title">
-                                        Amendements à demander
-                                        <span class="alert-badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">À Envoyer</span>
-                                    </div>
-                                    <div class="alert-desc">
-                                        ${pendingAmendments.length > 0 
-                                            ? `<strong>${pendingAmendments.length} amendement(s)</strong> nécessitent l'envoi de la demande.`
-                                            : "Toutes les demandes ont été envoyées."}
-                                    </div>
-                                    ${pendingAmendments.length > 0 ? `
-                                        <ul style="font-size: 0.75rem; margin-top: 5px; color: var(--text-dim); padding-left: 15px;">
-                                            ${pendingAmendments.slice(0, 3).map(pa => `<li>Veh. #${pa.vehicleId} (Nouveau: ${pa.toClientName || 'Client ID ' + pa.toClientId})</li>`).join('')}
-                                            ${pendingAmendments.length > 3 ? '<li>...</li>' : ''}
-                                        </ul>
-                                    ` : ''}
-                                </div>
-                            </div>
-
-                            <!-- Dashboard Tracking: BL Amendement non reçu -->
-                            <div class="alert-card animate" style="border-left: 4px solid #8b5cf6;">
-                                <div class="alert-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;"><i class="fas fa-file-contract"></i></div>
-                                <div class="alert-content">
-                                    <div class="alert-title">
-                                        BL Amendement non reçu
-                                        <span class="alert-badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">Attente BL</span>
-                                    </div>
-                                    <div class="alert-desc">
-                                        ${missingNewBLs.length > 0 
-                                            ? `<strong>${missingNewBLs.length} nouveau(x) BL</strong> non encore reçus.`
-                                            : "Tous les nouveaux BL ont été reçus."}
-                                    </div>
-                                    ${missingNewBLs.length > 0 ? `
-                                        <ul style="font-size: 0.75rem; margin-top: 5px; color: var(--text-dim); padding-left: 15px;">
-                                            ${missingNewBLs.slice(0, 3).map(mbl => `<li>Veh. #${mbl.vehicleId} (${mbl.toClientName || 'Client ID ' + mbl.toClientId})</li>`).join('')}
-                                            ${missingNewBLs.length > 3 ? '<li>...</li>' : ''}
-                                        </ul>
-                                    ` : ''}
                                 </div>
                             </div>
                         </div>
@@ -2438,6 +2504,86 @@ const app = {
         } catch (err) {
             console.error("Dashboard Render Error:", err);
             this.viewContainer.innerHTML = `<div style="padding: 2rem; color: red;">Erreur lors de l'affichage du dashboard: ${err.message}</div>`;
+        }
+    },
+
+    async refreshDashboardTransfers() {
+        const pendingList = document.getElementById('pending-amendments-list');
+        const pendingCount = document.getElementById('pending-amendments-count');
+        const missingList = document.getElementById('missing-bl-list');
+        const missingCount = document.getElementById('missing-bl-count');
+
+        try {
+            console.log("🔄 Background refresh of transfers for dashboard...");
+            const response = await ApiService.getAllTransfers();
+            if (response.success) {
+                const allTransfers = response.data || [];
+                console.log(`✅ Fetched ${allTransfers.length} transfers from server.`);
+                if (allTransfers.length > 0) {
+                    console.log("🔍 Sample transfer record:", allTransfers[0]);
+                }
+                
+                // Save to local storage for future use
+                localStorage.setItem(STORAGE_KEYS.TRANSFERS, JSON.stringify(allTransfers));
+
+                // Filter logic: relax the !!t.withBL requirement if no results found with it, 
+                // but prioritize it if it was selected. 
+                // Actually, let's show ALL pending amendments regardless of withBL for maximum visibility.
+                const pendingAmendments = allTransfers.filter(t => !t.amendmentRequestSent);
+                const missingNewBLs = allTransfers.filter(t => t.amendmentRequestSent && !t.newBLReceived);
+
+                if (pendingCount) pendingCount.textContent = pendingAmendments.length;
+                if (pendingList) {
+                    pendingList.innerHTML = pendingAmendments.length === 0 ? 
+                        '<div style="text-align: center; padding: 40px; color: var(--text-dim); opacity: 0.6;"><i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Aucun amendement en attente</div>' : `
+                        <ul style="list-style: none; padding: 0;">
+                            ${pendingAmendments.map(pa => `
+                                <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <input type="checkbox" onchange="app.toggleTransferStatus('${pa.id}', 'amendmentRequestSent', this.checked, '${pa.vehicleId}')" style="cursor: pointer; width: 20px; height: 20px; accent-color: var(--warning);">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: var(--primary); font-size: 0.95rem;">${pa.vehicle ? pa.vehicle.brand + ' ' + (pa.vehicle.model || '') : pa.vehicleId}</div>
+                                        <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2px;">
+                                            <i class="fas fa-user-arrow-right"></i> Vers: <strong>${pa.toClient ? pa.toClient.firstName + ' ' + pa.toClient.lastName : 'Client ' + pa.toClientId}</strong>
+                                            ${!pa.withBL ? ' <span style="font-size: 0.6rem; opacity: 0.6;">(Sans BL)</span>' : ''}
+                                        </div>
+                                    </div>
+                                    <div style="font-size: 0.7rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">
+                                        ${new Date(pa.transferDate).toLocaleDateString()}
+                                    </div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                }
+
+                if (missingCount) missingCount.textContent = missingNewBLs.length;
+                if (missingList) {
+                    missingList.innerHTML = missingNewBLs.length === 0 ? 
+                        '<div style="text-align: center; padding: 40px; color: var(--text-dim); opacity: 0.6;"><i class="fas fa-envelope-open" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Tous les BL ont été reçus</div>' : `
+                        <ul style="list-style: none; padding: 0;">
+                            ${missingNewBLs.map(mbl => `
+                                <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <input type="checkbox" onchange="app.toggleTransferStatus('${mbl.id}', 'newBLReceived', this.checked, '${mbl.vehicleId}')" style="cursor: pointer; width: 20px; height: 20px; accent-color: var(--success);">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: var(--success); font-size: 0.95rem;">${mbl.vehicle ? mbl.vehicle.brand + ' ' + (mbl.vehicle.model || '') : mbl.vehicleId}</div>
+                                        <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2px;">
+                                            <i class="fas fa-user-check"></i> Pour: <strong>${mbl.toClient ? mbl.toClient.firstName + ' ' + mbl.toClient.lastName : 'Client ' + mbl.toClientId}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="font-size: 0.7rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">
+                                        ${new Date(mbl.transferDate).toLocaleDateString()}
+                                    </div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                }
+            }
+        } catch (err) {
+            console.warn("⚠️ Failed to background refresh transfers:", err);
+            if (pendingList && pendingList.innerHTML.includes('fa-spin')) {
+                pendingList.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--danger); opacity: 0.6;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Erreur de chargement API</div>';
+            }
         }
     },
 
@@ -2868,7 +3014,16 @@ const app = {
                                         ${client && client.company ? `<div style="font-size: 0.75rem; color: var(--text-dim);">${client.company}</div>` : ''}
                                         ${client && client.reference ? `<div style="font-size: 0.75rem; color: var(--text-dim);">Réf: ${client.reference}</div>` : ''}
                                     </td>
-                                    <td><span style="font-family: monospace; color: var(--text-dim);">#${order.vehicleId || 'N/A'}</span></td>
+                                    <td>
+                                        <div style="font-family: monospace; color: var(--text-dim); display: flex; align-items: center; gap: 5px;">
+                                            #${order.vehicleId || 'N/A'}
+                                            ${(() => {
+                                                if (!order.vehicleId) return '';
+                                                const amend = this.getAmendmentStatus(order.vehicleId);
+                                                return amend ? `<span class="badge-pill" style="font-size: 0.6rem; background: ${amend.color}22; color: ${amend.color}; padding: 1px 4px; border: 1px solid ${amend.color}33;" title="${amend.label}">AMEND.</span>` : '';
+                                            })()}
+                                        </div>
+                                    </td>
                                     <td>${vehicleName}</td>
                                     <td>${new Date(order.date).toLocaleDateString()}</td>
                                     <td style="text-align: center;">
@@ -2877,32 +3032,35 @@ const app = {
                                                 ${this.calculateOrderStatus(order)}
                                             </span>
                                             ${shipment ? (() => {
-                    const apiStatus = shipment.status || 'En cours';
-                    const statusColors = {
-                        'IN_TRANSIT': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
-                        'En mer': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
-                        'En Route': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
-                        'ARRIVED': { bg: 'rgba(34,197,94,0.15)', color: 'var(--success)', icon: 'fa-anchor' },
-                        'Arrivé': { bg: 'rgba(34,197,94,0.15)', color: 'var(--success)', icon: 'fa-anchor' },
-                        'Livré': { bg: 'rgba(34,197,94,0.2)', color: 'var(--success)', icon: 'fa-check-circle' },
-                        'ERREUR': { bg: 'rgba(239,68,68,0.1)', color: 'var(--danger)', icon: 'fa-exclamation-triangle' }
-                    };
-                    const sc = statusColors[apiStatus] || { bg: 'rgba(245,158,11,0.12)', color: 'var(--warning)', icon: 'fa-satellite-dish' };
-                    return `
+                                                const apiStatus = shipment.status || 'En cours';
+                                                const statusColors = {
+                                                    'IN_TRANSIT': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
+                                                    'En mer': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
+                                                    'En Route': { bg: 'rgba(99,102,241,0.15)', color: 'var(--primary)', icon: 'fa-ship' },
+                                                    'ARRIVED': { bg: 'rgba(34,197,94,0.15)', color: 'var(--success)', icon: 'fa-anchor' },
+                                                    'Arrivé': { bg: 'rgba(34,197,94,0.15)', color: 'var(--success)', icon: 'fa-anchor' },
+                                                    'Livré': { bg: 'rgba(34,197,94,0.2)', color: 'var(--success)', icon: 'fa-check-circle' },
+                                                    'ERREUR': { bg: 'rgba(239,68,68,0.1)', color: 'var(--danger)', icon: 'fa-exclamation-triangle' }
+                                                };
+                                                const sc = statusColors[apiStatus] || { bg: 'rgba(245,158,11,0.12)', color: 'var(--warning)', icon: 'fa-satellite-dish' };
+                                                return `
                                                     <div style="padding: 2px 8px; background: ${sc.bg}; border: 1px solid ${sc.color}33; border-radius: 12px; font-size: 0.65rem; color: ${sc.color}; display: flex; align-items: center; gap: 4px; cursor: pointer;" 
                                                          onclick="app.showTrackingHistoryModal('${shipment.id}')" title="Voir l'historique satellite">
                                                         <i class="fas ${sc.icon}"></i> 
                                                         ${shipment.shipStatus || apiStatus}
                                                     </div>
                                                 `;
-                })() : ''}
+                                            })() : ''}
                                         </div>
                                     </td>
+                                    <td>
+                                        <!-- Documents column (Placeholder or logic) -->
+                                        <span style="font-size: 0.8rem; color: var(--text-dim);">-</span>
                                     </td>
                                     <td>
                                         ${order.isValidated ?
-                    '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.1); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2);"><i class="fas fa-check-circle"></i> Validée</span>' :
-                    '<span class="badge-pill" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fas fa-clock"></i> En attente</span>'}
+                                            '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.1); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2);"><i class="fas fa-check-circle"></i> Validée</span>' :
+                                            '<span class="badge-pill" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fas fa-clock"></i> En attente</span>'}
                                     </td>
                                     ${canViewFinancials ? `
                                     <td>
@@ -3655,7 +3813,13 @@ const app = {
                                         <div style="display: flex; align-items: center; gap: 15px;">
                                             ${brandLogo ? `<img src="${brandLogo}" style="width: 50px; height: 50px; object-fit: contain; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 4px;" onerror="this.style.display='none'">` : ''}
                                             <div>
-                                                <div style="font-weight: 600;">${v.brand || 'Sans Marque'}${v.model ? ' ' + v.model : ''}</div>
+                                                <div style="font-weight: 600;">
+                                                    ${v.brand || 'Sans Marque'}${v.model ? ' ' + v.model : ''}
+                                                    ${(() => {
+                                                        const amend = this.getAmendmentStatus(v.id);
+                                                        return amend ? `<span class="badge-pill" style="font-size: 0.65rem; background: ${amend.color}22; color: ${amend.color}; margin-left: 5px; border: 1px solid ${amend.color}44;">${amend.label}</span>` : '';
+                                                    })()}
+                                                </div>
                                                 <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
                                             </div>
                                         </div>
@@ -9397,7 +9561,12 @@ const app = {
                                     const client = v.orderId ? (StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId)?.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId).clientId) : null) : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
                                     const clientName = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || client.name : 'STOCK';
                                     return `<div style="margin-bottom: 2px; cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails du véhicule">
-                                    • <strong>${clientName}</strong> : ${v.brand} ${v.model || ''} ${v.motorization ? `[${v.motorization}]` : ''} <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span>
+                                    • <strong>${clientName}</strong> : ${v.brand} ${v.model || ''} ${v.motorization ? `[${v.motorization}]` : ''} 
+                                    ${(() => {
+                                        const amend = this.getAmendmentStatus(v.id);
+                                        return amend ? `<span class="badge-pill" style="font-size: 0.6rem; background: ${amend.color}22; color: ${amend.color}; padding: 1px 4px; border: 1px solid ${amend.color}33;" title="${amend.label}">AMEND.</span>` : '';
+                                    })()}
+                                    <span style="color:var(--text-dim);">(${v.chassisNumber || 'Sans VIN'})</span>
                                     </div>`;
                                 }).join('')}
                                                 </div>`
@@ -9631,34 +9800,44 @@ const app = {
                 : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
 
             let isAmendmentRevertedDisplay = false;
-            let amendmentHtml = '<span style="color: var(--text-dim); font-weight: bold;">NON</span>';
+            let amendmentHtml = '';
 
             // Handle Amendment Display Logic
-            // Use API-joined fromClient object directly (more reliable than local cache lookup)
-            const vTransfers = allTransfers.filter(t => String(t.vehicleId) === String(v.id));
+            const transfers = StorageService.get(STORAGE_KEYS.TRANSFERS) || [];
+            const vTransfers = transfers.filter(t => String(t.vehicleId) === String(v.id));
             if (vTransfers.length > 0) {
-                // Get latest transfer
-                vTransfers.sort((a,b) => new Date(b.transferDate) - new Date(a.transferDate));
-                const latestTransfer = vTransfers[0];
+                // Find latest transfer that requested an amendment (withBL)
+                const latestTransfer = vTransfers.find(t => !!t.withBL) || vTransfers[0];
                 
+                const hasAmendment = !!latestTransfer.withBL;
+                const amendmentRequested = !!latestTransfer.amendmentRequestSent;
+                const oldClientObj = latestTransfer.fromClient || 
+                    StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === latestTransfer.fromClientId);
+
                 let oldClientText = '';
-                // Use the API-joined client object (fromClient) first, then fall back to local cache
-                const oldClientObj = latestTransfer.fromClient 
-                    || StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === latestTransfer.fromClientId);
-                
                 if (oldClientObj) {
                     oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien: ${oldClientObj.firstName} ${oldClientObj.lastName}</span>`;
                 } else if (latestTransfer.fromClientId) {
                     oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien ID: ${latestTransfer.fromClientId}</span>`;
                 }
 
-                amendmentHtml = `<span style="color: var(--warning); font-weight: bold;">OUI</span>${oldClientText}`;
-                
-                // If WITHOUT new BL, we display the OLD client
-                if (!latestTransfer.withBL && oldClientObj) {
+                if (hasAmendment) {
+                    if (amendmentRequested) {
+                        amendmentHtml = `<span style="color: var(--primary); font-weight: bold;">OUI (Envoyé)</span>${oldClientText}`;
+                    } else {
+                        amendmentHtml = `<span style="color: var(--warning); font-weight: bold;">OUI (À demander)</span>${oldClientText}`;
+                    }
+                } else {
+                    amendmentHtml = `<span style="color: var(--text-dim); font-weight: bold;">NON</span>`;
+                }
+
+                // If WITHOUT new BL received yet, we display the OLD client in the list for clarity
+                if (latestTransfer.withBL && !latestTransfer.newBLReceived && oldClientObj) {
                     displayClient = oldClientObj;
                     isAmendmentRevertedDisplay = true;
                 }
+            } else {
+                amendmentHtml = `<span style="color: var(--text-dim); font-weight: bold;">NON</span>`;
             }
 
             const orderStatus = order ? this.calculateOrderStatus(order) : 'N/A';

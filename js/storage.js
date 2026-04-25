@@ -27,7 +27,8 @@ const STORAGE_KEYS = {
     CATEGORIES: 'gtm_categories',
     SUPPLIERS: 'tib_suppliers',
     NOTIFICATIONS: 'tib_notifications',
-    VOYAGES: 'gtm_voyages'
+    VOYAGES: 'gtm_voyages',
+    TRANSFERS: 'gtm_transfers'
 };
 
 const StorageService = {
@@ -396,6 +397,7 @@ const StorageService = {
                 if (data.suppliers) localStorage.setItem(STORAGE_KEYS.SUPPLIERS, JSON.stringify(data.suppliers));
                 if (data.notifications) localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(data.notifications));
                 if (data.voyages) localStorage.setItem(STORAGE_KEYS.VOYAGES, JSON.stringify(data.voyages));
+                if (data.transfers) localStorage.setItem(STORAGE_KEYS.TRANSFERS, JSON.stringify(data.transfers));
 
                 // Settings (don't overwrite with empty)
                 if (data.settings && Object.keys(data.settings).length > 0) {

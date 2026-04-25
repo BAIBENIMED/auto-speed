@@ -267,7 +267,7 @@ const vehiclesController = {
                 include: [
                     { model: Client, as: 'fromClient', attributes: ['id', 'firstName', 'lastName'] },
                     { model: Client, as: 'toClient', attributes: ['id', 'firstName', 'lastName'] },
-                    { model: Vehicle, attributes: ['id', 'brand', 'model', 'chassisNumber'] }
+                    { model: Vehicle, as: 'vehicle', attributes: ['id', 'brand', 'model', 'chassisNumber'] }
                 ],
                 order: [['transferDate', 'DESC']]
             });

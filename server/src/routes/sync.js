@@ -25,7 +25,8 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             purchaseOrders,
             suppliers,
             notifications,
-            voyages
+            voyages,
+            transfers
         ] = await Promise.all([
             models.Role.findAll(),
             models.User.findAll({ include: [{ model: models.Role, as: 'role' }] }),
@@ -57,6 +58,14 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             }).catch(err => {
                 console.warn('⚠️ Could not fetch voyages (Table missing?):', err.message);
                 return [];
+            }),
+            models.VehicleTransfer.findAll({
+                include: [
+                    { model: models.Client, as: 'fromClient', attributes: ['id', 'firstName', 'lastName'] },
+                    { model: models.Client, as: 'toClient', attributes: ['id', 'firstName', 'lastName'] },
+                    { model: models.Vehicle, as: 'vehicle', attributes: ['id', 'brand', 'model', 'chassisNumber'] }
+                ],
+                order: [['transferDate', 'DESC']]
             })
         ]);
 
@@ -83,7 +92,8 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             purchaseOrders,
             suppliers,
             notifications,
-            voyages
+            voyages,
+            transfers
         };
 
         console.log('✅ Sync data prepared:', {
