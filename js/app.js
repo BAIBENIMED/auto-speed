@@ -9998,11 +9998,23 @@ const app = {
                                         </div>
                                         <div>
                                             <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">ETD (Départ)</p>
-                                            <strong style="font-size: 0.9rem; color: var(--primary);">${p.etd ? new Date(p.etd).toLocaleDateString() : 'N/A'}</strong>
+                                            <strong style="font-size: 0.9rem;">${p.etd ? new Date(p.etd).toLocaleDateString() : 'N/A'}</strong>
                                         </div>
                                         <div>
                                             <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">ETA (Arrivée)</p>
                                             <strong style="font-size: 0.9rem; color: var(--success);">${p.eta ? new Date(p.eta).toLocaleDateString() : 'N/A'}</strong>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Transitaire (Forwarder)</p>
+                                            <strong style="font-size: 0.9rem;">${p.forwarder || 'N/A'}</strong>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Compagnie Maritime</p>
+                                            <strong style="font-size: 0.9rem;">${p.carrier || 'N/A'}</strong>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Dégroupeur</p>
+                                            <strong style="font-size: 0.9rem;">${p.unbundler || 'N/A'}</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -10234,6 +10246,18 @@ const app = {
                                     <label>ETA (Estimation Arrivée)</label>
                                     <input type="date" name="eta" value="${po && po.eta ? po.eta.split('T')[0] : ''}" class="glass-input">
                                 </div>
+                                <div class="form-group">
+                                    <label>Transitaire (Forwarder)</label>
+                                    <input type="text" name="forwarder" value="${po && po.forwarder ? po.forwarder : ''}" class="glass-input" placeholder="Transitaire">
+                                </div>
+                                <div class="form-group">
+                                    <label>Compagnie Maritime (Carrier)</label>
+                                    <input type="text" name="carrier" value="${po && po.carrier ? po.carrier : ''}" class="glass-input" placeholder="CMA, MSC, Maersk...">
+                                </div>
+                                <div class="form-group">
+                                    <label>Dégroupeur</label>
+                                    <input type="text" name="unbundler" value="${po && po.unbundler ? po.unbundler : ''}" class="glass-input" placeholder="Dégroupeur">
+                                </div>
                             </div>
                         </div>
                         <div class="form-group full-width">
@@ -10274,6 +10298,9 @@ const app = {
                 etd: formData.get('etd') || null,
                 eta: formData.get('eta') || null,
                 isLoaded: formData.get('isLoaded'),
+                forwarder: formData.get('forwarder'),
+                carrier: formData.get('carrier'),
+                unbundler: formData.get('unbundler'),
                 notes: formData.get('notes')
             };
 

@@ -74,6 +74,18 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
     tasks: {
         type: DataTypes.JSON,
         allowNull: true
+    },
+    forwarder: {
+        type: DataTypes.STRING(100),
+        allowNull: true
+    },
+    carrier: {
+        type: DataTypes.STRING(100),
+        allowNull: true
+    },
+    unbundler: {
+        type: DataTypes.STRING(100),
+        allowNull: true
     }
 }, {
     tableName: 'purchase_orders',

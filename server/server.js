@@ -170,6 +170,9 @@ app.get('/api/migrate-po', async (req, res) => {
             { name: 'supplierId', def: 'INT NULL' },
             { name: 'supplierName', def: 'VARCHAR(100) NULL' },
             { name: 'status', def: "VARCHAR(50) DEFAULT 'En cours'" },
+            { name: 'forwarder', def: 'VARCHAR(100) NULL' },
+            { name: 'carrier', def: 'VARCHAR(100) NULL' },
+            { name: 'unbundler', def: 'VARCHAR(100) NULL' },
             { name: 'tasks', def: 'JSON NULL' }
         ];
 
@@ -366,6 +369,9 @@ const startServer = async () => {
                 { table: 'purchase_orders', name: 'supplierId', def: 'INT' },
                 { table: 'purchase_orders', name: 'supplierName', def: 'VARCHAR(100)' },
                 { table: 'purchase_orders', name: 'purchaseDate', def: 'DATETIME' },
+                { table: 'purchase_orders', name: 'forwarder', def: 'VARCHAR(100)' },
+                { table: 'purchase_orders', name: 'carrier', def: 'VARCHAR(100)' },
+                { table: 'purchase_orders', name: 'unbundler', def: 'VARCHAR(100)' },
                 { table: 'purchase_orders', name: 'tasks', def: 'JSON' },
                 { table: 'vehicles', name: 'motorization', def: 'VARCHAR(100)' },
                 { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' },

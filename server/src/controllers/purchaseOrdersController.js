@@ -31,7 +31,7 @@ const purchaseOrdersController = {
             const {
                 supplierId, status, purchaseDate,
                 documentStatus, documentsReceived,
-                loadingPort, loadingDate, etd, eta, isLoaded,
+                loadingPort, loadingDate, etd, eta, isLoaded, forwarder, carrier, unbundler,
                 notes, vehicles, tasks
             } = req.body;
 
@@ -65,6 +65,9 @@ const purchaseOrdersController = {
                 etd,
                 eta,
                 isLoaded,
+                forwarder,
+                carrier,
+                unbundler,
                 notes,
                 tasks: tasks || []
             });
@@ -151,7 +154,7 @@ const purchaseOrdersController = {
             const {
                 supplierId, status, purchaseDate,
                 documentStatus, documentsReceived,
-                loadingPort, loadingDate, etd, eta, isLoaded,
+                loadingPort, loadingDate, etd, eta, isLoaded, forwarder, carrier, unbundler,
                 notes, vehicles, tasks
             } = req.body;
 
@@ -174,6 +177,9 @@ const purchaseOrdersController = {
                 etd: etd !== undefined ? etd : po.etd,
                 eta: eta !== undefined ? eta : po.eta,
                 isLoaded: isLoaded !== undefined ? isLoaded : po.isLoaded,
+                forwarder: forwarder !== undefined ? forwarder : po.forwarder,
+                carrier: carrier !== undefined ? carrier : po.carrier,
+                unbundler: unbundler !== undefined ? unbundler : po.unbundler,
                 notes: notes !== undefined ? notes : po.notes,
                 tasks: tasks !== undefined ? tasks : po.tasks
             });
