@@ -9633,6 +9633,7 @@ const app = {
             let amendmentHtml = '<span style="color: var(--text-dim); font-weight: bold;">NON</span>';
 
             // Handle Amendment Display Logic
+            // Use API-joined fromClient object directly (more reliable than local cache lookup)
             const vTransfers = allTransfers.filter(t => String(t.vehicleId) === String(v.id));
             if (vTransfers.length > 0) {
                 // Get latest transfer
@@ -9640,19 +9641,22 @@ const app = {
                 const latestTransfer = vTransfers[0];
                 
                 let oldClientText = '';
-                const oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === latestTransfer.fromClientId);
-                if (oldClient) {
-                    oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien: ${oldClient.firstName} ${oldClient.lastName}</span>`;
+                // Use the API-joined client object (fromClient) first, then fall back to local cache
+                const oldClientObj = latestTransfer.fromClient 
+                    || StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === latestTransfer.fromClientId);
+                
+                if (oldClientObj) {
+                    oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien: ${oldClientObj.firstName} ${oldClientObj.lastName}</span>`;
+                } else if (latestTransfer.fromClientId) {
+                    oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien ID: ${latestTransfer.fromClientId}</span>`;
                 }
 
                 amendmentHtml = `<span style="color: var(--warning); font-weight: bold;">OUI</span>${oldClientText}`;
                 
                 // If WITHOUT new BL, we display the OLD client
-                if (!latestTransfer.withBL) {
-                    if (oldClient) {
-                        displayClient = oldClient;
-                        isAmendmentRevertedDisplay = true;
-                    }
+                if (!latestTransfer.withBL && oldClientObj) {
+                    displayClient = oldClientObj;
+                    isAmendmentRevertedDisplay = true;
                 }
             }
 
