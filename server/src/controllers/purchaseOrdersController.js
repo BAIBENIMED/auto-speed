@@ -40,12 +40,12 @@ const purchaseOrdersController = {
             const supplier = await Supplier.findByPk(supplierId);
             const supplierRef = supplier ? supplier.name : 'UNKNOWN';
 
-            // Assuming sequence is global per year
+            // Sequence is per supplier per year
             const { Op } = require('sequelize');
             const count = await PurchaseOrder.count({
                 where: {
                     id: {
-                        [Op.like]: `CMD/${year}/%`
+                        [Op.like]: `CMD/${year}/${supplierRef}/%`
                     }
                 }
             });
