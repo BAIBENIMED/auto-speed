@@ -2194,12 +2194,11 @@ const app = {
             setTimeout(() => this.refreshDashboardTransfers(), 100);
 
 
-            const tibouVehicles = vehicles.filter(v => {
                 // Exclude archived, truly sold, or marked as 'Vendu Carte Grise'
                 if (v.archived || v.status === 'Sold' || v.soldRegistration) return false;
                 
-                // 1. Check direct property (if any)
-                if (v.showroom && v.showroom.toUpperCase() === 'TIBOU') return true;
+                // 1. Check direct showroom property (Manual assignment)
+                if (v.showroom && v.showroom.toUpperCase().includes('TIBOU')) return true;
                 
                 // 2. Check Order showroom
                 if (v.orderId) {
@@ -4170,6 +4169,7 @@ const app = {
                 shipmentId: existingVehicle ? existingVehicle.shipmentId : null,
                 soldRegistration: formData.get('soldRegistration') === 'on' || formData.get('soldRegistration') === 'true',
                 soldRegistrationOwner: formData.get('soldRegistrationOwner') || '',
+                showroom: formData.get('showroom') || null,
                 status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
             };
 
@@ -4365,6 +4365,20 @@ const app = {
                                                 <select name="purchaseOrderId" class="glass-select">
                                                     <option value="">(Aucune / Entrée Directe)</option>
                                                     ${(StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || []).map(p => `<option value="${p.id}" ${vehicle.purchaseOrderId === p.id ? 'selected' : ''}>${p.id} - ${p.supplierName || ''}</option>`).join('')}
+                                                </select>
+                                            </div>
+                                            <div class="form-group" style="grid-column: span 2;">
+                                                <label>Showroom d'Affectation (Stock)</label>
+                                                <select name="showroom" class="glass-select">
+                                                    <option value="">(Non spécifié)</option>
+                                                    ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map(s => `<option value="${s}">${s}</option>`).join('')}
+                                                </select>
+                                            </div>
+                                            <div class="form-group" style="grid-column: span 2;">
+                                                <label>Showroom d'Affectation (Stock)</label>
+                                                <select name="showroom" class="glass-select">
+                                                    <option value="">(Non spécifié)</option>
+                                                    ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map(s => `<option value="${s}" ${vehicle.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
                                                 </select>
                                             </div>
                                             <div class="form-group" style="grid-column: span 2;">

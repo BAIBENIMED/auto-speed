@@ -104,6 +104,10 @@ const Vehicle = sequelize.define('Vehicle', {
     soldRegistrationOwner: {
         type: DataTypes.TEXT,
         field: 'sold_registration_owner'
+    },
+    showroom: {
+        type: DataTypes.STRING(100),
+        allowNull: true
     }
 }, {
     tableName: 'vehicles',

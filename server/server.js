@@ -370,6 +370,7 @@ const startServer = async () => {
                 { table: 'vehicles', name: 'motorization', def: 'VARCHAR(100)' },
                 { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' },
                 { table: 'vehicles', name: 'client_id', def: 'VARCHAR(50)' },
+                { table: 'vehicles', name: 'showroom', def: 'VARCHAR(100)' },
                 { table: 'clients', name: 'postal_code', def: 'VARCHAR(20)' },
                 { table: 'orders', name: 'tasks', def: 'JSON' }
             ];
