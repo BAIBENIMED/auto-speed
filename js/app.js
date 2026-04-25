@@ -2193,10 +2193,29 @@ const app = {
             // Trigger background refresh
             setTimeout(() => this.refreshDashboardTransfers(), 100);
 
-            const tibouVehicles = vehicles.filter(v => 
-                v.showroom && v.showroom.toUpperCase() === 'TIBOU' && 
-                v.status !== 'Sold' && !v.archived
-            );
+            const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+            const tibouVehicles = vehicles.filter(v => {
+                if (v.status === 'Sold' || v.archived) return false;
+                
+                // 1. Check direct property (if any)
+                if (v.showroom && v.showroom.toUpperCase() === 'TIBOU') return true;
+                
+                // 2. Check Order showroom
+                if (v.orderId) {
+                    const order = orders.find(o => o.id === v.orderId);
+                    if (order && order.showroom && order.showroom.toUpperCase() === 'TIBOU') return true;
+                }
+                
+                // 3. Check Client showroom
+                const clientId = v.clientId || (v.orderId ? (orders.find(o => o.id === v.orderId)?.clientId) : null);
+                if (clientId) {
+                    const client = clients.find(c => String(c.id) === String(clientId));
+                    if (client && client.showroom && client.showroom.toUpperCase() === 'TIBOU') return true;
+                }
+                
+                return false;
+            });
+            console.log(`📊 Tibou vehicles found: ${tibouVehicles.length}`);
 
             // --- 2. RENDER HTML ---
             this.viewContainer.innerHTML = `
