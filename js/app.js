@@ -3690,6 +3690,30 @@ const app = {
             if (this.vehicleFilters.purchaseOrderId) {
                 vehicles = vehicles.filter(v => v.purchaseOrderId === this.vehicleFilters.purchaseOrderId);
             }
+            if (this.vehicleFilters.showroom) {
+                const targetShowroom = this.vehicleFilters.showroom.toUpperCase();
+                const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+                
+                vehicles = vehicles.filter(v => {
+                    // 1. Check direct property
+                    if (v.showroom && v.showroom.toUpperCase().includes(targetShowroom)) return true;
+                    
+                    // 2. Check Order
+                    if (v.orderId) {
+                        const order = orders.find(o => o.id === v.orderId);
+                        if (order && order.showroom && order.showroom.toUpperCase().includes(targetShowroom)) return true;
+                    }
+                    
+                    // 3. Check Client
+                    const clientId = v.clientId || (v.orderId ? (orders.find(o => o.id === v.orderId)?.clientId) : null);
+                    if (clientId) {
+                        const client = clients.find(c => String(c.id) === String(clientId));
+                        if (client && client.showroom && client.showroom.toUpperCase().includes(targetShowroom)) return true;
+                    }
+                    return false;
+                });
+            }
         }
 
         if (!this.vehicleFilters.showArchived) {
@@ -3757,6 +3781,13 @@ const app = {
                         <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
                             <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
                             <label for="filter-vehicle-archived" style="font-size: 0.8rem; cursor: pointer; margin: 0; color: var(--text-dim);">Archives</label>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Showroom</label>
+                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, showroom: this.value}; app.renderVehicles()">
+                                <option value="">Tous les showrooms</option>
+                                ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map(s => `<option value="${s}" ${this.vehicleFilters.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
+                            </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Commande d'Achat</label>
