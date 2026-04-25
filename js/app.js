@@ -2193,7 +2193,7 @@ const app = {
             // Trigger background refresh
             setTimeout(() => this.refreshDashboardTransfers(), 100);
 
-            const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+
             const tibouVehicles = vehicles.filter(v => {
                 if (v.status === 'Sold' || v.archived) return false;
                 
