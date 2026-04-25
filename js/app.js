@@ -3036,7 +3036,7 @@ const app = {
                         <form id="client-form" autocomplete="off">
                             <div class="form-group">
                                 <label>Référence Client</label>
-                                <input type="text" name="reference" value="CL-${String((StorageService.get(STORAGE_KEYS.CLIENTS) || []).length + 1).padStart(4, '0')}" class="glass-input" required>
+                                <input type="text" name="reference" value="${app.generateClientReference()}" class="glass-input" required>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
