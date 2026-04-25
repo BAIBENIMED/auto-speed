@@ -2163,8 +2163,9 @@ const app = {
                 const transfersResponse = await ApiService.getAllTransfers();
                 if (transfersResponse.success) {
                     const allTransfers = transfersResponse.data || [];
-                    pendingAmendments = allTransfers.filter(t => !t.amendmentRequestSent);
-                    missingNewBLs = allTransfers.filter(t => t.amendmentRequestSent && !t.newBLReceived);
+                    // Only flag amendments for transfers done WITH BL where the request hasn't been sent
+                    pendingAmendments = allTransfers.filter(t => t.withBL && !t.amendmentRequestSent);
+                    missingNewBLs = allTransfers.filter(t => t.withBL && t.amendmentRequestSent && !t.newBLReceived);
                 }
             } catch (err) {
                 console.warn("Failed to fetch transfers for dashboard:", err);
