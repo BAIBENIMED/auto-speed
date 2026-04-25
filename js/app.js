@@ -9582,22 +9582,25 @@ const app = {
                                     <table class="data-table">
                                         <thead>
                                             <tr>
+                                                <th>#</th>
                                                 <th>Marque / Modèle</th>
                                                 <th>Identification</th>
                                                 <th>Motorisation</th>
                                                 <th>Client Affecté</th>
+                                                <th>Amendement</th>
                                                 <th>Statut Livraison Client</th>
                                                 <th>Détails</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${(p.vehicles || []).map(v => {
+                                            ${(p.vehicles || []).map((v, index) => {
             const order = v.orderId ? StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId) : null;
             let displayClient = order
                 ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId)
                 : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
 
             let isAmendmentRevertedDisplay = false;
+            let amendmentHtml = '<span style="color: var(--text-dim); font-weight: bold;">NON</span>';
 
             // Handle Amendment Display Logic
             const vTransfers = allTransfers.filter(t => String(t.vehicleId) === String(v.id));
@@ -9606,9 +9609,16 @@ const app = {
                 vTransfers.sort((a,b) => new Date(b.transferDate) - new Date(a.transferDate));
                 const latestTransfer = vTransfers[0];
                 
+                let oldClientText = '';
+                const oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === latestTransfer.fromClientId);
+                if (oldClient) {
+                    oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien: ${oldClient.firstName} ${oldClient.lastName}</span>`;
+                }
+
+                amendmentHtml = `<span style="color: var(--warning); font-weight: bold;">OUI</span>${oldClientText}`;
+                
                 // If WITHOUT new BL, we display the OLD client
                 if (!latestTransfer.withBL) {
-                    const oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === latestTransfer.fromClientId);
                     if (oldClient) {
                         displayClient = oldClient;
                         isAmendmentRevertedDisplay = true;
@@ -9639,6 +9649,7 @@ const app = {
 
             return `
                                                 <tr>
+                                                    <td style="text-align: center; font-weight: bold; color: var(--primary);">${index + 1}</td>
                                                     <td>
                                                         <div style="font-weight: 600;">${v.brand} ${v.model || ''}</div>
                                                         <div style="font-size: 0.8rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
@@ -9660,6 +9671,9 @@ const app = {
                                                             ${isAmendmentRevertedDisplay ? '<div style="font-size: 0.75rem; color: var(--warning);"><i class="fas fa-exclamation-triangle"></i> Sans chang. BL</div>' : ''}
                                                         ` : '<span style="color: var(--text-dim);">STOCK</span>'}
                                                     </td>
+                                                    <td style="text-align: center;">
+                                                        ${amendmentHtml}
+                                                    </td>
                                                     <td>
                                                         <span class="status-badge ${deliveryStatusClass}">${deliveryStatusLabel}</span>
                                                     </td>
@@ -9669,7 +9683,7 @@ const app = {
                                                 </tr>
                                             `;
         }).join('')}
-                                            ${(p.vehicles || []).length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px;">Aucun véhicule lié</td></tr>' : ''}
+                                            ${(p.vehicles || []).length === 0 ? '<tr><td colspan="8" style="text-align: center; padding: 20px;">Aucun véhicule lié</td></tr>' : ''}
                                         </tbody>
                                     </table>
                                 </div>
