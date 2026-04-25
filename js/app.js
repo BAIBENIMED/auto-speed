@@ -2541,13 +2541,17 @@ const app = {
                                 <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                                     <input type="checkbox" onchange="app.toggleTransferStatus('${pa.id}', 'amendmentRequestSent', this.checked, '${pa.vehicleId}')" style="cursor: pointer; width: 20px; height: 20px; accent-color: var(--warning);">
                                     <div style="flex: 1;">
-                                        <div style="font-weight: 600; color: var(--primary); font-size: 0.95rem;">${pa.vehicle ? pa.vehicle.brand + ' ' + (pa.vehicle.model || '') : pa.vehicleId}</div>
-                                        <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2px;">
-                                            <i class="fas fa-user-arrow-right"></i> Vers: <strong>${pa.toClient ? pa.toClient.firstName + ' ' + pa.toClient.lastName : 'Client ' + pa.toClientId}</strong>
-                                            ${!pa.withBL ? ' <span style="font-size: 0.6rem; opacity: 0.6;">(Sans BL)</span>' : ''}
+                                        <div style="font-weight: 600; color: var(--primary); font-size: 0.9rem;">${pa.vehicle ? pa.vehicle.brand + ' ' + (pa.vehicle.model || '') : pa.vehicleId}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; line-height: 1.4;">
+                                            <div><i class="fas fa-user-arrow-right"></i> Vers: <strong>${pa.toClient ? pa.toClient.firstName + ' ' + pa.toClient.lastName : 'Client ' + pa.toClientId}</strong> ${!pa.withBL ? '<span style="font-size: 0.6rem; opacity: 0.6;">(Sans BL)</span>' : ''}</div>
+                                            <div style="display: flex; gap: 10px; opacity: 0.8; font-size: 0.7rem; margin-top: 2px;">
+                                                <span><i class="fas fa-truck"></i> ${pa.vehicle?.supplier || 'N/A'}</span>
+                                                <span><i class="fas fa-file-invoice"></i> ${pa.vehicle?.purchaseOrderId || 'N/A'}</span>
+                                                <span><i class="fas fa-ship"></i> ${pa.vehicle?.shipment?.forwarder || 'N/A'}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div style="font-size: 0.7rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">
+                                    <div style="font-size: 0.65rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px; align-self: flex-start;">
                                         ${new Date(pa.transferDate).toLocaleDateString()}
                                     </div>
                                 </li>
@@ -2565,12 +2569,17 @@ const app = {
                                 <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                                     <input type="checkbox" onchange="app.toggleTransferStatus('${mbl.id}', 'newBLReceived', this.checked, '${mbl.vehicleId}')" style="cursor: pointer; width: 20px; height: 20px; accent-color: var(--success);">
                                     <div style="flex: 1;">
-                                        <div style="font-weight: 600; color: var(--success); font-size: 0.95rem;">${mbl.vehicle ? mbl.vehicle.brand + ' ' + (mbl.vehicle.model || '') : mbl.vehicleId}</div>
-                                        <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2px;">
-                                            <i class="fas fa-user-check"></i> Pour: <strong>${mbl.toClient ? mbl.toClient.firstName + ' ' + mbl.toClient.lastName : 'Client ' + mbl.toClientId}</strong>
+                                        <div style="font-weight: 600; color: var(--success); font-size: 0.9rem;">${mbl.vehicle ? mbl.vehicle.brand + ' ' + (mbl.vehicle.model || '') : mbl.vehicleId}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; line-height: 1.4;">
+                                            <div><i class="fas fa-user-check"></i> Pour: <strong>${mbl.toClient ? mbl.toClient.firstName + ' ' + mbl.toClient.lastName : 'Client ' + mbl.toClientId}</strong></div>
+                                            <div style="display: flex; gap: 10px; opacity: 0.8; font-size: 0.7rem; margin-top: 2px;">
+                                                <span><i class="fas fa-truck"></i> ${mbl.vehicle?.supplier || 'N/A'}</span>
+                                                <span><i class="fas fa-file-invoice"></i> ${mbl.vehicle?.purchaseOrderId || 'N/A'}</span>
+                                                <span><i class="fas fa-ship"></i> ${mbl.vehicle?.shipment?.forwarder || 'N/A'}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div style="font-size: 0.7rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">
+                                    <div style="font-size: 0.65rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px; align-self: flex-start;">
                                         ${new Date(mbl.transferDate).toLocaleDateString()}
                                     </div>
                                 </li>
