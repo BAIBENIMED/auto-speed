@@ -2195,7 +2195,11 @@ const app = {
 
 
             const tibouVehicles = vehicles.filter(v => {
-                if (v.status === 'Sold' || v.archived) return false;
+                if (v.archived) return false;
+                
+                // Allow 'Sold' status ONLY if it's 'Vendu C.G' (soldRegistration)
+                // Truly 'Sold' vehicles (delivered/removed) are hidden from stock
+                if (v.status === 'Sold' && !v.soldRegistration) return false;
                 
                 // 1. Check direct property (if any)
                 if (v.showroom && v.showroom.toUpperCase() === 'TIBOU') return true;
