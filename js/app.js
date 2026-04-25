@@ -2194,6 +2194,7 @@ const app = {
             setTimeout(() => this.refreshDashboardTransfers(), 100);
 
 
+            const tibouVehicles = vehicles.filter(v => {
                 // Exclude archived, truly sold, or marked as 'Vendu Carte Grise'
                 if (v.archived || v.status === 'Sold' || v.soldRegistration) return false;
                 
