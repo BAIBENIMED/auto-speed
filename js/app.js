@@ -1622,13 +1622,15 @@ const app = {
                                 ${new Date(t.transferDate).toLocaleDateString()} | ${t.withBL ? '<span style="color: var(--success);">Avec BL</span>' : '<span style="color: var(--warning);">Sans BL</span>'}
                             </div>
                             <div style="margin-top: 6px; margin-bottom: 6px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; color: var(--text-dim);">
-                                <div style="color: ${t.amendmentRequestSent ? 'var(--warning)' : 'inherit'}">
-                                    <i class="${t.amendmentRequestSent ? 'fas fa-check-square' : 'far fa-square'}"></i> Amendement demandé : <strong>${t.amendmentRequestSent ? 'OUI' : 'NON'}</strong>
+                                <label style="color: ${t.amendmentRequestSent ? 'var(--warning)' : 'inherit'}; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" ${t.amendmentRequestSent ? 'checked' : ''} onchange="app.toggleTransferStatus('${t.id}', 'amendmentRequestSent', this.checked, '${vehicleId}')"> 
+                                    Amendement demandé
                                     ${t.amendmentRequestSent ? `<span style="font-size: 0.75rem; margin-left: 5px;">(Date : ${new Date(t.transferDate).toLocaleDateString()})</span>` : ''}
-                                </div>
-                                <div style="color: ${t.newBLReceived ? 'var(--success)' : 'inherit'}">
-                                    <i class="${t.newBLReceived ? 'fas fa-check-square' : 'far fa-square'}"></i> Nouveau BL reçu : <strong>${t.newBLReceived ? 'OUI' : 'NON'}</strong>
-                                </div>
+                                </label>
+                                <label style="color: ${t.newBLReceived ? 'var(--success)' : 'inherit'}; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" ${t.newBLReceived ? 'checked' : ''} onchange="app.toggleTransferStatus('${t.id}', 'newBLReceived', this.checked, '${vehicleId}')"> 
+                                    Nouveau BL reçu
+                                </label>
                             </div>
                             ${t.notes ? `<div style="font-style: italic; margin-top: 4px;">"${t.notes}"</div>` : ''}
                         </div>
@@ -1640,6 +1642,25 @@ const app = {
             }
         } catch (err) {
             console.error("Error loading transfer history:", err);
+        }
+    },
+
+    async toggleTransferStatus(transferId, field, newValue, vehicleId) {
+        try {
+            const data = {};
+            data[field] = newValue;
+            const response = await ApiService.updateVehicleTransfer(transferId, data);
+            if (response.success) {
+                this.showToast('Statut mis à jour', 'success');
+                this.loadTransferHistory(vehicleId);
+            } else {
+                this.showToast(response.message || 'Erreur', 'error');
+                this.loadTransferHistory(vehicleId); // revert UI
+            }
+        } catch (e) {
+            console.error(e);
+            this.showToast('Erreur serveur', 'error');
+            this.loadTransferHistory(vehicleId); // revert UI
         }
     },
 

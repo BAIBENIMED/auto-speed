@@ -13,6 +13,7 @@ router.delete('/:id', vehiclesController.delete);
 router.patch('/:id/archive', vehiclesController.archive);
 router.post('/:id/transfer', vehiclesController.transfer);
 router.get('/transfers/all', vehiclesController.getAllTransfers);
+router.patch('/transfers/:transferId', vehiclesController.updateTransfer);
 router.get('/:id/transfers', vehiclesController.getTransfers);
 
 module.exports = router;

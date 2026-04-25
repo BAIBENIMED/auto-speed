@@ -1,4 +1,4 @@
-﻿const { Vehicle, Order, Shipment, VehicleTransfer, Client } = require('../models');
+const { Vehicle, Order, Shipment, VehicleTransfer, Client } = require('../models');
 
 const vehiclesController = {
     getAll: async (req, res) => {
@@ -275,6 +275,28 @@ const vehiclesController = {
         } catch (error) {
             console.error('Error fetching all transfers:', error);
             res.status(500).json({ success: false, message: 'Erreur lors de la récupération des transferts' });
+        }
+    },
+
+    updateTransfer: async (req, res) => {
+        try {
+            const transfer = await VehicleTransfer.findByPk(req.params.transferId);
+            if (!transfer) {
+                return res.status(404).json({ success: false, message: 'Transfert non trouvé' });
+            }
+
+            if (req.body.amendmentRequestSent !== undefined) {
+                transfer.amendmentRequestSent = req.body.amendmentRequestSent;
+            }
+            if (req.body.newBLReceived !== undefined) {
+                transfer.newBLReceived = req.body.newBLReceived;
+            }
+
+            await transfer.save();
+            res.json({ success: true, message: 'Transfert mis à jour', data: transfer });
+        } catch (error) {
+            console.error('Error updating transfer:', error);
+            res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour du transfert' });
         }
     }
 };
