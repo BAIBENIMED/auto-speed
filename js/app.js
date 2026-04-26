@@ -3568,24 +3568,38 @@ const app = {
                                 <table class="data-table">
                                     <thead>
                                         <tr>
-                                            <th>Véhicule</th>
-                                            <th>Châssis (VIN)</th>
-                                            <th>Année</th>
+                                            <th>Véhicule / VIN</th>
+                                            <th>Fournisseur / PO</th>
+                                            <th>Dates (ETD / ETA)</th>
+                                            <th>Chargement</th>
                                             <th>Statut</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${vehicles.map(v => `
+                                        ${vehicles.map(v => {
+                                            const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === v.shipmentId);
+                                            return `
                                             <tr style="cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
                                                 <td>
                                                     <div style="font-weight: 600;">${v.brand} ${v.model || ''}</div>
-                                                    <div style="font-size: 0.75rem; color: var(--text-dim);">${v.color || ''}</div>
+                                                    <div style="font-size: 0.75rem; font-family: monospace; color: var(--primary);">${v.chassisNumber || 'SANS VIN'}</div>
                                                 </td>
-                                                <td style="font-family: monospace; font-size: 0.85rem;">${v.chassisNumber || 'N/A'}</td>
-                                                <td>${v.year || '-'}</td>
+                                                <td>
+                                                    <div style="font-size: 0.85rem;"><strong>F:</strong> ${v.supplier || '-'}</div>
+                                                    <div style="font-size: 0.75rem; color: var(--text-dim);">PO: ${v.purchaseOrderId || '-'}</div>
+                                                </td>
+                                                <td>
+                                                    <div style="font-size: 0.8rem;">ETD: ${shipment && shipment.etd ? new Date(shipment.etd).toLocaleDateString() : '-'}</div>
+                                                    <div style="font-size: 0.8rem;">ETA: ${shipment && shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '-'}</div>
+                                                </td>
+                                                <td>
+                                                    <div style="font-size: 0.8rem;">${shipment && shipment.date ? new Date(shipment.date).toLocaleDateString() : '-'}</div>
+                                                    <div style="font-size: 0.7rem; color: var(--text-dim);">${shipment ? (shipment.loadingPort || '-') : '-'}</div>
+                                                </td>
                                                 <td><span class="badge-pill" style="background: ${v.status === 'Sold' ? 'var(--success)22' : 'var(--warning)22'}; color: ${v.status === 'Sold' ? 'var(--success)' : 'var(--warning)'}; border: none;">${v.status}</span></td>
                                             </tr>
-                                        `).join('')}
+                                            `;
+                                        }).join('')}
                                     </tbody>
                                 </table>
                             `}
