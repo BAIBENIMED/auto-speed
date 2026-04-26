@@ -1532,7 +1532,7 @@ const app = {
 
     getAmendmentStatus(vehicleId) {
         const transfers = StorageService.get(STORAGE_KEYS.TRANSFERS) || [];
-        const vehicleTransfers = transfers.filter(t => t.vehicleId === vehicleId && (t.withBL === true || t.withBL === 1));
+        const vehicleTransfers = transfers.filter(t => String(t.vehicleId) === String(vehicleId) && (t.withBL === true || t.withBL === 1));
         
         if (vehicleTransfers.length === 0) return null;
 
@@ -3578,7 +3578,12 @@ const app = {
                                     </thead>
                                     <tbody>
                                         ${vehicles.map(v => {
-                                            const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === v.shipmentId);
+                                            const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+                                            let shipment = shipments.find(s => String(s.id) === String(v.shipmentId));
+                                            
+                                            // Fallback if no shipment found by ID but it exists as a nested object
+                                            if (!shipment && v.shipment) shipment = v.shipment;
+
                                             const amend = this.getAmendmentStatus(v.id);
                                             return `
                                             <tr style="cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
