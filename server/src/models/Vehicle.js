@@ -108,6 +108,10 @@ const Vehicle = sequelize.define('Vehicle', {
     showroom: {
         type: DataTypes.STRING(100),
         allowNull: true
+    },
+    videoLink: {
+        type: DataTypes.STRING(500),
+        field: 'video_link'
     }
 }, {
     tableName: 'vehicles',

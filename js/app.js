@@ -1069,6 +1069,7 @@ const app = {
                                     <p><strong>Motorisation:</strong> ${vehicle.motorization || 'N/A'}</p>
                                     <p><strong>Finition:</strong> ${vehicle.trim || 'N/A'}</p>
                                     <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
+                                    ${vehicle.videoLink ? `<p><strong>Vidéo (Drive):</strong> <a href="${vehicle.videoLink}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: none;"><i class="fab fa-google-drive"></i> Consulter la vidéo</a></p>` : ''}
                                 ` : `
                                     <p><strong>Marque Souhaitée:</strong> ${order.requestedBrand || 'N/A'}</p>
                                     <p><strong>Modèle Souhaité:</strong> ${order.requestedModel || 'N/A'}</p>
@@ -1582,6 +1583,7 @@ const app = {
                                 ${vehicle.purchaseOrderId ? `<p><strong>Commande d'Achat (PO):</strong> <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); cursor: pointer;" onclick="app.closeModal(); app.renderPurchases('${vehicle.purchaseOrderId}')">${vehicle.purchaseOrderId}</span></p>` : ''}
                                 <p><strong>Châssis (VIN):</strong> <code class="chassis">${vehicle.chassisNumber || 'N/A'}</code></p>
                                 <p><strong>Année/Mois:</strong> ${vehicle.year || 'N/A'} ${vehicle.month ? '/ ' + vehicle.month : ''}</p>
+                                ${vehicle.videoLink ? `<p><strong>Vidéo (Drive):</strong> <a href="${vehicle.videoLink}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: none;"><i class="fab fa-google-drive"></i> Consulter la vidéo</a></p>` : ''}
                             </div>
                             
                             <div class="details-section">
@@ -2449,7 +2451,10 @@ const app = {
                                         ${tibouVehicles.map(v => `
                                             <li style="margin-bottom: 10px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
                                                 <div style="display: flex; justify-content: space-between; align-items: start;">
-                                                    <div style="font-weight: 600; color: var(--text-primary);">${v.brand} ${v.model || ''}</div>
+                                                    <div style="font-weight: 600; color: var(--text-primary);">
+                                                        ${v.brand} ${v.model || ''}
+                                                        ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Vidéo (Drive)" onclick="event.stopPropagation()"><i class="fas fa-video"></i></a>` : ''}
+                                                    </div>
                                                     <span style="font-size: 0.65rem; background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 2px 6px; border-radius: 4px;">${v.year || '-'}</span>
                                                 </div>
                                                 <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
@@ -3606,7 +3611,10 @@ const app = {
                                                         ${v.brand} ${v.model || ''}
                                                         ${amend ? `<span class="badge-pill" style="font-size: 0.65rem; background: ${amend.color}22; color: ${amend.color}; border: 1px solid ${amend.color}33; margin-left: 5px;">${amend.label}</span>` : ''}
                                                     </div>
-                                                    <div style="font-size: 0.75rem; font-family: monospace; color: var(--primary);">${v.chassisNumber || 'SANS VIN'}</div>
+                                                    <div style="font-size: 0.75rem; font-family: monospace; color: var(--primary);">
+                                                        ${v.chassisNumber || 'SANS VIN'}
+                                                        ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Vidéo (Drive)" onclick="event.stopPropagation()"><i class="fas fa-video"></i></a>` : ''}
+                                                    </div>
                                                 </td>
                                                 <td>
                                                     <div style="font-size: 0.85rem;"><strong>F:</strong> ${v.supplier || '-'}</div>
@@ -4106,7 +4114,10 @@ const app = {
                                             </td>
                                         `;
                                     })()}
-                                    <td><code style="font-size: 0.8rem;">${v.chassisNumber || '-'}</code></td>
+                                    <td>
+                                        <code style="font-size: 0.8rem;">${v.chassisNumber || '-'}</code>
+                                        ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Vidéo (Drive)" onclick="event.stopPropagation()"><i class="fas fa-video"></i></a>` : ''}
+                                    </td>
                                     <td>
                                         <div style="font-size: 0.85rem;"><strong>Mot.:</strong> ${v.motorization || '-'}</div>
                                         <div style="font-size: 0.85rem;"><strong>Fin.:</strong> ${v.trim || '-'}</div>
@@ -4175,6 +4186,10 @@ const app = {
                                     <div class="form-group">
                                         <label>Finition</label>
                                         <input type="text" name="trim" class="glass-input" placeholder="Ex: SE, Luxury, Full...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Lien Vidéo (Drive)</label>
+                                        <input type="url" name="videoLink" class="glass-input" placeholder="https://drive.google.com/...">
                                     </div>
                                     <div class="form-group">
                                         <label>Fournisseur</label>
@@ -4383,6 +4398,7 @@ const app = {
                 estimatedCustomsDuty: Number(formData.get('estimatedCustomsDuty')) || 0,
                 remarks: formData.get('remarks'),
                 options: formData.get('options'),
+                videoLink: formData.get('videoLink'),
                 category: formData.get('category'),
                 purchaseOrderId: formData.get('purchaseOrderId') || (existingVehicle ? existingVehicle.purchaseOrderId : null),
                 clientId: formData.get('clientId') || null,
@@ -4576,6 +4592,10 @@ const app = {
                                             <div class="form-group">
                                                 <label>Finition</label>
                                                 <input type="text" name="trim" value="${vehicle.trim || ''}" class="glass-input">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Lien Vidéo (Drive)</label>
+                                                <input type="url" name="videoLink" value="${vehicle.videoLink || ''}" class="glass-input" placeholder="https://drive.google.com/...">
                                             </div>
                                             <div class="form-group">
                                                 <label>Fournisseur</label>
