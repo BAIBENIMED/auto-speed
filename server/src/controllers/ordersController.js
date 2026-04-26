@@ -1,4 +1,5 @@
 const { Order, Client, Vehicle, CashTransaction, PurchaseOrder } = require('../models');
+const mailService = require('../services/mailService');
 
 const ordersController = {
     getAll: async (req, res) => {
@@ -116,10 +117,29 @@ const ordersController = {
                 );
             }
 
+            const oldValidated = order.isValidated;
             await order.update(req.body, {
                 userId: req.user.id,
                 userName: req.user.name
             });
+
+            // If order just got validated, send email
+            if (!oldValidated && order.isValidated) {
+                (async () => {
+                    try {
+                        const fullOrder = await Order.findByPk(order.id, {
+                            include: [{ model: Client, as: 'client' }, { model: Vehicle, as: 'Vehicles' }]
+                        });
+                        if (fullOrder && fullOrder.client) {
+                            const vehicle = fullOrder.Vehicles && fullOrder.Vehicles.length > 0 ? fullOrder.Vehicles[0] : null;
+                            await mailService.sendOrderConfirmation(fullOrder, fullOrder.client, vehicle);
+                        }
+                    } catch (emailError) {
+                        console.error('Error in post-update validation email trigger:', emailError);
+                    }
+                })();
+            }
+
             res.json({ success: true, data: order });
         } catch (error) {
             res.status(400).json({ success: false, message: 'Erreur lors de la mise à jour de la commande' });
@@ -185,6 +205,22 @@ const ordersController = {
                 userId: req.user.id,
                 userName: req.user.name
             });
+
+            // Send confirmation email asynchronously (don't block response)
+            (async () => {
+                try {
+                    const fullOrder = await Order.findByPk(order.id, {
+                        include: [{ model: Client, as: 'client' }, { model: Vehicle, as: 'Vehicles' }]
+                    });
+                    if (fullOrder && fullOrder.client) {
+                        const vehicle = fullOrder.Vehicles && fullOrder.Vehicles.length > 0 ? fullOrder.Vehicles[0] : null;
+                        await mailService.sendOrderConfirmation(fullOrder, fullOrder.client, vehicle);
+                    }
+                } catch (emailError) {
+                    console.error('Error in post-validation email trigger:', emailError);
+                }
+            })();
+
             res.json({ success: true, data: order });
         } catch (error) {
             res.status(500).json({ success: false, message: 'Erreur lors de la validation' });

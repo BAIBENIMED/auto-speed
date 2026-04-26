@@ -1,5 +1,6 @@
-const { Shipment, Vehicle, Order } = require('../models');
+const { Shipment, Vehicle, Order, Client } = require('../models');
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
+const mailService = require('../services/mailService');
 
 
 const shipmentsController = {
