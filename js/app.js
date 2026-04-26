@@ -3578,10 +3578,14 @@ const app = {
                                     <tbody>
                                         ${vehicles.map(v => {
                                             const shipment = StorageService.get(STORAGE_KEYS.SHIPMENTS).find(s => s.id === v.shipmentId);
+                                            const amend = this.getAmendmentStatus(v.id);
                                             return `
                                             <tr style="cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
                                                 <td>
-                                                    <div style="font-weight: 600;">${v.brand} ${v.model || ''}</div>
+                                                    <div style="font-weight: 600;">
+                                                        ${v.brand} ${v.model || ''}
+                                                        ${amend ? `<span class="badge-pill" style="font-size: 0.65rem; background: ${amend.color}22; color: ${amend.color}; border: 1px solid ${amend.color}33; margin-left: 5px;">${amend.label}</span>` : ''}
+                                                    </div>
                                                     <div style="font-size: 0.75rem; font-family: monospace; color: var(--primary);">${v.chassisNumber || 'SANS VIN'}</div>
                                                 </td>
                                                 <td>
