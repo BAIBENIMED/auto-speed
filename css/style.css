@@ -876,6 +876,11 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     color: white;
 }
 
+.btn-action.info:hover {
+    background: var(--primary);
+    color: white;
+}
+
 /* Table enhancements */
 .data-table-container {
     padding: 20px;

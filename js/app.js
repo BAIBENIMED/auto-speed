@@ -11,6 +11,19 @@ const app = {
     currentView: 'dashboard',
     mapTracking: null,
 
+    getStatusColor(status) {
+        switch (status) {
+            case 'Draft': return 'var(--text-dim)';
+            case 'Pending': return 'var(--warning)';
+            case 'Validated': return 'var(--success)';
+            case 'Paid': return 'var(--success)';
+            case 'Shipped': return 'var(--primary)';
+            case 'Delivered': return 'var(--success)';
+            case 'Cancelled': return 'var(--danger)';
+            default: return 'var(--primary)';
+        }
+    },
+
     generateVehicleId(brand) {
         if (!brand) return `v${Date.now()}`;
 
@@ -3205,6 +3218,7 @@ const app = {
                                 </div>
                             </div>
                             <div class="client-actions">
+                                <button class="btn-action info" onclick="app.showClientDetails('${client.id}')" title="Détails du client"><i class="fas fa-info-circle"></i></button>
                                 <button class="btn-action" onclick="app.showEditClientModal('${client.id}')"><i class="fas fa-edit"></i></button>
                                 <button class="btn-action danger" onclick="app.deleteClient('${client.id}')"><i class="fas fa-trash"></i></button>
                             </div>
@@ -3476,6 +3490,116 @@ const app = {
         }
     },
 
+
+    showClientDetails(id) {
+        const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === id);
+        if (!client) return;
+
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS).filter(o => o.clientId === id);
+        const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => v.clientId === id || (v.orderId && orders.some(o => o.id === v.orderId)));
+
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 90vw; max-width: 900px; max-height: 85vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(client.firstName + ' ' + client.lastName)}&background=6366f1&color=fff" 
+                                 style="width: 50px; height: 50px; border-radius: 12px; border: 2px solid var(--primary);">
+                            <div>
+                                <h2 style="margin: 0;">${client.firstName} ${client.lastName}</h2>
+                                <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-hashtag"></i> ${client.reference || 'Sans réf'} | <i class="fas fa-store"></i> ${client.showroom || 'Showroom Principal'}</span>
+                            </div>
+                        </div>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        
+                        <!-- Commandes de Vente Section -->
+                        <div class="section-title" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3><i class="fas fa-file-invoice-dollar" style="color: var(--primary);"></i> Commandes de Vente</h3>
+                            <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${orders.length}</span>
+                        </div>
+                        
+                        <div class="glass-scroll" style="margin-bottom: 30px; background: rgba(255,255,255,0.02); border-radius: 15px; border: 1px solid var(--border-glass);">
+                            ${orders.length === 0 ? `
+                                <div style="padding: 30px; text-align: center; color: var(--text-dim);">
+                                    <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
+                                    Aucune commande trouvée pour ce client.
+                                </div>
+                            ` : `
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID Commande</th>
+                                            <th>Date</th>
+                                            <th>Véhicule</th>
+                                            <th>Montant</th>
+                                            <th>Statut</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${orders.map(o => `
+                                            <tr style="cursor: pointer;" onclick="app.showOrderDetails('${o.id}')">
+                                                <td><strong style="color: var(--primary);">#${o.id}</strong></td>
+                                                <td>${new Date(o.date).toLocaleDateString()}</td>
+                                                <td>${o.vehicleName || '-'}</td>
+                                                <td>${this.formatCurrency(o.totalAmount, o.currency)}</td>
+                                                <td><span class="badge-pill" style="background: ${this.getStatusColor(o.status)}22; color: ${this.getStatusColor(o.status)}; border: none;">${o.status}</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            `}
+                        </div>
+
+                        <!-- Véhicules Affectés Section -->
+                        <div class="section-title" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3><i class="fas fa-car" style="color: var(--success);"></i> Véhicules Affectés</h3>
+                            <span class="badge-pill" style="background: rgba(34, 197, 94, 0.1); color: var(--success);">${vehicles.length}</span>
+                        </div>
+                        
+                        <div class="glass-scroll" style="background: rgba(255,255,255,0.02); border-radius: 15px; border: 1px solid var(--border-glass);">
+                            ${vehicles.length === 0 ? `
+                                <div style="padding: 30px; text-align: center; color: var(--text-dim);">
+                                    <i class="fas fa-car-side" style="font-size: 2rem; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
+                                    Aucun véhicule affecté à ce client.
+                                </div>
+                            ` : `
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Véhicule</th>
+                                            <th>Châssis (VIN)</th>
+                                            <th>Année</th>
+                                            <th>Statut</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${vehicles.map(v => `
+                                            <tr style="cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
+                                                <td>
+                                                    <div style="font-weight: 600;">${v.brand} ${v.model || ''}</div>
+                                                    <div style="font-size: 0.75rem; color: var(--text-dim);">${v.color || ''}</div>
+                                                </td>
+                                                <td style="font-family: monospace; font-size: 0.85rem;">${v.chassisNumber || 'N/A'}</td>
+                                                <td>${v.year || '-'}</td>
+                                                <td><span class="badge-pill" style="background: ${v.status === 'Sold' ? 'var(--success)22' : 'var(--warning)22'}; color: ${v.status === 'Sold' ? 'var(--success)' : 'var(--warning)'}; border: none;">${v.status}</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            `}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                        <button class="btn-primary" onclick="app.showEditClientModal('${client.id}')">Modifier Client</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
 
     showEditClientModal(id) {
         const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === id);
