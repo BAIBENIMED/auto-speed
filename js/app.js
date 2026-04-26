@@ -3865,28 +3865,37 @@ const app = {
                 vehicles = vehicles.filter(v => v.purchaseOrderId === this.vehicleFilters.purchaseOrderId);
             }
             if (this.vehicleFilters.showroom) {
-                const targetShowroom = this.vehicleFilters.showroom.toUpperCase();
-                const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-                const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
-                
-                vehicles = vehicles.filter(v => {
-                    // 1. Check direct property
-                    if (v.showroom && v.showroom.toUpperCase().includes(targetShowroom)) return true;
+                if (this.vehicleFilters.showroom === 'TIBOU_STOCK') {
+                    // Special mode: TIBOU showroom OR empty showroom, and NOT Vendu C.G
+                    vehicles = vehicles.filter(v => {
+                        if (v.soldRegistration) return false;
+                        const s = (v.showroom || '').trim().toUpperCase();
+                        return s === '' || s.includes('TIBOU');
+                    });
+                } else {
+                    const targetShowroom = this.vehicleFilters.showroom.toUpperCase();
+                    const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                    const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
                     
-                    // 2. Check Order
-                    if (v.orderId) {
-                        const order = orders.find(o => o.id === v.orderId);
-                        if (order && order.showroom && order.showroom.toUpperCase().includes(targetShowroom)) return true;
-                    }
-                    
-                    // 3. Check Client
-                    const clientId = v.clientId || (v.orderId ? (orders.find(o => o.id === v.orderId)?.clientId) : null);
-                    if (clientId) {
-                        const client = clients.find(c => String(c.id) === String(clientId));
-                        if (client && client.showroom && client.showroom.toUpperCase().includes(targetShowroom)) return true;
-                    }
-                    return false;
-                });
+                    vehicles = vehicles.filter(v => {
+                        // 1. Check direct property
+                        if (v.showroom && v.showroom.toUpperCase().includes(targetShowroom)) return true;
+                        
+                        // 2. Check Order
+                        if (v.orderId) {
+                            const order = orders.find(o => o.id === v.orderId);
+                            if (order && order.showroom && order.showroom.toUpperCase().includes(targetShowroom)) return true;
+                        }
+                        
+                        // 3. Check Client
+                        const clientId = v.clientId || (v.orderId ? (orders.find(o => o.id === v.orderId)?.clientId) : null);
+                        if (clientId) {
+                            const client = clients.find(c => String(c.id) === String(clientId));
+                            if (client && client.showroom && client.showroom.toUpperCase().includes(targetShowroom)) return true;
+                        }
+                        return false;
+                    });
+                }
             }
         }
 
@@ -3901,6 +3910,9 @@ const app = {
                         <p>${vehicles.length} véhicules enregistrés</p>
                     </div>
                     <div class="header-actions">
+                        <button class="btn-action info" style="padding: 8px 16px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'background: var(--primary); color: white;' : ''}" onclick="app.vehicleFilters = {...app.vehicleFilters, showroom: app.vehicleFilters.showroom === 'TIBOU_STOCK' ? '' : 'TIBOU_STOCK', showArchived: false}; app.renderVehicles()" title="Afficher uniquement le stock Tibou">
+                            <i class="fas fa-store"></i> Stock Tibou
+                        </button>
                         ${canCreate ? `
                         <button class="btn-secondary" onclick="app.showBatchVehicleModal()" style="margin-right: 10px;"><i class="fas fa-file-csv"></i> Création par Lot</button>
                         <button class="btn-primary" onclick="app.showVehicleModal()"><i class="fas fa-plus"></i> Nouveau Véhicule</button>
