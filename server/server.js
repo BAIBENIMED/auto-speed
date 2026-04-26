@@ -132,6 +132,73 @@ app.get('/api/diag', async (req, res) => {
     }
 });
 
+// Diagnostic endpoint for Email
+app.get('/api/test-email', async (req, res) => {
+    try {
+        const nodemailer = require('nodemailer');
+        
+        const configState = {
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+            user: process.env.SMTP_USER,
+            from: process.env.SMTP_FROM,
+            passLength: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0
+        };
+
+        if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+            return res.json({ 
+                success: false, 
+                message: "Les variables d'environnement SMTP ne sont pas configurées sur le serveur.",
+                config: configState
+            });
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT) || 587,
+            secure: false,
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
+        });
+
+        const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+        
+        const mailOptions = {
+            from: `"TEST TIBOU AUTO" <${senderEmail}>`,
+            to: 'BAIB.IMED@GMAIL.COM',
+            subject: 'Test Diagnostic Email Serveur',
+            text: 'Ceci est un test direct depuis le serveur Render pour vérifier la configuration SMTP.'
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        
+        res.json({
+            success: true,
+            message: "Email envoyé avec succès !",
+            messageId: info.messageId,
+            config: configState
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Erreur lors de l'envoi de l'email.",
+            errorName: error.name,
+            errorMessage: error.message,
+            errorCode: error.code,
+            command: error.command,
+            config: {
+                host: process.env.SMTP_HOST,
+                port: process.env.SMTP_PORT,
+                user: process.env.SMTP_USER,
+                from: process.env.SMTP_FROM,
+                passLength: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0
+            }
+        });
+    }
+});
+
 // Diagnostic endpoint for Database Schema
 app.get('/api/db-verify', async (req, res) => {
     try {
