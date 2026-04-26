@@ -2210,26 +2210,12 @@ const app = {
 
 
             const tibouVehicles = vehicles.filter(v => {
-                // Exclude archived, truly sold, or marked as 'Vendu Carte Grise'
+                // Exclude archived, truly sold (status), or marked as 'Vendu Carte Grise'
                 if (v.archived || v.status === 'Sold' || v.soldRegistration) return false;
-                
-                // 1. Check direct showroom property (Manual assignment) OR empty showroom
-                if (!v.showroom || v.showroom.trim() === '' || v.showroom.toUpperCase().includes('TIBOU')) return true;
-                
-                // 2. Check Order showroom
-                if (v.orderId) {
-                    const order = orders.find(o => o.id === v.orderId);
-                    if (order && order.showroom && order.showroom.toUpperCase() === 'TIBOU') return true;
-                }
-                
-                // 3. Check Client showroom
-                const clientId = v.clientId || (v.orderId ? (orders.find(o => o.id === v.orderId)?.clientId) : null);
-                if (clientId) {
-                    const client = clients.find(c => String(c.id) === String(clientId));
-                    if (client && client.showroom && client.showroom.toUpperCase() === 'TIBOU') return true;
-                }
-                
-                return false;
+
+                // Only include vehicles whose OWN showroom is TIBOU or empty (no cascading)
+                const showroom = (v.showroom || '').trim().toUpperCase();
+                return showroom === '' || showroom.includes('TIBOU');
             });
             console.log(`📊 Tibou vehicles found: ${tibouVehicles.length}`);
 
