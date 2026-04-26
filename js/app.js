@@ -1045,6 +1045,7 @@ const app = {
                                 <p><strong>Nom:</strong> ${order.clientName || (client ? `${client.firstName} ${client.lastName}` : 'Client Inconnu')}</p>
                                 <p><strong>Email:</strong> ${client ? `<a href="mailto:${client.email}" style="color: var(--primary); text-decoration: underline;">${client.email}</a>` : 'N/A'}</p>
                                 <p><strong>Téléphone:</strong> ${client ? client.phone : 'N/A'}</p>
+                                <p><strong>Passeport:</strong> ${client ? (client.passportNumber || 'N/A') : 'N/A'} ${client && client.passportDriveLink ? `<a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</p>
                             </div>
                             <div class="details-section">
                                 <h3><i class="fas fa-car"></i> Véhicule</h3>
@@ -1560,7 +1561,7 @@ const app = {
                                         <p><strong>ID Client:</strong> #${client.id || 'N/A'}</p>
                                         <p><strong>Showroom:</strong> ${client.showroom || 'N/A'}</p>
                                         <p><strong>NIN:</strong> ${client.nin || 'N/A'}</p>
-                                        <p><strong>Passeport:</strong> ${client.passportNumber || 'N/A'}</p>
+                                        <p><strong>Passeport:</strong> ${client.passportNumber || 'N/A'} ${client.passportDriveLink ? `<a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</p>
                                     </div>
                                 </div>` : ''}
                                 <p><strong>Provenance/Fournisseur:</strong> ${vehicle.supplier || 'N/A'}</p>
@@ -3040,6 +3041,7 @@ const app = {
                                         <div style="font-weight: 500;">
                                             ${client ? (client.firstName + ' ' + client.lastName) : 'Client Inconnu'}
                                         </div>
+                                        ${client && client.passportDriveLink ? `<div style="font-size: 0.7rem;"><i class="fab fa-google-drive"></i> <a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary);">Passeport</a></div>` : ''}
                                         ${client && client.company ? `<div style="font-size: 0.75rem; color: var(--text-dim);">${client.company}</div>` : ''}
                                         ${client && client.reference ? `<div style="font-size: 0.75rem; color: var(--text-dim);">Réf: ${client.reference}</div>` : ''}
                                     </td>
@@ -3196,7 +3198,7 @@ const app = {
                                     <span><i class="fas fa-envelope"></i> <a href="mailto:${client.email}" style="color: inherit;">${client.email}</a></span>
                                     <span><i class="fas fa-phone"></i> ${client.phone}</span>
                                     <span><i class="fas fa-map-marker-alt"></i> ${client.address}</span>
-                                    <span><i class="fas fa-id-card"></i> Passeport: ${client.passportNumber || '-'}</span>
+                                    <span><i class="fas fa-id-card"></i> Passeport: ${client.passportNumber || '-'} ${client.passportDriveLink ? `<a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</span>
                                     <span><i class="fas fa-fingerprint"></i> NIN: ${client.nin || '-'}</span>
                                     <span><i class="fas fa-hashtag"></i> Réf: ${client.reference || '-'}</span>
                                     <span><i class="fas fa-store"></i> ${client.showroom || 'Non assigné'}</span>
@@ -3273,6 +3275,10 @@ const app = {
                                     <input type="text" name="nin" class="glass-input">
                                 </div>
                             </div>
+                            <div class="form-group">
+                                <label><i class="fab fa-google-drive"></i> Lien Drive Passeport (URL)</label>
+                                <input type="url" name="passportDriveLink" class="glass-input" placeholder="https://drive.google.com/...">
+                            </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
                                 <button type="submit" class="btn-primary">Ajouter le client</button>
@@ -3301,6 +3307,7 @@ const app = {
                 phone: formData.get('phone'),
                 address: formData.get('address'),
                 passportNumber: formData.get('passportNumber'),
+                passportDriveLink: formData.get('passportDriveLink'),
                 nin: formData.get('nin'),
                 postalCode: formData.get('postalCode'),
                 reference: formData.get('reference') || this.generateClientReference(),
@@ -3351,7 +3358,7 @@ const app = {
                         <div class="form-body" style="padding: 1.5rem;">
                             <div class="alert info" style="margin-bottom: 1.5rem; background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
                                 <i class="fas fa-info-circle"></i> Copiez et collez vos données depuis Excel (ou utilisez le <b>point-virgule ;</b> comme séparateur). L'ordre des colonnes doit être :<br>
-                                <strong>Référence | Prénom | Nom | Email | Téléphone | Adresse | Code Postal | Passeport | NIN | Showroom | Entreprise</strong>
+                                <strong>Référence | Prénom | Nom | Email | Téléphone | Adresse | Code Postal | Passeport | NIN | Showroom | Entreprise | Lien Drive</strong>
                             </div>
                             <div class="form-group">
                                 <label>Données Clients (Une ligne par client)</label>
@@ -3422,7 +3429,7 @@ const app = {
 
                 const [
                     reference, firstName, lastName, email, phone,
-                    address, postalCode, passport, nin, showroom, company
+                    address, postalCode, passport, nin, showroom, company, driveLink
                 ] = cleanParts;
 
                 if (!firstName || !lastName) {
@@ -3442,7 +3449,8 @@ const app = {
                     passportNumber: passport || '',
                     nin: nin || '',
                     showroom: showroom || '',
-                    company: company || ''
+                    company: company || '',
+                    passportDriveLink: driveLink || ''
                 };
 
                 // Auto-generate reference if missing
@@ -3533,6 +3541,10 @@ const app = {
                                     <input type="text" name="nin" value="${client.nin || ''}" class="glass-input">
                                 </div>
                             </div>
+                            <div class="form-group">
+                                <label><i class="fab fa-google-drive"></i> Lien Drive Passeport (URL)</label>
+                                <input type="url" name="passportDriveLink" value="${client.passportDriveLink || ''}" class="glass-input" placeholder="https://drive.google.com/...">
+                            </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
                                 <button type="submit" class="btn-primary">Enregistrer les modifications</button>
@@ -3580,7 +3592,7 @@ const app = {
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1); font-weight: 500;">${c.firstName} ${c.lastName}</td>
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">${c.showroom || '-'}</td>
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">${c.nin || '-'}</td>
-                                <td style="padding: 8px 10px;">${c.passportNumber || '-'}</td>
+                                <td style="padding: 8px 10px;">${c.passportNumber || '-'} ${c.passportDriveLink ? `<a href="${c.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 5px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -3897,7 +3909,10 @@ const app = {
                                         if (clientId) {
                                             const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
                                             if (client) {
-                                                clientName = `<div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>`;
+                                                clientName = `
+                                                    <div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>
+                                                    ${client.passportDriveLink ? `<div style="font-size: 0.7rem;"><i class="fab fa-google-drive"></i> <a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary);">Passeport</a></div>` : ''}
+                                                `;
                                                 if (!v.soldRegistration) {
                                                     let rawShowroom = client.showroom || '-';
                                                     showroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;

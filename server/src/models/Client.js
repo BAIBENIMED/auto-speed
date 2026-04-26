@@ -42,6 +42,10 @@ const Client = sequelize.define('Client', {
     reference: {
         type: DataTypes.STRING(50)
     },
+    passportDriveLink: {
+        type: DataTypes.STRING(500),
+        field: 'passport_drive_link'
+    },
     postalCode: {
         type: DataTypes.STRING(20),
         field: 'postal_code'
