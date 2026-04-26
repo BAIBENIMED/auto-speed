@@ -10297,6 +10297,7 @@ const app = {
                                     <th>Couleur/Cat.</th>
                                     <th>Kilo.</th>
                                     <th>Prix Achat</th>
+                                    <th>Vidéo</th>
                                     <th>Copie</th>
                                 </tr>
                                 </thead>
@@ -10328,11 +10329,11 @@ const app = {
                                         <td><input type="number" class="glass-input mileage-input" placeholder="0" value="0" style="width: 70px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <input type="number" class="glass-input price-input" placeholder="Prix" style="width: 90px; padding: 4px; font-size: 0.8rem;">
-                                            <br>
                                             <select class="glass-select currency-select" style="padding: 2px; font-size: 0.8rem; margin-top: 2px; width: 90px;">
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${c === 'EUR' ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </td>
+                                        <td><input type="url" class="glass-input video-link-input" placeholder="Lien Drive" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
                                         </td>
@@ -10372,11 +10373,11 @@ const app = {
                                         <td><input type="number" class="glass-input mileage-input" value="${v.mileage || 0}" style="width: 70px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <input type="number" class="glass-input price-input" value="${v.purchasePrice || 0}" style="width: 90px; padding: 4px; font-size: 0.8rem;">
-                                            <br>
                                             <select class="glass-select currency-select" style="padding: 2px; font-size: 0.8rem; margin-top: 2px; width: 90px;">
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${v.purchaseCurrency === c ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </td>
+                                        <td><input type="url" class="glass-input video-link-input" value="${v.videoLink || ''}" placeholder="Lien Drive" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
                                         </td>
@@ -10673,6 +10674,7 @@ const app = {
                     ${currencies.map(c => `<option value="${c}">${c}</option>`).join('')}
                 </select>
             </td>
+            <td><input type="url" class="glass-input video-link-input" placeholder="Lien Drive" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
             <td>
                 <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
             </td>
