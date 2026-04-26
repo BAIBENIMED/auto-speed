@@ -1070,6 +1070,7 @@ const app = {
                                     <p><strong>Finition:</strong> ${vehicle.trim || 'N/A'}</p>
                                     <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
                                     ${vehicle.videoLink ? `<p><strong>Vidéo (Drive):</strong> <a href="${vehicle.videoLink}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: none;"><i class="fab fa-google-drive"></i> Consulter la vidéo</a></p>` : ''}
+                                    ${vehicle.blLink ? `<p><strong>BL (Drive):</strong> <a href="${vehicle.blLink}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: none;"><i class="fab fa-google-drive"></i> Consulter le BL</a></p>` : ''}
                                 ` : `
                                     <p><strong>Marque Souhaitée:</strong> ${order.requestedBrand || 'N/A'}</p>
                                     <p><strong>Modèle Souhaité:</strong> ${order.requestedModel || 'N/A'}</p>
@@ -1584,6 +1585,7 @@ const app = {
                                 <p><strong>Châssis (VIN):</strong> <code class="chassis">${vehicle.chassisNumber || 'N/A'}</code></p>
                                 <p><strong>Année/Mois:</strong> ${vehicle.year || 'N/A'} ${vehicle.month ? '/ ' + vehicle.month : ''}</p>
                                 ${vehicle.videoLink ? `<p><strong>Vidéo (Drive):</strong> <a href="${vehicle.videoLink}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: none;"><i class="fab fa-google-drive"></i> Consulter la vidéo</a></p>` : ''}
+                                ${vehicle.blLink ? `<p><strong>BL (Drive):</strong> <a href="${vehicle.blLink}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: none;"><i class="fab fa-google-drive"></i> Consulter le BL</a></p>` : ''}
                             </div>
                             
                             <div class="details-section">
@@ -2453,7 +2455,10 @@ const app = {
                                                 <div style="display: flex; justify-content: space-between; align-items: start;">
                                                     <div style="font-weight: 600; color: var(--text-primary);">
                                                         ${v.brand} ${v.model || ''}
-                                                        ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Vidéo (Drive)" onclick="event.stopPropagation()"><i class="fas fa-video"></i></a>` : ''}
+                                                        <div style="display: flex; gap: 8px;">
+                                                            ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary);" title="Vidéo"><i class="fas fa-video"></i></a>` : ''}
+                                                            ${v.blLink ? `<a href="${v.blLink}" target="_blank" style="color: var(--primary);" title="BL"><i class="fas fa-file-invoice"></i></a>` : ''}
+                                                        </div>
                                                     </div>
                                                     <span style="font-size: 0.65rem; background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 2px 6px; border-radius: 4px;">${v.year || '-'}</span>
                                                 </div>
@@ -3609,11 +3614,14 @@ const app = {
                                                 <td>
                                                     <div style="font-weight: 600;">
                                                         ${v.brand} ${v.model || ''}
+                                                        <div style="display: flex; gap: 8px;">
+                                                            ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary);" title="Vidéo"><i class="fas fa-video"></i></a>` : ''}
+                                                            ${v.blLink ? `<a href="${v.blLink}" target="_blank" style="color: var(--primary);" title="BL"><i class="fas fa-file-invoice"></i></a>` : ''}
+                                                        </div>
                                                         ${amend ? `<span class="badge-pill" style="font-size: 0.65rem; background: ${amend.color}22; color: ${amend.color}; border: 1px solid ${amend.color}33; margin-left: 5px;">${amend.label}</span>` : ''}
                                                     </div>
                                                     <div style="font-size: 0.75rem; font-family: monospace; color: var(--primary);">
                                                         ${v.chassisNumber || 'SANS VIN'}
-                                                        ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Vidéo (Drive)" onclick="event.stopPropagation()"><i class="fas fa-video"></i></a>` : ''}
                                                     </div>
                                                 </td>
                                                 <td>
@@ -4117,6 +4125,7 @@ const app = {
                                     <td>
                                         <code style="font-size: 0.8rem;">${v.chassisNumber || '-'}</code>
                                         ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Vidéo (Drive)" onclick="event.stopPropagation()"><i class="fas fa-video"></i></a>` : ''}
+                                        ${v.blLink ? `<a href="${v.blLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir BL (Drive)" onclick="event.stopPropagation()"><i class="fas fa-file-invoice"></i></a>` : ''}
                                     </td>
                                     <td>
                                         <div style="font-size: 0.85rem;"><strong>Mot.:</strong> ${v.motorization || '-'}</div>
@@ -4190,6 +4199,10 @@ const app = {
                                     <div class="form-group">
                                         <label>Lien Vidéo (Drive)</label>
                                         <input type="url" name="videoLink" class="glass-input" placeholder="https://drive.google.com/...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Lien BL (Drive)</label>
+                                        <input type="url" name="blLink" class="glass-input" placeholder="https://drive.google.com/...">
                                     </div>
                                     <div class="form-group">
                                         <label>Fournisseur</label>
@@ -4399,6 +4412,7 @@ const app = {
                 remarks: formData.get('remarks'),
                 options: formData.get('options'),
                 videoLink: formData.get('videoLink'),
+                blLink: formData.get('blLink'),
                 category: formData.get('category'),
                 purchaseOrderId: formData.get('purchaseOrderId') || (existingVehicle ? existingVehicle.purchaseOrderId : null),
                 clientId: formData.get('clientId') || null,
@@ -4596,6 +4610,10 @@ const app = {
                                             <div class="form-group">
                                                 <label>Lien Vidéo (Drive)</label>
                                                 <input type="url" name="videoLink" value="${vehicle.videoLink || ''}" class="glass-input" placeholder="https://drive.google.com/...">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Lien BL (Drive)</label>
+                                                <input type="url" name="blLink" value="${vehicle.blLink || ''}" class="glass-input" placeholder="https://drive.google.com/...">
                                             </div>
                                             <div class="form-group">
                                                 <label>Fournisseur</label>
@@ -10298,6 +10316,7 @@ const app = {
                                     <th>Kilo.</th>
                                     <th>Prix Achat</th>
                                     <th>Vidéo</th>
+                                    <th>BL</th>
                                     <th>Copie</th>
                                 </tr>
                                 </thead>
@@ -10333,7 +10352,8 @@ const app = {
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${c === 'EUR' ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </td>
-                                        <td><input type="url" class="glass-input video-link-input" placeholder="Lien Drive" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td><input type="url" class="glass-input video-link-input" placeholder="Lien Vidéo" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td><input type="url" class="glass-input bl-link-input" placeholder="Lien BL" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
                                         </td>
@@ -10377,7 +10397,8 @@ const app = {
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${v.purchaseCurrency === c ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
                                         </td>
-                                        <td><input type="url" class="glass-input video-link-input" value="${v.videoLink || ''}" placeholder="Lien Drive" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td><input type="url" class="glass-input video-link-input" value="${v.videoLink || ''}" placeholder="Lien Vidéo" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td><input type="url" class="glass-input bl-link-input" value="${v.blLink || ''}" placeholder="Lien BL" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
                                         </td>
@@ -10544,7 +10565,9 @@ const app = {
                             category: tr.querySelector('.category-select').value,
                             mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
                             purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
-                            purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
+                            purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR',
+                            videoLink: tr.querySelector('.video-link-input').value,
+                            blLink: tr.querySelector('.bl-link-input').value
                         });
                     }
                 });
@@ -10586,7 +10609,9 @@ const app = {
                         category: tr.querySelector('.category-select').value,
                         mileage: parseInt(tr.querySelector('.mileage-input').value) || 0,
                         purchasePrice: parseFloat(tr.querySelector('.price-input').value) || 0,
-                        purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR'
+                        purchaseCurrency: tr.querySelector('.currency-select').value || 'EUR',
+                        videoLink: tr.querySelector('.video-link-input').value,
+                        blLink: tr.querySelector('.bl-link-input').value
                     };
                 });
 
@@ -10674,7 +10699,8 @@ const app = {
                     ${currencies.map(c => `<option value="${c}">${c}</option>`).join('')}
                 </select>
             </td>
-            <td><input type="url" class="glass-input video-link-input" placeholder="Lien Drive" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+            <td><input type="url" class="glass-input video-link-input" placeholder="Lien Vidéo" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+            <td><input type="url" class="glass-input bl-link-input" placeholder="Lien BL" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
             <td>
                 <button type="button" class="btn-icon" onclick="app.duplicatePORow(this)" title="Dupliquer"><i class="fas fa-copy"></i></button>
             </td>

@@ -112,6 +112,10 @@ const Vehicle = sequelize.define('Vehicle', {
     videoLink: {
         type: DataTypes.STRING(500),
         field: 'video_link'
+    },
+    blLink: {
+        type: DataTypes.STRING(500),
+        field: 'bl_link'
     }
 }, {
     tableName: 'vehicles',
