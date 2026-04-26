@@ -1543,8 +1543,9 @@ const app = {
         // Priority 2: Any transfer where request is sent but BL not received
         const toReceive = vehicleTransfers.find(t => !t.newBLReceived);
         if (toReceive) return { status: 'sent', label: 'Amend. envoyé', color: 'var(--primary)', id: toReceive.id };
-        
-        return null;
+
+        // Priority 3: Completed amendment
+        return { status: 'completed', label: 'AMENDEMENT', color: 'var(--danger)', id: vehicleTransfers[0].id };
     },
 
     showVehicleDetails(id) {
