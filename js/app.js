@@ -2213,9 +2213,37 @@ const app = {
                 // Exclude archived, truly sold (status), or marked as 'Vendu Carte Grise'
                 if (v.archived || v.status === 'Sold' || v.soldRegistration) return false;
 
-                // Only include vehicles whose OWN showroom is TIBOU or empty (no cascading)
-                const showroom = (v.showroom || '').trim().toUpperCase();
-                return showroom === '' || showroom.includes('TIBOU');
+                const vShowroom = (v.showroom || '').trim().toUpperCase();
+
+                // If vehicle is explicitly marked TIBOU → include
+                if (vShowroom === 'TIBOU' || vShowroom.includes('TIBOU')) return true;
+
+                // If vehicle has another explicit showroom (e.g. "COTONOU", "PARIS") → exclude
+                if (vShowroom !== '') return false;
+
+                // Vehicle showroom is empty → check order and client showrooms
+                let orderShowroom = '';
+                let clientShowroom = '';
+
+                if (v.orderId) {
+                    const order = orders.find(o => String(o.id) === String(v.orderId));
+                    if (order) {
+                        orderShowroom = (order.showroom || '').trim().toUpperCase();
+                        const clientId = v.clientId || order.clientId;
+                        if (clientId) {
+                            const client = clients.find(c => String(c.id) === String(clientId));
+                            clientShowroom = (client?.showroom || '').trim().toUpperCase();
+                        }
+                    }
+                } else if (v.clientId) {
+                    const client = clients.find(c => String(c.id) === String(v.clientId));
+                    clientShowroom = (client?.showroom || '').trim().toUpperCase();
+                }
+
+                // Exclude if order or client explicitly belongs to another showroom
+                const isTibouOrder = orderShowroom === '' || orderShowroom.includes('TIBOU');
+                const isTibouClient = clientShowroom === '' || clientShowroom.includes('TIBOU');
+                return isTibouOrder && isTibouClient;
             });
             console.log(`📊 Tibou vehicles found: ${tibouVehicles.length}`);
 
