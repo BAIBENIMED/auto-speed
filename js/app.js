@@ -3910,8 +3910,8 @@ const app = {
                         <p>${vehicles.length} véhicules enregistrés</p>
                     </div>
                     <div class="header-actions">
-                        <button class="btn-action info" style="padding: 8px 16px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'background: var(--primary); color: white;' : ''}" onclick="app.vehicleFilters = {...app.vehicleFilters, showroom: app.vehicleFilters.showroom === 'TIBOU_STOCK' ? '' : 'TIBOU_STOCK', showArchived: false}; app.renderVehicles()" title="Afficher uniquement le stock Tibou">
-                            <i class="fas fa-store"></i> Stock Tibou
+                        <button class="btn-secondary" style="background: ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'var(--primary)' : 'var(--bg-glass)'}; color: ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'white' : 'var(--text-primary)'}; border-color: ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'var(--primary)' : 'var(--border-glass)'};" onclick="app.vehicleFilters = {...app.vehicleFilters, showroom: app.vehicleFilters.showroom === 'TIBOU_STOCK' ? '' : 'TIBOU_STOCK', showArchived: false}; app.renderVehicles()">
+                            <i class="fas fa-store"></i> ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'Filtré: Stock Tibou' : 'Stock Tibou'}
                         </button>
                         ${canCreate ? `
                         <button class="btn-secondary" onclick="app.showBatchVehicleModal()" style="margin-right: 10px;"><i class="fas fa-file-csv"></i> Création par Lot</button>
