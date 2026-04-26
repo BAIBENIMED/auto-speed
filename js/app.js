@@ -10475,7 +10475,16 @@ const app = {
 
         document.getElementById('po-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(e.target);
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            if (submitBtn.disabled) return;
+            
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
+
+            try {
+                const formData = new FormData(e.target);
             const baseData = {
                 supplierId: formData.get('supplierId'),
                 status: formData.get('status'),
@@ -10575,8 +10584,14 @@ const app = {
                 }
             }
 
-            app.closeModal();
-            this.renderPurchases(this.searchQuery);
+                app.closeModal();
+                this.renderPurchases(this.searchQuery);
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
+            }
         });
     },
 
