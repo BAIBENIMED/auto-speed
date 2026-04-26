@@ -2212,8 +2212,8 @@ const app = {
                 // Exclude archived, truly sold, or marked as 'Vendu Carte Grise'
                 if (v.archived || v.status === 'Sold' || v.soldRegistration) return false;
                 
-                // 1. Check direct showroom property (Manual assignment)
-                if (v.showroom && v.showroom.toUpperCase().includes('TIBOU')) return true;
+                // 1. Check direct showroom property (Manual assignment) OR empty showroom
+                if (!v.showroom || v.showroom.trim() === '' || v.showroom.toUpperCase().includes('TIBOU')) return true;
                 
                 // 2. Check Order showroom
                 if (v.orderId) {
