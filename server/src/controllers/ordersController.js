@@ -238,7 +238,7 @@ const ordersController = {
             }
 
             if (!fullOrder.client || !fullOrder.client.email) {
-                return res.status(400).json({ success: false, message: 'Le client n\'a pas d\'adresse email renseignée' });
+                return res.status(400).json({ success: false, message: "Le client n'a pas d'adresse email renseignée" });
             }
 
             const vehicle = fullOrder.Vehicles && fullOrder.Vehicles.length > 0 ? fullOrder.Vehicles[0] : null;
@@ -247,11 +247,11 @@ const ordersController = {
             if (sent) {
                 res.json({ success: true, message: 'Email de confirmation renvoyé avec succès' });
             } else {
-                res.status(500).json({ success: false, message: 'Échec de l\'envoi de l'email (vérifiez votre configuration SMTP)' });
+                res.status(500).json({ success: false, message: "Échec de l'envoi de l'email (vérifiez votre configuration SMTP)" });
             }
         } catch (error) {
             console.error('Error resending confirmation:', error);
-            res.status(500).json({ success: false, message: 'Erreur lors du renvoi de l\'email' });
+            res.status(500).json({ success: false, message: "Erreur lors du renvoi de l'email" });
         }
     }
 };
