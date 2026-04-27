@@ -397,7 +397,7 @@ const app = {
     },
 
     async resendOrderConfirmationEmail(id, btnElement) {
-        if (!confirm('Voulez-vous renvoyer l\\'email de confirmation à ce client ?')) return;
+        if (!confirm("Voulez-vous renvoyer l'email de confirmation à ce client ?")) return;
         
         const originalHtml = btnElement.innerHTML;
         btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi...';
@@ -418,7 +418,7 @@ const app = {
             }
         } catch (error) {
             console.error('Error resending email:', error);
-            this.showToast('Erreur serveur lors du renvoi de l\\'email', 'error');
+            this.showToast("Erreur serveur lors du renvoi de l'email", 'error');
             btnElement.innerHTML = originalHtml;
             btnElement.disabled = false;
         }
@@ -440,13 +440,13 @@ const app = {
                 btnElement.style.borderColor = 'var(--success)';
                 btnElement.style.background = 'rgba(34, 197, 94, 0.1)';
             } else {
-                this.showToast(response.message || 'Erreur lors de l\\'envoi', 'error');
+                this.showToast(response.message || "Erreur lors de l'envoi", 'error');
                 btnElement.innerHTML = originalHtml;
                 btnElement.disabled = false;
             }
         } catch (error) {
             console.error('Error sending test email:', error);
-            this.showToast('Erreur serveur lors de l\\'envoi de l\\'email', 'error');
+            this.showToast("Erreur serveur lors de l'envoi de l'email", 'error');
             btnElement.innerHTML = originalHtml;
             btnElement.disabled = false;
         }
@@ -3596,7 +3596,7 @@ const app = {
                                 ${client.email ? `
                                 <div style="margin-top: 5px; display: flex; align-items: center; gap: 10px;">
                                     <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-envelope"></i> ${client.email}</span>
-                                    <button class="btn-action" style="font-size: 0.7rem; padding: 2px 8px; color: #3b82f6; border: 1px solid #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 4px;" onclick="app.sendTestEmail('${client.id}', this)" title="Envoyer un email de test"><i class="fas fa-paper-plane"></i> Tester l\\'email</button>
+                                    <button class="btn-action" style="font-size: 0.7rem; padding: 2px 8px; color: #3b82f6; border: 1px solid #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 4px;" onclick="app.sendTestEmail('${client.id}', this)" title="Envoyer un email de test"><i class="fas fa-paper-plane"></i> Tester l'email</button>
                                 </div>` : ''}
                             </div>
                         </div>

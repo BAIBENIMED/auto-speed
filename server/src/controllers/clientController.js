@@ -150,7 +150,7 @@ exports.sendTestEmail = async (req, res) => {
         }
 
         if (!client.email) {
-            return res.status(400).json({ success: false, message: 'Ce client n\\'a pas d\\'adresse email configurée.' });
+            return res.status(400).json({ success: false, message: "Ce client n'a pas d'adresse email configurée." });
         }
 
         const mailService = require('../services/mailService');
@@ -159,10 +159,10 @@ exports.sendTestEmail = async (req, res) => {
         if (emailSent) {
             res.json({ success: true, message: 'Email de test envoyé avec succès.' });
         } else {
-            res.status(500).json({ success: false, message: 'Erreur lors de l\\'envoi de l\\'email. Vérifiez la configuration SMTP.' });
+            res.status(500).json({ success: false, message: "Erreur lors de l'envoi de l'email. Vérifiez la configuration SMTP." });
         }
     } catch (error) {
         console.error("Test Email Error:", error);
-        res.status(500).json({ success: false, message: 'Erreur serveur lors de l\\'envoi de l\\'email.' });
+        res.status(500).json({ success: false, message: "Erreur serveur lors de l'envoi de l'email." });
     }
 };
