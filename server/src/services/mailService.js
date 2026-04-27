@@ -39,54 +39,58 @@ const mailService = {
                 to: client.email,
                 subject: `Confirmation de votre commande #${order.id} - TIBOU AUTO`,
                 html: `
-                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
-                        <div style="background: #ffffff; padding: 20px; text-align: center; border-bottom: 2px solid #f1f5f9;">
-                            <img src="cid:logo" alt="TIBOU AUTO" style="max-height: 80px; margin-bottom: 10px;">
-                        </div>
-                        <div style="padding: 40px 30px; background: #ffffff;">
-                            <h2 style="color: #2563eb; font-size: 24px; margin-top: 0;">Bonjour ${client.firstName},</h2>
-                            <p style="font-size: 16px;">Nous avons le plaisir de vous confirmer la validation de votre commande <strong>#${order.id}</strong>.</p>
+                    <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden;">
+                            <div style="background: #1e293b; padding: 30px; text-align: center;">
+                                <div style="font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; color: #ffffff; margin: 0;">
+                                    TIBOU<span style="color: #ef4444;">AUTO</span>
+                                </div>
+                                <div style="color: #ef4444; font-size: 0.6rem; font-weight: 800; letter-spacing: 4px; margin-top: -2px; text-transform: uppercase;">CHINA CARS</div>
+                            </div>
                             
-                            <div style="background: #f8fafc; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #e2e8f0;">
-                                <h3 style="margin-top: 0; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; color: #1e293b;">Récapitulatif du Véhicule</h3>
-                                <div style="margin-top: 15px;">
-                                    <p style="margin: 8px 0;"><strong>Modèle :</strong> <span style="color: #2563eb;">${brand} ${model}</span></p>
-                                    <p style="margin: 8px 0;"><strong>Prix Total :</strong> ${order.totalAmount.toLocaleString()} ${order.currency || 'EUR'}</p>
-                                    <p style="margin: 8px 0;"><strong>Statut :</strong> <span style="display: inline-block; padding: 4px 12px; background: #dcfce7; color: #166534; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">${order.status}</span></p>
+                            <div style="padding: 40px 30px; color: #1e293b; line-height: 1.6;">
+                                <h2 style="color: #2563eb; font-size: 22px; margin-top: 0;">Bonjour ${client.firstName},</h2>
+                                <p style="font-size: 16px;">Nous avons le plaisir de vous confirmer la validation de votre commande <strong>#${order.id}</strong>.</p>
+                                
+                                <div style="background: #f8fafc; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #e2e8f0;">
+                                    <h3 style="margin-top: 0; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; color: #1e293b;">Récapitulatif du Véhicule</h3>
+                                    <div style="margin-top: 15px;">
+                                        <p style="margin: 8px 0;"><strong>Modèle :</strong> <span style="color: #2563eb;">${brand} ${model}</span></p>
+                                        <p style="margin: 8px 0;"><strong>Prix Total :</strong> ${order.totalAmount.toLocaleString()} ${order.currency || 'EUR'}</p>
+                                        <p style="margin: 8px 0;"><strong>Statut :</strong> <span style="display: inline-block; padding: 4px 12px; background: #dcfce7; color: #166534; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">${order.status}</span></p>
+                                    </div>
+                                </div>
+
+                                <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #e2e8f0;">
+                                    <h3 style="margin-top: 0; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; color: #1e293b;">Vos Informations Personnelles</h3>
+                                    <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">Merci de vérifier l'exactitude de ces informations :</p>
+                                    <div style="margin-top: 10px; font-size: 0.95rem;">
+                                        <p style="margin: 6px 0;"><strong>Nom Complet :</strong> ${client.firstName} ${client.lastName}</p>
+                                        <p style="margin: 6px 0;"><strong>Téléphone :</strong> ${client.phone || 'N/A'}</p>
+                                        <p style="margin: 6px 0;"><strong>NIN :</strong> ${client.nin || 'N/A'}</p>
+                                        <p style="margin: 6px 0;"><strong>Passeport :</strong> ${client.passportNumber || 'N/A'}</p>
+                                        <p style="margin: 6px 0;"><strong>Adresse :</strong> ${client.address || 'N/A'}</p>
+                                    </div>
+                                    <p style="margin-top: 15px; font-size: 0.85rem; color: #ef4444; font-style: italic;">* En cas d'erreur, merci de nous contacter immédiatement.</p>
+                                </div>
+
+                                <p style="font-size: 16px;">Nos équipes s'occupent dès maintenant de la préparation de votre véhicule.</p>
+                                
+                                <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
+                                    <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
                                 </div>
                             </div>
-
-                            <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #e2e8f0;">
-                                <h3 style="margin-top: 0; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; color: #1e293b;">Vos Informations Personnelles</h3>
-                                <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">Merci de vérifier l'exactitude de ces informations pour les documents administratifs :</p>
-                                <div style="margin-top: 10px; font-size: 0.95rem;">
-                                    <p style="margin: 6px 0;"><strong>Nom Complet :</strong> ${client.firstName} ${client.lastName}</p>
-                                    <p style="margin: 6px 0;"><strong>Téléphone :</strong> ${client.phone || 'N/A'}</p>
-                                    <p style="margin: 6px 0;"><strong>NIN :</strong> ${client.nin || 'N/A'}</p>
-                                    <p style="margin: 6px 0;"><strong>Passeport :</strong> ${client.passportNumber || 'N/A'}</p>
-                                    <p style="margin: 6px 0;"><strong>Adresse :</strong> ${client.address || 'N/A'}</p>
-                                </div>
-                                <p style="margin-top: 15px; font-size: 0.85rem; color: #ef4444; font-style: italic;">* En cas d'erreur, merci de nous contacter immédiatement.</p>
-                            </div>
-
-                            <p style="font-size: 16px;">Nos équipes s'occupent dès maintenant de la préparation et de l'expédition de votre véhicule. Vous recevrez des notifications automatiques à chaque étape clé de son acheminement.</p>
                             
-                            <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
-                                <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
+                            <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+                                <p style="color: #ef4444; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px; margin: 0; text-transform: uppercase;">AUTO SHOWROOM</p>
                             </div>
                         </div>
-                        <div style="text-align: center; font-size: 0.8rem; color: #94a3b8; padding: 20px;">
-                            <p style="margin: 5px 0;">TIBOU AUTO - Votre partenaire automobile de confiance</p>
-                            <p style="margin: 5px 0;">Ceci est un message automatique, merci de ne pas y répondre directement.</p>
+                        <div style="text-align: center; font-size: 0.75rem; color: #94a3b8; padding: 20px;">
+                            <p style="margin: 5px 0;">&copy; 2026 TIBOU AUTO. Tous droits réservés.</p>
                         </div>
                     </div>
-                `,
-                attachments: [{
-                    filename: 'logo.png',
-                    path: path.join(__dirname, '../../../assets/logo.png'),
-                    cid: 'logo'
-                }]
+                `
             };
 
             const info = await transporter.sendMail(mailOptions);
@@ -113,37 +117,42 @@ const mailService = {
                 to: client.email,
                 subject: `Bonne nouvelle ! Votre véhicule est en mer - #${order.id}`,
                 html: `
-                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
-                        <div style="background: #ffffff; padding: 20px; text-align: center; border-bottom: 2px solid #f1f5f9;">
-                            <img src="cid:logo" alt="TIBOU AUTO" style="max-height: 80px; margin-bottom: 10px;">
-                        </div>
-                        <div style="padding: 40px 30px; background: #ffffff;">
-                            <h2 style="color: #2563eb; font-size: 24px; margin-top: 0;">Votre véhicule est parti !</h2>
-                            <p style="font-size: 16px;">Bonjour ${client.firstName},</p>
-                            <p style="font-size: 16px;">Nous vous informons que votre véhicule <strong>${vehicle.brand} ${vehicle.model || ''}</strong> a été chargé sur le navire.</p>
-                            
-                            <div style="background: #f0f9ff; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #bae6fd;">
-                                <ul style="list-style: none; padding: 0; margin: 0;">
-                                    <li style="margin-bottom: 12px;"><strong>📅 Date de départ (ETD) :</strong> ${new Date(shipment.etd).toLocaleDateString()}</li>
-                                    <li style="margin-bottom: 12px;"><strong>🚢 Date d'arrivée estimée (ETA) :</strong> ${new Date(shipment.eta).toLocaleDateString()}</li>
-                                    <li style="margin-bottom: 0;"><strong>📍 Port de chargement :</strong> ${shipment.loadingPort || 'N/A'}</li>
-                                </ul>
+                    <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden;">
+                            <div style="background: #1e293b; padding: 30px; text-align: center;">
+                                <div style="font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; color: #ffffff; margin: 0;">
+                                    TIBOU<span style="color: #ef4444;">AUTO</span>
+                                </div>
+                                <div style="color: #ef4444; font-size: 0.6rem; font-weight: 800; letter-spacing: 4px; margin-top: -2px; text-transform: uppercase;">CHINA CARS</div>
                             </div>
                             
-                            <p style="font-size: 16px;">Vous pouvez suivre l'évolution du transport en direct sur votre espace client.</p>
+                            <div style="padding: 40px 30px; color: #1e293b; line-height: 1.6;">
+                                <h2 style="color: #2563eb; font-size: 22px; margin-top: 0;">Votre véhicule est parti !</h2>
+                                <p style="font-size: 16px;">Bonjour ${client.firstName},</p>
+                                <p style="font-size: 16px;">Nous vous informons que votre véhicule <strong>${vehicle.brand} ${vehicle.model || ''}</strong> a été chargé sur le navire.</p>
+                                
+                                <div style="background: #f0f9ff; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #bae6fd;">
+                                    <ul style="list-style: none; padding: 0; margin: 0;">
+                                        <li style="margin-bottom: 12px;"><strong>📅 Date de départ (ETD) :</strong> ${new Date(shipment.etd).toLocaleDateString()}</li>
+                                        <li style="margin-bottom: 12px;"><strong>🚢 Date d'arrivée estimée (ETA) :</strong> ${new Date(shipment.eta).toLocaleDateString()}</li>
+                                        <li style="margin-bottom: 0;"><strong>📍 Port de chargement :</strong> ${shipment.loadingPort || 'N/A'}</li>
+                                    </ul>
+                                </div>
+                                
+                                <p style="font-size: 16px;">Vous pouvez suivre l'évolution du transport en direct sur votre espace client.</p>
+                                
+                                <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
+                                    <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
+                                </div>
+                            </div>
                             
-                            <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
-                                <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
+                            <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+                                <p style="color: #ef4444; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px; margin: 0; text-transform: uppercase;">AUTO SHOWROOM</p>
                             </div>
                         </div>
                     </div>
-                `,
-                attachments: [{
-                    filename: 'logo.png',
-                    path: path.join(__dirname, '../../../assets/logo.png'),
-                    cid: 'logo'
-                }]
+                `
             };
 
             await transporter.sendMail(mailOptions);
@@ -169,34 +178,39 @@ const mailService = {
                 to: client.email,
                 subject: `Votre véhicule est arrivé au port ! - #${order.id}`,
                 html: `
-                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
-                        <div style="background: #ffffff; padding: 20px; text-align: center; border-bottom: 2px solid #f1f5f9;">
-                            <img src="cid:logo" alt="TIBOU AUTO" style="max-height: 80px; margin-bottom: 10px;">
-                        </div>
-                        <div style="padding: 40px 30px; background: #ffffff;">
-                            <h2 style="color: #10b981; font-size: 24px; margin-top: 0;">Bonne nouvelle !</h2>
-                            <p style="font-size: 16px;">Bonjour ${client.firstName},</p>
-                            <p style="font-size: 16px;">Nous avons le plaisir de vous informer que votre véhicule <strong>${vehicle.brand} ${vehicle.model || ''}</strong> est arrivé au port de destination.</p>
-                            
-                            <div style="background: #ecfdf5; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #a7f3d0;">
-                                <p style="margin: 8px 0;"><strong>Statut :</strong> <span style="color: #059669; font-weight: 600;">Arrivé au port</span></p>
-                                <p style="margin: 8px 0;"><strong>Port :</strong> ${shipment.destination || 'Destination'}</p>
+                    <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden;">
+                            <div style="background: #1e293b; padding: 30px; text-align: center;">
+                                <div style="font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; color: #ffffff; margin: 0;">
+                                    TIBOU<span style="color: #ef4444;">AUTO</span>
+                                </div>
+                                <div style="color: #ef4444; font-size: 0.6rem; font-weight: 800; letter-spacing: 4px; margin-top: -2px; text-transform: uppercase;">CHINA CARS</div>
                             </div>
-
-                            <p style="font-size: 16px;">Nos équipes vont maintenant procéder aux formalités de dédouanement. Nous vous contacterons très prochainement pour organiser la livraison finale.</p>
                             
-                            <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
-                                <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
+                            <div style="padding: 40px 30px; color: #1e293b; line-height: 1.6;">
+                                <h2 style="color: #10b981; font-size: 22px; margin-top: 0;">Bonne nouvelle !</h2>
+                                <p style="font-size: 16px;">Bonjour ${client.firstName},</p>
+                                <p style="font-size: 16px;">Nous avons le plaisir de vous informer que votre véhicule <strong>${vehicle.brand} ${vehicle.model || ''}</strong> est arrivé au port de destination.</p>
+                                
+                                <div style="background: #ecfdf5; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #a7f3d0;">
+                                    <p style="margin: 8px 0;"><strong>Statut :</strong> <span style="color: #059669; font-weight: 600;">Arrivé au port</span></p>
+                                    <p style="margin: 8px 0;"><strong>Port :</strong> ${shipment.destination || 'Destination'}</p>
+                                </div>
+
+                                <p style="font-size: 16px;">Nos équipes vont maintenant procéder aux formalités de dédouanement. Nous vous contacterons très prochainement pour organiser la livraison finale.</p>
+                                
+                                <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
+                                    <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
+                                </div>
+                            </div>
+                            
+                            <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+                                <p style="color: #ef4444; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px; margin: 0; text-transform: uppercase;">AUTO SHOWROOM</p>
                             </div>
                         </div>
                     </div>
-                `,
-                attachments: [{
-                    filename: 'logo.png',
-                    path: path.join(__dirname, '../../../assets/logo.png'),
-                    cid: 'logo'
-                }]
+                `
             };
 
             await transporter.sendMail(mailOptions);
@@ -222,33 +236,38 @@ const mailService = {
                 to: client.email,
                 subject: `Test de communication - TIBOU AUTO`,
                 html: `
-                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
-                        <div style="background: #ffffff; padding: 20px; text-align: center; border-bottom: 2px solid #f1f5f9;">
-                            <img src="cid:logo" alt="TIBOU AUTO" style="max-height: 80px; margin-bottom: 10px;">
-                        </div>
-                        <div style="padding: 40px 30px; background: #ffffff;">
-                            <h2 style="color: #3b82f6; font-size: 24px; margin-top: 0;">Message de test</h2>
-                            <p style="font-size: 16px;">Bonjour ${client.firstName},</p>
-                            <p style="font-size: 16px;">Ce message est un email de test envoyé depuis le système TIBOU AUTO pour s'assurer que nous pouvons bien communiquer avec vous.</p>
-                            
-                            <div style="background: #eff6ff; padding: 20px; border-radius: 12px; margin: 30px 0; border: 1px solid #dbeafe; text-align: center;">
-                                <p style="margin: 0; color: #1e40af; font-weight: 600; font-size: 16px;">✓ Votre adresse email est bien configurée.</p>
+                    <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden;">
+                            <div style="background: #1e293b; padding: 30px; text-align: center;">
+                                <div style="font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; color: #ffffff; margin: 0;">
+                                    TIBOU<span style="color: #ef4444;">AUTO</span>
+                                </div>
+                                <div style="color: #ef4444; font-size: 0.6rem; font-weight: 800; letter-spacing: 4px; margin-top: -2px; text-transform: uppercase;">CHINA CARS</div>
                             </div>
-
-                            <p style="font-size: 16px;">Si vous avez reçu ce message, vous n'avez rien de plus à faire.</p>
                             
-                            <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
-                                <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
+                            <div style="padding: 40px 30px; color: #1e293b; line-height: 1.6;">
+                                <h2 style="color: #3b82f6; font-size: 22px; margin-top: 0;">Message de test</h2>
+                                <p style="font-size: 16px;">Bonjour ${client.firstName},</p>
+                                <p style="font-size: 16px;">Ce message est un email de test envoyé depuis le système TIBOU AUTO pour s'assurer que nous pouvons bien communiquer avec vous.</p>
+                                
+                                <div style="background: #eff6ff; padding: 20px; border-radius: 12px; margin: 30px 0; border: 1px solid #dbeafe; text-align: center;">
+                                    <p style="margin: 0; color: #1e40af; font-weight: 600; font-size: 16px;">✓ Votre adresse email est bien configurée.</p>
+                                </div>
+
+                                <p style="font-size: 16px;">Si vous avez reçu ce message, vous n'avez rien de plus à faire.</p>
+                                
+                                <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
+                                    <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
+                                </div>
+                            </div>
+                            
+                            <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+                                <p style="color: #ef4444; font-weight: bold; font-size: 0.75rem; letter-spacing: 2px; margin: 0; text-transform: uppercase;">AUTO SHOWROOM</p>
                             </div>
                         </div>
                     </div>
-                `,
-                attachments: [{
-                    filename: 'logo.png',
-                    path: path.join(__dirname, '../../../assets/logo.png'),
-                    cid: 'logo'
-                }]
+                `
             };
 
             await transporter.sendMail(mailOptions);
