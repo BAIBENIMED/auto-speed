@@ -11,5 +11,6 @@ router.post('/', ordersController.create);
 router.put('/:id', ordersController.update);
 router.delete('/:id', ordersController.delete);
 router.patch('/:id/validate', ordersController.validate);
+router.patch('/:id/resend-confirmation', ordersController.resendConfirmation);
 
 module.exports = router;

@@ -225,6 +225,34 @@ const ordersController = {
         } catch (error) {
             res.status(500).json({ success: false, message: 'Erreur lors de la validation' });
         }
+    },
+
+    resendConfirmation: async (req, res) => {
+        try {
+            const fullOrder = await Order.findByPk(req.params.id, {
+                include: [{ model: Client, as: 'client' }, { model: Vehicle, as: 'Vehicles' }]
+            });
+
+            if (!fullOrder) {
+                return res.status(404).json({ success: false, message: 'Commande non trouvée' });
+            }
+
+            if (!fullOrder.client || !fullOrder.client.email) {
+                return res.status(400).json({ success: false, message: 'Le client n\'a pas d\'adresse email renseignée' });
+            }
+
+            const vehicle = fullOrder.Vehicles && fullOrder.Vehicles.length > 0 ? fullOrder.Vehicles[0] : null;
+            const sent = await mailService.sendOrderConfirmation(fullOrder, fullOrder.client, vehicle);
+
+            if (sent) {
+                res.json({ success: true, message: 'Email de confirmation renvoyé avec succès' });
+            } else {
+                res.status(500).json({ success: false, message: 'Échec de l\'envoi de l'email (vérifiez votre configuration SMTP)' });
+            }
+        } catch (error) {
+            console.error('Error resending confirmation:', error);
+            res.status(500).json({ success: false, message: 'Erreur lors du renvoi de l\'email' });
+        }
     }
 };
 

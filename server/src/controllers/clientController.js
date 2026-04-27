@@ -134,3 +134,35 @@ exports.delete = async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 };
+
+exports.sendTestEmail = async (req, res) => {
+    try {
+        // Optionnel : Restreindre l'accès à l'administrateur
+        // if (req.user && req.user.roleId !== 'admin') {
+        //    return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+        // }
+
+        const { id } = req.params;
+        const client = await Client.findByPk(id);
+
+        if (!client) {
+            return res.status(404).json({ success: false, message: 'Client non trouvé.' });
+        }
+
+        if (!client.email) {
+            return res.status(400).json({ success: false, message: 'Ce client n\\'a pas d\\'adresse email configurée.' });
+        }
+
+        const mailService = require('../services/mailService');
+        const emailSent = await mailService.sendTestEmail(client);
+
+        if (emailSent) {
+            res.json({ success: true, message: 'Email de test envoyé avec succès.' });
+        } else {
+            res.status(500).json({ success: false, message: 'Erreur lors de l\\'envoi de l\\'email. Vérifiez la configuration SMTP.' });
+        }
+    } catch (error) {
+        console.error("Test Email Error:", error);
+        res.status(500).json({ success: false, message: 'Erreur serveur lors de l\\'envoi de l\\'email.' });
+    }
+};

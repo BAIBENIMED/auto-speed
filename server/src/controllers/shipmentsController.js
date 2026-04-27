@@ -273,9 +273,10 @@ const shipmentsController = {
                 if (updateData.status) {
                     await syncShipmentStatusToOrders(shipment.id, updateData.status);
 
-                    // --- AUTOMATION: Send Departure Emails ---
+                    // --- AUTOMATION: Send Emails based on Status ---
                     const lowerStatus = updateData.status.toLowerCase();
                     if (lowerStatus.includes('transit') || lowerStatus.includes('mer') || lowerStatus.includes('route')) {
+                        // ... existing departure logic ...
                         (async () => {
                             try {
                                 const vehiclesInShipment = await Vehicle.findAll({
@@ -290,6 +291,24 @@ const shipmentsController = {
                                 }
                             } catch (err) {
                                 console.error('Error sending automated shipment emails:', err);
+                            }
+                        })();
+                    } else if (lowerStatus.includes('arriv') || lowerStatus.includes('port') || lowerStatus.includes('décharg')) {
+                        // --- AUTOMATION: Send Arrival Emails ---
+                        (async () => {
+                            try {
+                                const vehiclesInShipment = await Vehicle.findAll({
+                                    where: { shipmentId: shipment.id },
+                                    include: [{ model: Order, as: 'order', include: [{ model: Client, as: 'client' }] }]
+                                });
+
+                                for (const v of vehiclesInShipment) {
+                                    if (v.order && v.order.client && v.order.client.email) {
+                                        await mailService.sendVehicleArrival(v.order, v.order.client, v, updateData);
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('Error sending automated arrival emails:', err);
                             }
                         })();
                     }
@@ -308,7 +327,7 @@ const shipmentsController = {
             // Reload shipment to get updated data
             await shipment.reload();
 
-            // --- AUTOMATION: Send Departure Emails (Voyage Path) ---
+            // --- AUTOMATION: Send Emails (Voyage Path) ---
             if (shipment.status) {
                 const lowerStatus = shipment.status.toLowerCase();
                 if (lowerStatus.includes('transit') || lowerStatus.includes('mer') || lowerStatus.includes('route')) {
@@ -326,6 +345,23 @@ const shipmentsController = {
                             }
                         } catch (err) {
                             console.error('Error sending automated voyage departure emails:', err);
+                        }
+                    })();
+                } else if (lowerStatus.includes('arriv') || lowerStatus.includes('port') || lowerStatus.includes('décharg')) {
+                    (async () => {
+                        try {
+                            const vehiclesInShipment = await Vehicle.findAll({
+                                where: { shipmentId: shipment.id },
+                                include: [{ model: Order, as: 'order', include: [{ model: Client, as: 'client' }] }]
+                            });
+
+                            for (const v of vehiclesInShipment) {
+                                if (v.order && v.order.client && v.order.client.email) {
+                                    await mailService.sendVehicleArrival(v.order, v.order.client, v, shipment);
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Error sending automated voyage arrival emails:', err);
                         }
                     })();
                 }

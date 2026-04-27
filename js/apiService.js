@@ -84,6 +84,7 @@ const ApiService = {
     createClient: (data) => ApiService.request('/clients', { method: 'POST', body: data }),
     updateClient: (id, data) => ApiService.request(`/clients/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
     deleteClient: (id) => ApiService.request(`/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    sendClientTestEmail: (id) => ApiService.request(`/clients/${encodeURIComponent(id)}/test-email`, { method: 'POST' }),
 
     // Vehicles
     getVehicles: (archived) => ApiService.request(`/vehicles${archived !== undefined ? `?archived=${archived}` : ''}`),
@@ -104,6 +105,7 @@ const ApiService = {
     updateOrder: (id, data) => ApiService.request(`/orders/${encodeURIComponent(id)}`, { method: 'PUT', body: data }),
     deleteOrder: (id) => ApiService.request(`/orders/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     validateOrder: (id) => ApiService.request(`/orders/${encodeURIComponent(id)}/validate`, { method: 'PATCH' }),
+    resendOrderConfirmation: (id) => ApiService.request(`/orders/${encodeURIComponent(id)}/resend-confirmation`, { method: 'PATCH' }),
 
     // Shipments
     getShipments: (archived) => ApiService.request(`/shipments${archived !== undefined ? `?archived=${archived}` : ''}`),

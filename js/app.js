@@ -396,6 +396,62 @@ const app = {
         }
     },
 
+    async resendOrderConfirmationEmail(id, btnElement) {
+        if (!confirm('Voulez-vous renvoyer l\\'email de confirmation à ce client ?')) return;
+        
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi...';
+        btnElement.disabled = true;
+
+        try {
+            const response = await ApiService.resendOrderConfirmation(id);
+            if (response.success) {
+                this.showToast('Email renvoyé avec succès', 'success');
+                btnElement.innerHTML = '<i class="fas fa-check"></i> Envoyé';
+                btnElement.style.color = 'var(--success)';
+                btnElement.style.borderColor = 'var(--success)';
+                btnElement.style.background = 'rgba(34, 197, 94, 0.1)';
+            } else {
+                this.showToast(response.message || 'Erreur lors du renvoi', 'error');
+                btnElement.innerHTML = originalHtml;
+                btnElement.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error resending email:', error);
+            this.showToast('Erreur serveur lors du renvoi de l\\'email', 'error');
+            btnElement.innerHTML = originalHtml;
+            btnElement.disabled = false;
+        }
+    },
+
+    async sendTestEmail(clientId, btnElement) {
+        if (!confirm('Voulez-vous envoyer un email de test à ce client ?')) return;
+        
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi...';
+        btnElement.disabled = true;
+
+        try {
+            const response = await ApiService.sendClientTestEmail(clientId);
+            if (response.success) {
+                this.showToast('Email de test envoyé avec succès', 'success');
+                btnElement.innerHTML = '<i class="fas fa-check"></i> Envoyé';
+                btnElement.style.color = 'var(--success)';
+                btnElement.style.borderColor = 'var(--success)';
+                btnElement.style.background = 'rgba(34, 197, 94, 0.1)';
+            } else {
+                this.showToast(response.message || 'Erreur lors de l\\'envoi', 'error');
+                btnElement.innerHTML = originalHtml;
+                btnElement.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error sending test email:', error);
+            this.showToast('Erreur serveur lors de l\\'envoi de l\\'email', 'error');
+            btnElement.innerHTML = originalHtml;
+            btnElement.disabled = false;
+        }
+    },
+
     async validateOrder(id) {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS);
         const order = orders.find(o => o.id === id);
@@ -1056,7 +1112,11 @@ const app = {
                             <div class="details-section">
                                 <h3><i class="fas fa-user"></i> Informations Client</h3>
                                 <p><strong>Nom:</strong> ${order.clientName || (client ? `${client.firstName} ${client.lastName}` : 'Client Inconnu')}</p>
-                                <p><strong>Email:</strong> ${client ? `<a href="mailto:${client.email}" style="color: var(--primary); text-decoration: underline;">${client.email}</a>` : 'N/A'}</p>
+                                <p style="display: flex; align-items: center; gap: 10px;">
+                                    <strong>Email:</strong> 
+                                    ${client ? `<a href="mailto:${client.email}" style="color: var(--primary); text-decoration: underline;">${client.email}</a> 
+                                    <button class="btn-action" style="font-size: 0.7rem; padding: 2px 8px; margin-left: 5px; color: #3b82f6; border: 1px solid #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 4px;" onclick="app.resendOrderConfirmationEmail('${order.id}', this)" title="Renvoyer confirmation par mail"><i class="fas fa-paper-plane"></i> Envoyer Conf.</button>` : 'N/A'}
+                                </p>
                                 <p><strong>Téléphone:</strong> ${client ? client.phone : 'N/A'}</p>
                                 <p><strong>Passeport:</strong> ${client ? (client.passportNumber || 'N/A') : 'N/A'} ${client && client.passportDriveLink ? `<a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</p>
                             </div>
@@ -3533,6 +3593,11 @@ const app = {
                             <div>
                                 <h2 style="margin: 0;">${client.firstName} ${client.lastName}</h2>
                                 <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-hashtag"></i> ${client.reference || 'Sans réf'} | <i class="fas fa-store"></i> ${client.showroom || 'Showroom Principal'}</span>
+                                ${client.email ? `
+                                <div style="margin-top: 5px; display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-envelope"></i> ${client.email}</span>
+                                    <button class="btn-action" style="font-size: 0.7rem; padding: 2px 8px; color: #3b82f6; border: 1px solid #3b82f6; background: rgba(59, 130, 246, 0.1); border-radius: 4px;" onclick="app.sendTestEmail('${client.id}', this)" title="Envoyer un email de test"><i class="fas fa-paper-plane"></i> Tester l\\'email</button>
+                                </div>` : ''}
                             </div>
                         </div>
                         <button class="btn-close" onclick="app.closeModal()">&times;</button>
