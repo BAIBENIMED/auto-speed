@@ -272,6 +272,27 @@ const shipmentsController = {
                 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
                 if (updateData.status) {
                     await syncShipmentStatusToOrders(shipment.id, updateData.status);
+
+                    // --- AUTOMATION: Send Departure Emails ---
+                    const lowerStatus = updateData.status.toLowerCase();
+                    if (lowerStatus.includes('transit') || lowerStatus.includes('mer') || lowerStatus.includes('route')) {
+                        (async () => {
+                            try {
+                                const vehiclesInShipment = await Vehicle.findAll({
+                                    where: { shipmentId: shipment.id },
+                                    include: [{ model: Order, as: 'order', include: [{ model: Client, as: 'client' }] }]
+                                });
+
+                                for (const v of vehiclesInShipment) {
+                                    if (v.order && v.order.client && v.order.client.email) {
+                                        await mailService.sendShipmentDeparture(v.order, v.order.client, v, updateData);
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('Error sending automated shipment emails:', err);
+                            }
+                        })();
+                    }
                 }
 
                 return res.json({ success: true, message: 'Tracking individuel mis à jour', data: result });
@@ -286,6 +307,29 @@ const shipmentsController = {
 
             // Reload shipment to get updated data
             await shipment.reload();
+
+            // --- AUTOMATION: Send Departure Emails (Voyage Path) ---
+            if (shipment.status) {
+                const lowerStatus = shipment.status.toLowerCase();
+                if (lowerStatus.includes('transit') || lowerStatus.includes('mer') || lowerStatus.includes('route')) {
+                    (async () => {
+                        try {
+                            const vehiclesInShipment = await Vehicle.findAll({
+                                where: { shipmentId: shipment.id },
+                                include: [{ model: Order, as: 'order', include: [{ model: Client, as: 'client' }] }]
+                            });
+
+                            for (const v of vehiclesInShipment) {
+                                if (v.order && v.order.client && v.order.client.email) {
+                                    await mailService.sendShipmentDeparture(v.order, v.order.client, v, shipment);
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Error sending automated voyage departure emails:', err);
+                        }
+                    })();
+                }
+            }
 
             res.json({ success: true, message: 'Tracking voyage actualisé avec succès', data: shipment });
 
