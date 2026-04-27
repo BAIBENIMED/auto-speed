@@ -88,7 +88,6 @@ const mailService = {
                     cid: 'logo'
                 }]
             };
-            };
 
             const info = await transporter.sendMail(mailOptions);
             console.log('Order confirmation email sent: ' + info.messageId);
