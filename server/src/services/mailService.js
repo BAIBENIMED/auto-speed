@@ -56,6 +56,19 @@ const mailService = {
                                 </div>
                             </div>
 
+                            <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #e2e8f0;">
+                                <h3 style="margin-top: 0; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; color: #1e293b;">Vos Informations Personnelles</h3>
+                                <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">Merci de vérifier l'exactitude de ces informations pour les documents administratifs :</p>
+                                <div style="margin-top: 10px; font-size: 0.95rem;">
+                                    <p style="margin: 6px 0;"><strong>Nom Complet :</strong> ${client.firstName} ${client.lastName}</p>
+                                    <p style="margin: 6px 0;"><strong>Téléphone :</strong> ${client.phone || 'N/A'}</p>
+                                    <p style="margin: 6px 0;"><strong>NIN :</strong> ${client.nin || 'N/A'}</p>
+                                    <p style="margin: 6px 0;"><strong>Passeport :</strong> ${client.passportNumber || 'N/A'}</p>
+                                    <p style="margin: 6px 0;"><strong>Adresse :</strong> ${client.address || 'N/A'}</p>
+                                </div>
+                                <p style="margin-top: 15px; font-size: 0.85rem; color: #ef4444; font-style: italic;">* En cas d'erreur, merci de nous contacter immédiatement.</p>
+                            </div>
+
                             <p style="font-size: 16px;">Nos équipes s'occupent dès maintenant de la préparation et de l'expédition de votre véhicule. Vous recevrez des notifications automatiques à chaque étape clé de son acheminement.</p>
                             
                             <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
