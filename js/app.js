@@ -5153,249 +5153,6 @@ const app = {
         }
     },
 
-    renderBrandsSection(brands) {
-        brands = brands || [];
-        return `
-                <div class="settings-section">
-                    <h3><i class="fas fa-copyright"></i> Marques de Véhicules</h3>
-                    <div class="config-grid" id="config-brands-raw">
-                        ${brands.map(brand => `
-                            <div class="config-item glass" style="display: flex; align-items: center; justify-content: space-between;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    ${brand.logo ? `<img src="${brand.logo}" style="width: 24px; height: 24px; object-fit: contain;">` : '<i class="fas fa-car"></i>'}
-                                    <span>${brand.name}</span>
-                                </div>
-                                <div style="display: flex; gap: 5px;">
-                                    <button type="button" class="btn-icon-small" onclick="app.editBrand('${brand.id}')">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button type="button" class="btn-icon-small danger" onclick="app.removeBrand('${brand.id}')">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div class="add-config-form">
-                        <input type="text" id="new-brand-input" placeholder="Ajouter une marque..." class="glass-input">
-                        <button type="button" class="btn-primary" onclick="app.addBrand()">Ajouter</button>
-                    </div>
-                </div>
-            `;
-    },
-
-    renderShowroomSection(showrooms) {
-        showrooms = showrooms || [];
-        return `
-                <div class="settings-section">
-                    <h3><i class="fas fa-store"></i> Showrooms</h3>
-                    <div class="config-grid" id="config-showrooms-raw">
-                        ${showrooms.map(room => `
-                            <div class="config-item glass">
-                                <div>
-                                    <strong>${room.name}</strong>
-                                    <div style="font-size: 0.8em; color: var(--text-dim);">${room.address || ''}</div>
-                                </div>
-                                <div style="display: flex; gap: 5px;">
-                                    <button type="button" class="btn-icon-small" onclick="app.editShowroom('${room.id}')">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button type="button" class="btn-icon-small danger" onclick="app.removeShowroom('${room.id}')">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                     <div class="add-config-form">
-                        <input type="text" id="new-showroom-input" placeholder="Nouveau showroom..." class="glass-input">
-                        <button type="button" class="btn-primary" onclick="app.addShowroom()">Ajouter</button>
-                    </div>
-                </div>
-            `;
-    },
-
-    async addBrand() {
-        const input = document.getElementById('new-brand-input');
-        const name = input.value.trim();
-        if (!name) return;
-
-        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-        if (brands.some(b => b.name.toLowerCase() === name.toLowerCase())) {
-            this.showToast('Cette marque existe déjà', 'warning');
-            return;
-        }
-
-        const newBrand = { name: name };
-        await StorageService.add(STORAGE_KEYS.BRANDS_RAW, newBrand);
-
-        // Sync legacy BRANDS list (optional but kept for internal logic)
-        const legacyBrands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-        if (!legacyBrands.includes(name)) {
-            legacyBrands.push(name);
-            localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(legacyBrands));
-        }
-
-        this.renderSettings();
-        this.showToast('Marque ajoutée', 'success');
-        input.value = '';
-    },
-
-    async removeBrand(id) {
-        if (!confirm('Supprimer cette marque ?')) return;
-        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-        const brand = brands.find(b => b.id === id);
-
-        if (brand) {
-            const brandName = brand.name;
-            await StorageService.delete(STORAGE_KEYS.BRANDS_RAW, id);
-
-            // Update legacy
-            const legacyBrands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-            const legacyIndex = legacyBrands.indexOf(brandName);
-            if (legacyIndex > -1) {
-                legacyBrands.splice(legacyIndex, 1);
-                localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(legacyBrands));
-            }
-
-            this.renderSettings();
-            this.showToast('Marque supprimée', 'info');
-        }
-    },
-
-    async editBrand(id) {
-        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-        const brand = brands.find(b => b.id === id);
-        if (!brand) return;
-
-        const newName = prompt('Nouveau nom:', brand.name);
-        if (newName && newName !== brand.name) {
-            const oldName = brand.name;
-            brand.name = newName;
-            await StorageService.update(STORAGE_KEYS.BRANDS_RAW, id, brand);
-
-            // Update legacy
-            const legacyBrands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-            const idx = legacyBrands.indexOf(oldName);
-            if (idx > -1) {
-                legacyBrands[idx] = newName;
-                localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(legacyBrands));
-            }
-
-            this.renderSettings();
-            this.showToast('Marque modifiée', 'success');
-        }
-    },
-
-    async addShowroom() {
-        const input = document.getElementById('new-showroom-input');
-        const name = input.value.trim();
-        if (!name) return;
-
-        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-        if (showrooms.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-            this.showToast('Ce showroom existe déjà', 'warning');
-            return;
-        }
-
-        const newRoom = { name: name };
-        await StorageService.add(STORAGE_KEYS.SHOWROOMS_RAW, newRoom);
-
-        // Sync legacy
-        const legacy = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-        if (!legacy.includes(name)) {
-            legacy.push(name);
-            localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(legacy));
-        }
-
-        this.renderSettings();
-        this.showToast('Showroom ajouté', 'success');
-        input.value = '';
-    },
-
-    async removeShowroom(id) {
-        if (!confirm('Supprimer ce showroom ?')) return;
-        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-        const showroom = showrooms.find(s => s.id === id);
-
-        if (showroom) {
-            const name = showroom.name;
-            await StorageService.delete(STORAGE_KEYS.SHOWROOMS_RAW, id);
-
-            // Sync legacy
-            const legacy = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-            const lIdx = legacy.indexOf(name);
-            if (lIdx > -1) {
-                legacy.splice(lIdx, 1);
-                localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(legacy));
-            }
-
-            this.renderSettings();
-            this.showToast('Showroom supprimé', 'info');
-        }
-    },
-
-    async editShowroom(id) {
-        const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS_RAW) || [];
-        const room = showrooms.find(s => s.id === id);
-        if (!room) return;
-
-        const newName = prompt('Nouveau nom:', room.name);
-        if (newName && newName !== room.name) {
-            const oldName = room.name;
-            room.name = newName;
-            await StorageService.update(STORAGE_KEYS.SHOWROOMS_RAW, id, room);
-
-            // Update legacy
-            const legacy = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
-            const idx = legacy.indexOf(oldName);
-            if (idx > -1) {
-                legacy[idx] = newName;
-                localStorage.setItem(STORAGE_KEYS.SHOWROOMS, JSON.stringify(legacy));
-            }
-
-            this.renderSettings();
-            this.showToast('Showroom modifié', 'success');
-        }
-    },
-
-    renderBrandModelsSection() {
-        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-        const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
-
-        return `
-                <div class="settings-section">
-                    <h3><i class="fas fa-list"></i> Modèles par Marque</h3>
-                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                        ${brands.map(brand => {
-            const models = brandModels[brand] || [];
-            return `
-                                <div class="brand-models-container" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-                                    <h4 style="margin-bottom: 0.75rem; color: var(--primary); font-size: 0.95rem;">
-                                        <i class="fas fa-car"></i> ${brand}
-                                    </h4>
-                                    <div class="config-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; margin-bottom: 0.75rem;">
-                                        ${models.map(model => `
-                                            <div class="config-item glass" style="padding: 0.5rem; font-size: 0.85rem;">
-                                                <span>${model}</span>
-                                                <button type="button" class="btn-icon-small danger" onclick="app.removeBrandModel('${brand.replace(/'/g, "\\'")}', '${model.replace(/'/g, "\\'")}')">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                    <div class="add-config-form" style="display: flex; gap: 0.5rem;">
-                                        <input type="text" id="input-model-${brand.replace(/\s/g, '_')}" placeholder="Ajouter un modèle..." class="glass-input" style="flex: 1;" autocomplete="off">
-                                        <button type="button" class="btn-primary" onclick="app.addBrandModel('${brand.replace(/'/g, "\\'")}')">Ajouter</button>
-                                    </div>
-                                </div>
-                            `;
-        }).join('')}
-                    </div>
-                </div>
-            `;
-    },
-
     deleteVehicle(id) {
         this.showConfirmModal('Supprimer ce véhicule ?', async () => {
             try {
@@ -5436,94 +5193,6 @@ const app = {
                 this.showToast('Erreur lors de la suppression', 'error');
             }
         });
-    },
-
-    async addBrandModel(brandName) {
-        // Find brand ID
-        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-        const brandObj = brands.find(b => b.name === brandName);
-
-        if (!brandObj) {
-            this.showToast('Erreur: Marque non trouvée', 'error');
-            return;
-        }
-
-        const input = document.getElementById(`input-model-${brandName.replace(/\s/g, '_')}`);
-        const modelName = input.value.trim();
-
-        if (!modelName) return;
-
-        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-        if (!brandModels[brandName]) brandModels[brandName] = [];
-
-        if (brandModels[brandName].includes(modelName)) {
-            this.showToast(`Ce modèle existe déjà pour ${brandName}`, 'warning');
-            return;
-        }
-
-        try {
-            const res = await ApiService.addVehicleModel(brandObj.id, { name: modelName });
-            if (res.success) {
-                // Update local cache
-                brandModels[brandName].push(modelName);
-
-                // Also update the full brands object if needed, but BRAND_MODELS is the main source for this view
-                // We should definitely update BRANDS_RAW models list too
-                if (brandObj.models) brandObj.models.push(res.data);
-                else brandObj.models = [res.data];
-
-                localStorage.setItem(STORAGE_KEYS.BRANDS_RAW, JSON.stringify(brands));
-                localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
-
-                this.renderSettings();
-                this.showToast(`Modèle "${modelName}" ajouté à ${brandName}`, 'success');
-            } else {
-                this.showToast(res.message || 'Erreur lors de l\'ajout', 'error');
-            }
-        } catch (error) {
-            console.error(error);
-            this.showToast('Erreur serveur', 'error');
-        }
-    },
-
-    async removeBrandModel(brandName, modelName) {
-        // Find brand ID and Model ID
-        const brands = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
-        const brandObj = brands.find(b => b.name === brandName);
-
-        if (!brandObj) return;
-
-        // We need the model ID. It's in brandObj.models
-        const modelObj = (brandObj.models || []).find(m => m.name === modelName);
-
-        if (!modelObj) {
-            // Fallback: if we only have names in cache (migrated data), we might not have IDs easily 
-            // but BRANDS_RAW should be fully populated by syncAll.
-            console.warn('Model ID not found locally for deletion');
-            this.showToast('Erreur: impossible de trouver l\'ID du modèle', 'error');
-            return;
-        }
-
-        try {
-            const res = await ApiService.deleteVehicleModel(modelObj.id);
-            if (res.success) {
-                const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-                if (brandModels[brandName]) {
-                    brandModels[brandName] = brandModels[brandName].filter(m => m !== modelName);
-                    localStorage.setItem(STORAGE_KEYS.BRAND_MODELS, JSON.stringify(brandModels));
-                }
-
-                // Update BRANDS_RAW
-                brandObj.models = brandObj.models.filter(m => m.id !== modelObj.id);
-                localStorage.setItem(STORAGE_KEYS.BRANDS_RAW, JSON.stringify(brands));
-
-                this.renderSettings();
-                this.showToast(`Modèle "${modelName}" supprimé`, 'info');
-            }
-        } catch (error) {
-            console.error(error);
-            this.showToast('Erreur serveur lors de la suppression', 'error');
-        }
     },
 
     async addConfigItem(type) {
@@ -13592,8 +13261,7 @@ const app = {
         `;
     },
 
-    manageModels(brand) {
-        // Find brand in BRANDS_RAW to get its ID
+    async manageModels(brand) {
         const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
         const brandObj = brandsRaw.find(b => b.name === brand);
 
@@ -13601,8 +13269,111 @@ const app = {
             return this.showToast("Erreur: Marque introuvable.", "error");
         }
 
-        // Use the existing logic or placeholder
-        alert("Gestion détaillée des modèles pour " + brand + " (ID: " + brandObj.id + ") à venir.\nEn attendant, vous pouvez ajouter des modèles via le champ 'Ajouter un modèle' ci-dessous dans la vue Configuration.");
+        const models = brandObj.models || [];
+
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 450px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-car"></i> Modèles : ${brand}</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 8px; display: block;">Ajouter un nouveau modèle</label>
+                            <div class="add-config-form" style="display: flex; gap: 10px;">
+                                <input type="text" id="modal-new-model-name" placeholder="Ex: RS6, Golf 8, Q7..." class="glass-input" style="flex: 1;">
+                                <button class="btn-primary" onclick="app.addNewModelFromModal('${brandObj.id}', '${brand.replace(/'/g, "\\'")}')">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div style="border-top: 1px solid var(--border-glass); padding-top: 15px;">
+                            <label style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px; display: block;">Modèles existants (${models.length})</label>
+                            <div id="modal-model-list" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px;">
+                                ${models.length > 0 ? models.map(m => `
+                                    <div class="config-item glass" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: rgba(255,255,255,0.03);">
+                                        <span style="font-weight: 500;">${m.name}</span>
+                                        <button class="btn-icon-small danger" onclick="app.removeModelFromModal('${m.id}', '${brand.replace(/'/g, "\\'")}')" title="Supprimer">
+                                            <i class="fas fa-trash-alt" style="font-size: 0.8rem;"></i>
+                                        </button>
+                                    </div>
+                                `).join('') : `
+                                    <div style="text-align: center; padding: 30px 10px; color: var(--text-dim);">
+                                        <i class="fas fa-info-circle" style="display: block; font-size: 1.5rem; margin-bottom: 10px; opacity: 0.3;"></i>
+                                        <p>Aucun modèle enregistré pour cette marque.</p>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        this.closeModal();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Focus input
+        setTimeout(() => {
+            const input = document.getElementById('modal-new-model-name');
+            if (input) input.focus();
+        }, 100);
+    },
+
+    async addNewModelFromModal(brandId, brandName) {
+        const input = document.getElementById('modal-new-model-name');
+        const name = input.value.trim();
+        if (!name) return;
+
+        try {
+            // Find the button to show loading state
+            const btn = document.querySelector('.modal-body .btn-primary');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            const res = await ApiService.addVehicleModel(brandId, { name });
+            if (res.success) {
+                this.showToast(`Modèle "${name}" ajouté`, "success");
+                await StorageService.syncAll();
+                // Re-render modal to show new list
+                this.manageModels(brandName);
+                // Refresh settings in background if visible
+                if (this.currentView === 'settings') this.renderSettings();
+            } else {
+                this.showToast(res.message || "Erreur lors de l'ajout", "error");
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur serveur", "error");
+        }
+    },
+
+    async removeModelFromModal(modelId, brandName) {
+        if (!confirm("Voulez-vous vraiment supprimer ce modèle ?")) return;
+
+        try {
+            const res = await ApiService.deleteVehicleModel(modelId);
+            if (res.success) {
+                this.showToast("Modèle supprimé", "info");
+                await StorageService.syncAll();
+                this.manageModels(brandName);
+                if (this.currentView === 'settings') this.renderSettings();
+            } else {
+                this.showToast(res.message || "Erreur lors de la suppression", "error");
+            }
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur serveur", "error");
+        }
     },
 
     showShipmentMap(shipmentId) {
