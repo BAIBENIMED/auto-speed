@@ -29,14 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
         loader.style.display = 'block';
 
         try {
-            const response = await fetch(`/api/public/track/${id}`);
+            const response = await fetch(`/api/public/track?id=${encodeURIComponent(id)}`);
             const result = await response.json();
 
             if (result.success) {
                 updateUI(result.data);
                 content.style.display = 'block';
                 // Update URL without reloading
-                window.history.pushState({}, '', `?id=${id}`);
+                window.history.pushState({}, '', `?id=${encodeURIComponent(id)}`);
             } else {
                 content.style.display = 'none';
                 errorMsg.style.display = 'block';

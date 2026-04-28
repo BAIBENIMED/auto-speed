@@ -2,10 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { Order, Vehicle, Shipment, Client } = require('../models');
 
-// Public tracking endpoint
-router.get('/track/:orderId', async (req, res) => {
+// Public tracking endpoint - uses query param to avoid issues with IDs containing slashes
+router.get('/track', async (req, res) => {
     try {
-        const { orderId } = req.params;
+        const orderId = req.query.id;
+        if (!orderId) {
+            return res.status(400).json({ success: false, message: 'Numéro de commande manquant' });
+        }
         console.log(`[PublicTracking] Request for Order: ${orderId}`);
 
         // Find order with associated data
