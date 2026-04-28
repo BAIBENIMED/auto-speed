@@ -298,6 +298,14 @@ app.get('/api/migrate-po', async (req, res) => {
             }
         }
 
+        logs.push('✅ Migration completed successfully!');
+        res.json({ success: true, logs });
+    } catch (error) {
+        console.error('Migration failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Endpoint temporaire pour renommer JOON/003 -> JOON/001 (Sans Shell)
 app.get('/api/rename-po-fix', async (req, res) => {
     const oldId = 'CMD/2026/JOON/003';
@@ -326,13 +334,6 @@ app.get('/api/rename-po-fix', async (req, res) => {
     }
 });
 
-logs.push('✅ Migration completed successfully!');
-        res.json({ success: true, logs });
-    } catch (error) {
-        console.error('Migration failed:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
 
 // 404 handler
 app.use((req, res) => {
