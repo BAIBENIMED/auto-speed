@@ -209,13 +209,21 @@ app.get('/api/test-email', async (req, res) => {
     }
 });
 
-// Diagnostic endpoint for Database Schema
+// Diagnostic endpoint for Database Schema and Files
 app.get('/api/db-verify', async (req, res) => {
     try {
         const [tables] = await sequelize.query("SHOW TABLES");
         const tableList = tables.map(t => Object.values(t)[0]);
 
-        let schemaInfo = { tables: tableList };
+        const fs = require('fs');
+        const rootFiles = fs.readdirSync(path.join(__dirname, '..'));
+
+        let schemaInfo = { 
+            tables: tableList,
+            rootFiles: rootFiles,
+            currentDir: __dirname,
+            staticRoot: path.join(__dirname, '..')
+        };
 
         if (tableList.includes('voyages')) {
             const [columns] = await sequelize.query("DESCRIBE voyages");
