@@ -1,52 +1,55 @@
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 const { Order, Vehicle, Shipment, Client } = require('../models');
 
-// Public tracking endpoint - uses query param to avoid issues with IDs containing slashes
+// Public tracking endpoint - looks up by 6-char trackingCode (or falls back to orderId)
 router.get('/track', async (req, res) => {
     try {
-        const orderId = req.query.id;
-        if (!orderId) {
-            return res.status(400).json({ success: false, message: 'Numéro de commande manquant' });
+        const code = req.query.code || req.query.id;
+        if (!code) {
+            return res.status(400).json({ success: false, message: 'Code de suivi manquant' });
         }
-        console.log(`[PublicTracking] Request for Order: ${orderId}`);
+        console.log(`[PublicTracking] Request for code: ${code}`);
 
-        // Find order with associated data
-        const order = await Order.findByPk(orderId, {
-            include: [
-                {
-                    model: Client,
-                    as: 'client',
-                    attributes: ['firstName', 'lastName'] // Limited attributes for privacy
-                }
-            ]
+        // Search by trackingCode first, then fallback to orderId
+        let order = await Order.findOne({
+            where: { trackingCode: code.toUpperCase() },
+            include: [{ model: Client, as: 'client', attributes: ['firstName', 'lastName'] }]
         });
 
+        // Fallback: search by orderId (for older orders without tracking code)
         if (!order) {
-            return res.status(404).json({ success: false, message: 'Commande non trouvée' });
+            order = await Order.findByPk(code, {
+                include: [{ model: Client, as: 'client', attributes: ['firstName', 'lastName'] }]
+            });
+        }
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Commande introuvable. Vérifiez votre code de suivi.' });
         }
 
         // Find associated vehicle
-        const vehicle = await Vehicle.findOne({
-            where: { orderId: order.id }
-        });
+        const vehicle = await Vehicle.findOne({ where: { orderId: order.id } });
 
         let shipment = null;
         if (vehicle && vehicle.shipmentId) {
             shipment = await Shipment.findByPk(vehicle.shipmentId);
         }
 
-        // Filter and structure response data
+        // Filter and structure response (no sensitive data)
         const trackingData = {
+            trackingCode: order.trackingCode,
             orderId: order.id,
             orderDate: order.date,
             orderStatus: order.status,
-            clientName: order.client ? `${order.client.firstName} ${order.client.lastName[0]}.` : 'Client', // Obfuscate last name
+            clientName: order.client ? `${order.client.firstName} ${order.client.lastName[0]}.` : 'Client',
             vehicle: vehicle ? {
                 brand: vehicle.brand,
                 model: vehicle.model,
                 year: vehicle.year,
-                color: vehicle.color
+                color: vehicle.color,
+                videoLink: vehicle.videoLink || null
             } : {
                 brand: order.requestedBrand,
                 model: order.requestedModel,

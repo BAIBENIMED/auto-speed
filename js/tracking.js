@@ -7,17 +7,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnText = btn.querySelector('.btn-text');
     const loader = btn.querySelector('.loader');
 
-    // Auto-track if ID is in URL
+    // Auto-track if code is in URL
     const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('id') || urlParams.get('orderId');
-    if (orderId) {
-        input.value = orderId;
-        performTracking(orderId);
+    const trackCode = urlParams.get('code') || urlParams.get('id');
+    if (trackCode) {
+        input.value = trackCode;
+        performTracking(trackCode);
     }
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const id = input.value.trim();
+        const id = input.value.trim().toUpperCase();
         if (id) performTracking(id);
     });
 
@@ -29,14 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
         loader.style.display = 'block';
 
         try {
-            const response = await fetch(`/api/public/track?id=${encodeURIComponent(id)}`);
+            const response = await fetch(`/api/public/track?code=${encodeURIComponent(id)}`);
             const result = await response.json();
 
             if (result.success) {
                 updateUI(result.data);
                 content.style.display = 'block';
                 // Update URL without reloading
-                window.history.pushState({}, '', `?id=${encodeURIComponent(id)}`);
+                window.history.pushState({}, '', `?code=${encodeURIComponent(id)}`);
             } else {
                 content.style.display = 'none';
                 errorMsg.style.display = 'block';
@@ -86,6 +86,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('display-eta').textContent = 'En attente';
             document.getElementById('map-section').style.display = 'none';
             document.getElementById('no-shipment-msg').style.display = 'block';
+        }
+
+        // Video section
+        if (data.vehicle && data.vehicle.videoLink) {
+            const videoSection = document.getElementById('video-section');
+            const videoBtn = document.getElementById('video-link-btn');
+            videoSection.style.display = 'block';
+            videoBtn.href = data.vehicle.videoLink;
+        } else {
+            document.getElementById('video-section').style.display = 'none';
         }
 
         // Stepper Logic

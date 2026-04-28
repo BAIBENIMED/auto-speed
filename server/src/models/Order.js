@@ -76,6 +76,12 @@ const Order = sequelize.define('Order', {
     referenceDrive: {
         type: DataTypes.STRING(100),
         field: 'reference_drive'
+    },
+    trackingCode: {
+        type: DataTypes.STRING(10),
+        field: 'tracking_code',
+        unique: true,
+        allowNull: true
     }
 }, {
     tableName: 'orders',

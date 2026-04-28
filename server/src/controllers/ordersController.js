@@ -82,6 +82,14 @@ const ordersController = {
                 orderData.clientId = req.user.clientId;
             }
 
+            // Generate unique 6-character tracking code
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let trackingCode = '';
+            for (let i = 0; i < 6; i++) {
+                trackingCode += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            orderData.trackingCode = trackingCode;
+
             const order = await Order.create(orderData, {
                 userId: req.user.id,
                 userName: req.user.name
@@ -123,8 +131,15 @@ const ordersController = {
                 userName: req.user.name
             });
 
-            // If order just got validated, send email
+            // If order just got validated, generate tracking code if missing and send email
             if (!oldValidated && order.isValidated) {
+                // Ensure order has a tracking code
+                if (!order.trackingCode) {
+                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                    let code = '';
+                    for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+                    await order.update({ trackingCode: code });
+                }
                 (async () => {
                     try {
                         const fullOrder = await Order.findByPk(order.id, {

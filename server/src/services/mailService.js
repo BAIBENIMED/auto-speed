@@ -61,12 +61,14 @@ const mailService = {
                                     </div>
                                 </div>
 
-                                <div style="text-align: center; margin: 35px 0;">
-                                    <a href="${process.env.APP_URL || 'https://tibou-auto.onrender.com'}/tracking.html?id=${order.id}" 
-                                       style="background: #2563eb; color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
-                                        <i class="fas fa-search-location"></i> SUIVRE MA COMMANDE
+                                <div style="text-align: center; margin: 35px 0; background: #f0f4ff; padding: 25px; border-radius: 14px; border: 1px solid #dbeafe;">
+                                    <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Votre Code de Suivi</p>
+                                    <div style="font-size: 2.5rem; font-weight: 900; letter-spacing: 10px; color: #1e293b; font-family: monospace;">${order.trackingCode || 'N/A'}</div>
+                                    <p style="margin: 10px 0 20px; font-size: 0.85rem; color: #94a3b8;">Conservez ce code pour suivre votre commande</p>
+                                    <a href="${process.env.APP_URL || 'https://tbiou-auto.onrender.com'}/tracking.html?code=${order.trackingCode || ''}" 
+                                       style="background: #2563eb; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block;">
+                                        🚗 SUIVRE MA COMMANDE EN DIRECT
                                     </a>
-                                    <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 10px;">Suivez l'état de votre véhicule en temps réel.</p>
                                 </div>
 
                                 <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #e2e8f0;">
@@ -147,12 +149,14 @@ const mailService = {
                                     </ul>
                                 </div>
                                 
-                                <p style="font-size: 16px;">Vous pouvez suivre l'évolution du transport en direct en cliquant sur le bouton ci-dessous :</p>
+                                <p style="font-size: 16px;">Utilisez votre code de suivi pour voir la position du navire en direct :</p>
                                 
-                                <div style="text-align: center; margin: 35px 0;">
-                                    <a href="${process.env.APP_URL || 'https://tibou-auto.onrender.com'}/tracking.html?id=${order.id}" 
-                                       style="background: #2563eb; color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
-                                        VOIR SUR LA CARTE
+                                <div style="text-align: center; margin: 35px 0; background: #f0f9ff; padding: 25px; border-radius: 14px; border: 1px solid #bae6fd;">
+                                    <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Code de Suivi</p>
+                                    <div style="font-size: 2.5rem; font-weight: 900; letter-spacing: 10px; color: #1e293b; font-family: monospace;">${order.trackingCode || 'N/A'}</div>
+                                    <a href="${process.env.APP_URL || 'https://tbiou-auto.onrender.com'}/tracking.html?code=${order.trackingCode || ''}" 
+                                       style="background: #2563eb; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; margin-top: 15px;">
+                                        🗺️ VOIR SUR LA CARTE
                                     </a>
                                 </div>
                                 

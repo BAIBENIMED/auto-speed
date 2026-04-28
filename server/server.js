@@ -467,7 +467,8 @@ const startServer = async () => {
                 { table: 'vehicles', name: 'bl_link', def: 'VARCHAR(500)' },
                 { table: 'clients', name: 'passport_drive_link', def: 'VARCHAR(500)' },
                 { table: 'clients', name: 'postal_code', def: 'VARCHAR(20)' },
-                { table: 'orders', name: 'tasks', def: 'JSON' }
+                { table: 'orders', name: 'tasks', def: 'JSON' },
+                { table: 'orders', name: 'tracking_code', def: 'VARCHAR(10)' }
             ];
 
             for (const col of columnsToEnsure) {
