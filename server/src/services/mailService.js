@@ -61,6 +61,14 @@ const mailService = {
                                     </div>
                                 </div>
 
+                                <div style="text-align: center; margin: 35px 0;">
+                                    <a href="${process.env.APP_URL || 'https://tibou-auto.onrender.com'}/tracking.html?id=${order.id}" 
+                                       style="background: #2563eb; color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                                        <i class="fas fa-search-location"></i> SUIVRE MA COMMANDE
+                                    </a>
+                                    <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 10px;">Suivez l'état de votre véhicule en temps réel.</p>
+                                </div>
+
                                 <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #e2e8f0;">
                                     <h3 style="margin-top: 0; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; color: #1e293b;">Vos Informations Personnelles</h3>
                                     <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">Merci de vérifier l'exactitude de ces informations :</p>
@@ -139,7 +147,14 @@ const mailService = {
                                     </ul>
                                 </div>
                                 
-                                <p style="font-size: 16px;">Vous pouvez suivre l'évolution du transport en direct sur votre espace client.</p>
+                                <p style="font-size: 16px;">Vous pouvez suivre l'évolution du transport en direct en cliquant sur le bouton ci-dessous :</p>
+                                
+                                <div style="text-align: center; margin: 35px 0;">
+                                    <a href="${process.env.APP_URL || 'https://tibou-auto.onrender.com'}/tracking.html?id=${order.id}" 
+                                       style="background: #2563eb; color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                                        VOIR SUR LA CARTE
+                                    </a>
+                                </div>
                                 
                                 <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
                                     <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>

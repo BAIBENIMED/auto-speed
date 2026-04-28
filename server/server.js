@@ -74,6 +74,7 @@ app.use('/api/upload', require('./src/routes/upload'));
 app.use('/api/tracking', require('./src/routes/tracking'));
 app.use('/api/voyages', require('./src/routes/voyages'));
 app.use('/api/maintenance', require('./src/routes/maintenance'));
+app.use('/api/public', require('./src/routes/public'));
 
 // Initialize Tracking Service
 

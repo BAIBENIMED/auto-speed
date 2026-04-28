@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi de Commande | TIBOU AUTO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --secondary: #ef4444;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(239, 68, 68, 0.1) 0%, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 2.5rem;
+            letter-spacing: -2px;
+            margin-bottom: 5px;
+        }
+
+        .logo span {
+            color: var(--secondary);
+        }
+
+        .logo-subtitle {
+            color: var(--secondary);
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        .search-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .search-form {
+            display: flex;
+            gap: 15px;
+        }
+
+        input.glass-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            padding: 15px 20px;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input.glass-input:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .btn-track {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 30px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-track:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px var(--primary-glow);
+        }
+
+        #tracking-content {
+            display: none;
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .tracking-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .card-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid var(--border-glass);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .status-badge {
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--primary);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        /* Progress Stepper */
+        .stepper {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 50px;
+            padding: 0 10px;
+        }
+
+        .stepper::before {
+            content: '';
+            position: absolute;
+            top: 25px;
+            left: 50px;
+            right: 50px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 1;
+        }
+
+        .step-progress {
+            position: absolute;
+            top: 25px;
+            left: 50px;
+            height: 2px;
+            background: var(--primary);
+            z-index: 1;
+            transition: width 1s ease-in-out;
+            width: 0;
+        }
+
+        .step {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100px;
+        }
+
+        .step-icon {
+            width: 50px;
+            height: 50px;
+            background: #1e293b;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            color: var(--text-dim);
+        }
+
+        .step.active .step-icon {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .step.completed .step-icon {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+            color: var(--text-dim);
+        }
+
+        .step.active .step-label {
+            color: var(--text-main);
+        }
+
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .info-item span {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        /* Map Placeholder */
+        .map-container {
+            height: 400px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-glass);
+            position: relative;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            filter: invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+
+        .map-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--border-glass);
+            pointer-events: none;
+        }
+
+        footer {
+            margin-top: auto;
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .error-message {
+            color: var(--secondary);
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .loader {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            .search-form { flex-direction: column; }
+            .stepper::before, .step-progress { display: none; }
+            .stepper { flex-direction: column; gap: 20px; align-items: flex-start; padding-left: 20px; }
+            .step { flex-direction: row; width: 100%; gap: 15px; }
+            .step-icon { width: 40px; height: 40px; margin-bottom: 0; }
+            .step::after {
+                content: '';
+                position: absolute;
+                left: 19px;
+                top: 40px;
+                bottom: -20px;
+                width: 2px;
+                background: rgba(255, 255, 255, 0.1);
+            }
+            .step:last-child::after { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="logo">TIBOU<span>AUTO</span></div>
+            <div class="logo-subtitle">CHINA CARS</div>
+        </header>
+
+        <div class="search-container">
+            <h2 style="margin-bottom: 20px; font-size: 1.5rem; text-align: center;">Suivre mon véhicule</h2>
+            <form id="tracking-form" class="search-form">
+                <input type="text" id="order-id-input" class="glass-input" placeholder="Entrez votre N° de Commande (ex: ORD-2026-XXXX)" required>
+                <button type="submit" class="btn-track">
+                    <span class="btn-text">Suivre</span>
+                    <div class="loader"></div>
+                </button>
+            </form>
+            <div id="error-message" class="error-message">Commande introuvable. Veuillez vérifier le numéro.</div>
+        </div>
+
+        <div id="tracking-content">
+            <div class="tracking-card">
+                <div class="card-header">
+                    <div>
+                        <h3 id="display-order-id" style="font-size: 1.2rem;">COMMANDE #XXXX</h3>
+                        <p id="display-order-date" style="font-size: 0.85rem; color: var(--text-dim);">Validée le --/--/----</p>
+                    </div>
+                    <div id="display-status-badge" class="status-badge">En préparation</div>
+                </div>
+                <div class="card-body">
+                    <div class="stepper">
+                        <div class="step-progress" id="step-progress-bar"></div>
+                        <div class="step" id="step-1">
+                            <div class="step-icon"><i class="fas fa-file-invoice"></i></div>
+                            <div class="step-label">Validée</div>
+                        </div>
+                        <div class="step" id="step-2">
+                            <div class="step-icon"><i class="fas fa-ship"></i></div>
+                            <div class="step-label">En mer</div>
+                        </div>
+                        <div class="step" id="step-3">
+                            <div class="step-icon"><i class="fas fa-anchor"></i></div>
+                            <div class="step-label">Arrivée Port</div>
+                        </div>
+                        <div class="step" id="step-4">
+                            <div class="step-icon"><i class="fas fa-check-double"></i></div>
+                            <div class="step-label">Livrée</div>
+                        </div>
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Véhicule</label>
+                            <span id="display-vehicle-name">Audi Q7 2024</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Couleur</label>
+                            <span id="display-vehicle-color">Noir Mythic</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Destination</label>
+                            <span id="display-destination">Alger, Algérie</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Arrivée Estimée (ETA)</label>
+                            <span id="display-eta">--/--/----</span>
+                        </div>
+                    </div>
+
+                    <div id="map-section" style="display: none;">
+                        <h4 style="margin-bottom: 15px; color: var(--text-dim); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px;">Localisation en temps réel</h4>
+                        <div class="map-container">
+                            <iframe id="tracking-iframe" src=""></iframe>
+                            <div class="map-overlay">
+                                <div style="font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-map-marker-alt" style="color: var(--secondary);"></i> Position du navire
+                                </div>
+                                <div id="display-current-location" style="font-size: 0.85rem; color: var(--text-dim);">Chargement...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="no-shipment-msg" style="text-align: center; padding: 40px; background: rgba(255,255,255,0.02); border-radius: 12px; margin-top: 20px;">
+                        <i class="fas fa-info-circle" style="font-size: 2rem; color: var(--primary); opacity: 0.5; margin-bottom: 15px;"></i>
+                        <p>Votre véhicule est en cours de préparation logistique. Les informations de suivi maritime seront disponibles dès le chargement sur le navire.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2026 TIBOU AUTO - Suivi de Livraison International</p>
+            <p style="margin-top: 5px; opacity: 0.6;">Auto Showroom & China Cars Division</p>
+        </footer>
+    </div>
+
+    <script src="js/tracking.js"></script>
+</body>
+</html>
