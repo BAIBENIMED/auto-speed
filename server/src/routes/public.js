@@ -6,6 +6,7 @@ const { Order, Vehicle, Shipment, Client } = require('../models');
 router.get('/track/:orderId', async (req, res) => {
     try {
         const { orderId } = req.params;
+        console.log(`[PublicTracking] Request for Order: ${orderId}`);
 
         // Find order with associated data
         const order = await Order.findByPk(orderId, {

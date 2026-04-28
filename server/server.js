@@ -76,6 +76,15 @@ app.use('/api/voyages', require('./src/routes/voyages'));
 app.use('/api/maintenance', require('./src/routes/maintenance'));
 app.use('/api/public', require('./src/routes/public'));
 
+// Serve tracking page explicitly
+app.get('/tracking', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'tracking.html'));
+});
+
+app.get('/tracking.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'tracking.html'));
+});
+
 // Initialize Tracking Service
 
 // More routes will be added here
