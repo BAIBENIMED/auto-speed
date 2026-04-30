@@ -4297,7 +4297,7 @@ const app = {
                                             const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
                                             if (client) {
                                                 clientName = `
-                                                    <div style="font-weight: 500;">${client.firstName} ${client.lastName}</div>
+                                                    <div style="font-weight: 500;">${client.lastName} ${client.firstName}</div>
                                                     ${client.passportDriveLink ? `<div style="font-size: 0.7rem;"><i class="fab fa-google-drive"></i> <a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary);">Passeport</a></div>` : ''}
                                                 `;
                                                 if (!v.soldRegistration) {
@@ -4827,13 +4827,6 @@ const app = {
                                                 <label>Showroom d'Affectation (Stock)</label>
                                                 <select name="showroom" class="glass-select">
                                                     <option value="">(Non spécifié)</option>
-                                                    ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map(s => `<option value="${s}">${s}</option>`).join('')}
-                                                </select>
-                                            </div>
-                                            <div class="form-group" style="grid-column: span 2;">
-                                                <label>Showroom d'Affectation (Stock)</label>
-                                                <select name="showroom" class="glass-select">
-                                                    <option value="">(Non spécifié)</option>
                                                     ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map(s => `<option value="${s}" ${vehicle.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
                                                 </select>
                                             </div>
@@ -4918,9 +4911,6 @@ const app = {
                                         </div>
                                     </fieldset>
 
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Photo du Véhicule</label>
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label>Options du véhicule</label>
