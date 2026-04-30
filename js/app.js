@@ -2336,8 +2336,8 @@ const app = {
             tibouVehicles.sort((a, b) => {
                 const poA = purchases.find(p => String(p.id) === String(a.purchaseOrderId));
                 const poB = purchases.find(p => String(p.id) === String(b.purchaseOrderId));
-                const dateA = poA ? new Date(poA.date) : new Date(0);
-                const dateB = poB ? new Date(poB.date) : new Date(0);
+                const dateA = poA ? new Date(poA.purchaseDate || poA.date) : new Date(0);
+                const dateB = poB ? new Date(poB.purchaseDate || poB.date) : new Date(0);
                 return dateA - dateB;
             });
 
@@ -2667,7 +2667,7 @@ const app = {
                                                 </td>
                                                 <td style="padding: 12px; font-family: monospace; font-size: 0.75rem; color: var(--text-dim);">${v.chassisNumber || 'N/A'}</td>
                                                 <td style="padding: 12px; text-align: center; color: var(--text-dim);">${v.purchaseOrderId || 'N/A'}</td>
-                                                <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">${po ? new Date(po.date).toLocaleDateString() : '-'}</td>
+                                                <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">${po ? new Date(po.purchaseDate || po.date).toLocaleDateString() : '-'}</td>
                                                 <td style="padding: 12px;">
                                                     ${client ? `<span class="badge-pill" style="background: rgba(${isAmendmentPending ? 'var(--warning-rgb, 245, 158, 11)' : 'var(--primary-rgb, 99, 102, 241)'}, 0.1); color: ${isAmendmentPending ? 'var(--warning)' : 'var(--primary)'}; border: none; font-weight: 600;">${client.lastName} ${client.firstName}</span>` : '<span style="opacity: 0.4; font-style: italic;">DISPONIBLE (STOCK)</span>'}
                                                 </td>
@@ -3830,7 +3830,7 @@ const app = {
                                             let shipment = shipments.find(s => String(s.id) === String(v.shipmentId));
                                             if (!shipment && v.shipment) shipment = v.shipment;
 
-                                            const purchases = StorageService.get(STORAGE_KEYS.PURCHASES) || [];
+                                            const purchases = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
                                             const po = v.purchaseOrderId ? purchases.find(p => String(p.id) === String(v.purchaseOrderId)) : null;
 
                                             const amend = this.getAmendmentStatus(v.id);
