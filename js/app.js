@@ -2311,6 +2311,19 @@ const app = {
             });
             console.log(`📊 Tibou vehicles found: ${tibouVehicles.length}`);
 
+            // Fetch purchases for sorting and display
+            const purchases = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
+
+            // Sort tibouVehicles by PO date (oldest to newest)
+            tibouVehicles.sort((a, b) => {
+                const poA = purchases.find(p => String(p.id) === String(a.purchaseOrderId));
+                const poB = purchases.find(p => String(p.id) === String(b.purchaseOrderId));
+                const dateA = poA ? new Date(poA.date) : new Date(0);
+                const dateB = poB ? new Date(poB.date) : new Date(0);
+                return dateA - dateB;
+            });
+
+
             // --- Tibou Pivot Table Calculation ---
             const pivotData = {};
             const colorsSet = new Set();
@@ -2609,6 +2622,7 @@ const app = {
                                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Véhicule</th>
                                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Châssis (VIN)</th>
                                         <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">PO (Achat)</th>
+                                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Date Achat</th>
                                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Client Affecté</th>
                                         <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Date Charg.</th>
                                         <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Chargé</th>
@@ -2622,6 +2636,8 @@ const app = {
                                         const client = (v.clientId || order?.clientId) ? clients.find(c => String(c.id) === String(v.clientId || order.clientId)) : null;
                                         const shipment = v.shipmentId ? shipments.find(s => String(s.id) === String(v.shipmentId)) : null;
                                         
+                                        const po = v.purchaseOrderId ? purchases.find(p => String(p.id) === String(v.purchaseOrderId)) : null;
+                                        
                                         return `
                                             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
                                                 <td style="padding: 12px; font-weight: 600; color: var(--primary); cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
@@ -2629,6 +2645,7 @@ const app = {
                                                 </td>
                                                 <td style="padding: 12px; font-family: monospace; font-size: 0.75rem; color: var(--text-dim);">${v.chassisNumber || 'N/A'}</td>
                                                 <td style="padding: 12px; text-align: center; color: var(--text-dim);">${v.purchaseOrderId || 'N/A'}</td>
+                                                <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">${po ? new Date(po.date).toLocaleDateString() : '-'}</td>
                                                 <td style="padding: 12px;">
                                                     ${client ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); border: none; font-weight: 600;">${client.lastName} ${client.firstName}</span>` : '<span style="opacity: 0.4; font-style: italic;">DISPONIBLE (STOCK)</span>'}
                                                 </td>
