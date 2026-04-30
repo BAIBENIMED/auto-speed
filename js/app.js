@@ -10011,11 +10011,10 @@ const app = {
                     amendmentHtml = `<span style="color: var(--text-dim); font-weight: bold;">NON</span>`;
                 }
 
-                // If WITHOUT new BL received yet, we display the OLD client in the list for clarity
-                if (latestTransfer.withBL && !latestTransfer.newBLReceived && oldClientObj) {
-                    displayClient = oldClientObj;
+                if (latestTransfer.withBL && !latestTransfer.newBLReceived) {
                     isAmendmentRevertedDisplay = true;
                 }
+
             } else {
                 amendmentHtml = `<span style="color: var(--text-dim); font-weight: bold;">NON</span>`;
             }
