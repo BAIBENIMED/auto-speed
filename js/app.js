@@ -2311,6 +2311,22 @@ const app = {
             });
             console.log(`📊 Tibou vehicles found: ${tibouVehicles.length}`);
 
+            // --- Tibou Pivot Table Calculation ---
+            const pivotData = {};
+            const colorsSet = new Set();
+            const modelsSet = new Set();
+            tibouVehicles.forEach(v => {
+                const model = (v.model || 'Inconnu').trim();
+                const color = (v.color || 'Inconnu').trim();
+                modelsSet.add(model);
+                colorsSet.add(color);
+                if (!pivotData[model]) pivotData[model] = {};
+                pivotData[model][color] = (pivotData[model][color] || 0) + 1;
+            });
+            const sortedModels = Array.from(modelsSet).sort();
+            const sortedColors = Array.from(colorsSet).sort();
+
+
             // --- 2. RENDER HTML ---
             this.viewContainer.innerHTML = `
                 <div class="view-header">
@@ -2534,6 +2550,50 @@ const app = {
                                     </ul>
                                 `}
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Tibou Pivot Table -->
+                    <div class="chart-section glass animate delay-3" style="margin-top: 30px;">
+                        <div class="section-title">
+                            <h2><i class="fas fa-th"></i> Tableau Croisé : Modèles vs Couleurs (Tibou)</h2>
+                        </div>
+                        <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
+                            <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-primary);">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Modèle / Couleur</th>
+                                        ${sortedColors.map(c => `<th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); min-width: 80px;">${c}</th>`).join('')}
+                                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); font-weight: bold; background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${sortedModels.map(m => {
+                                        let rowTotal = 0;
+                                        return `
+                                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                                                <td style="padding: 12px; font-weight: 600; color: var(--primary); border-right: 1px solid rgba(255,255,255,0.05);">${m}</td>
+                                                ${sortedColors.map(c => {
+                                                    const count = pivotData[m][c] || 0;
+                                                    rowTotal += count;
+                                                    return `<td style="text-align: center; padding: 12px; ${count > 0 ? 'color: var(--success); font-weight: 700;' : 'opacity: 0.2;'}">${count || '-'}</td>`;
+                                                }).join('')}
+                                                <td style="text-align: center; padding: 12px; font-weight: bold; background: rgba(var(--primary-rgb), 0.05); color: var(--primary);">${rowTotal}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                                <tfoot>
+                                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                                        <td style="padding: 12px; border-top: 2px solid rgba(255,255,255,0.1);">TOTAL GÉNÉRAL</td>
+                                        ${sortedColors.map(c => {
+                                            const colTotal = sortedModels.reduce((sum, m) => sum + (pivotData[m][c] || 0), 0);
+                                            return `<td style="text-align: center; padding: 12px; border-top: 2px solid rgba(255,255,255,0.1);">${colTotal}</td>`;
+                                        }).join('')}
+                                        <td style="text-align: center; padding: 12px; border-top: 2px solid rgba(255,255,255,0.1); color: var(--primary); font-size: 1rem; background: rgba(var(--primary-rgb), 0.1);">${tibouVehicles.length}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
                     </div>
 
