@@ -1196,7 +1196,8 @@ const app = {
                                         <div><strong>Enlèvement:</strong> ${shipment.pickupDate ? this.formatDate(shipment.pickupDate) : 'N/A'}</div>
                                     </div>
                                     <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
-                                        <strong>Conteneur:</strong> ${shipment.containerNumber}
+                                        <strong>Conteneur:</strong> ${shipment.containerNumber} | 
+                                        <strong>N° BL:</strong> ${shipment.blNumber || 'N/A'}
                                         ${shipment.voyage ? ` | <strong>Voyage:</strong> ${shipment.voyage}` : ''}
                                     </div>
                                     <div style="display: flex; gap: 10px; margin-top: 12px;">

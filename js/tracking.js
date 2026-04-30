@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const vehicleName = data.vehicle ? `${data.vehicle.brand} ${data.vehicle.model || ''} ${data.vehicle.year || ''}` : 'Véhicule en attente';
         document.getElementById('display-vehicle-name').textContent = vehicleName;
         document.getElementById('display-vehicle-color').textContent = data.vehicle?.color || 'N/A';
+        document.getElementById('display-vehicle-vin').textContent = data.vehicle?.chassisNumber || '--';
         
         // Shipment Info
         const shipment = data.shipment;
@@ -71,6 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('display-etd').textContent = shipment.etd ? new Date(shipment.etd).toLocaleDateString() : 'En attente';
             document.getElementById('display-eta').textContent = shipment.eta ? new Date(shipment.eta).toLocaleDateString() : 'En attente';
             document.getElementById('display-forwarder').textContent = shipment.forwarder || 'N/A';
+            document.getElementById('display-container-number').textContent = shipment.containerNumber || 'N/A';
+            document.getElementById('display-bl-number').textContent = shipment.blNumber || 'N/A';
             
             document.getElementById('map-section').style.display = 'block';
             document.getElementById('no-shipment-msg').style.display = 'none';
