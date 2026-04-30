@@ -3273,6 +3273,10 @@ const app = {
                             ${orders.map(order => {
             const vehicle = vehicles.find(v => v.id === order.vehicleId || (order.id && v.orderId === order.id));
             const client = clients.find(c => c.id === order.clientId);
+            
+            const transfers = StorageService.get(STORAGE_KEYS.TRANSFERS) || [];
+            const vehicleTransfer = vehicle ? transfers.find(t => String(t.vehicleId) === String(vehicle.id)) : null;
+
             const vehicleName = vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.motorization || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : (order.vehicleName || 'Sans véhicule');
             const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
             const isShipped = !!shipment;
@@ -3286,8 +3290,8 @@ const app = {
                                 <tr>
                                     <td style="font-weight: 600; color: var(--primary);">#${order.id}</td>
                                     <td>
-                                        <div style="font-weight: 500;">
-                                            ${client ? (client.firstName + ' ' + client.lastName) : 'Client Inconnu'}
+                                        <div style="font-weight: 500; color: ${vehicleTransfer ? 'var(--warning)' : 'inherit'};">
+                                            ${client ? (client.lastName + ' ' + client.firstName) : 'Client Inconnu'}
                                         </div>
                                         ${client && client.passportDriveLink ? `<div style="font-size: 0.7rem;"><i class="fab fa-google-drive"></i> <a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary);">Passeport</a></div>` : ''}
                                         ${client && client.company ? `<div style="font-size: 0.75rem; color: var(--text-dim);">${client.company}</div>` : ''}
