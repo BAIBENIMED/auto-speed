@@ -191,10 +191,12 @@ const purchaseOrdersController = {
 
             // Optionally, handle updating the list of vehicles here if necessary.
             // For now, updating existing vehicles' details via the vehicles array if they have IDs.
-            if (vehicles && Array.isArray(vehicles)) {
+                if (vehicles && Array.isArray(vehicles)) {
                 for (const v of vehicles) {
                     if (v.id) {
-                        await Vehicle.update(v, { where: { id: v.id, purchaseOrderId: id } });
+                        const vehicleData = { ...v };
+                        delete vehicleData.id;
+                        await Vehicle.update(vehicleData, { where: { id: v.id, purchaseOrderId: id } });
                     } else {
                         // Create new vehicle appended to this PO
                         const brand = (v.brand || 'UNKNOWN').toUpperCase().replace(/\s+/g, '');
@@ -250,10 +252,14 @@ const purchaseOrdersController = {
                 ]
             });
 
-            res.json({ success: true, data: updatedPO });
+                res.json({ success: true, data: updatedPO });
         } catch (error) {
             console.error('Error updating purchase order:', error);
-            res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour de la commande d\'achat' });
+            res.status(500).json({ 
+                success: false, 
+                message: 'Erreur lors de la mise à jour de la commande d\'achat: ' + error.message,
+                details: error.name === 'SequelizeDatabaseError' ? error.parent?.sqlMessage : error.message
+            });
         }
     },
 
