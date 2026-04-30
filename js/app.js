@@ -1052,6 +1052,10 @@ const app = {
         const cash = StorageService.get(STORAGE_KEYS.CASH).filter(t => t.orderId === id);
         const totalPaid = cash.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
+        // Check for amendments/transfers
+        const transfers = StorageService.get(STORAGE_KEYS.TRANSFERS) || [];
+        const vehicleTransfer = vehicle ? transfers.find(t => String(t.vehicleId) === String(vehicle.id)) : null;
+
         // Timeline status logic
         const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
         const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
@@ -1119,6 +1123,20 @@ const app = {
                                 </p>
                                 <p><strong>Téléphone:</strong> ${client ? client.phone : 'N/A'}</p>
                                 <p><strong>Passeport:</strong> ${client ? (client.passportNumber || 'N/A') : 'N/A'} ${client && client.passportDriveLink ? `<a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</p>
+                                
+                                ${vehicleTransfer ? `
+                                    <div style="margin-top: 15px; padding: 12px; border-radius: 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2);">
+                                        <h4 style="margin-bottom: 8px; color: #d97706; font-size: 0.9rem;"><i class="fas fa-exchange-alt"></i> AMENDEMENT / TRANSFERT</h4>
+                                        <p style="font-size: 0.85rem; margin-bottom: 5px;"><strong>Nouveau Client :</strong> <span class="badge-pill" style="background: #d97706; color: #fff; border: none; font-weight: 600;">${vehicleTransfer.toClient ? `${vehicleTransfer.toClient.lastName} ${vehicleTransfer.toClient.firstName}` : 'Client ' + vehicleTransfer.toClientId}</span></p>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                                            <span style="font-size: 0.75rem; color: var(--text-dim);">Transféré le : ${new Date(vehicleTransfer.transferDate).toLocaleDateString()}</span>
+                                            <span class="badge-pill" style="font-size: 0.65rem; background: ${vehicleTransfer.newBLReceived ? 'var(--success)' : 'var(--warning)'}22; color: ${vehicleTransfer.newBLReceived ? 'var(--success)' : 'var(--warning)'}; border: none;">
+                                                ${vehicleTransfer.newBLReceived ? 'BL Reçu' : 'BL Attendu'}
+                                            </span>
+                                        </div>
+                                        ${vehicleTransfer.notes ? `<p style="font-size: 0.75rem; font-style: italic; margin-top: 8px; color: var(--text-dim); padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05);">"${vehicleTransfer.notes}"</p>` : ''}
+                                    </div>
+                                ` : ''}
                             </div>
                             <div class="details-section">
                                 <h3><i class="fas fa-car"></i> Véhicule</h3>
