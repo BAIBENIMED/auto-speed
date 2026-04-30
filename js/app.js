@@ -1184,14 +1184,20 @@ const app = {
                                 <div style="margin-top: 15px; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border-left: 3px solid var(--primary);">
                                     <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--primary);"><i class="fas fa-shipping-fast"></i> Situation du Transport</h4>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
-                                        <div><strong>ETD:</strong> ${shipment.etd ? this.formatDate(shipment.etd) : 'N/A'}</div>
-                                        <div><strong>ETA:</strong> ${shipment.eta ? this.formatDate(shipment.eta) : 'N/A'}</div>
+                                        <div><strong>Port de Chargement:</strong> ${shipment.loadingPort || 'N/A'}</div>
+                                        <div><strong>Port d'Arrivée:</strong> ${shipment.destination || 'N/A'}</div>
+                                        <div><strong>Départ Navire (ETD):</strong> ${shipment.etd ? this.formatDate(shipment.etd) : 'N/A'}</div>
+                                        <div><strong>Arrivée Prévue (ETA):</strong> ${shipment.eta ? this.formatDate(shipment.eta) : 'N/A'}</div>
+                                        <div><strong>Transitaire:</strong> ${shipment.forwarder || 'N/A'}</div>
+                                        <div><strong>Transporteur:</strong> ${shipment.carrier || 'N/A'}</div>
+                                    </div>
+                                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
                                         <div><strong>Dédouanement:</strong> ${shipment.customsClearanceDate ? this.formatDate(shipment.customsClearanceDate) : 'N/A'}</div>
                                         <div><strong>Enlèvement:</strong> ${shipment.pickupDate ? this.formatDate(shipment.pickupDate) : 'N/A'}</div>
                                     </div>
                                     <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
-                                        <strong>Conteneur:</strong> ${shipment.containerNumber} | <strong>Compagnie:</strong> ${shipment.carrier || 'N/A'}
-                                        ${shipment.voyage ? `<br><strong>Voyage:</strong> ${shipment.voyage}` : ''}
+                                        <strong>Conteneur:</strong> ${shipment.containerNumber}
+                                        ${shipment.voyage ? ` | <strong>Voyage:</strong> ${shipment.voyage}` : ''}
                                     </div>
                                     <div style="display: flex; gap: 10px; margin-top: 12px;">
                                         <button class="btn btn-secondary" style="flex: 1; font-size: 0.85rem;" onclick="app.showShipmentMap('${shipment.id}')">
