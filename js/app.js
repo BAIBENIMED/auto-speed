@@ -1111,7 +1111,7 @@ const app = {
 
                             <div class="details-section">
                                 <h3><i class="fas fa-user"></i> Informations Client</h3>
-                                <p><strong>Nom:</strong> ${order.clientName || (client ? `${client.firstName} ${client.lastName}` : 'Client Inconnu')}</p>
+                                <p><strong>Nom:</strong> ${order.clientName || (client ? `${client.lastName} ${client.firstName}` : 'Client Inconnu')}</p>
                                 <p style="display: flex; align-items: center; gap: 10px;">
                                     <strong>Email:</strong> 
                                     ${client ? `<a href="mailto:${client.email}" style="color: var(--primary); text-decoration: underline;">${client.email}</a> 
@@ -1633,7 +1633,7 @@ const app = {
                                 <div class="details-section" style="background: rgba(var(--primary-rgb), 0.03); border-radius: 10px; padding: 15px; border: 1px solid rgba(var(--primary-rgb), 0.1);">
                                     <h3 style="margin-bottom: 12px; font-size: 1rem;"><i class="fas fa-user-check"></i> Client Affecté</h3>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem;">
-                                        <p><strong>Nom:</strong> <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-weight: 600;">${client.firstName} ${client.lastName}</span></p>
+                                        <p><strong>Nom:</strong> <span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); font-weight: 600;">${client.lastName} ${client.firstName}</span></p>
                                         <p><strong>ID Client:</strong> #${client.id || 'N/A'}</p>
                                         <p><strong>Showroom:</strong> ${client.showroom || 'N/A'}</p>
                                         <p><strong>NIN:</strong> ${client.nin || 'N/A'}</p>
@@ -1713,7 +1713,7 @@ const app = {
                 list.innerHTML = response.data.map(t => `
                     <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: 600;">Transfert vers : ${t.toClient?.firstName || ''} ${t.toClient?.lastName || 'Client Supprimé'}</div>
+                            <div style="font-weight: 600;">Transfert vers : ${t.toClient?.lastName || 'Client Supprimé'} ${t.toClient?.firstName || ''}</div>
                             <div style="color: var(--text-dim); font-size: 0.8rem;">
                                 ${new Date(t.transferDate).toLocaleDateString()} | ${t.withBL ? '<span style="color: var(--success);">Avec BL</span>' : '<span style="color: var(--warning);">Sans BL</span>'}
                             </div>
@@ -1731,7 +1731,7 @@ const app = {
                             ${t.notes ? `<div style="font-style: italic; margin-top: 4px;">"${t.notes}"</div>` : ''}
                         </div>
                         <div style="text-align: right; color: var(--text-dim);">
-                            Précédent : ${t.fromClient?.firstName || ''} ${t.fromClient?.lastName || 'Stock/N/A'}
+                            Précédent : ${t.fromClient?.lastName || 'Stock/N/A'} ${t.fromClient?.firstName || ''}
                         </div>
                     </div>
                 `).join('');
@@ -1828,12 +1828,12 @@ const app = {
                             <h3 style="font-size: 0.9rem; margin-bottom: 10px; color: var(--primary);">Informations Nouveau Client</h3>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                 <div class="form-group">
-                                    <label>Prénom</label>
-                                    <input type="text" name="newClientFirstName" class="glass-input">
-                                </div>
-                                <div class="form-group">
                                     <label>Nom</label>
                                     <input type="text" name="newClientLastName" class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Prénom</label>
+                                    <input type="text" name="newClientFirstName" class="glass-input">
                                 </div>
                                 <div class="form-group">
                                     <label>Téléphone</label>
@@ -3291,7 +3291,7 @@ const app = {
                                 <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(client.firstName + ' ' + client.lastName)}&background=6366f1&color=fff" alt="${client.firstName} ${client.lastName}">
                             </div>
                             <div class="client-info">
-                                <h3>${client.firstName} ${client.lastName}</h3>
+                                <h3>${client.lastName} ${client.firstName}</h3>
                                 <div class="client-details">
                                     <span><i class="fas fa-envelope"></i> <a href="mailto:${client.email}" style="color: inherit;">${client.email}</a></span>
                                     <span><i class="fas fa-phone"></i> ${client.phone}</span>
@@ -3329,12 +3329,12 @@ const app = {
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>Prénom</label>
-                                    <input type="text" name="firstName" required class="glass-input">
-                                </div>
-                                <div class="form-group">
                                     <label>Nom</label>
                                     <input type="text" name="lastName" required class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Prénom</label>
+                                    <input type="text" name="firstName" required class="glass-input">
                                 </div>
                             </div>
                              <div class="form-group">
@@ -3457,12 +3457,12 @@ const app = {
                         <div class="form-body" style="padding: 1.5rem;">
                             <div class="alert info" style="margin-bottom: 1.5rem; background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
                                 <i class="fas fa-info-circle"></i> Copiez et collez vos données depuis Excel (ou utilisez le <b>point-virgule ;</b> comme séparateur). L'ordre des colonnes doit être :<br>
-                                <strong>Référence | Prénom | Nom | Email | Téléphone | Adresse | Code Postal | Passeport | NIN | Showroom | Entreprise | Lien Drive</strong>
+                                <strong>Référence | Nom | Prénom | Email | Téléphone | Adresse | Code Postal | Passeport | NIN | Showroom | Entreprise | Lien Drive</strong>
                             </div>
                             <div class="form-group">
                                 <label>Données Clients (Une ligne par client)</label>
                                 <textarea name="batchData" class="glass-input" rows="15" 
-                                    placeholder="REF001	Jean	Dupont	jean@email.com	0601020304	Paris	A1234567	123456789	Showroom A	MaSociété"
+                                    placeholder="REF001	Dupont	Jean	jean@email.com	0601020304	Paris	A1234567	123456789	Showroom A	MaSociété"
                                     style="font-family: monospace; white-space: pre; overflow-x: auto;"></textarea>
                             </div>
                         </div>
@@ -3527,7 +3527,7 @@ const app = {
                 const cleanParts = parts.map(p => p.trim().replace(/^"|"$/g, ''));
 
                 const [
-                    reference, firstName, lastName, email, phone,
+                    reference, lastName, firstName, email, phone,
                     address, postalCode, passport, nin, showroom, company, driveLink
                 ] = cleanParts;
 
@@ -3591,7 +3591,7 @@ const app = {
                             <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(client.firstName + ' ' + client.lastName)}&background=6366f1&color=fff" 
                                  style="width: 50px; height: 50px; border-radius: 12px; border: 2px solid var(--primary);">
                             <div>
-                                <h2 style="margin: 0;">${client.firstName} ${client.lastName}</h2>
+                                <h2 style="margin: 0;">${client.lastName} ${client.firstName}</h2>
                                 <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-hashtag"></i> ${client.reference || 'Sans réf'} | <i class="fas fa-store"></i> ${client.showroom || 'Showroom Principal'}</span>
                                 ${client.email ? `
                                 <div style="margin-top: 5px; display: flex; align-items: center; gap: 10px;">
@@ -3739,12 +3739,12 @@ const app = {
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>Prénom</label>
-                                    <input type="text" name="firstName" value="${client.firstName}" required class="glass-input">
-                                </div>
-                                <div class="form-group">
                                     <label>Nom</label>
                                     <input type="text" name="lastName" value="${client.lastName}" required class="glass-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Prénom</label>
+                                    <input type="text" name="firstName" value="${client.firstName}" required class="glass-input">
                                 </div>
                             </div>
                             <div class="form-group">
@@ -3832,7 +3832,7 @@ const app = {
                         ${clients.map(c => `
                             <tr class="client-row ${String(selectedId) === String(c.id) ? 'selected-row' : ''}" data-id="${c.id}" style="cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);">
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">#${c.id}</td>
-                                <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1); font-weight: 500;">${c.firstName} ${c.lastName}</td>
+                                <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1); font-weight: 500;">${c.lastName} ${c.firstName}</td>
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">${c.showroom || '-'}</td>
                                 <td style="padding: 8px 10px; border-right: 1px solid rgba(255,255,255,0.1);">${c.nin || '-'}</td>
                                 <td style="padding: 8px 10px;">${c.passportNumber || '-'} ${c.passportDriveLink ? `<a href="${c.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 5px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</td>
