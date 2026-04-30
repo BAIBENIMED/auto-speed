@@ -1129,7 +1129,7 @@ const app = {
                                         <h4 style="margin-bottom: 8px; color: #d97706; font-size: 0.9rem;"><i class="fas fa-exchange-alt"></i> AMENDEMENT / TRANSFERT</h4>
                                         <p style="font-size: 0.85rem; margin-bottom: 5px;"><strong>Nouveau Client :</strong> <span class="badge-pill" style="background: #d97706; color: #fff; border: none; font-weight: 600;">${vehicleTransfer.toClient ? `${vehicleTransfer.toClient.lastName} ${vehicleTransfer.toClient.firstName}` : 'Client ' + vehicleTransfer.toClientId}</span></p>
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                                            <span style="font-size: 0.75rem; color: var(--text-dim);">Transféré le : ${new Date(vehicleTransfer.transferDate).toLocaleDateString()}</span>
+                                            <span style="font-size: 0.75rem; color: var(--text-dim);">Transféré le : ${this.formatDate(vehicleTransfer.transferDate)}</span>
                                             <span class="badge-pill" style="font-size: 0.65rem; background: ${vehicleTransfer.newBLReceived ? 'var(--success)' : 'var(--warning)'}22; color: ${vehicleTransfer.newBLReceived ? 'var(--success)' : 'var(--warning)'}; border: none;">
                                                 ${vehicleTransfer.newBLReceived ? 'BL Reçu' : 'BL Attendu'}
                                             </span>
@@ -1160,10 +1160,10 @@ const app = {
                                 <div style="margin-top: 15px; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border-left: 3px solid var(--primary);">
                                     <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--primary);"><i class="fas fa-shipping-fast"></i> Situation du Transport</h4>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
-                                        <div><strong>ETD:</strong> ${shipment.etd ? new Date(shipment.etd).toLocaleDateString() : 'N/A'}</div>
-                                        <div><strong>ETA:</strong> ${shipment.eta ? new Date(shipment.eta).toLocaleDateString() : 'N/A'}</div>
-                                        <div><strong>Dédouanement:</strong> ${shipment.customsClearanceDate ? new Date(shipment.customsClearanceDate).toLocaleDateString() : 'N/A'}</div>
-                                        <div><strong>Enlèvement:</strong> ${shipment.pickupDate ? new Date(shipment.pickupDate).toLocaleDateString() : 'N/A'}</div>
+                                        <div><strong>ETD:</strong> ${shipment.etd ? this.formatDate(shipment.etd) : 'N/A'}</div>
+                                        <div><strong>ETA:</strong> ${shipment.eta ? this.formatDate(shipment.eta) : 'N/A'}</div>
+                                        <div><strong>Dédouanement:</strong> ${shipment.customsClearanceDate ? this.formatDate(shipment.customsClearanceDate) : 'N/A'}</div>
+                                        <div><strong>Enlèvement:</strong> ${shipment.pickupDate ? this.formatDate(shipment.pickupDate) : 'N/A'}</div>
                                     </div>
                                     <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
                                         <strong>Conteneur:</strong> ${shipment.containerNumber} | <strong>Compagnie:</strong> ${shipment.carrier || 'N/A'}
@@ -2484,7 +2484,7 @@ const app = {
                                         <div class="item-content">
                                             <div class="item-header">
                                                 <span class="item-title">Commande #${o.id}</span>
-                                                <span class="item-time">${new Date(o.date).toLocaleDateString()}</span>
+                                                <span class="item-time">${this.formatDate(o.date)}</span>
                                             </div>
                                             <div class="item-desc">${o.clientName} - ${o.vehicleName}</div>
                                         </div>
@@ -2667,12 +2667,12 @@ const app = {
                                                 </td>
                                                 <td style="padding: 12px; font-family: monospace; font-size: 0.75rem; color: var(--text-dim);">${v.chassisNumber || 'N/A'}</td>
                                                 <td style="padding: 12px; text-align: center; color: var(--text-dim);">${v.purchaseOrderId || 'N/A'}</td>
-                                                <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">${po ? new Date(po.purchaseDate || po.date).toLocaleDateString() : '-'}</td>
+                                                <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">${po ? this.formatDate(po.purchaseDate || po.date) : '-'}</td>
                                                 <td style="padding: 12px;">
                                                     ${client ? `<span class="badge-pill" style="background: rgba(${isAmendmentPending ? 'var(--warning-rgb, 245, 158, 11)' : 'var(--primary-rgb, 99, 102, 241)'}, 0.1); color: ${isAmendmentPending ? 'var(--warning)' : 'var(--primary)'}; border: none; font-weight: 600;">${client.lastName} ${client.firstName}</span>` : '<span style="opacity: 0.4; font-style: italic;">DISPONIBLE (STOCK)</span>'}
                                                 </td>
                                                 <td style="padding: 12px; text-align: center; color: var(--text-dim);">
-                                                    ${shipment ? new Date(shipment.date).toLocaleDateString() : '-'}
+                                                    ${shipment ? this.formatDate(shipment.date) : '-'}
                                                 </td>
                                                 <td style="padding: 12px; text-align: center;">
                                                     ${shipment ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="opacity: 0.3;">NON</span>'}
@@ -3854,11 +3854,11 @@ const app = {
                                                     <div style="font-size: 0.75rem; color: var(--text-dim);">PO: ${v.purchaseOrderId || '-'}</div>
                                                 </td>
                                                 <td>
-                                                    <div style="font-size: 0.8rem;">ETD: ${shipment && shipment.etd ? new Date(shipment.etd).toLocaleDateString() : (po && po.etd ? new Date(po.etd).toLocaleDateString() : '-')}</div>
-                                                    <div style="font-size: 0.8rem;">ETA: ${shipment && shipment.eta ? new Date(shipment.eta).toLocaleDateString() : (po && po.eta ? new Date(po.eta).toLocaleDateString() : '-')}</div>
+                                                    <div style="font-size: 0.8rem;">ETD: ${shipment && shipment.etd ? this.formatDate(shipment.etd) : (po && po.etd ? this.formatDate(po.etd) : '-')}</div>
+                                                    <div style="font-size: 0.8rem;">ETA: ${shipment && shipment.eta ? this.formatDate(shipment.eta) : (po && po.eta ? this.formatDate(po.eta) : '-')}</div>
                                                 </td>
                                                 <td>
-                                                    <div style="font-size: 0.8rem;">${shipment && shipment.date ? new Date(shipment.date).toLocaleDateString() : (po && po.loadingDate ? new Date(po.loadingDate).toLocaleDateString() : '-')}</div>
+                                                    <div style="font-size: 0.8rem;">${shipment && shipment.date ? this.formatDate(shipment.date) : (po && po.loadingDate ? this.formatDate(po.loadingDate) : '-')}</div>
                                                     <div style="font-size: 0.7rem; color: var(--text-dim);">${shipment ? (shipment.loadingPort || '-') : (po && po.loadingPort ? po.loadingPort : '-')}</div>
                                                 </td>
 
@@ -9469,6 +9469,16 @@ const app = {
         return Number(amount);
     },
 
+    formatDate(date) {
+        if (!date) return '-';
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return '-';
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+    },
+
     formatCurrency(amount, type = 'selling') {
         const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {
             purchaseCurrency: 'EUR',
@@ -12053,7 +12063,7 @@ const app = {
                                         </div>
                                         <div class="timeline-content">
                                             <div style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">
-                                                ${new Date(event.date).toLocaleDateString()} ${new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                ${this.formatDate(event.date)} ${new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                             <div style="font-weight: 700; font-size: 1rem; margin: 4px 0;">${event.description}</div>
                                             <div style="font-size: 0.85rem; color: var(--text-secondary);">
@@ -12513,7 +12523,7 @@ const app = {
                                         </div>
                                         <div class="timeline-content">
                                             <div style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-transform: uppercase;">
-                                                ${new Date(event.date).toLocaleDateString()} ${new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                ${this.formatDate(event.date)} ${new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                             <div style="font-weight: 700; font-size: 1rem; margin: 4px 0;">${event.description}</div>
                                             <div style="font-size: 0.85rem; color: var(--text-secondary);">
@@ -13161,7 +13171,7 @@ const app = {
         doc.setFontSize(10);
         doc.setTextColor(50);
         doc.text(`Fournisseur: ${po.supplierName || 'N/A'}`, 14, 38);
-        doc.text(`Date: ${po.purchaseDate ? new Date(po.purchaseDate).toLocaleDateString() : 'N/A'}`, 80, 38);
+        doc.text(`Date: ${po.purchaseDate ? this.formatDate(po.purchaseDate) : 'N/A'}`, 80, 38);
 
         doc.setFontSize(9);
         doc.setTextColor(100);
@@ -13255,7 +13265,7 @@ const app = {
                 const netPrice = (o.totalAmount || 0) - (o.discount || 0);
                 const paid = this.getPaidAmount(o.id);
                 rows.push([
-                    new Date(o.date).toLocaleDateString(),
+                    this.formatDate(o.date),
                     `#${o.id}`,
                     o.vehicleName,
                     this.formatCurrency(netPrice),
