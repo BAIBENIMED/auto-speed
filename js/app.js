@@ -2655,6 +2655,10 @@ const app = {
                                         const shipment = v.shipmentId ? shipments.find(s => String(s.id) === String(v.shipmentId)) : null;
                                         
                                         const po = v.purchaseOrderId ? purchases.find(p => String(p.id) === String(v.purchaseOrderId)) : null;
+
+                                        const transfers = StorageService.get(STORAGE_KEYS.TRANSFERS) || [];
+                                        const vehicleTransfer = transfers.find(t => String(t.vehicleId) === String(v.id));
+                                        const isAmendmentPending = vehicleTransfer && vehicleTransfer.withBL && !vehicleTransfer.newBLReceived;
                                         
                                         return `
                                             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
@@ -2665,7 +2669,7 @@ const app = {
                                                 <td style="padding: 12px; text-align: center; color: var(--text-dim);">${v.purchaseOrderId || 'N/A'}</td>
                                                 <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">${po ? new Date(po.date).toLocaleDateString() : '-'}</td>
                                                 <td style="padding: 12px;">
-                                                    ${client ? `<span class="badge-pill" style="background: rgba(var(--warning-rgb, 245, 158, 11), 0.1); color: var(--warning); border: none; font-weight: 600;">${client.lastName} ${client.firstName}</span>` : '<span style="opacity: 0.4; font-style: italic;">DISPONIBLE (STOCK)</span>'}
+                                                    ${client ? `<span class="badge-pill" style="background: rgba(${isAmendmentPending ? 'var(--warning-rgb, 245, 158, 11)' : 'var(--primary-rgb, 99, 102, 241)'}, 0.1); color: ${isAmendmentPending ? 'var(--warning)' : 'var(--primary)'}; border: none; font-weight: 600;">${client.lastName} ${client.firstName}</span>` : '<span style="opacity: 0.4; font-style: italic;">DISPONIBLE (STOCK)</span>'}
                                                 </td>
                                                 <td style="padding: 12px; text-align: center; color: var(--text-dim);">
                                                     ${shipment ? new Date(shipment.date).toLocaleDateString() : '-'}
@@ -3276,6 +3280,7 @@ const app = {
             
             const transfers = StorageService.get(STORAGE_KEYS.TRANSFERS) || [];
             const vehicleTransfer = vehicle ? transfers.find(t => String(t.vehicleId) === String(vehicle.id)) : null;
+            const isAmendmentPending = vehicleTransfer && vehicleTransfer.withBL && !vehicleTransfer.newBLReceived;
 
             const vehicleName = vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.motorization || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : (order.vehicleName || 'Sans véhicule');
             const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
@@ -3290,7 +3295,7 @@ const app = {
                                 <tr>
                                     <td style="font-weight: 600; color: var(--primary);">#${order.id}</td>
                                     <td>
-                                        <div style="font-weight: 500; color: ${vehicleTransfer ? 'var(--warning)' : 'inherit'};">
+                                        <div style="font-weight: 500; color: ${isAmendmentPending ? 'var(--warning)' : 'inherit'};">
                                             ${client ? (client.lastName + ' ' + client.firstName) : 'Client Inconnu'}
                                         </div>
                                         ${client && client.passportDriveLink ? `<div style="font-size: 0.7rem;"><i class="fab fa-google-drive"></i> <a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary);">Passeport</a></div>` : ''}
@@ -10056,7 +10061,7 @@ const app = {
                                                     </td>
                                                     <td>
                                                         ${displayClient ? `
-                                                            <div style="font-weight: 600; color: ${vTransfers.length > 0 ? 'var(--warning)' : 'inherit'};">${displayClient.lastName} ${displayClient.firstName}</div>
+                                                            <div style="font-weight: 600; color: ${isAmendmentRevertedDisplay ? 'var(--warning)' : 'inherit'};">${displayClient.lastName} ${displayClient.firstName}</div>
                                                             <div style="font-size: 0.8rem; font-weight: bold; color: ${v.soldRegistration ? 'var(--danger)' : 'var(--info)'}; padding: 2px 0;">
                                                                 <i class="fas fa-store"></i> ${showroomText}
                                                             </div>
