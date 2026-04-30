@@ -50,7 +50,8 @@ router.get('/track', async (req, res) => {
                 year: vehicle.year,
                 color: vehicle.color,
                 chassisNumber: vehicle.chassisNumber,
-                videoLink: vehicle.videoLink || null
+                videoLink: vehicle.videoLink || null,
+                blLink: vehicle.blLink || null
             } : {
                 brand: order.requestedBrand,
                 model: order.requestedModel,

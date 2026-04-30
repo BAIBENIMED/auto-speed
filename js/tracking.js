@@ -95,6 +95,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('no-shipment-msg').style.display = 'block';
         }
 
+        // Documents section (BL)
+        if (data.vehicle && data.vehicle.blLink) {
+            const docSection = document.getElementById('document-section');
+            const blBtn = document.getElementById('bl-link-btn');
+            docSection.style.display = 'block';
+            blBtn.href = data.vehicle.blLink;
+        } else {
+            document.getElementById('document-section').style.display = 'none';
+        }
+
         // Video section
         if (data.vehicle && data.vehicle.videoLink) {
             const videoSection = document.getElementById('video-section');
