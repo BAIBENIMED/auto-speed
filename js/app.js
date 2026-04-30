@@ -2665,7 +2665,7 @@ const app = {
                                                 <td style="padding: 12px; text-align: center; color: var(--text-dim);">${v.purchaseOrderId || 'N/A'}</td>
                                                 <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">${po ? new Date(po.date).toLocaleDateString() : '-'}</td>
                                                 <td style="padding: 12px;">
-                                                    ${client ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); border: none; font-weight: 600;">${client.lastName} ${client.firstName}</span>` : '<span style="opacity: 0.4; font-style: italic;">DISPONIBLE (STOCK)</span>'}
+                                                    ${client ? `<span class="badge-pill" style="background: rgba(var(--warning-rgb, 245, 158, 11), 0.1); color: var(--warning); border: none; font-weight: 600;">${client.lastName} ${client.firstName}</span>` : '<span style="opacity: 0.4; font-style: italic;">DISPONIBLE (STOCK)</span>'}
                                                 </td>
                                                 <td style="padding: 12px; text-align: center; color: var(--text-dim);">
                                                     ${shipment ? new Date(shipment.date).toLocaleDateString() : '-'}
@@ -9992,7 +9992,7 @@ const app = {
 
                 let oldClientText = '';
                 if (oldClientObj) {
-                    oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien: ${oldClientObj.firstName} ${oldClientObj.lastName}</span>`;
+                    oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien: ${oldClientObj.lastName} ${oldClientObj.firstName}</span>`;
                 } else if (latestTransfer.fromClientId) {
                     oldClientText = `<br><span style="color: red; font-size: 0.7rem; font-weight: bold;">Ancien ID: ${latestTransfer.fromClientId}</span>`;
                 }
@@ -10053,7 +10053,7 @@ const app = {
                                                     </td>
                                                     <td>
                                                         ${displayClient ? `
-                                                            <div style="font-weight: 600; color: ${isAmendmentRevertedDisplay ? 'var(--warning)' : 'inherit'};">${displayClient.firstName} ${displayClient.lastName}</div>
+                                                            <div style="font-weight: 600; color: ${vTransfers.length > 0 ? 'var(--warning)' : 'inherit'};">${displayClient.lastName} ${displayClient.firstName}</div>
                                                             <div style="font-size: 0.8rem; font-weight: bold; color: ${v.soldRegistration ? 'var(--danger)' : 'var(--info)'}; padding: 2px 0;">
                                                                 <i class="fas fa-store"></i> ${showroomText}
                                                             </div>
