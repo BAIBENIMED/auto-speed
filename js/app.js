@@ -3828,9 +3828,10 @@ const app = {
                                         ${vehicles.map(v => {
                                             const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
                                             let shipment = shipments.find(s => String(s.id) === String(v.shipmentId));
-                                            
-                                            // Fallback if no shipment found by ID but it exists as a nested object
                                             if (!shipment && v.shipment) shipment = v.shipment;
+
+                                            const purchases = StorageService.get(STORAGE_KEYS.PURCHASES) || [];
+                                            const po = v.purchaseOrderId ? purchases.find(p => String(p.id) === String(v.purchaseOrderId)) : null;
 
                                             const amend = this.getAmendmentStatus(v.id);
                                             return `
@@ -3849,17 +3850,18 @@ const app = {
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <div style="font-size: 0.85rem;"><strong>F:</strong> ${v.supplier || '-'}</div>
+                                                    <div style="font-size: 0.85rem;"><strong>F:</strong> ${v.supplier || (po ? po.supplierName : '-')}</div>
                                                     <div style="font-size: 0.75rem; color: var(--text-dim);">PO: ${v.purchaseOrderId || '-'}</div>
                                                 </td>
                                                 <td>
-                                                    <div style="font-size: 0.8rem;">ETD: ${shipment && shipment.etd ? new Date(shipment.etd).toLocaleDateString() : '-'}</div>
-                                                    <div style="font-size: 0.8rem;">ETA: ${shipment && shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '-'}</div>
+                                                    <div style="font-size: 0.8rem;">ETD: ${shipment && shipment.etd ? new Date(shipment.etd).toLocaleDateString() : (po && po.etd ? new Date(po.etd).toLocaleDateString() : '-')}</div>
+                                                    <div style="font-size: 0.8rem;">ETA: ${shipment && shipment.eta ? new Date(shipment.eta).toLocaleDateString() : (po && po.eta ? new Date(po.eta).toLocaleDateString() : '-')}</div>
                                                 </td>
                                                 <td>
-                                                    <div style="font-size: 0.8rem;">${shipment && shipment.date ? new Date(shipment.date).toLocaleDateString() : '-'}</div>
-                                                    <div style="font-size: 0.7rem; color: var(--text-dim);">${shipment ? (shipment.loadingPort || '-') : '-'}</div>
+                                                    <div style="font-size: 0.8rem;">${shipment && shipment.date ? new Date(shipment.date).toLocaleDateString() : (po && po.loadingDate ? new Date(po.loadingDate).toLocaleDateString() : '-')}</div>
+                                                    <div style="font-size: 0.7rem; color: var(--text-dim);">${shipment ? (shipment.loadingPort || '-') : (po && po.loadingPort ? po.loadingPort : '-')}</div>
                                                 </td>
+
                                                 <td><span class="badge-pill" style="background: ${v.status === 'Sold' ? 'var(--success)22' : 'var(--warning)22'}; color: ${v.status === 'Sold' ? 'var(--success)' : 'var(--warning)'}; border: none;">${v.status}</span></td>
                                             </tr>
                                             `;
