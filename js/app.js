@@ -2597,6 +2597,61 @@ const app = {
                         </div>
                     </div>
 
+                    <!-- Tibou Detailed List -->
+                    <div class="chart-section glass animate delay-3" style="margin-top: 30px;">
+                        <div class="section-title">
+                            <h2><i class="fas fa-list-ul"></i> Détails des Véhicules Tibou</h2>
+                        </div>
+                        <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
+                            <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.8rem; color: var(--text-primary);">
+                                <thead>
+                                    <tr style="background: rgba(255,255,255,0.02);">
+                                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Véhicule</th>
+                                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Châssis (VIN)</th>
+                                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">PO (Achat)</th>
+                                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Client Affecté</th>
+                                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Date Charg.</th>
+                                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Chargé</th>
+                                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">Vidéo</th>
+                                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1);">BL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tibouVehicles.map(v => {
+                                        const order = v.orderId ? orders.find(o => String(o.id) === String(v.orderId)) : null;
+                                        const client = (v.clientId || order?.clientId) ? clients.find(c => String(c.id) === String(v.clientId || order.clientId)) : null;
+                                        const shipment = v.shipmentId ? shipments.find(s => String(s.id) === String(v.shipmentId)) : null;
+                                        
+                                        return `
+                                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                                                <td style="padding: 12px; font-weight: 600; color: var(--primary); cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
+                                                    ${v.brand} ${v.model || ''}
+                                                </td>
+                                                <td style="padding: 12px; font-family: monospace; font-size: 0.75rem; color: var(--text-dim);">${v.chassisNumber || 'N/A'}</td>
+                                                <td style="padding: 12px; text-align: center; color: var(--text-dim);">${v.purchaseOrderId || 'N/A'}</td>
+                                                <td style="padding: 12px;">
+                                                    ${client ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); border: none; font-weight: 600;">${client.lastName} ${client.firstName}</span>` : '<span style="opacity: 0.4; font-style: italic;">DISPONIBLE (STOCK)</span>'}
+                                                </td>
+                                                <td style="padding: 12px; text-align: center; color: var(--text-dim);">
+                                                    ${shipment ? new Date(shipment.date).toLocaleDateString() : '-'}
+                                                </td>
+                                                <td style="padding: 12px; text-align: center;">
+                                                    ${shipment ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="opacity: 0.3;">NON</span>'}
+                                                </td>
+                                                <td style="padding: 12px; text-align: center;">
+                                                    ${v.videoLink ? `<a href="${v.videoLink}" target="_blank" style="color: var(--primary); font-size: 1.1rem;"><i class="fab fa-google-drive"></i></a>` : '<i class="fas fa-minus" style="opacity: 0.2;"></i>'}
+                                                </td>
+                                                <td style="padding: 12px; text-align: center;">
+                                                    ${v.blLink ? `<a href="${v.blLink}" target="_blank" style="color: var(--primary); font-size: 1.1rem;"><i class="fas fa-file-pdf"></i></a>` : '<i class="fas fa-minus" style="opacity: 0.2;"></i>'}
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Alert Center -->
                     <div class="chart-section glass animate delay-3" style="margin-top: 30px; margin-bottom: 30px;">
                         <div class="section-title">
