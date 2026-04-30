@@ -1113,7 +1113,10 @@ const app = {
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 700px; max-height: 90vh; overflow-y: auto;">
                         <div class="modal-header">
-                            <h2>Détails de la Commande #${order.id}</h2>
+                            <div style="display: flex; flex-direction: column;">
+                                <h2 style="margin-bottom: 4px;">Détails de la Commande #${order.id}</h2>
+                                ${order.trackingCode ? `<div style="font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; letter-spacing: 1px;"><i class="fas fa-barcode"></i> CODE DE SUIVI: ${order.trackingCode}</div>` : ''}
+                            </div>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
                         <div class="order-details-content">
@@ -1389,7 +1392,10 @@ const app = {
                 <div class="modal-overlay">
                     <div class="modal-content glass">
                         <div class="modal-header">
-                            <h2>Modifier la Commande #${order.id}</h2>
+                            <div style="display: flex; flex-direction: column;">
+                                <h2 style="margin-bottom: 4px;">Modifier la Commande #${order.id}</h2>
+                                ${order.trackingCode ? `<div style="font-size: 0.8rem; color: var(--primary); font-family: monospace; font-weight: 600; letter-spacing: 1px;"><i class="fas fa-barcode"></i> CODE DE SUIVI: ${order.trackingCode}</div>` : ''}
+                            </div>
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
                         <form id="order-form">
@@ -3256,6 +3262,7 @@ const app = {
                 const clientName = c ? (c.firstName + ' ' + c.lastName).toLowerCase() : '';
                 return (
                     String(o.id || '').toLowerCase().includes(q) ||
+                    String(o.trackingCode || '').toLowerCase().includes(q) ||
                     clientName.includes(q) ||
                     String(o.clientName || '').toLowerCase().includes(q) ||
                     String(o.vehicleName || '').toLowerCase().includes(q) ||
@@ -3396,7 +3403,10 @@ const app = {
 
             return `
                                 <tr>
-                                    <td style="font-weight: 600; color: var(--primary);">#${order.id}</td>
+                                    <td style="font-weight: 600;">
+                                        <div style="color: var(--primary);">#${order.id}</div>
+                                        ${order.trackingCode ? `<div style="font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; font-family: monospace; letter-spacing: 1px;">SUIVI: ${order.trackingCode}</div>` : ''}
+                                    </td>
                                     <td>
                                         <div style="font-weight: 500; color: ${isAmendmentPending ? 'var(--warning)' : 'inherit'};">
                                             ${client ? (client.lastName + ' ' + client.firstName) : 'Client Inconnu'}
