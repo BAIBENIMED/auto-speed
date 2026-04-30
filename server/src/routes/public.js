@@ -49,6 +49,7 @@ router.get('/track', async (req, res) => {
                 model: vehicle.model,
                 year: vehicle.year,
                 color: vehicle.color,
+                chassisNumber: vehicle.chassisNumber,
                 videoLink: vehicle.videoLink || null
             } : {
                 brand: order.requestedBrand,
@@ -58,6 +59,9 @@ router.get('/track', async (req, res) => {
             shipment: shipment ? {
                 status: shipment.status,
                 carrier: shipment.carrier,
+                containerNumber: shipment.containerNumber,
+                blNumber: shipment.blNumber,
+                forwarder: shipment.forwarder,
                 loadingPort: shipment.loadingPort,
                 destination: shipment.destination,
                 etd: shipment.etd,
