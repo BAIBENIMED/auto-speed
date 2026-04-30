@@ -12,6 +12,20 @@ const models = require('./src/models');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+console.log(`[Startup] Initializing Tibou Auto Server...`);
+console.log(`[Startup] Target Port: ${PORT}`);
+
+// Global error handlers for better debugging on Render
+process.on('uncaughtException', (err) => {
+    console.error('❌ UNCAUGHT EXCEPTION:', err.message);
+    console.error(err.stack);
+    // process.exit(1); // Don't exit immediately on Render to allow log viewing
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ UNHANDLED REJECTION at:', promise, 'reason:', reason);
+});
+
 // Security middleware
 app.use(helmet({
     contentSecurityPolicy: false // Disable CSP for easier integration of external fonts/icons
