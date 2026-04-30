@@ -596,11 +596,16 @@ const app = {
 
                             <div class="form-group">
                                 <label>Véhicule Sélectionné (Stock)</label>
-                                <div class="validation-notice" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 8px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 8px; border: 1px solid rgba(245, 158, 11, 0.2);">
-                                    <i class="fas fa-lock"></i> La sélection d'un véhicule nécessite la validation de la commande par un administrateur après sa création.
+                                <div class="validation-notice" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 8px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 8px; border: 1px solid rgba(var(--primary-rgb), 0.2);">
+                                    <i class="fas fa-info-circle"></i> Sélectionnez un véhicule en stock pour l'affecter immédiatement.
                                 </div>
-                                <select name="vehicleId" id="order-vehicle-select" class="glass-select" disabled>
-                                    <option value="">[EN ATTENTE DE VALIDATION]</option>
+                                <!-- Vehicle Search Input -->
+                                <div style="position: relative; margin-bottom: 8px;">
+                                    <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 0.8rem;"></i>
+                                    <input type="text" id="vehicle-search" class="glass-input" placeholder="Rechercher par Châssis, Marque ou Modèle..." style="padding-left: 30px; font-size: 0.85rem;" autocomplete="off">
+                                </div>
+                                <select name="vehicleId" id="order-vehicle-select" class="glass-select">
+                                    <option value="">Choisir un véhicule...</option>
                                 </select>
                             </div>
 
@@ -680,11 +685,13 @@ const app = {
         const showroomFilter = document.getElementById('filter-showroom');
         const vehicleSelect = document.getElementById('order-vehicle-select');
 
+        const vehicleSearch = document.getElementById('vehicle-search');
         const refreshVehicles = () => {
             const brand = brandFilter.value;
             const model = modelFilter.value;
             const category = categoryFilter.value;
             const showroom = showroomFilter.value;
+            const searchText = vehicleSearch ? vehicleSearch.value.toLowerCase() : '';
             const currentSelectedClientId = clientSelect ? clientSelect.value : '';
 
             let filtered = allAvailableVehicles;
@@ -692,10 +699,20 @@ const app = {
             if (brand) filtered = filtered.filter(v => v.brand === brand);
             if (model) filtered = filtered.filter(v => (v.model || '') === model);
             if (showroom) filtered = filtered.filter(v => v.showroom === showroom);
+            
             if (category === 'Neuf') {
                 filtered = filtered.filter(v => v.condition === 'Neuf');
             } else if (category === 'Recent') {
                 filtered = filtered.filter(v => v.year >= (currentYear - 3));
+            }
+
+            if (searchText) {
+                filtered = filtered.filter(v => 
+                    (v.brand || '').toLowerCase().includes(searchText) ||
+                    (v.model || '').toLowerCase().includes(searchText) ||
+                    (v.chassisNumber || '').toLowerCase().includes(searchText) ||
+                    (String(v.id)).toLowerCase().includes(searchText)
+                );
             }
 
             // Allow vehicle only if it has no clientId assigned OR it matches the selected client
@@ -713,6 +730,10 @@ const app = {
                 vehicleSelect.appendChild(option);
             });
         };
+
+        if (vehicleSearch) {
+            vehicleSearch.addEventListener('input', refreshVehicles);
+        }
 
         brandFilter.addEventListener('change', () => {
             const brand = brandFilter.value;
@@ -1383,22 +1404,36 @@ const app = {
                                 <label>Date de Commande</label>
                                 <input type="date" name="date" value="${order.date ? new Date(order.date).toISOString().split('T')[0] : ''}" required class="glass-input">
                             </div>
-                            <div class="form-group">
-                                <label>Véhicule Sélectionné (Stock)</label>
-                                ${!order.isValidated ? `
-                                    <div class="validation-notice" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 8px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 8px; border: 1px solid rgba(245, 158, 11, 0.2);">
-                                        <i class="fas fa-exclamation-triangle"></i> Cette commande n'est pas encore validée. La sélection de véhicule est bloquée.
+                            <div class="form-group" style="border: 1px solid rgba(var(--primary-rgb), 0.2); padding: 15px; border-radius: 12px; background: rgba(var(--primary-rgb), 0.02); margin-bottom: 1.5rem;">
+                                <label style="font-weight: 700; color: var(--primary); margin-bottom: 12px; display: block; font-size: 0.95rem;">
+                                    <i class="fas fa-car-side"></i> Véhicule Sélectionné (Stock)
+                                </label>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                                    <div>
+                                        <label style="font-size: 0.75rem; color: var(--text-dim);">Filtrer par Marque</label>
+                                        <select id="edit-filter-brand" class="glass-select" style="font-size: 0.85rem; padding: 6px 10px;">
+                                            <option value="">Toutes</option>
+                                            ${brands.map(b => `<option value="${b}">${b}</option>`).join('')}
+                                        </select>
                                     </div>
-                                ` : ''}
-                                <select name="vehicleId" class="glass-select" ${!order.isValidated ? 'disabled' : ''}>
+                                    <div>
+                                        <label style="font-size: 0.75rem; color: var(--text-dim);">Catégorie</label>
+                                        <select id="edit-filter-category" class="glass-select" style="font-size: 0.85rem; padding: 6px 10px;">
+                                            <option value="">Toutes</option>
+                                            <option value="Neuf">Neuf</option>
+                                            <option value="Recent">Moins de 3 ans</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="position: relative; margin-bottom: 12px;">
+                                    <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 0.8rem;"></i>
+                                    <input type="text" id="edit-vehicle-search" class="glass-input" placeholder="Rechercher par Châssis, Modèle..." style="padding-left: 30px; font-size: 0.85rem;" autocomplete="off">
+                                </div>
+
+                                <select name="vehicleId" id="edit-order-vehicle-select" class="glass-select" style="border-color: var(--primary); border-width: 1.5px;">
                                     <option value="">[SANS VÉHICULE EN STOCK]</option>
-                                    ${vehicles.map(v => {
-            const vin = v.chassisNumber ? `VIN: ${v.chassisNumber}` : 'VIN: N/A';
-            const color = v.color ? `${v.color}` : 'N/A';
-            const km = v.mileage ? `${v.mileage.toLocaleString()} km` : '0 km';
-            const category = v.category || v.condition || 'N/A';
-            return `<option value="${v.id}" ${v.id === order.vehicleId ? 'selected' : ''}>[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) | ${vin} | ${color} | ${km} | ${category} - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}</option>`;
-        }).join('')}
                                 </select>
                             </div>
                             
@@ -1477,22 +1512,90 @@ const app = {
             `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-        // Dynamic model population
-        const brandSelect = document.getElementById('edit-requested-brand');
-        const modelSelect = document.getElementById('edit-requested-model');
+        // --- VEHICLE SELECTION LOGIC (EDIT MODAL) ---
+        const editVehicleSelect = document.getElementById('edit-order-vehicle-select');
+        const editFilterBrand = document.getElementById('edit-filter-brand');
+        const editFilterCategory = document.getElementById('edit-filter-category');
+        const editVehicleSearch = document.getElementById('edit-vehicle-search');
+        
+        const refreshEditVehicles = () => {
+            const brand = editFilterBrand.value;
+            const category = editFilterCategory.value;
+            const searchText = editVehicleSearch.value.toLowerCase();
+            const currentYear = new Date().getFullYear();
+            const selectedClientId = document.querySelector('#order-form [name="clientId"]').value;
 
-        brandSelect.addEventListener('change', () => {
-            const brand = brandSelect.value;
-            modelSelect.innerHTML = '<option value="">Sélectionner...</option>';
-            if (brand && brandModels[brand]) {
-                brandModels[brand].forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m;
-                    opt.textContent = m;
-                    modelSelect.appendChild(opt);
-                });
+            // Get fresh list of available vehicles
+            // Include: vehicles with no orderId OR vehicles belonging to this specific order
+            let filtered = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => 
+                !v.archived && (!v.orderId || v.orderId === order.id)
+            );
+
+            if (brand) filtered = filtered.filter(v => v.brand === brand);
+            if (category === 'Neuf') {
+                filtered = filtered.filter(v => v.condition === 'Neuf');
+            } else if (category === 'Recent') {
+                filtered = filtered.filter(v => v.year >= (currentYear - 3));
             }
-        });
+
+            if (searchText) {
+                filtered = filtered.filter(v => 
+                    (v.brand || '').toLowerCase().includes(searchText) ||
+                    (v.model || '').toLowerCase().includes(searchText) ||
+                    (v.chassisNumber || '').toLowerCase().includes(searchText) ||
+                    (String(v.id)).toLowerCase().includes(searchText)
+                );
+            }
+
+            // Client check: Free or assigned to this client
+            filtered = filtered.filter(v => !v.clientId || v.clientId === selectedClientId);
+
+            editVehicleSelect.innerHTML = '<option value="">[SANS VÉHICULE EN STOCK]</option>';
+            filtered.forEach(v => {
+                const option = document.createElement('option');
+                option.value = v.id;
+                if (v.id === order.vehicleId) option.selected = true;
+                
+                const vin = v.chassisNumber ? `VIN: ${v.chassisNumber}` : 'VIN: N/A';
+                const color = v.color ? `${v.color}` : 'N/A';
+                const km = v.mileage ? `${v.mileage.toLocaleString()} km` : '0 km';
+                const cond = v.category || v.condition || 'N/A';
+                option.textContent = `[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) | ${vin} | ${color} | ${km} | ${cond} - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}`;
+                editVehicleSelect.appendChild(option);
+            });
+        };
+
+        // Initialize filters with requested values if available
+        if (order.requestedBrand) editFilterBrand.value = order.requestedBrand;
+        // Category is not explicitly stored in order but we can try to infer or let user choose
+        
+        editFilterBrand.addEventListener('change', refreshEditVehicles);
+        editFilterCategory.addEventListener('change', refreshEditVehicles);
+        editVehicleSearch.addEventListener('input', refreshEditVehicles);
+        document.querySelector('#order-form [name="clientId"]').addEventListener('change', refreshEditVehicles);
+
+        // Initial populate
+        refreshEditVehicles();
+        // --------------------------------------------
+
+        // Dynamic model population for Requested Fields
+        const reqBrandSelect = document.getElementById('edit-requested-brand');
+        const reqModelSelect = document.getElementById('edit-requested-model');
+
+        if (reqBrandSelect && reqModelSelect) {
+            reqBrandSelect.addEventListener('change', () => {
+                const brand = reqBrandSelect.value;
+                reqModelSelect.innerHTML = '<option value="">Sélectionner...</option>';
+                if (brand && brandModels[brand]) {
+                    brandModels[brand].forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        reqModelSelect.appendChild(opt);
+                    });
+                }
+            });
+        }
 
 
 
