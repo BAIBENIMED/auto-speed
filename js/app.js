@@ -4544,6 +4544,7 @@ const app = {
                                             <option value="">Sélectionner d'abord un modèle...</option>
                                         </select>
                                         <input type="hidden" name="trimId" id="trim-id-input">
+                                        <div id="trim-info-box" style="margin-top: 10px; font-size: 0.8rem; background: rgba(var(--primary-rgb), 0.1); border-radius: 6px; padding: 10px; display: none; border: 1px solid rgba(var(--primary-rgb), 0.2);"></div>
                                     </div>
                                     <div class="form-group">
                                         <label>Lien Vidéo (Drive)</label>
@@ -4723,7 +4724,39 @@ const app = {
         trimSelect.addEventListener('change', (e) => {
             const selectedOption = e.target.options[e.target.selectedIndex];
             const trimId = selectedOption.getAttribute('data-id');
+            const trimName = e.target.value;
             if (trimIdInput) trimIdInput.value = trimId || '';
+
+            const infoBox = document.getElementById('trim-info-box');
+            if (infoBox && trimId) {
+                const brandName = brandSelect.value;
+                const modelName = modelSelect.value;
+                const brandObj = brandsRaw.find(b => b.name === brandName);
+                const modelObj = brandObj?.models?.find(m => m.name === modelName);
+                const trimObj = modelObj?.trims?.find(t => t.id === trimId);
+
+                if (trimObj && trimObj.characteristics) {
+                    const c = trimObj.characteristics;
+                    infoBox.style.display = 'block';
+                    infoBox.innerHTML = `
+                        <div style="font-weight: 700; margin-bottom: 5px; color: var(--primary);"><i class="fas fa-info-circle"></i> Options de série (${trimName}) :</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                            <div>Turbo: <strong>${c.turbo || 'N/A'}</strong></div>
+                            <div>Caméra: <strong>${c.camera || 'N/A'}</strong></div>
+                            <div>Sièges élec.: <strong>${c.electricSeats || 'N/A'}</strong></div>
+                            <div>Malle élec.: <strong>${c.electricTrunk || 'N/A'}</strong></div>
+                            <div>Toit: <strong>${c.roof || 'N/A'}</strong></div>
+                            <div>Roue secours: <strong>${c.spareWheel || 'N/A'}</strong></div>
+                            <div>Keyless: <strong>${c.keyless || 'N/A'}</strong></div>
+                            <div>Start & Stop: <strong>${c.startStop || 'N/A'}</strong></div>
+                        </div>
+                    `;
+                } else {
+                    infoBox.style.display = 'none';
+                }
+            } else if (infoBox) {
+                infoBox.style.display = 'none';
+            }
         });
 
 
@@ -4970,6 +5003,7 @@ const app = {
                                              <option value="">Sélectionner d'abord un modèle...</option>
                                          </select>
                                          <input type="hidden" name="trimId" id="trim-id-input">
+                                         <div id="trim-info-box" style="margin-top: 10px; font-size: 0.8rem; background: rgba(var(--primary-rgb), 0.1); border-radius: 6px; padding: 10px; display: none; border: 1px solid rgba(var(--primary-rgb), 0.2);"></div>
                                      </div>
                                     <input type="hidden" name="vehicleId" value="${vehicle.id}">
                                     
@@ -4999,6 +5033,7 @@ const app = {
                                                     <option value="">Sélectionner d'abord un modèle...</option>
                                                 </select>
                                                 <input type="hidden" name="trimId" id="edit-trim-id-input" value="${vehicle.trimId || ''}">
+                                                <div id="edit-trim-info-box" style="margin-top: 10px; font-size: 0.8rem; background: rgba(var(--primary-rgb), 0.1); border-radius: 6px; padding: 10px; display: none; border: 1px solid rgba(var(--primary-rgb), 0.2);"></div>
                                             </div>
                                             <div class="form-group">
                                                 <label>Lien Vidéo (Drive)</label>
@@ -5198,7 +5233,39 @@ const app = {
         trimSelect.addEventListener('change', (e) => {
             const selectedOption = e.target.options[e.target.selectedIndex];
             const trimId = selectedOption.getAttribute('data-id');
+            const trimName = e.target.value;
             if (trimIdInput) trimIdInput.value = trimId || '';
+
+            const infoBox = document.getElementById('edit-trim-info-box');
+            if (infoBox && trimId) {
+                const brandName = brandSelect.value;
+                const modelName = modelSelect.value;
+                const brandObj = brandsRaw.find(b => b.name === brandName);
+                const modelObj = brandObj?.models?.find(m => m.name === modelName);
+                const trimObj = modelObj?.trims?.find(t => t.id === trimId);
+
+                if (trimObj && trimObj.characteristics) {
+                    const c = trimObj.characteristics;
+                    infoBox.style.display = 'block';
+                    infoBox.innerHTML = `
+                        <div style="font-weight: 700; margin-bottom: 5px; color: var(--primary);"><i class="fas fa-info-circle"></i> Options de série (${trimName}) :</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                            <div>Turbo: <strong>${c.turbo || 'N/A'}</strong></div>
+                            <div>Caméra: <strong>${c.camera || 'N/A'}</strong></div>
+                            <div>Sièges élec.: <strong>${c.electricSeats || 'N/A'}</strong></div>
+                            <div>Malle élec.: <strong>${c.electricTrunk || 'N/A'}</strong></div>
+                            <div>Toit: <strong>${c.roof || 'N/A'}</strong></div>
+                            <div>Roue secours: <strong>${c.spareWheel || 'N/A'}</strong></div>
+                            <div>Keyless: <strong>${c.keyless || 'N/A'}</strong></div>
+                            <div>Start & Stop: <strong>${c.startStop || 'N/A'}</strong></div>
+                        </div>
+                    `;
+                } else {
+                    infoBox.style.display = 'none';
+                }
+            } else if (infoBox) {
+                infoBox.style.display = 'none';
+            }
         });
 
         this.initClientSelectionTable();
@@ -13691,7 +13758,8 @@ const app = {
                                                 ${(m.trims || []).length > 0 ? m.trims.map(trim => `
                                                     <span class="status-badge info" style="font-size: 0.7rem; display: flex; align-items: center; gap: 8px; padding: 4px 10px;">
                                                         ${trim.name}
-                                                        <i class="fas fa-times" style="cursor: pointer; opacity: 0.6; font-size: 0.6rem;" onclick="app.removeTrimFromModal('${trim.id}', '${brand.replace(/'/g, "\\'")}')"></i>
+                                                        <i class="fas fa-edit" style="cursor: pointer; opacity: 0.8; font-size: 0.7rem;" onclick="app.showTrimDetailsModal('${trim.id}', '${brand.replace(/'/g, "\\'")}')" title="Caractéristiques"></i>
+                                                        <i class="fas fa-times" style="cursor: pointer; opacity: 0.6; font-size: 0.6rem;" onclick="app.removeTrimFromModal('${trim.id}', '${brand.replace(/'/g, "\\'")}')" title="Supprimer"></i>
                                                     </span>
                                                 `).join('') : '<span style="font-size: 0.75rem; color: var(--text-dim); opacity: 0.5;">Aucune finition enregistrée</span>'}
                                             </div>
@@ -13780,6 +13848,135 @@ const app = {
             console.error(error);
             this.showToast("Erreur serveur", "error");
         }
+    },
+
+    async showTrimDetailsModal(trimId, brandName) {
+        // Find the trim in local storage raw data
+        const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        let foundTrim = null;
+        for (const b of brandsRaw) {
+            for (const m of (b.models || [])) {
+                foundTrim = (m.trims || []).find(t => t.id === trimId);
+                if (foundTrim) break;
+            }
+            if (foundTrim) break;
+        }
+
+        if (!foundTrim) return this.showToast("Finition introuvable", "error");
+
+        const chars = foundTrim.characteristics || {};
+
+        const modalHtml = `
+            <div class="modal-overlay" id="trim-details-overlay" style="z-index: 2000;">
+                <div class="modal-content glass" style="width: 500px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-list-ul"></i> Caractéristiques : ${foundTrim.name}</h2>
+                        <button class="btn-close" onclick="document.getElementById('trim-details-overlay').remove()">&times;</button>
+                    </div>
+                    <form id="trim-chars-form" style="padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="hidden" name="trimId" value="${trimId}">
+                        
+                        <div class="form-group">
+                            <label>Moteur Turbo</label>
+                            <select name="turbo" class="glass-select">
+                                <option value="Non" ${chars.turbo === 'Non' ? 'selected' : ''}>Non</option>
+                                <option value="Oui" ${chars.turbo === 'Oui' ? 'selected' : ''}>Oui</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Caméra de recul</label>
+                            <select name="camera" class="glass-select">
+                                <option value="Non" ${chars.camera === 'Non' ? 'selected' : ''}>Non</option>
+                                <option value="Oui" ${chars.camera === 'Oui' ? 'selected' : ''}>Oui (Standard)</option>
+                                <option value="360" ${chars.camera === '360' ? 'selected' : ''}>Vision 360°</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Sièges Électriques</label>
+                            <select name="electricSeats" class="glass-select">
+                                <option value="Non" ${chars.electricSeats === 'Non' ? 'selected' : ''}>Non</option>
+                                <option value="Oui" ${chars.electricSeats === 'Oui' ? 'selected' : ''}>Oui</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Malle Électrique</label>
+                            <select name="electricTrunk" class="glass-select">
+                                <option value="Non" ${chars.electricTrunk === 'Non' ? 'selected' : ''}>Non</option>
+                                <option value="Oui" ${chars.electricTrunk === 'Oui' ? 'selected' : ''}>Oui</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Type de Toit</label>
+                            <select name="roof" class="glass-select">
+                                <option value="Non" ${chars.roof === 'Non' ? 'selected' : ''}>Non (Tôlé)</option>
+                                <option value="Ouvrant" ${chars.roof === 'Ouvrant' ? 'selected' : ''}>Toit Ouvrant</option>
+                                <option value="Panoramique" ${chars.roof === 'Panoramique' ? 'selected' : ''}>Toit Panoramique</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Roue de Secours</label>
+                            <select name="spareWheel" class="glass-select">
+                                <option value="Non" ${chars.spareWheel === 'Non' ? 'selected' : ''}>Non</option>
+                                <option value="Oui" ${chars.spareWheel === 'Oui' ? 'selected' : ''}>Oui</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Main Libre (Keyless)</label>
+                            <select name="keyless" class="glass-select">
+                                <option value="Non" ${chars.keyless === 'Non' ? 'selected' : ''}>Non</option>
+                                <option value="Oui" ${chars.keyless === 'Oui' ? 'selected' : ''}>Oui</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Start & Stop</label>
+                            <select name="startStop" class="glass-select">
+                                <option value="Non" ${chars.startStop === 'Non' ? 'selected' : ''}>Non</option>
+                                <option value="Oui" ${chars.startStop === 'Oui' ? 'selected' : ''}>Oui</option>
+                            </select>
+                        </div>
+
+                        <div class="modal-footer" style="grid-column: span 2; margin-top: 10px;">
+                            <button type="button" class="btn-secondary" onclick="document.getElementById('trim-details-overlay').remove()">Annuler</button>
+                            <button type="submit" class="btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('trim-chars-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const characteristics = {};
+            formData.forEach((value, key) => {
+                if (key !== 'trimId') characteristics[key] = value;
+            });
+
+            try {
+                // We'll need a new API method for this or use updateBrand which is not ideal
+                // For now, let's assume we use addVehicleTrim with an update logic or a new route
+                const res = await ApiService.updateVehicleTrim(trimId, { characteristics });
+                if (res.success) {
+                    this.showToast("Caractéristiques mises à jour", "success");
+                    document.getElementById('trim-details-overlay').remove();
+                    await StorageService.syncAll();
+                    this.manageModels(brandName);
+                } else {
+                    this.showToast(res.message || "Erreur lors de la mise à jour", "error");
+                }
+            } catch (error) {
+                console.error(error);
+                this.showToast("Erreur serveur", "error");
+            }
+        });
     },
 
     async removeTrimFromModal(trimId, brandName) {

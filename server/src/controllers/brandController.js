@@ -101,6 +101,18 @@ const brandController = {
             console.error('Error deleting trim:', error);
             res.status(500).json({ success: false, message: 'Erreur lors de la suppression de la finition' });
         }
+    },
+
+    updateTrim: async (req, res) => {
+        try {
+            const trim = await VehicleTrim.findByPk(req.params.trimId);
+            if (!trim) return res.status(404).json({ success: false, message: 'Finition non trouvée' });
+            await trim.update(req.body);
+            res.json({ success: true, data: trim });
+        } catch (error) {
+            console.error('Error updating trim:', error);
+            res.status(400).json({ success: false, message: 'Erreur lors de la modification de la finition' });
+        }
     }
 };
 
