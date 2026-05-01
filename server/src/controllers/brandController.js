@@ -1,10 +1,14 @@
-const { Brand, VehicleModel } = require('../models');
+const { Brand, VehicleModel, VehicleTrim } = require('../models');
 
 const brandController = {
     getAll: async (req, res) => {
         try {
             const brands = await Brand.findAll({
-                include: [{ model: VehicleModel, as: 'models' }],
+                include: [{ 
+                    model: VehicleModel, 
+                    as: 'models',
+                    include: [{ model: VehicleTrim, as: 'trims' }]
+                }],
                 order: [['name', 'ASC']]
             });
             res.json({ success: true, data: brands });
@@ -70,6 +74,32 @@ const brandController = {
             res.json({ success: true, message: 'Modèle supprimé' });
         } catch (error) {
             res.status(500).json({ success: false, message: 'Erreur lors de la suppression du modèle' });
+        }
+    },
+
+    // Trim (Finition) Management
+    addTrim: async (req, res) => {
+        try {
+            const { name, characteristics } = req.body;
+            const modelId = req.params.modelId;
+            const id = `trim_${modelId}_${Date.now()}`;
+            const trim = await VehicleTrim.create({ id, modelId, name, characteristics });
+            res.status(201).json({ success: true, data: trim });
+        } catch (error) {
+            console.error('Error adding trim:', error);
+            res.status(400).json({ success: false, message: 'Erreur lors de l\'ajout de la finition' });
+        }
+    },
+
+    deleteTrim: async (req, res) => {
+        try {
+            const trim = await VehicleTrim.findByPk(req.params.trimId);
+            if (!trim) return res.status(404).json({ success: false, message: 'Finition non trouvée' });
+            await trim.destroy();
+            res.json({ success: true, message: 'Finition supprimée' });
+        } catch (error) {
+            console.error('Error deleting trim:', error);
+            res.status(500).json({ success: false, message: 'Erreur lors de la suppression de la finition' });
         }
     }
 };

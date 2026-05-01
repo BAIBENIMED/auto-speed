@@ -42,6 +42,11 @@ const Vehicle = sequelize.define('Vehicle', {
     trim: {
         type: DataTypes.STRING(200)
     },
+    trimId: {
+        type: DataTypes.STRING(50),
+        field: 'trim_id',
+        allowNull: true
+    },
     remarks: {
         type: DataTypes.TEXT
     },

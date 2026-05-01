@@ -10,4 +10,7 @@ router.delete('/:id', brandController.delete);
 router.post('/:brandId/models', brandController.addModel);
 router.delete('/models/:modelId', brandController.deleteModel);
 
+router.post('/models/:modelId/trims', brandController.addTrim);
+router.delete('/trims/:trimId', brandController.deleteTrim);
+
 module.exports = router;

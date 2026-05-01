@@ -4540,7 +4540,10 @@ const app = {
                                     </div>
                                     <div class="form-group">
                                         <label>Finition</label>
-                                        <input type="text" name="trim" class="glass-input" placeholder="Ex: SE, Luxury, Full...">
+                                        <select name="trim" id="trim-select" class="glass-select">
+                                            <option value="">Sélectionner d'abord un modèle...</option>
+                                        </select>
+                                        <input type="hidden" name="trimId" id="trim-id-input">
                                     </div>
                                     <div class="form-group">
                                         <label>Lien Vidéo (Drive)</label>
@@ -4675,19 +4678,52 @@ const app = {
                 `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-        // Add event listener for brand change to update models
+        // Add event listeners for cascading selects
         const brandSelect = document.querySelector('select[name="brand"]');
         const modelSelect = document.getElementById('model-select');
-        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
+        const trimSelect = document.getElementById('trim-select');
+        const trimIdInput = document.getElementById('trim-id-input');
+        const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
 
         brandSelect.addEventListener('change', (e) => {
-            const selectedBrand = e.target.value;
+            const selectedBrandName = e.target.value;
             modelSelect.innerHTML = '<option value="">Sélectionner d\'abord une marque...</option>';
-            if (selectedBrand && brandModels[selectedBrand]) {
-                brandModels[selectedBrand].forEach(model => {
-                    modelSelect.innerHTML += `<option value="${model}">${model}</option>`;
+            trimSelect.innerHTML = '<option value="">Sélectionner d\'abord un modèle...</option>';
+            
+            const brandObj = brandsRaw.find(b => b.name === selectedBrandName);
+            if (brandObj && brandObj.models) {
+                modelSelect.innerHTML = '<option value="">Sélectionner le modèle...</option>';
+                brandObj.models.forEach(model => {
+                    modelSelect.innerHTML += `<option value="${model.name}" data-id="${model.id}">${model.name}</option>`;
                 });
             }
+        });
+
+        modelSelect.addEventListener('change', (e) => {
+            const selectedModelName = e.target.value;
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const modelId = selectedOption.getAttribute('data-id');
+            
+            trimSelect.innerHTML = '<option value="">Sélectionner d\'abord un modèle...</option>';
+            
+            const selectedBrandName = brandSelect.value;
+            const brandObj = brandsRaw.find(b => b.name === selectedBrandName);
+            const modelObj = brandObj?.models?.find(m => m.id === modelId || m.name === selectedModelName);
+            
+            if (modelObj && modelObj.trims) {
+                trimSelect.innerHTML = '<option value="">Sélectionner la finition...</option>';
+                modelObj.trims.forEach(trim => {
+                    trimSelect.innerHTML += `<option value="${trim.name}" data-id="${trim.id}">${trim.name}</option>`;
+                });
+            } else if (modelObj) {
+                trimSelect.innerHTML = '<option value="">Aucune finition disponible</option>';
+            }
+        });
+
+        trimSelect.addEventListener('change', (e) => {
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const trimId = selectedOption.getAttribute('data-id');
+            if (trimIdInput) trimIdInput.value = trimId || '';
         });
 
 
@@ -4743,6 +4779,7 @@ const app = {
                 brand: formData.get('brand'),
                 model: formData.get('model'),
                 trim: formData.get('trim'),
+                trimId: formData.get('trimId'),
                 motorization: formData.get('motorization'),
                 supplier: formData.get('supplier'),
                 year: formData.get('year') ? parseInt(formData.get('year')) : null,
@@ -4926,7 +4963,14 @@ const app = {
                                     <h2>Modifier le Véhicule</h2>
                                     <button class="btn-close" onclick="app.closeModal()">&times;</button>
                                 </div>
-                                <form id="vehicle-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                                <form id="vehicle-form" style="display: flex; flex-direction: column; gap: 1.5rem">
+                                     <div class="form-group">
+                                         <label>Finition</label>
+                                         <select name="trim" id="trim-select" class="glass-select">
+                                             <option value="">Sélectionner d'abord un modèle...</option>
+                                         </select>
+                                         <input type="hidden" name="trimId" id="trim-id-input">
+                                     </div>
                                     <input type="hidden" name="vehicleId" value="${vehicle.id}">
                                     
                                     <fieldset style="border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
@@ -4951,7 +4995,10 @@ const app = {
                                             </div>
                                             <div class="form-group">
                                                 <label>Finition</label>
-                                                <input type="text" name="trim" value="${vehicle.trim || ''}" class="glass-input">
+                                                <select name="trim" id="edit-trim-select" class="glass-select">
+                                                    <option value="">Sélectionner d'abord un modèle...</option>
+                                                </select>
+                                                <input type="hidden" name="trimId" id="edit-trim-id-input" value="${vehicle.trimId || ''}">
                                             </div>
                                             <div class="form-group">
                                                 <label>Lien Vidéo (Drive)</label>
@@ -5096,25 +5143,62 @@ const app = {
         // Populate model dropdown and add event listener
         const brandSelect = document.querySelector('select[name="brand"]');
         const modelSelect = document.getElementById('edit-model-select');
-        const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
+        const trimSelect = document.getElementById('edit-trim-select');
+        const trimIdInput = document.getElementById('edit-trim-id-input');
+        const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
 
         // Function to populate models based on brand
-        const populateModels = (brand, selectedModel = null) => {
-            modelSelect.innerHTML = '<option value="">Sélectionner...</option>';
-            if (brand && brandModels[brand]) {
-                brandModels[brand].forEach(model => {
-                    const selected = model === selectedModel ? 'selected' : '';
-                    modelSelect.innerHTML += `<option value="${model}" ${selected}>${model}</option>`;
+        const populateModels = (brandName, selectedModelName = null) => {
+            modelSelect.innerHTML = '<option value="">Sélectionner le modèle...</option>';
+            trimSelect.innerHTML = '<option value="">Sélectionner d\'abord un modèle...</option>';
+            
+            const brandObj = brandsRaw.find(b => b.name === brandName);
+            if (brandObj && brandObj.models) {
+                brandObj.models.forEach(model => {
+                    const selected = model.name === selectedModelName ? 'selected' : '';
+                    modelSelect.innerHTML += `<option value="${model.name}" data-id="${model.id}" ${selected}>${model.name}</option>`;
                 });
+            }
+        };
+
+        // Function to populate trims based on model
+        const populateTrims = (brandName, modelName, selectedTrimName = null) => {
+            trimSelect.innerHTML = '<option value="">Sélectionner la finition...</option>';
+            
+            const brandObj = brandsRaw.find(b => b.name === brandName);
+            const modelObj = brandObj?.models?.find(m => m.name === modelName);
+            
+            if (modelObj && modelObj.trims) {
+                modelObj.trims.forEach(trim => {
+                    const selected = trim.name === selectedTrimName ? 'selected' : '';
+                    trimSelect.innerHTML += `<option value="${trim.name}" data-id="${trim.id}" ${selected}>${trim.name}</option>`;
+                });
+            } else if (modelObj) {
+                trimSelect.innerHTML = '<option value="">Aucune finition disponible</option>';
             }
         };
 
         // Initial population with existing vehicle data
         populateModels(vehicle.brand, vehicle.model);
+        if (vehicle.model) {
+            populateTrims(vehicle.brand, vehicle.model, vehicle.trim);
+        }
 
         // Add change listener for brand
         brandSelect.addEventListener('change', (e) => {
             populateModels(e.target.value);
+        });
+
+        // Add change listener for model
+        modelSelect.addEventListener('change', (e) => {
+            populateTrims(brandSelect.value, e.target.value);
+        });
+
+        // Add change listener for trim
+        trimSelect.addEventListener('change', (e) => {
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const trimId = selectedOption.getAttribute('data-id');
+            if (trimIdInput) trimIdInput.value = trimId || '';
         });
 
         this.initClientSelectionTable();
@@ -10282,6 +10366,7 @@ const app = {
     },
 
     async showPurchaseOrderModal(id = null) {
+        this.closeModal();
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
         const response = await ApiService.getPurchaseOrders();
         const existingPOs = response.data || [];
@@ -13514,23 +13599,31 @@ const app = {
     },
 
     renderBrandModelsSection() {
-        const modelsMap = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
-        const brands = StorageService.get(STORAGE_KEYS.BRANDS) || [];
+        const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
 
         return `
             <div class="settings-section">
-                <h3><i class="fas fa-car-side"></i> Modèles par Marque</h3>
+                <h3><i class="fas fa-car-side"></i> Modèles & Finitions par Marque</h3>
                 <div class="config-grid">
-                    ${brands.map(brand => `
-                        <div class="config-item glass" style="flex-direction: column; align-items: stretch; gap: 10px; height: auto; min-height: 120px; padding: 15px;">
-                            <div style="font-weight: 700; width: 100%; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px; margin-bottom: 5px; color: var(--primary);">
-                                ${brand}
+                    ${brandsRaw.map(brand => `
+                        <div class="config-item glass" style="flex-direction: column; align-items: stretch; gap: 10px; height: auto; min-height: 150px; padding: 15px;">
+                            <div style="font-weight: 700; width: 100%; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px; margin-bottom: 5px; color: var(--primary); display: flex; justify-content: space-between; align-items: center;">
+                                <span>${brand.name}</span>
+                                <span style="font-size: 0.7rem; opacity: 0.6;">${(brand.models || []).length} modèles</span>
                             </div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 6px; flex-grow: 1;">
-                                ${(modelsMap[brand] || []).map(m => `<span class="model-tag">${m}</span>`).join('') || '<span style="color:var(--text-secondary); font-size:0.8rem; opacity: 0.6;">Aucun modèle</span>'}
+                            <div style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
+                                ${(brand.models || []).slice(0, 5).map(m => `
+                                    <div style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px;">
+                                        <i class="fas fa-caret-right" style="font-size: 0.7rem; opacity: 0.5;"></i>
+                                        <span style="font-weight: 500;">${m.name}</span>
+                                        <span style="font-size: 0.7rem; color: var(--text-dim);">(${(m.trims || []).length} finitions)</span>
+                                    </div>
+                                `).join('')}
+                                ${brand.models?.length > 5 ? `<div style="font-size: 0.75rem; color: var(--text-dim); font-style: italic;">+ ${brand.models.length - 5} autres modèles...</div>` : ''}
+                                ${(!brand.models || brand.models.length === 0) ? '<div style="color:var(--text-secondary); font-size:0.8rem; opacity: 0.6;">Aucun modèle</div>' : ''}
                             </div>
-                            <div style="display: flex; justify-content: flex-end; margin-top: auto;">
-                                <button class="btn-icon-small" onclick="app.manageModels('${brand.replace(/'/g, "\\'")}')" title="Gérer les modèles">
+                            <div style="display: flex; justify-content: flex-end; margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05);">
+                                <button class="btn-icon-small" onclick="app.manageModels('${brand.name.replace(/'/g, "\\'")}')" title="Gérer les modèles et finitions">
                                     <i class="fas fa-cog"></i> Gérer
                                 </button>
                             </div>
@@ -13553,35 +13646,60 @@ const app = {
 
         const modalHtml = `
             <div class="modal-overlay">
-                <div class="modal-content glass" style="width: 450px;">
+                <div class="modal-content glass" style="width: 600px; max-height: 90vh; display: flex; flex-direction: column;">
                     <div class="modal-header">
-                        <h2><i class="fas fa-car"></i> Modèles : ${brand}</h2>
+                        <h2><i class="fas fa-car"></i> Modèles & Finitions : ${brand}</h2>
                         <button class="btn-close" onclick="app.closeModal()">&times;</button>
                     </div>
-                    <div class="modal-body" style="padding: 20px;">
-                        <div style="margin-bottom: 20px;">
-                            <label style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 8px; display: block;">Ajouter un nouveau modèle</label>
+                    <div class="modal-body" style="padding: 20px; overflow-y: auto;">
+                        <div style="margin-bottom: 25px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                            <label style="font-size: 0.85rem; color: var(--primary); margin-bottom: 10px; display: block; font-weight: 600;">AJOUTER UN NOUVEAU MODÈLE</label>
                             <div class="add-config-form" style="display: flex; gap: 10px;">
                                 <input type="text" id="modal-new-model-name" placeholder="Ex: RS6, Golf 8, Q7..." class="glass-input" style="flex: 1;">
                                 <button class="btn-primary" onclick="app.addNewModelFromModal('${brandObj.id}', '${brand.replace(/'/g, "\\'")}')">
-                                    <i class="fas fa-plus"></i>
+                                    <i class="fas fa-plus"></i> Ajouter
                                 </button>
                             </div>
                         </div>
                         
-                        <div style="border-top: 1px solid var(--border-glass); padding-top: 15px;">
-                            <label style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px; display: block;">Modèles existants (${models.length})</label>
-                            <div id="modal-model-list" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px;">
+                        <div style="border-top: 1px solid var(--border-glass); padding-top: 5px;">
+                            <label style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 15px; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Modèles existants (${models.length})</label>
+                            <div id="modal-model-list" style="display: flex; flex-direction: column; gap: 12px;">
                                 ${models.length > 0 ? models.map(m => `
-                                    <div class="config-item glass" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: rgba(255,255,255,0.03);">
-                                        <span style="font-weight: 500;">${m.name}</span>
-                                        <button class="btn-icon-small danger" onclick="app.removeModelFromModal('${m.id}', '${brand.replace(/'/g, "\\'")}')" title="Supprimer">
-                                            <i class="fas fa-trash-alt" style="font-size: 0.8rem;"></i>
-                                        </button>
+                                    <div class="config-item glass" style="display: flex; flex-direction: column; padding: 0; background: rgba(255,255,255,0.02); overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                            <span style="font-weight: 700; color: white;">${m.name}</span>
+                                            <div style="display: flex; gap: 8px;">
+                                                <button class="btn-icon-small" onclick="app.toggleTrimsList('${m.id}')" title="Gérer les finitions">
+                                                    <i class="fas fa-list"></i>
+                                                </button>
+                                                <button class="btn-icon-small danger" onclick="app.removeModelFromModal('${m.id}', '${brand.replace(/'/g, "\\'")}')" title="Supprimer le modèle">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Finitions Section -->
+                                        <div id="trims-section-${m.id}" style="padding: 12px; background: rgba(0,0,0,0.1); display: none;">
+                                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                                                <input type="text" id="input-new-trim-${m.id}" placeholder="Nouvelle finition (ex: Luxury, Sport...)" class="glass-input" style="font-size: 0.8rem; padding: 6px 12px;">
+                                                <button class="btn-primary" style="padding: 5px 12px; font-size: 0.75rem;" onclick="app.addTrimFromModal('${m.id}', '${brand.replace(/'/g, "\\'")}')">
+                                                    <i class="fas fa-plus"></i>
+                                                </button>
+                                            </div>
+                                            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                                ${(m.trims || []).length > 0 ? m.trims.map(trim => `
+                                                    <span class="status-badge info" style="font-size: 0.7rem; display: flex; align-items: center; gap: 8px; padding: 4px 10px;">
+                                                        ${trim.name}
+                                                        <i class="fas fa-times" style="cursor: pointer; opacity: 0.6; font-size: 0.6rem;" onclick="app.removeTrimFromModal('${trim.id}', '${brand.replace(/'/g, "\\'")}')"></i>
+                                                    </span>
+                                                `).join('') : '<span style="font-size: 0.75rem; color: var(--text-dim); opacity: 0.5;">Aucune finition enregistrée</span>'}
+                                            </div>
+                                        </div>
                                     </div>
                                 `).join('') : `
-                                    <div style="text-align: center; padding: 30px 10px; color: var(--text-dim);">
-                                        <i class="fas fa-info-circle" style="display: block; font-size: 1.5rem; margin-bottom: 10px; opacity: 0.3;"></i>
+                                    <div style="text-align: center; padding: 40px 10px; color: var(--text-dim); background: rgba(255,255,255,0.02); border-radius: 12px; border: 2px dashed rgba(255,255,255,0.05);">
+                                        <i class="fas fa-info-circle" style="display: block; font-size: 2rem; margin-bottom: 10px; opacity: 0.3;"></i>
                                         <p>Aucun modèle enregistré pour cette marque.</p>
                                     </div>
                                 `}
@@ -13630,6 +13748,51 @@ const app = {
                 this.showToast(res.message || "Erreur lors de l'ajout", "error");
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
+            }
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur serveur", "error");
+        }
+    },
+
+    toggleTrimsList(modelId) {
+        const section = document.getElementById(`trims-section-${modelId}`);
+        if (section) {
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+    },
+
+    async addTrimFromModal(modelId, brandName) {
+        const input = document.getElementById(`input-new-trim-${modelId}`);
+        const name = input.value.trim();
+        if (!name) return;
+
+        try {
+            const res = await ApiService.addVehicleTrim(modelId, { name });
+            if (res.success) {
+                this.showToast(`Finition "${name}" ajoutée`, "success");
+                await StorageService.syncAll();
+                this.manageModels(brandName);
+            } else {
+                this.showToast(res.message || "Erreur lors de l'ajout", "error");
+            }
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur serveur", "error");
+        }
+    },
+
+    async removeTrimFromModal(trimId, brandName) {
+        if (!confirm("Voulez-vous vraiment supprimer cette finition ?")) return;
+
+        try {
+            const res = await ApiService.deleteVehicleTrim(trimId);
+            if (res.success) {
+                this.showToast("Finition supprimée", "info");
+                await StorageService.syncAll();
+                this.manageModels(brandName);
+            } else {
+                this.showToast(res.message || "Erreur lors de la suppression", "error");
             }
         } catch (error) {
             console.error(error);

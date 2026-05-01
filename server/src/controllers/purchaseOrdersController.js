@@ -189,16 +189,41 @@ const purchaseOrdersController = {
                 await Vehicle.update({ supplier: supplier.name }, { where: { purchaseOrderId: id } });
             }
 
-            // Optionally, handle updating the list of vehicles here if necessary.
-            // For now, updating existing vehicles' details via the vehicles array if they have IDs.
-                if (vehicles && Array.isArray(vehicles)) {
+            // Handle updating the list of vehicles with reconciliation
+            if (vehicles && Array.isArray(vehicles)) {
+                // 1. Get all currently linked vehicles
+                const existingVehicles = await Vehicle.findAll({ where: { purchaseOrderId: id } });
+                const processedIds = new Set();
+
                 for (const v of vehicles) {
+                    let vehicleToUpdate = null;
+
                     if (v.id) {
+                        // Case A: ID is provided, direct update
+                        vehicleToUpdate = existingVehicles.find(ev => ev.id === v.id);
+                    } else {
+                        // Case B: No ID, try to reconcile by chassisNumber or orderId to prevent doubling
+                        if (v.chassisNumber) {
+                            vehicleToUpdate = existingVehicles.find(ev => 
+                                ev.chassisNumber === v.chassisNumber && !processedIds.has(ev.id)
+                            );
+                        }
+                        
+                        if (!vehicleToUpdate && v.orderId) {
+                            vehicleToUpdate = existingVehicles.find(ev => 
+                                ev.orderId === v.orderId && !processedIds.has(ev.id)
+                            );
+                        }
+                    }
+
+                    if (vehicleToUpdate) {
+                        // Update existing vehicle
                         const vehicleData = { ...v };
                         delete vehicleData.id;
-                        await Vehicle.update(vehicleData, { where: { id: v.id, purchaseOrderId: id } });
+                        await vehicleToUpdate.update(vehicleData);
+                        processedIds.add(vehicleToUpdate.id);
                     } else {
-                        // Create new vehicle appended to this PO
+                        // Create new vehicle
                         const brand = (v.brand || 'UNKNOWN').toUpperCase().replace(/\s+/g, '');
                         const { Op } = require('sequelize');
                         const lastVehicle = await Vehicle.findOne({
@@ -238,9 +263,23 @@ const purchaseOrdersController = {
                             purchaseCurrency: v.purchaseCurrency || 'EUR',
                             status: vehicleStatus
                         });
+                        
                         if (newVehicle.orderId) {
                             await Order.update({ vehicleId: newVehicle.id }, { where: { id: newVehicle.orderId } });
                         }
+                        processedIds.add(newVehicle.id);
+                    }
+                }
+
+                // 2. Optional: Cleanup vehicles that are no longer in the request
+                // This ensures that removing a row in the UI actually removes it from the PO
+                for (const ev of existingVehicles) {
+                    if (!processedIds.has(ev.id)) {
+                        // If it's linked to an order, unlink it first
+                        if (ev.orderId) {
+                            await Order.update({ vehicleId: null }, { where: { id: ev.orderId } });
+                        }
+                        await ev.destroy();
                     }
                 }
             }

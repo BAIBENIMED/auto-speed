@@ -18,6 +18,7 @@ const Supplier = require('./Supplier');
 const Notification = require('./Notification');
 const Voyage = require('./Voyage');
 const VehicleTransfer = require('./VehicleTransfer');
+const VehicleTrim = require('./VehicleTrim');
 const attachAuditLog = require('../utils/auditLogger');
 
 // Define relationships
@@ -58,6 +59,12 @@ Order.hasMany(CashTransaction, { foreignKey: 'orderId' });
 Brand.hasMany(VehicleModel, { foreignKey: 'brandId', as: 'models', onDelete: 'CASCADE' });
 VehicleModel.belongsTo(Brand, { foreignKey: 'brandId', as: 'brand' });
 
+VehicleModel.hasMany(VehicleTrim, { foreignKey: 'modelId', as: 'trims', onDelete: 'CASCADE' });
+VehicleTrim.belongsTo(VehicleModel, { foreignKey: 'modelId', as: 'model' });
+
+Vehicle.belongsTo(VehicleTrim, { foreignKey: 'trimId', as: 'trimDetails' });
+VehicleTrim.hasMany(Vehicle, { foreignKey: 'trimId' });
+
 // Voyage relationships
 Voyage.hasMany(Shipment, { foreignKey: 'voyageId', as: 'shipments' });
 Shipment.belongsTo(Voyage, { foreignKey: 'voyageId', as: 'voyageDetails' });
@@ -93,7 +100,8 @@ module.exports = {
     Supplier,
     Notification,
     Voyage,
-    VehicleTransfer
+    VehicleTransfer,
+    VehicleTrim
 };
 
 // Audit Log associations

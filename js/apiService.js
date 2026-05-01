@@ -142,6 +142,8 @@ const ApiService = {
     deleteBrand: (id) => ApiService.request(`/brands/${id}`, { method: 'DELETE' }),
     addVehicleModel: (brandId, data) => ApiService.request(`/brands/${brandId}/models`, { method: 'POST', body: data }),
     deleteVehicleModel: (modelId) => ApiService.request(`/brands/models/${modelId}`, { method: 'DELETE' }),
+    addVehicleTrim: (modelId, data) => ApiService.request(`/brands/models/${modelId}/trims`, { method: 'POST', body: data }),
+    deleteVehicleTrim: (trimId) => ApiService.request(`/brands/trims/${trimId}`, { method: 'DELETE' }),
 
     // Showrooms
     getShowrooms: () => ApiService.request('/showrooms'),
