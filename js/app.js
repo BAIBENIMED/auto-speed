@@ -4741,6 +4741,8 @@ const app = {
                     infoBox.innerHTML = `
                         <div style="font-weight: 700; margin-bottom: 5px; color: var(--primary);"><i class="fas fa-info-circle"></i> Options de série (${trimName}) :</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                            <div>Moteur: <strong>${c.engine || 'N/A'}</strong></div>
+                            <div>Boîte: <strong>${c.gearbox || 'N/A'}</strong></div>
                             <div>Turbo: <strong>${c.turbo || 'N/A'}</strong></div>
                             <div>Caméra: <strong>${c.camera || 'N/A'}</strong></div>
                             <div>Sièges élec.: <strong>${c.electricSeats || 'N/A'}</strong></div>
@@ -5253,6 +5255,8 @@ const app = {
                     infoBox.innerHTML = `
                         <div style="font-weight: 700; margin-bottom: 5px; color: var(--primary);"><i class="fas fa-info-circle"></i> Options de série (${trimName}) :</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                            <div>Moteur: <strong>${c.engine || 'N/A'}</strong></div>
+                            <div>Boîte: <strong>${c.gearbox || 'N/A'}</strong></div>
                             <div>Turbo: <strong>${c.turbo || 'N/A'}</strong></div>
                             <div>Caméra: <strong>${c.camera || 'N/A'}</strong></div>
                             <div>Sièges élec.: <strong>${c.electricSeats || 'N/A'}</strong></div>
@@ -13881,6 +13885,21 @@ const app = {
                     </div>
                     <form id="trim-chars-form" style="padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="hidden" name="trimId" value="${trimId}">
+                        
+                        <div class="form-group">
+                            <label>Moteur (ex: 2.0 TDI, V8...)</label>
+                            <input type="text" name="engine" class="glass-input" value="${chars.engine || ''}" placeholder="Cylindrée / Type">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Type de Boîte</label>
+                            <select name="gearbox" class="glass-select">
+                                <option value="" ${!chars.gearbox ? 'selected' : ''}>Non spécifié</option>
+                                <option value="Manuelle" ${chars.gearbox === 'Manuelle' ? 'selected' : ''}>Manuelle</option>
+                                <option value="Automatique" ${chars.gearbox === 'Automatique' ? 'selected' : ''}>Automatique</option>
+                                <option value="DSG/S-Tronic" ${chars.gearbox === 'DSG/S-Tronic' ? 'selected' : ''}>DSG / S-Tronic</option>
+                            </select>
+                        </div>
                         
                         <div class="form-group">
                             <label>Moteur Turbo</label>
