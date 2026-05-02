@@ -49,6 +49,11 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             models.ExchangeRate.findAll({ order: [['date', 'DESC']] }),
             models.CashTransaction.findAll(),
             models.DynamicAttribute.findAll({ order: [['sortOrder', 'ASC']] }),
+            models.PurchaseOrder.findAll({
+                include: [{
+                    model: models.Vehicle,
+                    as: 'vehicles',
+                    include: [{ model: models.Order, as: 'order' }]
                 }]
             }).catch(err => {
                 console.warn('⚠️ Could not fetch purchase orders for sync:', err.message);
