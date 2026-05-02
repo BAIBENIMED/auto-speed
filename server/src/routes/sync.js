@@ -34,7 +34,16 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             models.Order.findAll(),
             models.Vehicle.findAll(),
             models.Shipment.findAll(),
-            models.Brand.findAll({ include: [{ model: models.VehicleModel, as: 'models' }] }),
+            models.Brand.findAll({ 
+                include: [{ 
+                    model: models.VehicleModel, 
+                    as: 'models',
+                    include: [{ model: models.VehicleTrim, as: 'trims' }]
+                }] 
+            }).catch(async (err) => {
+                console.warn('⚠️ Could not fetch trims for sync, falling back to brands/models only:', err.message);
+                return models.Brand.findAll({ include: [{ model: models.VehicleModel, as: 'models' }] });
+            }),
             models.Showroom.findAll(),
             models.Settings.findOne(),
             models.ExchangeRate.findAll({ order: [['date', 'DESC']] }),

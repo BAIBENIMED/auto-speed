@@ -19,8 +19,19 @@ const VehicleTrim = sequelize.define('VehicleTrim', {
         allowNull: false
     },
     characteristics: {
-        type: DataTypes.JSON,
-        allowNull: true
+        type: DataTypes.TEXT,
+        allowNull: true,
+        get() {
+            const rawValue = this.getDataValue('characteristics');
+            try {
+                return rawValue ? JSON.parse(rawValue) : {};
+            } catch (e) {
+                return {};
+            }
+        },
+        set(value) {
+            this.setDataValue('characteristics', value ? JSON.stringify(value) : null);
+        }
     }
 }, {
     tableName: 'vehicle_trims',

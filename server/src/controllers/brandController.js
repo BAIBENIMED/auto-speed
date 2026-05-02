@@ -13,14 +13,14 @@ const brandController = {
             });
             res.json({ success: true, data: brands });
         } catch (error) {
-            console.error('Error fetching brands (with trims):', error);
+            console.error('Error fetching brands (with trims):', error.name, error.message);
             try {
                 // Fallback: try without trims if the table doesn't exist yet
                 const brands = await Brand.findAll({
                     include: [{ model: VehicleModel, as: 'models' }],
                     order: [['name', 'ASC']]
                 });
-                return res.json({ success: true, data: brands, warning: "Les finitions n'ont pas pu être chargées." });
+                return res.json({ success: true, data: brands, warning: `Les finitions n'ont pas pu être chargées (${error.message}).` });
             } catch (fallbackError) {
                 console.error('Error fetching brands (fallback):', fallbackError);
                 res.status(500).json({ success: false, message: 'Erreur lors de la récupération des marques' });
@@ -93,6 +93,7 @@ const brandController = {
             const { name, characteristics } = req.body;
             const modelId = req.params.modelId;
             const id = `trim_${modelId}_${Date.now()}`;
+            console.log(`🆕 Creating trim: ${name} for model ${modelId} with ID: ${id}`);
             const trim = await VehicleTrim.create({ id, modelId, name, characteristics });
             res.status(201).json({ success: true, data: trim });
         } catch (error) {
