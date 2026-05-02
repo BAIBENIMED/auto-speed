@@ -390,7 +390,8 @@ const startServer = async () => {
         try {
             await models.Notification.sync({ alter: true });
             await models.VehicleTransfer.sync({ alter: true });
-            console.log('🔧 Tables Notification/VehicleTransfer vérifiées/créées (Fail-safe).');
+            await models.VehicleTrim.sync({ alter: true });
+            console.log('🔧 Tables Notification/VehicleTransfer/VehicleTrim vérifiées/créées (Fail-safe).');
 
             // Raw SQL Fail-safe for Voyages (Sequelize sync might be ignored due to index warnings)
             await sequelize.query(`
@@ -413,6 +414,38 @@ const startServer = async () => {
                 ) ENGINE=InnoDB;
             `);
             console.log('🔧 Table Voyage vérifiée/créée (Raw SQL Fail-safe).');
+
+            // Raw SQL Fail-safe for VehicleTrims
+            try {
+                await sequelize.query(`
+                    CREATE TABLE IF NOT EXISTS vehicle_trims (
+                        id VARCHAR(255) PRIMARY KEY,
+                        modelId VARCHAR(255) NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        characteristics JSON NULL,
+                        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB;
+                `);
+                console.log('🔧 Table VehicleTrim vérifiée/créées (Raw SQL Fail-safe sans contrainte).');
+            } catch (trimErr) {
+                if (trimErr.message.includes('JSON')) {
+                    console.warn('⚠️ JSON type not supported, falling back to LONGTEXT for characteristics.');
+                    await sequelize.query(`
+                        CREATE TABLE IF NOT EXISTS vehicle_trims (
+                            id VARCHAR(255) PRIMARY KEY,
+                            modelId VARCHAR(255) NOT NULL,
+                            name VARCHAR(255) NOT NULL,
+                            characteristics LONGTEXT NULL,
+                            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                        ) ENGINE=InnoDB;
+                    `);
+                    console.log('🔧 Table VehicleTrim vérifiée/créées (Fallback LONGTEXT sans contrainte).');
+                } else {
+                    console.error('❌ Echec creation table VehicleTrim:', trimErr.message);
+                }
+            }
 
             // Ensure bl_number exists (for existing tables)
             try {
@@ -475,6 +508,7 @@ const startServer = async () => {
                 { table: 'purchase_orders', name: 'tasks', def: 'JSON' },
                 { table: 'vehicles', name: 'motorization', def: 'VARCHAR(100)' },
                 { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' },
+                { table: 'vehicles', name: 'trimId', def: 'VARCHAR(255)' },
                 { table: 'vehicles', name: 'client_id', def: 'VARCHAR(50)' },
                 { table: 'vehicles', name: 'showroom', def: 'VARCHAR(100)' },
                 { table: 'vehicles', name: 'video_link', def: 'VARCHAR(500)' },

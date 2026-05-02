@@ -13,8 +13,18 @@ const brandController = {
             });
             res.json({ success: true, data: brands });
         } catch (error) {
-            console.error('Error fetching brands:', error);
-            res.status(500).json({ success: false, message: 'Erreur lors de la récupération des marques' });
+            console.error('Error fetching brands (with trims):', error);
+            try {
+                // Fallback: try without trims if the table doesn't exist yet
+                const brands = await Brand.findAll({
+                    include: [{ model: VehicleModel, as: 'models' }],
+                    order: [['name', 'ASC']]
+                });
+                return res.json({ success: true, data: brands, warning: "Les finitions n'ont pas pu être chargées." });
+            } catch (fallbackError) {
+                console.error('Error fetching brands (fallback):', fallbackError);
+                res.status(500).json({ success: false, message: 'Erreur lors de la récupération des marques' });
+            }
         }
     },
 
@@ -87,7 +97,12 @@ const brandController = {
             res.status(201).json({ success: true, data: trim });
         } catch (error) {
             console.error('Error adding trim:', error);
-            res.status(400).json({ success: false, message: 'Erreur lors de l\'ajout de la finition' });
+            res.status(500).json({ 
+                success: false, 
+                message: 'Erreur lors de l\'ajout de la finition',
+                error: error.message,
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            });
         }
     },
 

@@ -13842,7 +13842,7 @@ const app = {
                 await StorageService.syncAll();
                 this.manageModels(brandName);
             } else {
-                this.showToast(res.message || "Erreur lors de l'ajout", "error");
+                this.showToast(res.error || res.message || "Erreur lors de l'ajout", "error");
             }
         } catch (error) {
             console.error(error);
