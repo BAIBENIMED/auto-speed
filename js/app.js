@@ -4750,6 +4750,9 @@ const app = {
                             <div>Keyless: <strong>${c.keyless || 'N/A'}</strong></div>
                             <div>Start & Stop: <strong>${c.startStop || 'N/A'}</strong></div>
                         </div>
+                        ${c.remarks ? `<div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
+                            <strong>Remarques :</strong> <span style="font-style: italic; opacity: 0.8;">${c.remarks}</span>
+                        </div>` : ''}
                     `;
                 } else {
                     infoBox.style.display = 'none';
@@ -5259,6 +5262,9 @@ const app = {
                             <div>Keyless: <strong>${c.keyless || 'N/A'}</strong></div>
                             <div>Start & Stop: <strong>${c.startStop || 'N/A'}</strong></div>
                         </div>
+                        ${c.remarks ? `<div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
+                            <strong>Remarques :</strong> <span style="font-style: italic; opacity: 0.8;">${c.remarks}</span>
+                        </div>` : ''}
                     `;
                 } else {
                     infoBox.style.display = 'none';
@@ -13940,6 +13946,11 @@ const app = {
                                 <option value="Non" ${chars.startStop === 'Non' ? 'selected' : ''}>Non</option>
                                 <option value="Oui" ${chars.startStop === 'Oui' ? 'selected' : ''}>Oui</option>
                             </select>
+                        </div>
+                        
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>Remarques (Champ libre)</label>
+                            <textarea name="remarks" class="glass-input" style="width: 100%; height: 80px; padding: 10px; resize: vertical;" placeholder="Autres équipements, détails spécifiques...">${chars.remarks || ''}</textarea>
                         </div>
 
                         <div class="modal-footer" style="grid-column: span 2; margin-top: 10px;">
