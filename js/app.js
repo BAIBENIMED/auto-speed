@@ -4284,6 +4284,7 @@ const app = {
                         else if (s.includes('ALGER')) displayShowroom = 'ALGER';
                         else if (s.includes('ORAN')) displayShowroom = 'ORAN';
                         else if (s.includes('TIBOU')) displayShowroom = 'TIBOU';
+                        else if (s.trim() !== '' && rawShowroom) displayShowroom = rawShowroom;
                         else displayShowroom = 'VIDE';
                     }
 
@@ -4293,7 +4294,7 @@ const app = {
                             const s = (v.showroom || '').trim().toUpperCase();
                             return s === '' || s.includes('TIBOU');
                         }
-                        return displayShowroom === target.toUpperCase() || String(rawShowroom).toUpperCase().includes(target.toUpperCase());
+                        return displayShowroom.toUpperCase() === target.toUpperCase();
                     });
                 });
             }
@@ -4611,6 +4612,8 @@ const app = {
                                                 showroomDisplay = '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: bold;">ORAN</span>';
                                             } else if (s.includes('TIBOU')) {
                                                 showroomDisplay = '<span class="badge-pill" style="background: rgba(99, 102, 241, 0.2); color: var(--primary); font-weight: bold;">TIBOU</span>';
+                                            } else if (rawShowroom && String(rawShowroom).trim() !== '') {
+                                                showroomDisplay = `<span class="badge-pill" style="background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.1);">${rawShowroom}</span>`;
                                             } else {
                                                 showroomDisplay = '<span style="color: var(--text-dim); font-style: italic; font-size: 0.8rem;">VIDE</span>';
                                             }
