@@ -80,6 +80,7 @@ router.get('/track', async (req, res) => {
                 forwarder: shipment.forwarder,
                 loadingPort: shipment.loadingPort,
                 destination: shipment.destination,
+                shipmentDate: shipment.shipmentDate,
                 etd: shipment.etd,
                 eta: shipment.eta,
                 arrivalDate: shipment.arrivalDate,

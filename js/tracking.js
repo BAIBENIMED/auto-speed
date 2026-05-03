@@ -102,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const shipment = data.shipment;
         if (shipment) {
             document.getElementById('display-loading-port').textContent = shipment.loadingPort || 'N/A';
+            document.getElementById('display-shipment-date').textContent = shipment.shipmentDate ? new Date(shipment.shipmentDate).toLocaleDateString() : 'En attente';
             document.getElementById('display-destination').textContent = shipment.destination || 'N/A';
             document.getElementById('display-etd').textContent = shipment.etd ? new Date(shipment.etd).toLocaleDateString() : 'En attente';
             document.getElementById('display-eta').textContent = shipment.eta ? new Date(shipment.eta).toLocaleDateString() : 'En attente';
