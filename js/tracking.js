@@ -59,6 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('display-order-date').textContent = `Validée le ${new Date(data.orderDate).toLocaleDateString()}`;
         document.getElementById('display-status-badge').textContent = data.orderStatus;
         
+        // Client Info
+        document.getElementById('display-client-name').textContent = data.clientName || '--';
+        document.getElementById('display-client-phone').textContent = data.clientPhone || '--';
+        
         const vehicleName = data.vehicle ? `${data.vehicle.brand} ${data.vehicle.model || ''} ${data.vehicle.year || ''}` : 'Véhicule en attente';
         document.getElementById('display-vehicle-name').textContent = vehicleName;
         document.getElementById('display-vehicle-trim').textContent = data.vehicle?.trim || '--';
