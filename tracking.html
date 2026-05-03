@@ -12,7 +12,7 @@
         :root {
             --primary: #6366f1;
             --primary-glow: rgba(99, 102, 241, 0.5);
-            --secondary: #ef4444;
+            --secondary: #991b1b; /* Darker, more elegant red */
             --bg-dark: #0f172a;
             --card-bg: rgba(30, 41, 59, 0.7);
             --border-glass: rgba(255, 255, 255, 0.1);
@@ -54,21 +54,24 @@
 
         .logo {
             font-weight: 800;
-            font-size: 2.5rem;
-            letter-spacing: -2px;
+            font-size: 2.2rem;
+            letter-spacing: -1px;
             margin-bottom: 5px;
+            text-transform: uppercase;
         }
 
         .logo span {
             color: var(--secondary);
+            font-weight: 900;
         }
 
         .logo-subtitle {
             color: var(--secondary);
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 800;
-            letter-spacing: 5px;
+            letter-spacing: 6px;
             text-transform: uppercase;
+            opacity: 0.9;
         }
 
         .search-container {
@@ -346,8 +349,8 @@
 
     <div class="container">
         <header>
-            <div class="logo">TIBOU<span>AUTO</span></div>
-            <div class="logo-subtitle">CHINA CARS</div>
+            <div class="logo">TIBOU<span>AUTOSHOWROOMS</span></div>
+            <div class="logo-subtitle">CHINA CARS DIVISION</div>
         </header>
 
         <div class="search-container">
@@ -379,14 +382,18 @@
                             <div class="step-label">Validée</div>
                         </div>
                         <div class="step" id="step-2">
+                            <div class="step-icon"><i class="fas fa-box-open"></i></div>
+                            <div class="step-label">Chargement</div>
+                        </div>
+                        <div class="step" id="step-3">
                             <div class="step-icon"><i class="fas fa-ship"></i></div>
                             <div class="step-label">En mer</div>
                         </div>
-                        <div class="step" id="step-3">
+                        <div class="step" id="step-4">
                             <div class="step-icon"><i class="fas fa-anchor"></i></div>
                             <div class="step-label">Arrivée Port</div>
                         </div>
-                        <div class="step" id="step-4">
+                        <div class="step" id="step-5">
                             <div class="step-icon"><i class="fas fa-check-double"></i></div>
                             <div class="step-label">Livrée</div>
                         </div>

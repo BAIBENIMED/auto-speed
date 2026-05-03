@@ -154,7 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('step-1'),
             document.getElementById('step-2'),
             document.getElementById('step-3'),
-            document.getElementById('step-4')
+            document.getElementById('step-4'),
+            document.getElementById('step-5')
         ];
         const progressBar = document.getElementById('step-progress-bar');
         
@@ -165,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let currentStep = 0;
 
-        // Logic based on status strings (simplified)
+        // Logic based on status strings
         if (orderStatus === 'Validated' || orderStatus === 'Paid') {
             currentStep = 1;
             steps[0].classList.add('completed');
@@ -174,28 +175,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (shipmentStatus) {
             const s = shipmentStatus.toLowerCase();
+            
+            // Step 2: Chargement
+            currentStep = 2;
+            steps[0].classList.add('completed');
+            steps[1].classList.add('completed');
+            steps[2].classList.add('active');
+
+            // Step 3: En mer
             if (s.includes('mer') || s.includes('transit') || s.includes('shipped')) {
-                currentStep = 2;
-                steps[0].classList.add('completed');
-                steps[1].classList.add('completed');
-                steps[2].classList.add('active');
-            }
-            if (s.includes('arriv') || s.includes('port')) {
                 currentStep = 3;
                 steps[0].classList.add('completed');
                 steps[1].classList.add('completed');
                 steps[2].classList.add('completed');
                 steps[3].classList.add('active');
             }
+            // Step 4: Arrivée Port
+            if (s.includes('arriv') || s.includes('port')) {
+                currentStep = 4;
+                steps[0].classList.add('completed');
+                steps[1].classList.add('completed');
+                steps[2].classList.add('completed');
+                steps[3].classList.add('completed');
+                steps[4].classList.add('active');
+            }
         }
 
         if (orderStatus === 'Delivered') {
-            currentStep = 4;
+            currentStep = 5;
             steps.forEach(s => s.classList.add('completed'));
         }
 
         // Progress bar width
-        const widths = ['0%', '16.6%', '50%', '83.3%', '100%'];
+        const widths = ['0%', '12.5%', '37.5%', '62.5%', '87.5%', '100%'];
         progressBar.style.width = widths[currentStep];
     }
 });
