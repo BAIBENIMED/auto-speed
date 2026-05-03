@@ -4495,9 +4495,8 @@ const app = {
                                     ${(() => {
                                         const clientId = v.clientId || (v.orderId ? (StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId)?.clientId) : null);
                                         let clientName = '<span style="color:var(--text-dim);">STOCK LIBRE</span>';
-                                        let showroom = '-';
                                         
-                                        if (v.soldRegistration) showroom = 'VENDU C.G';
+                                        let rawShowroom = v.showroom || '';
 
                                         if (clientId) {
                                             const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
@@ -4506,19 +4505,37 @@ const app = {
                                                     <div style="font-weight: 500;">${client.lastName} ${client.firstName}</div>
                                                     ${client.passportDriveLink ? `<div style="font-size: 0.7rem;"><i class="fab fa-google-drive"></i> <a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary);">Passeport</a></div>` : ''}
                                                 `;
-                                                if (!v.soldRegistration) {
-                                                    let rawShowroom = client.showroom || '-';
-                                                    showroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
-                                                }
+                                                if (!rawShowroom && client.showroom) rawShowroom = client.showroom;
                                             } else {
                                                 clientName = '<span style="color:red;">Erreur Client</span>';
                                             }
+                                        } else if (v.orderId && !rawShowroom) {
+                                            const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId);
+                                            if (order && order.showroom) rawShowroom = order.showroom;
                                         }
                                         
+                                        let showroomDisplay = '';
+                                        if (v.soldRegistration) {
+                                            showroomDisplay = '<span class="badge-pill" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; font-size: 0.75rem; font-weight: 800;">VENDUE CG</span>';
+                                        } else {
+                                            const s = String(rawShowroom).toUpperCase();
+                                            if (s.includes('TOUG')) {
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(168, 85, 247, 0.2); color: #a855f7; font-weight: bold;">TOUGGOURT</span>';
+                                            } else if (s.includes('ALGER')) {
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; font-weight: bold;">ALGER</span>';
+                                            } else if (s.includes('ORAN')) {
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: bold;">ORAN</span>';
+                                            } else if (s.includes('TIBOU')) {
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(99, 102, 241, 0.2); color: var(--primary); font-weight: bold;">TIBOU</span>';
+                                            } else {
+                                                showroomDisplay = '<span style="color: var(--text-dim); font-style: italic; font-size: 0.8rem;">VIDE</span>';
+                                            }
+                                        }
+
                                         return `
                                             <td style="font-size: 0.85rem;">${clientName}</td>
-                                            <td style="font-size: 0.85rem;">
-                                                ${showroom !== '-' ? `<span class="badge-pill" style="background: rgba(255,255,255,0.05);">${showroom}</span>` : '-'}
+                                            <td style="font-size: 0.85rem; text-align: center;">
+                                                ${showroomDisplay}
                                             </td>
                                             <td style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">
                                                 ${v.orderId ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); padding: 2px 6px;">#${v.orderId}</span>` : '-'}
