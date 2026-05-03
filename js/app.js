@@ -5213,16 +5213,6 @@ const app = {
             }
         };
 
-        // Initial population with existing vehicle data
-        populateModels(vehicle.brand, vehicle.model);
-        if (vehicle.model) {
-            populateTrims(vehicle.brand, vehicle.model, vehicle.trim);
-            if (vehicle.trim) {
-                const event = new Event('change');
-                trimSelect.dispatchEvent(event);
-            }
-        }
-
         // Add change listener for brand
         brandSelect.addEventListener('change', (e) => {
             populateModels(e.target.value);
@@ -5276,6 +5266,16 @@ const app = {
                 infoBox.style.display = 'none';
             }
         });
+
+        // Initial population with existing vehicle data
+        populateModels(vehicle.brand, vehicle.model);
+        if (vehicle.model) {
+            populateTrims(vehicle.brand, vehicle.model, vehicle.trim);
+            if (vehicle.trim) {
+                const event = new Event('change');
+                trimSelect.dispatchEvent(event);
+            }
+        }
 
         this.initClientSelectionTable();
 
