@@ -1752,6 +1752,12 @@ const app = {
         const clientId = vehicle.clientId || (order ? order.clientId : null);
         const client = clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId)) : null;
 
+        const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+        const brandObj = brandsRaw.find(b => b.name === vehicle.brand);
+        const modelObj = brandObj?.models?.find(m => m.name === vehicle.model);
+        const trimObj = modelObj?.trims?.find(t => t.id === vehicle.trimId);
+        const c = trimObj?.characteristics || null;
+
         const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content glass" style="width: 550px;">
@@ -1783,7 +1789,7 @@ const app = {
                             </div>
                             
                             <div class="details-section">
-                                <h3><i class="fas fa-list-ul"></i> Options & Caractéristiques</h3>
+                                <h3><i class="fas fa-list-ul"></i> Options Libre</h3>
                                 <div style="white-space: pre-line; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; font-size: 0.9rem; color: var(--text-secondary); max-height: 200px; overflow-y: auto;">
                                     ${vehicle.options || 'Aucune option renseignée.'}
                                 </div>
@@ -1792,9 +1798,28 @@ const app = {
                             <div class="details-section">
                                 <h3><i class="fas fa-cogs"></i> Spécifications</h3>
                                 <p><strong>Motorisation:</strong> ${vehicle.motorization || 'N/A'}</p>
+                                <p><strong>Finition:</strong> ${vehicle.trim || 'N/A'}</p>
                                 <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
-
                                 <p><strong>Kilométrage:</strong> ${vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : 'N/A'}</p>
+                                
+                                ${c ? `
+                                <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                                    <h4 style="margin-bottom: 10px; font-size: 0.95rem; color: var(--primary);"><i class="fas fa-star"></i> Équipements de la Finition</h4>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; background: rgba(var(--primary-rgb), 0.05); padding: 12px; border-radius: 6px;">
+                                        <div>Moteur: <strong style="color: #fff;">${c.engine || 'N/A'}</strong></div>
+                                        <div>Boîte: <strong style="color: #fff;">${c.gearbox || 'N/A'}</strong></div>
+                                        <div>Turbo: <strong style="color: #fff;">${c.turbo || 'N/A'}</strong></div>
+                                        <div>Caméra: <strong style="color: #fff;">${c.camera || 'N/A'}</strong></div>
+                                        <div>Sièges élec.: <strong style="color: #fff;">${c.electricSeats || 'N/A'}</strong></div>
+                                        <div>Malle élec.: <strong style="color: #fff;">${c.electricTrunk || 'N/A'}</strong></div>
+                                        <div>Toit: <strong style="color: #fff;">${c.roof || 'N/A'}</strong></div>
+                                        <div>Roue secours: <strong style="color: #fff;">${c.spareWheel || 'N/A'}</strong></div>
+                                        <div>Keyless: <strong style="color: #fff;">${c.keyless || 'N/A'}</strong></div>
+                                        <div>Start & Stop: <strong style="color: #fff;">${c.startStop || 'N/A'}</strong></div>
+                                    </div>
+                                    ${c.remarks ? `<div style="margin-top: 10px; font-size: 0.85rem; font-style: italic; opacity: 0.8;"><i class="fas fa-comment-alt"></i> Remarques de finition: ${c.remarks}</div>` : ''}
+                                </div>
+                                ` : ''}
                             </div>
 
                             ${vehicle.remarks ? `
