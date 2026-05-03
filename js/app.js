@@ -4316,7 +4316,17 @@ const app = {
         vehicles.forEach(v => {
             if (v.showroom) remainingShowrooms.add(v.showroom);
             if (v.orderId) {
-                const o = allOrders.find(x => x.id =        // Always include the currently selected value so the dropdown doesn't blank out
+                const o = allOrders.find(x => x.id === v.orderId);
+                if (o && o.showroom) remainingShowrooms.add(o.showroom);
+            }
+            const clientId = v.clientId || (v.orderId ? allOrders.find(x => x.id === v.orderId)?.clientId : null);
+            if (clientId) {
+                const c = allClients.find(x => String(x.id) === String(clientId));
+                if (c && c.showroom) remainingShowrooms.add(c.showroom);
+            }
+        });
+
+        // Always include the currently selected value so the dropdown doesn't blank out
         const ensureRemaining = (val, set) => {
             if (!val) return;
             if (Array.isArray(val)) val.forEach(v => set.add(v));
