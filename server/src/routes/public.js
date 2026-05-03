@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { Order, Vehicle, Shipment, Client } = require('../models');
+const { Order, Vehicle, Shipment, Client, VehicleTrim } = require('../models');
 
 // Public tracking endpoint - looks up by 6-char trackingCode (or falls back to orderId)
 router.get('/track', async (req, res) => {
@@ -33,8 +33,20 @@ router.get('/track', async (req, res) => {
         const vehicle = await Vehicle.findOne({ where: { orderId: order.id } });
 
         let shipment = null;
-        if (vehicle && vehicle.shipmentId) {
-            shipment = await Shipment.findByPk(vehicle.shipmentId);
+        let trimData = null;
+        if (vehicle) {
+            if (vehicle.shipmentId) {
+                shipment = await Shipment.findByPk(vehicle.shipmentId);
+            }
+            if (vehicle.trimId) {
+                const trim = await VehicleTrim.findByPk(vehicle.trimId);
+                if (trim) {
+                    trimData = {
+                        name: trim.name,
+                        characteristics: trim.characteristics
+                    };
+                }
+            }
         }
 
         // Filter and structure response (no sensitive data)
@@ -51,7 +63,9 @@ router.get('/track', async (req, res) => {
                 color: vehicle.color,
                 chassisNumber: vehicle.chassisNumber,
                 videoLink: vehicle.videoLink || null,
-                blLink: vehicle.blLink || null
+                blLink: vehicle.blLink || null,
+                trim: trimData ? trimData.name : vehicle.trim || null,
+                trimCharacteristics: trimData ? trimData.characteristics : null
             } : {
                 brand: order.requestedBrand,
                 model: order.requestedModel,

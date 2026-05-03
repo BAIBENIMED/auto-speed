@@ -398,6 +398,10 @@
                             <span id="display-vehicle-name">Audi Q7 2024</span>
                         </div>
                         <div class="info-item">
+                            <label>Finition</label>
+                            <span id="display-vehicle-trim">--</span>
+                        </div>
+                        <div class="info-item">
                             <label>Couleur</label>
                             <span id="display-vehicle-color">Noir Mythic</span>
                         </div>
@@ -429,6 +433,16 @@
                             <label>N° de BL</label>
                             <span id="display-bl-number">En attente</span>
                         </div>
+                    </div>
+
+                    <div id="trim-characteristics-section" style="display: none; margin-top: 25px; margin-bottom: 25px; background: rgba(99, 102, 241, 0.05); padding: 20px; border-radius: 16px; border: 1px solid rgba(99, 102, 241, 0.1);">
+                        <h4 style="margin-bottom: 15px; color: var(--primary); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-star"></i> Équipements de la Finition
+                        </h4>
+                        <div id="trim-characteristics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; font-size: 0.9rem;">
+                            <!-- Dynamically injected -->
+                        </div>
+                        <div id="trim-remarks" style="margin-top: 15px; font-size: 0.85rem; font-style: italic; opacity: 0.8; display: none;"></div>
                     </div>
 
                     <div id="map-section" style="display: none;">

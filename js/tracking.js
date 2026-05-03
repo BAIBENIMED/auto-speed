@@ -61,8 +61,38 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const vehicleName = data.vehicle ? `${data.vehicle.brand} ${data.vehicle.model || ''} ${data.vehicle.year || ''}` : 'Véhicule en attente';
         document.getElementById('display-vehicle-name').textContent = vehicleName;
+        document.getElementById('display-vehicle-trim').textContent = data.vehicle?.trim || '--';
         document.getElementById('display-vehicle-color').textContent = data.vehicle?.color || 'N/A';
         document.getElementById('display-vehicle-vin').textContent = data.vehicle?.chassisNumber || '--';
+        
+        const trimSection = document.getElementById('trim-characteristics-section');
+        const trimGrid = document.getElementById('trim-characteristics-grid');
+        const trimRemarks = document.getElementById('trim-remarks');
+        
+        if (data.vehicle && data.vehicle.trimCharacteristics) {
+            const c = data.vehicle.trimCharacteristics;
+            trimSection.style.display = 'block';
+            trimGrid.innerHTML = `
+                <div>Moteur: <strong style="color: #fff;">${c.engine || 'N/A'}</strong></div>
+                <div>Boîte: <strong style="color: #fff;">${c.gearbox || 'N/A'}</strong></div>
+                <div>Turbo: <strong style="color: #fff;">${c.turbo || 'N/A'}</strong></div>
+                <div>Caméra: <strong style="color: #fff;">${c.camera || 'N/A'}</strong></div>
+                <div>Sièges élec.: <strong style="color: #fff;">${c.electricSeats || 'N/A'}</strong></div>
+                <div>Malle élec.: <strong style="color: #fff;">${c.electricTrunk || 'N/A'}</strong></div>
+                <div>Toit: <strong style="color: #fff;">${c.roof || 'N/A'}</strong></div>
+                <div>Roue secours: <strong style="color: #fff;">${c.spareWheel || 'N/A'}</strong></div>
+                <div>Keyless: <strong style="color: #fff;">${c.keyless || 'N/A'}</strong></div>
+                <div>Start & Stop: <strong style="color: #fff;">${c.startStop || 'N/A'}</strong></div>
+            `;
+            if (c.remarks) {
+                trimRemarks.style.display = 'block';
+                trimRemarks.innerHTML = `<i class="fas fa-comment-alt"></i> Remarques: ${c.remarks}`;
+            } else {
+                trimRemarks.style.display = 'none';
+            }
+        } else {
+            if (trimSection) trimSection.style.display = 'none';
+        }
         
         // Shipment Info
         const shipment = data.shipment;
