@@ -4437,7 +4437,7 @@ const app = {
                         ` : ''}
                     </div>
                 </div>
-                <div class="glass" style="margin-bottom: 20px; padding: 20px;">
+                <div class="glass" style="margin-bottom: 20px; padding: 20px; position: relative; z-index: 1000;">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Recherche Rapide</label>
@@ -4459,7 +4459,7 @@ const app = {
                         </div>
                     </div>
                 </div>
-                <div class="glass data-table-container">
+                <div class="glass data-table-container" style="position: relative; z-index: 1;">
                     <table class="data-table">
                         <thead>
                             <tr>
