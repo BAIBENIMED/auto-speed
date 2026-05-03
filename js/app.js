@@ -5002,14 +5002,6 @@ const app = {
                                     <button class="btn-close" onclick="app.closeModal()">&times;</button>
                                 </div>
                                 <form id="vehicle-form" style="display: flex; flex-direction: column; gap: 1.5rem">
-                                     <div class="form-group">
-                                         <label>Finition</label>
-                                         <select name="trim" id="trim-select" class="glass-select">
-                                             <option value="">Sélectionner d'abord un modèle...</option>
-                                         </select>
-                                         <input type="hidden" name="trimId" id="trim-id-input">
-                                         <div id="trim-info-box" style="margin-top: 10px; font-size: 0.8rem; background: rgba(var(--primary-rgb), 0.1); border-radius: 6px; padding: 10px; display: none; border: 1px solid rgba(var(--primary-rgb), 0.2);"></div>
-                                     </div>
                                     <input type="hidden" name="vehicleId" value="${vehicle.id}">
                                     
                                     <fieldset style="border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
@@ -5212,6 +5204,9 @@ const app = {
                 modelObj.trims.forEach(trim => {
                     const selected = trim.name === selectedTrimName ? 'selected' : '';
                     trimSelect.innerHTML += `<option value="${trim.name}" data-id="${trim.id}" ${selected}>${trim.name}</option>`;
+                    if (selected && trimIdInput) {
+                        trimIdInput.value = trim.id;
+                    }
                 });
             } else if (modelObj) {
                 trimSelect.innerHTML = '<option value="">Aucune finition disponible</option>';
@@ -5222,6 +5217,10 @@ const app = {
         populateModels(vehicle.brand, vehicle.model);
         if (vehicle.model) {
             populateTrims(vehicle.brand, vehicle.model, vehicle.trim);
+            if (vehicle.trim) {
+                const event = new Event('change');
+                trimSelect.dispatchEvent(event);
+            }
         }
 
         // Add change listener for brand
