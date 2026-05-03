@@ -4363,6 +4363,7 @@ const app = {
         }
 
         if (!app.handleMultiSelect) {
+            app._filterTimeout = null;
             app.handleMultiSelect = function(key, value, isChecked, isBrand) {
                 let current = app.vehicleFilters[key] || [];
                 if (!Array.isArray(current)) current = [current];
@@ -4373,7 +4374,17 @@ const app = {
                 }
                 if (isBrand) app.vehicleFilters.model = [];
                 app.vehicleFilters[key] = current;
-                app.renderVehicles();
+                
+                // Debounce re-render to allow multiple selections
+                if (app._filterTimeout) clearTimeout(app._filterTimeout);
+                
+                // Show a small hint that update is pending in the header if possible
+                const header = document.querySelector(`.custom-multiselect.open .multiselect-header span`);
+                if (header) header.innerHTML = '<i class="fas fa-sync fa-spin"></i> Mise à jour...';
+
+                app._filterTimeout = setTimeout(() => {
+                    app.renderVehicles();
+                }, 1200); // 1.2 seconds delay
             };
         }
 
@@ -4394,13 +4405,18 @@ const app = {
                     </div>
                     <div class="multiselect-dropdown" onclick="event.stopPropagation()">
                         ${options.length === 0 ? '<div style="font-size: 0.8rem; color: var(--text-dim); text-align: center;">Aucune option</div>' : ''}
-                        ${options.map(opt => `
-                            <label class="multiselect-option">
-                                <input type="checkbox" value="${String(opt.value).replace(/"/g, '&quot;')}" ${isSelected(currentFilters[key], opt.value) ? 'checked' : ''} 
-                                    onchange="app.handleMultiSelect('${key}', this.value, this.checked, ${key === 'brand'})">
-                                ${opt.label}
-                            </label>
-                        `).join('')}
+                        <div class="multiselect-options-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+                            ${options.map(opt => `
+                                <label class="multiselect-option">
+                                    <input type="checkbox" value="${String(opt.value).replace(/"/g, '&quot;')}" ${isSelected(currentFilters[key], opt.value) ? 'checked' : ''} 
+                                        onchange="app.handleMultiSelect('${key}', this.value, this.checked, ${key === 'brand'})">
+                                    ${opt.label}
+                                </label>
+                            `).join('')}
+                        </div>
+                        <button class="btn-primary" style="width: 100%; padding: 6px; font-size: 0.75rem; margin-top: 5px;" onclick="if(app._filterTimeout) clearTimeout(app._filterTimeout); app.activeDropdown = null; app.renderVehicles();">
+                            <i class="fas fa-check"></i> Valider
+                        </button>
                     </div>
                 </div>
             </div>
