@@ -4495,6 +4495,7 @@ const app = {
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;">#</th>
                                 <th>ID</th>
                                 <th>Véhicule</th>
                                 <th>Source (Achat)</th>
@@ -4510,7 +4511,7 @@ const app = {
                             </tr>
                         </thead>
                         <tbody>
-                            ${vehicles.map(v => {
+                            ${vehicles.map((v, idx) => {
             // Determine status display based on strict status property
             let statusClass = 'available';
             let statusLabel = 'Disponible';
@@ -4557,7 +4558,8 @@ const app = {
             const brandLogo = brandObj && brandObj.logo ? brandObj.logo : null;
 
             return `
-                                <tr>
+                                <tr ${v.archived ? 'style="opacity: 0.6;"' : ''}>
+                                    <td style="color: var(--text-dim); font-size: 0.8rem; font-weight: 500;">${idx + 1}</td>
                                     <td><strong>#${v.id}</strong></td>
                                     <td>
                                         <div style="display: flex; align-items: center; gap: 15px;">
