@@ -4314,15 +4314,30 @@ const app = {
         const allOrders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
         const allClients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
         vehicles.forEach(v => {
-            if (v.showroom) remainingShowrooms.add(v.showroom);
-            if (v.orderId) {
-                const o = allOrders.find(x => x.id === v.orderId);
-                if (o && o.showroom) remainingShowrooms.add(o.showroom);
-            }
-            const clientId = v.clientId || (v.orderId ? allOrders.find(x => x.id === v.orderId)?.clientId : null);
-            if (clientId) {
-                const c = allClients.find(x => String(x.id) === String(clientId));
-                if (c && c.showroom) remainingShowrooms.add(c.showroom);
+            if (v.soldRegistration) {
+                remainingShowrooms.add('VENDU CG');
+            } else {
+                let rawShowroom = v.showroom;
+                if (v.orderId && !rawShowroom) {
+                    const o = allOrders.find(x => x.id === v.orderId);
+                    if (o && o.showroom) rawShowroom = o.showroom;
+                }
+                const clientId = v.clientId || (v.orderId ? allOrders.find(x => x.id === v.orderId)?.clientId : null);
+                if (clientId && !rawShowroom) {
+                    const c = allClients.find(x => String(x.id) === String(clientId));
+                    if (c && c.showroom) rawShowroom = c.showroom;
+                }
+
+                if (rawShowroom) {
+                    const s = String(rawShowroom).toUpperCase();
+                    if (s.includes('TOUG')) remainingShowrooms.add('TOUGGOURT');
+                    else if (s.includes('ALGER')) remainingShowrooms.add('ALGER');
+                    else if (s.includes('ORAN')) remainingShowrooms.add('ORAN');
+                    else if (s.includes('TIBOU')) remainingShowrooms.add('TIBOU');
+                    else remainingShowrooms.add(rawShowroom);
+                } else {
+                    remainingShowrooms.add('VIDE');
+                }
             }
         });
 
