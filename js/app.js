@@ -4352,6 +4352,75 @@ const app = {
 
         const showroomOptions = [...new Set([...(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []), 'VIDE', 'VENDU CG'])];
 
+        if (!app._hasMultiselectListener) {
+            document.addEventListener('click', () => {
+                if (app.activeDropdown) {
+                    app.activeDropdown = null;
+                    app.renderVehicles();
+                }
+            });
+            app._hasMultiselectListener = true;
+        }
+
+        if (!app.handleMultiSelect) {
+            app.handleMultiSelect = function(key, value, isChecked, isBrand) {
+                let current = app.vehicleFilters[key] || [];
+                if (!Array.isArray(current)) current = [current];
+                if (isChecked) {
+                    if (!current.includes(value)) current.push(value);
+                } else {
+                    current = current.filter(v => String(v) !== String(value));
+                }
+                if (isBrand) app.vehicleFilters.model = [];
+                app.vehicleFilters[key] = current;
+                app.renderVehicles();
+            };
+        }
+
+        const renderMultiSelect = (key, label, options, currentFilters) => {
+            const isOpen = app.activeDropdown === key;
+            const current = currentFilters[key] || [];
+            const currentArr = Array.isArray(current) ? current : [current];
+            const selectedCount = currentArr.filter(Boolean).length;
+            const headerText = selectedCount > 0 ? `${selectedCount} sélection(s)` : `Tous`;
+            
+            return `
+            <div class="form-group" style="margin-bottom: 0;">
+                <label style="font-size: 0.8rem; color: var(--text-dim);">${label}</label>
+                <div class="custom-multiselect ${isOpen ? 'open' : ''}" onclick="app.activeDropdown = app.activeDropdown === '${key}' ? null : '${key}'; app.renderVehicles(); event.stopPropagation()">
+                    <div class="multiselect-header">
+                        <span>${headerText}</span>
+                        <i class="fas fa-chevron-${isOpen ? 'up' : 'down'}"></i>
+                    </div>
+                    <div class="multiselect-dropdown" onclick="event.stopPropagation()">
+                        ${options.length === 0 ? '<div style="font-size: 0.8rem; color: var(--text-dim); text-align: center;">Aucune option</div>' : ''}
+                        ${options.map(opt => `
+                            <label class="multiselect-option">
+                                <input type="checkbox" value="${String(opt.value).replace(/"/g, '&quot;')}" ${isSelected(currentFilters[key], opt.value) ? 'checked' : ''} 
+                                    onchange="app.handleMultiSelect('${key}', this.value, this.checked, ${key === 'brand'})">
+                                ${opt.label}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+            `;
+        };
+
+        const brandOptions = (StorageService.get(STORAGE_KEYS.BRANDS) || []).filter(b => remainingBrands.has(b)).map(b => ({value: b, label: b}));
+        const modelOptions = (this.vehicleFilters.brand ? (StorageService.get(STORAGE_KEYS.BRAND_MODELS)[Array.isArray(this.vehicleFilters.brand) ? this.vehicleFilters.brand[0] : this.vehicleFilters.brand] || []) : []).filter(m => remainingModels.has(m)).map(m => ({value: m, label: m}));
+        const statusOptions = [
+            {value: 'Available', label: 'Disponible (Libre)'},
+            {value: 'Reserved', label: 'Réservé (Affecté)'},
+            {value: 'In Transit', label: 'En Expédition (Transit)'},
+            {value: 'Arrived', label: 'Arrivé (Port)'},
+            {value: 'Sold', label: 'Vendu (Livré)'}
+        ];
+        const colorOptions = (StorageService.get(STORAGE_KEYS.COLORS) || []).filter(c => remainingColors.has(c)).map(c => ({value: c, label: c}));
+        const supplierOptions = (StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => s.name).filter(s => remainingSuppliers.has(s)).map(s => ({value: s, label: s}));
+        const showroomOpts = showroomOptions.filter(s => remainingShowrooms.has(s)).map(s => ({value: s, label: s}));
+        const poOptions = [...new Set((StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => v.purchaseOrderId).map(v => v.purchaseOrderId))].filter(poId => remainingPOs.has(poId)).map(poId => ({value: poId, label: poId}));
+
         this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div class="header-info">
@@ -4369,58 +4438,18 @@ const app = {
                     </div>
                 </div>
                 <div class="glass" style="margin-bottom: 20px; padding: 20px;">
-                    <div style="font-size: 0.75rem; color: var(--primary); margin-bottom: 10px;"><i class="fas fa-info-circle"></i> Maintenez la touche <b>CTRL</b> enfoncée pour sélectionner plusieurs options dans les filtres.</div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Recherche Rapide</label>
                             <input type="text" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" placeholder="VIN, Marque, ID..." value="${query || ''}" oninput="app.renderVehicles(this.value)">
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; color: var(--text-dim);">Marque</label>
-                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, brand: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean), model: ''}; app.renderVehicles()">
-                                ${(StorageService.get(STORAGE_KEYS.BRANDS) || []).filter(b => remainingBrands.has(b)).map(b => `<option value="${b}" ${isSelected(this.vehicleFilters.brand, b) ? 'selected' : ''}>${b}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; color: var(--text-dim);">Modèle</label>
-                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, model: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
-                                ${this.vehicleFilters.brand ? (StorageService.get(STORAGE_KEYS.BRAND_MODELS)[Array.isArray(this.vehicleFilters.brand) ? this.vehicleFilters.brand[0] : this.vehicleFilters.brand] || []).filter(m => remainingModels.has(m)).map(m => `<option value="${m}" ${isSelected(this.vehicleFilters.model, m) ? 'selected' : ''}>${m}</option>`).join('') : ''}
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; color: var(--text-dim);">Statut Stock</label>
-                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, status: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
-                                <option value="Available" ${isSelected(this.vehicleFilters.status, 'Available') ? 'selected' : ''}>Disponible (Libre)</option>
-                                <option value="Reserved" ${isSelected(this.vehicleFilters.status, 'Reserved') ? 'selected' : ''}>Réservé (Affecté)</option>
-                                <option value="In Transit" ${isSelected(this.vehicleFilters.status, 'In Transit') ? 'selected' : ''}>En Expédition (Transit)</option>
-                                <option value="Arrived" ${isSelected(this.vehicleFilters.status, 'Arrived') ? 'selected' : ''}>Arrivé (Port)</option>
-                                <option value="Sold" ${isSelected(this.vehicleFilters.status, 'Sold') ? 'selected' : ''}>Vendu (Livré)</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; color: var(--text-dim);">Couleur</label>
-                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, color: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
-                                ${(StorageService.get(STORAGE_KEYS.COLORS) || []).filter(c => remainingColors.has(c)).map(c => `<option value="${c}" ${isSelected(this.vehicleFilters.color, c) ? 'selected' : ''}>${c}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; color: var(--text-dim);">Fournisseur</label>
-                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, supplier: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
-                                ${(StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => s.name).filter(s => remainingSuppliers.has(s)).map(s => `<option value="${s}" ${isSelected(this.vehicleFilters.supplier, s) ? 'selected' : ''}>${s}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; color: var(--text-dim);">Showroom</label>
-                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, showroom: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
-                                ${showroomOptions.filter(s => remainingShowrooms.has(s)).map(s => `<option value="${s}" ${isSelected(this.vehicleFilters.showroom, s) ? 'selected' : ''}>${s}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; color: var(--text-dim);">Commande d'Achat</label>
-                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, purchaseOrderId: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
-                                ${[...new Set((StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => v.purchaseOrderId).map(v => v.purchaseOrderId))].filter(poId => remainingPOs.has(poId)).map(poId => `<option value="${poId}" ${isSelected(this.vehicleFilters.purchaseOrderId, poId) ? 'selected' : ''}>${poId}</option>`).join('')}
-                            </select>
-                        </div>
+                        ${renderMultiSelect('brand', 'Marque', brandOptions, this.vehicleFilters)}
+                        ${renderMultiSelect('model', 'Modèle', modelOptions, this.vehicleFilters)}
+                        ${renderMultiSelect('status', 'Statut Stock', statusOptions, this.vehicleFilters)}
+                        ${renderMultiSelect('color', 'Couleur', colorOptions, this.vehicleFilters)}
+                        ${renderMultiSelect('supplier', 'Fournisseur', supplierOptions, this.vehicleFilters)}
+                        ${renderMultiSelect('showroom', 'Showroom', showroomOpts, this.vehicleFilters)}
+                        ${renderMultiSelect('purchaseOrderId', 'Commande d\\'Achat', poOptions, this.vehicleFilters)}
                         <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; gap: 10px;">
                             <div style="display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
                                 <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
