@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { Order, Vehicle, Shipment, Client, VehicleTrim } = require('../models');
+const { Order, Vehicle, Shipment, Client, VehicleTrim, PurchaseOrder } = require('../models');
 
 // Public tracking endpoint - looks up by 6-char trackingCode (or falls back to orderId)
 router.get('/track', async (req, res) => {
@@ -30,7 +30,10 @@ router.get('/track', async (req, res) => {
         }
 
         // Find associated vehicle
-        const vehicle = await Vehicle.findOne({ where: { orderId: order.id } });
+        const vehicle = await Vehicle.findOne({ 
+            where: { orderId: order.id },
+            include: [{ model: PurchaseOrder, as: 'purchaseOrder', attributes: ['loadingDate'] }]
+        });
 
         let shipment = null;
         let trimData = null;
@@ -59,6 +62,9 @@ router.get('/track', async (req, res) => {
             clientPhone: order.client ? order.client.phone : '--',
             clientNIN: order.client ? order.client.nin : null,
             clientPassport: order.client ? order.client.passportNumber : null,
+            shipmentDate: (vehicle && vehicle.purchaseOrder && vehicle.purchaseOrder.loadingDate) 
+                ? vehicle.purchaseOrder.loadingDate 
+                : (shipment ? shipment.shipmentDate : null),
             vehicle: vehicle ? {
                 brand: vehicle.brand,
                 model: vehicle.model,
@@ -82,7 +88,6 @@ router.get('/track', async (req, res) => {
                 forwarder: shipment.forwarder,
                 loadingPort: shipment.loadingPort,
                 destination: shipment.destination,
-                shipmentDate: shipment.shipmentDate,
                 etd: shipment.etd,
                 eta: shipment.eta,
                 arrivalDate: shipment.arrivalDate,
