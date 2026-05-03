@@ -4233,56 +4233,69 @@ const app = {
 
         // Apply advanced filters
         if (this.vehicleFilters) {
-            if (this.vehicleFilters.brand) {
-                vehicles = vehicles.filter(v => v.brand === this.vehicleFilters.brand);
+            if (this.vehicleFilters.brand && this.vehicleFilters.brand.length > 0) {
+                const brands = Array.isArray(this.vehicleFilters.brand) ? this.vehicleFilters.brand : [this.vehicleFilters.brand];
+                vehicles = vehicles.filter(v => brands.includes(v.brand));
             }
-            if (this.vehicleFilters.model) {
-                vehicles = vehicles.filter(v => v.model === this.vehicleFilters.model);
+            if (this.vehicleFilters.model && this.vehicleFilters.model.length > 0) {
+                const models = Array.isArray(this.vehicleFilters.model) ? this.vehicleFilters.model : [this.vehicleFilters.model];
+                vehicles = vehicles.filter(v => models.includes(v.model));
             }
-            if (this.vehicleFilters.status) {
-                vehicles = vehicles.filter(v => v.status === this.vehicleFilters.status);
+            if (this.vehicleFilters.status && this.vehicleFilters.status.length > 0) {
+                const statuses = Array.isArray(this.vehicleFilters.status) ? this.vehicleFilters.status : [this.vehicleFilters.status];
+                vehicles = vehicles.filter(v => statuses.includes(v.status));
             }
-            if (this.vehicleFilters.color) {
-                vehicles = vehicles.filter(v => v.color === this.vehicleFilters.color);
+            if (this.vehicleFilters.color && this.vehicleFilters.color.length > 0) {
+                const colors = Array.isArray(this.vehicleFilters.color) ? this.vehicleFilters.color : [this.vehicleFilters.color];
+                vehicles = vehicles.filter(v => colors.includes(v.color));
             }
-            if (this.vehicleFilters.supplier) {
-                vehicles = vehicles.filter(v => v.supplier === this.vehicleFilters.supplier);
+            if (this.vehicleFilters.supplier && this.vehicleFilters.supplier.length > 0) {
+                const suppliers = Array.isArray(this.vehicleFilters.supplier) ? this.vehicleFilters.supplier : [this.vehicleFilters.supplier];
+                vehicles = vehicles.filter(v => suppliers.includes(v.supplier));
             }
-            if (this.vehicleFilters.purchaseOrderId) {
-                vehicles = vehicles.filter(v => v.purchaseOrderId === this.vehicleFilters.purchaseOrderId);
+            if (this.vehicleFilters.purchaseOrderId && this.vehicleFilters.purchaseOrderId.length > 0) {
+                const pos = Array.isArray(this.vehicleFilters.purchaseOrderId) ? this.vehicleFilters.purchaseOrderId : [this.vehicleFilters.purchaseOrderId];
+                vehicles = vehicles.filter(v => pos.includes(v.purchaseOrderId));
             }
-            if (this.vehicleFilters.showroom) {
-                if (this.vehicleFilters.showroom === 'TIBOU_STOCK') {
-                    // Special mode: TIBOU showroom OR empty showroom, and NOT Vendu C.G
-                    vehicles = vehicles.filter(v => {
-                        if (v.soldRegistration) return false;
-                        const s = (v.showroom || '').trim().toUpperCase();
-                        return s === '' || s.includes('TIBOU');
-                    });
-                } else {
-                    const targetShowroom = this.vehicleFilters.showroom.toUpperCase();
-                    const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-                    const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
-                    
-                    vehicles = vehicles.filter(v => {
-                        // 1. Check direct property
-                        if (v.showroom && v.showroom.toUpperCase().includes(targetShowroom)) return true;
-                        
-                        // 2. Check Order
-                        if (v.orderId) {
-                            const order = orders.find(o => o.id === v.orderId);
-                            if (order && order.showroom && order.showroom.toUpperCase().includes(targetShowroom)) return true;
+            if (this.vehicleFilters.showroom && this.vehicleFilters.showroom.length > 0) {
+                const targetShowrooms = Array.isArray(this.vehicleFilters.showroom) ? this.vehicleFilters.showroom : [this.vehicleFilters.showroom];
+                
+                const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+
+                vehicles = vehicles.filter(v => {
+                    let rawShowroom = v.showroom || '';
+                    const clientId = v.clientId || (v.orderId ? (orders.find(o => o.id === v.orderId)?.clientId) : null);
+                    if (clientId) {
+                        const client = clients.find(c => String(c.id) === String(clientId));
+                        if (client && client.showroom) rawShowroom = client.showroom;
+                    } else if (v.orderId && !rawShowroom) {
+                        const order = orders.find(o => o.id === v.orderId);
+                        if (order && order.showroom) rawShowroom = order.showroom;
+                    }
+
+                    // Compute normalized display showroom matching the badges
+                    let displayShowroom = '';
+                    if (v.soldRegistration) {
+                        displayShowroom = 'VENDU CG';
+                    } else {
+                        const s = String(rawShowroom).toUpperCase();
+                        if (s.includes('TOUG')) displayShowroom = 'TOUGGOURT';
+                        else if (s.includes('ALGER')) displayShowroom = 'ALGER';
+                        else if (s.includes('ORAN')) displayShowroom = 'ORAN';
+                        else if (s.includes('TIBOU')) displayShowroom = 'TIBOU';
+                        else displayShowroom = 'VIDE';
+                    }
+
+                    return targetShowrooms.some(target => {
+                        if (target === 'TIBOU_STOCK') {
+                            if (v.soldRegistration) return false;
+                            const s = (v.showroom || '').trim().toUpperCase();
+                            return s === '' || s.includes('TIBOU');
                         }
-                        
-                        // 3. Check Client
-                        const clientId = v.clientId || (v.orderId ? (orders.find(o => o.id === v.orderId)?.clientId) : null);
-                        if (clientId) {
-                            const client = clients.find(c => String(c.id) === String(clientId));
-                            if (client && client.showroom && client.showroom.toUpperCase().includes(targetShowroom)) return true;
-                        }
-                        return false;
+                        return displayShowroom === target.toUpperCase() || String(rawShowroom).toUpperCase().includes(target.toUpperCase());
                     });
-                }
+                });
             }
         }
 
@@ -4303,23 +4316,31 @@ const app = {
         vehicles.forEach(v => {
             if (v.showroom) remainingShowrooms.add(v.showroom);
             if (v.orderId) {
-                const o = allOrders.find(x => x.id === v.orderId);
-                if (o && o.showroom) remainingShowrooms.add(o.showroom);
-            }
-            const clientId = v.clientId || (v.orderId ? allOrders.find(x => x.id === v.orderId)?.clientId : null);
-            if (clientId) {
-                const c = allClients.find(x => String(x.id) === String(clientId));
-                if (c && c.showroom) remainingShowrooms.add(c.showroom);
-            }
-        });
+                const o = allOrders.find(x => x.id =        // Always include the currently selected value so the dropdown doesn't blank out
+        const ensureRemaining = (val, set) => {
+            if (!val) return;
+            if (Array.isArray(val)) val.forEach(v => set.add(v));
+            else set.add(val);
+        };
+        ensureRemaining(this.vehicleFilters?.brand, remainingBrands);
+        ensureRemaining(this.vehicleFilters?.model, remainingModels);
+        ensureRemaining(this.vehicleFilters?.color, remainingColors);
+        ensureRemaining(this.vehicleFilters?.supplier, remainingSuppliers);
+        ensureRemaining(this.vehicleFilters?.purchaseOrderId, remainingPOs);
+        
+        if (this.vehicleFilters?.showroom) {
+            const shws = Array.isArray(this.vehicleFilters.showroom) ? this.vehicleFilters.showroom : [this.vehicleFilters.showroom];
+            shws.forEach(s => {
+                if (s !== 'TIBOU_STOCK') remainingShowrooms.add(s);
+            });
+        }
 
-        // Always include the currently selected value so the dropdown doesn't blank out
-        if (this.vehicleFilters?.brand) remainingBrands.add(this.vehicleFilters.brand);
-        if (this.vehicleFilters?.model) remainingModels.add(this.vehicleFilters.model);
-        if (this.vehicleFilters?.color) remainingColors.add(this.vehicleFilters.color);
-        if (this.vehicleFilters?.supplier) remainingSuppliers.add(this.vehicleFilters.supplier);
-        if (this.vehicleFilters?.purchaseOrderId) remainingPOs.add(this.vehicleFilters.purchaseOrderId);
-        if (this.vehicleFilters?.showroom && this.vehicleFilters.showroom !== 'TIBOU_STOCK') remainingShowrooms.add(this.vehicleFilters.showroom);
+        const isSelected = (filterVal, optionVal) => {
+            if (!filterVal) return false;
+            return Array.isArray(filterVal) ? filterVal.includes(optionVal) : filterVal === optionVal;
+        };
+
+        const showroomOptions = [...new Set([...(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []), 'VIDE', 'VENDU CG'])];
 
         this.viewContainer.innerHTML = `
                 <div class="view-header">
@@ -4338,6 +4359,7 @@ const app = {
                     </div>
                 </div>
                 <div class="glass" style="margin-bottom: 20px; padding: 20px;">
+                    <div style="font-size: 0.75rem; color: var(--primary); margin-bottom: 10px;"><i class="fas fa-info-circle"></i> Maintenez la touche <b>CTRL</b> enfoncée pour sélectionner plusieurs options dans les filtres.</div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Recherche Rapide</label>
@@ -4345,59 +4367,58 @@ const app = {
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Marque</label>
-                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, brand: this.value, model: ''}; app.renderVehicles()">
-                                <option value="">Toutes les marques</option>
-                                ${(StorageService.get(STORAGE_KEYS.BRANDS) || []).filter(b => remainingBrands.has(b)).map(b => `<option value="${b}" ${this.vehicleFilters.brand === b ? 'selected' : ''}>${b}</option>`).join('')}
+                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, brand: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean), model: ''}; app.renderVehicles()">
+                                ${(StorageService.get(STORAGE_KEYS.BRANDS) || []).filter(b => remainingBrands.has(b)).map(b => `<option value="${b}" ${isSelected(this.vehicleFilters.brand, b) ? 'selected' : ''}>${b}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Modèle</label>
-                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, model: this.value}; app.renderVehicles()">
-                                <option value="">Tous les modèles</option>
-                                ${this.vehicleFilters.brand ? (StorageService.get(STORAGE_KEYS.BRAND_MODELS)[this.vehicleFilters.brand] || []).filter(m => remainingModels.has(m)).map(m => `<option value="${m}" ${this.vehicleFilters.model === m ? 'selected' : ''}>${m}</option>`).join('') : ''}
+                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, model: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
+                                ${this.vehicleFilters.brand ? (StorageService.get(STORAGE_KEYS.BRAND_MODELS)[Array.isArray(this.vehicleFilters.brand) ? this.vehicleFilters.brand[0] : this.vehicleFilters.brand] || []).filter(m => remainingModels.has(m)).map(m => `<option value="${m}" ${isSelected(this.vehicleFilters.model, m) ? 'selected' : ''}>${m}</option>`).join('') : ''}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Statut Stock</label>
-                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, status: this.value}; app.renderVehicles()">
-                                <option value="">Tous les statuts</option>
-                                <option value="Available" ${this.vehicleFilters.status === 'Available' ? 'selected' : ''}>Disponible (Libre)</option>
-                                <option value="Reserved" ${this.vehicleFilters.status === 'Reserved' ? 'selected' : ''}>Réservé (Affecté)</option>
-                                <option value="In Transit" ${this.vehicleFilters.status === 'In Transit' ? 'selected' : ''}>En Expédition (Transit)</option>
-                                <option value="Arrived" ${this.vehicleFilters.status === 'Arrived' ? 'selected' : ''}>Arrivé (Port)</option>
-                                <option value="Sold" ${this.vehicleFilters.status === 'Sold' ? 'selected' : ''}>Vendu (Livré)</option>
+                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, status: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
+                                <option value="Available" ${isSelected(this.vehicleFilters.status, 'Available') ? 'selected' : ''}>Disponible (Libre)</option>
+                                <option value="Reserved" ${isSelected(this.vehicleFilters.status, 'Reserved') ? 'selected' : ''}>Réservé (Affecté)</option>
+                                <option value="In Transit" ${isSelected(this.vehicleFilters.status, 'In Transit') ? 'selected' : ''}>En Expédition (Transit)</option>
+                                <option value="Arrived" ${isSelected(this.vehicleFilters.status, 'Arrived') ? 'selected' : ''}>Arrivé (Port)</option>
+                                <option value="Sold" ${isSelected(this.vehicleFilters.status, 'Sold') ? 'selected' : ''}>Vendu (Livré)</option>
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Couleur</label>
-                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, color: this.value}; app.renderVehicles()">
-                                <option value="">Toutes les couleurs</option>
-                                ${(StorageService.get(STORAGE_KEYS.COLORS) || []).filter(c => remainingColors.has(c)).map(c => `<option value="${c}" ${this.vehicleFilters.color === c ? 'selected' : ''}>${c}</option>`).join('')}
+                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, color: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
+                                ${(StorageService.get(STORAGE_KEYS.COLORS) || []).filter(c => remainingColors.has(c)).map(c => `<option value="${c}" ${isSelected(this.vehicleFilters.color, c) ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Fournisseur</label>
-                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, supplier: this.value}; app.renderVehicles()">
-                                <option value="">Tous les fournisseurs</option>
-                                ${(StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => s.name).filter(s => remainingSuppliers.has(s)).map(s => `<option value="${s}" ${this.vehicleFilters.supplier === s ? 'selected' : ''}>${s}</option>`).join('')}
+                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, supplier: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
+                                ${(StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => s.name).filter(s => remainingSuppliers.has(s)).map(s => `<option value="${s}" ${isSelected(this.vehicleFilters.supplier, s) ? 'selected' : ''}>${s}</option>`).join('')}
                             </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
-                            <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
-                            <label for="filter-vehicle-archived" style="font-size: 0.8rem; cursor: pointer; margin: 0; color: var(--text-dim);">Archives</label>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Showroom</label>
-                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, showroom: this.value}; app.renderVehicles()">
-                                <option value="">Tous les showrooms</option>
-                                ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).filter(s => remainingShowrooms.has(s)).map(s => `<option value="${s}" ${this.vehicleFilters.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
+                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, showroom: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
+                                ${showroomOptions.filter(s => remainingShowrooms.has(s)).map(s => `<option value="${s}" ${isSelected(this.vehicleFilters.showroom, s) ? 'selected' : ''}>${s}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Commande d'Achat</label>
-                            <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, purchaseOrderId: this.value}; app.renderVehicles()">
-                                <option value="">Toutes les sources</option>
-                                ${[...new Set((StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => v.purchaseOrderId).map(v => v.purchaseOrderId))].filter(poId => remainingPOs.has(poId)).map(poId => `<option value="${poId}" ${this.vehicleFilters.purchaseOrderId === poId ? 'selected' : ''}>${poId}</option>`).join('')}
+                            <select multiple size="4" class="glass-select" style="padding: 4px 8px; font-size: 0.85rem; height: 90px;" title="Maintenez CTRL pour sélection multiple" onchange="app.vehicleFilters = {...app.vehicleFilters, purchaseOrderId: Array.from(this.selectedOptions).map(o=>o.value).filter(Boolean)}; app.renderVehicles()">
+                                ${[...new Set((StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => v.purchaseOrderId).map(v => v.purchaseOrderId))].filter(poId => remainingPOs.has(poId)).map(poId => `<option value="${poId}" ${isSelected(this.vehicleFilters.purchaseOrderId, poId) ? 'selected' : ''}>${poId}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
+                                <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
+                                <label for="filter-vehicle-archived" style="font-size: 0.8rem; cursor: pointer; margin: 0; color: var(--text-dim);">Archives</label>
+                            </div>
+                            <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; width: 100%;" onclick="app.vehicleFilters = {showArchived: false}; app.renderVehicles()"><i class="fas fa-undo"></i> Reset Filtres</button>
+                        </div>
+                    </div>n('')}
                             </select>
 
                         </div>
