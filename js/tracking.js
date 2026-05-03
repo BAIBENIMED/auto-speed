@@ -63,6 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('display-client-name').textContent = data.clientName || '--';
         document.getElementById('display-client-phone').textContent = data.clientPhone || '--';
         
+        const clientIds = [];
+        if (data.clientNIN) clientIds.push(`NIN: ${data.clientNIN}`);
+        if (data.clientPassport) clientIds.push(`PASSPORT: ${data.clientPassport}`);
+        document.getElementById('display-client-ids').textContent = clientIds.length > 0 ? clientIds.join(' / ') : '--';
+        
         const vehicleName = data.vehicle ? `${data.vehicle.brand} ${data.vehicle.model || ''} ${data.vehicle.year || ''}` : 'Véhicule en attente';
         document.getElementById('display-vehicle-name').textContent = vehicleName;
         document.getElementById('display-vehicle-trim').textContent = data.vehicle?.trim || '--';

@@ -15,13 +15,13 @@ router.get('/track', async (req, res) => {
         // Search by trackingCode first, then fallback to orderId
         let order = await Order.findOne({
             where: { trackingCode: code.toUpperCase() },
-            include: [{ model: Client, as: 'client', attributes: ['firstName', 'lastName', 'phone'] }]
+            include: [{ model: Client, as: 'client', attributes: ['firstName', 'lastName', 'phone', 'nin', 'passportNumber'] }]
         });
 
         // Fallback: search by orderId (for older orders without tracking code)
         if (!order) {
             order = await Order.findByPk(code, {
-                include: [{ model: Client, as: 'client', attributes: ['firstName', 'lastName', 'phone'] }]
+                include: [{ model: Client, as: 'client', attributes: ['firstName', 'lastName', 'phone', 'nin', 'passportNumber'] }]
             });
         }
 
@@ -57,6 +57,8 @@ router.get('/track', async (req, res) => {
             orderStatus: order.status,
             clientName: order.client ? `${order.client.lastName} ${order.client.firstName}` : 'Client',
             clientPhone: order.client ? order.client.phone : '--',
+            clientNIN: order.client ? order.client.nin : null,
+            clientPassport: order.client ? order.client.passportNumber : null,
             vehicle: vehicle ? {
                 brand: vehicle.brand,
                 model: vehicle.model,
