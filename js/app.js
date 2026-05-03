@@ -4290,6 +4290,37 @@ const app = {
             vehicles = vehicles.filter(v => !v.archived);
         }
 
+        // --- Compute available filter options based on remaining vehicles ---
+        const remainingBrands = new Set(vehicles.map(v => v.brand));
+        const remainingModels = new Set(vehicles.map(v => v.model));
+        const remainingColors = new Set(vehicles.map(v => v.color));
+        const remainingSuppliers = new Set(vehicles.map(v => v.supplier));
+        const remainingPOs = new Set(vehicles.map(v => v.purchaseOrderId));
+        
+        const remainingShowrooms = new Set();
+        const allOrders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+        const allClients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        vehicles.forEach(v => {
+            if (v.showroom) remainingShowrooms.add(v.showroom);
+            if (v.orderId) {
+                const o = allOrders.find(x => x.id === v.orderId);
+                if (o && o.showroom) remainingShowrooms.add(o.showroom);
+            }
+            const clientId = v.clientId || (v.orderId ? allOrders.find(x => x.id === v.orderId)?.clientId : null);
+            if (clientId) {
+                const c = allClients.find(x => String(x.id) === String(clientId));
+                if (c && c.showroom) remainingShowrooms.add(c.showroom);
+            }
+        });
+
+        // Always include the currently selected value so the dropdown doesn't blank out
+        if (this.vehicleFilters?.brand) remainingBrands.add(this.vehicleFilters.brand);
+        if (this.vehicleFilters?.model) remainingModels.add(this.vehicleFilters.model);
+        if (this.vehicleFilters?.color) remainingColors.add(this.vehicleFilters.color);
+        if (this.vehicleFilters?.supplier) remainingSuppliers.add(this.vehicleFilters.supplier);
+        if (this.vehicleFilters?.purchaseOrderId) remainingPOs.add(this.vehicleFilters.purchaseOrderId);
+        if (this.vehicleFilters?.showroom && this.vehicleFilters.showroom !== 'TIBOU_STOCK') remainingShowrooms.add(this.vehicleFilters.showroom);
+
         this.viewContainer.innerHTML = `
                 <div class="view-header">
                     <div class="header-info">
@@ -4316,14 +4347,14 @@ const app = {
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Marque</label>
                             <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, brand: this.value, model: ''}; app.renderVehicles()">
                                 <option value="">Toutes les marques</option>
-                                ${(StorageService.get(STORAGE_KEYS.BRANDS) || []).map(b => `<option value="${b}" ${this.vehicleFilters.brand === b ? 'selected' : ''}>${b}</option>`).join('')}
+                                ${(StorageService.get(STORAGE_KEYS.BRANDS) || []).filter(b => remainingBrands.has(b)).map(b => `<option value="${b}" ${this.vehicleFilters.brand === b ? 'selected' : ''}>${b}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Modèle</label>
                             <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, model: this.value}; app.renderVehicles()">
                                 <option value="">Tous les modèles</option>
-                                ${this.vehicleFilters.brand ? (StorageService.get(STORAGE_KEYS.BRAND_MODELS)[this.vehicleFilters.brand] || []).map(m => `<option value="${m}" ${this.vehicleFilters.model === m ? 'selected' : ''}>${m}</option>`).join('') : ''}
+                                ${this.vehicleFilters.brand ? (StorageService.get(STORAGE_KEYS.BRAND_MODELS)[this.vehicleFilters.brand] || []).filter(m => remainingModels.has(m)).map(m => `<option value="${m}" ${this.vehicleFilters.model === m ? 'selected' : ''}>${m}</option>`).join('') : ''}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
@@ -4341,14 +4372,14 @@ const app = {
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Couleur</label>
                             <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, color: this.value}; app.renderVehicles()">
                                 <option value="">Toutes les couleurs</option>
-                                ${(StorageService.get(STORAGE_KEYS.COLORS) || []).map(c => `<option value="${c}" ${this.vehicleFilters.color === c ? 'selected' : ''}>${c}</option>`).join('')}
+                                ${(StorageService.get(STORAGE_KEYS.COLORS) || []).filter(c => remainingColors.has(c)).map(c => `<option value="${c}" ${this.vehicleFilters.color === c ? 'selected' : ''}>${c}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Fournisseur</label>
                             <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, supplier: this.value}; app.renderVehicles()">
                                 <option value="">Tous les fournisseurs</option>
-                                ${(StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => `<option value="${s.name}" ${this.vehicleFilters.supplier === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                ${(StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => s.name).filter(s => remainingSuppliers.has(s)).map(s => `<option value="${s}" ${this.vehicleFilters.supplier === s ? 'selected' : ''}>${s}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
@@ -4359,15 +4390,16 @@ const app = {
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Showroom</label>
                             <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, showroom: this.value}; app.renderVehicles()">
                                 <option value="">Tous les showrooms</option>
-                                ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).map(s => `<option value="${s}" ${this.vehicleFilters.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                ${(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []).filter(s => remainingShowrooms.has(s)).map(s => `<option value="${s}" ${this.vehicleFilters.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Commande d'Achat</label>
                             <select class="glass-select" style="padding: 8px 12px; font-size: 0.9rem;" onchange="app.vehicleFilters = {...app.vehicleFilters, purchaseOrderId: this.value}; app.renderVehicles()">
                                 <option value="">Toutes les sources</option>
-                                ${[...new Set((StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => v.purchaseOrderId).map(v => v.purchaseOrderId))].map(poId => `<option value="${poId}" ${this.vehicleFilters.purchaseOrderId === poId ? 'selected' : ''}>${poId}</option>`).join('')}
+                                ${[...new Set((StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => v.purchaseOrderId).map(v => v.purchaseOrderId))].filter(poId => remainingPOs.has(poId)).map(poId => `<option value="${poId}" ${this.vehicleFilters.purchaseOrderId === poId ? 'selected' : ''}>${poId}</option>`).join('')}
                             </select>
+
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; width: 100%;" onclick="app.vehicleFilters = {showArchived: false}; app.renderVehicles()"><i class="fas fa-undo"></i> Reset</button>
