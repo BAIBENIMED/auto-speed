@@ -2625,6 +2625,9 @@ textarea.glass-input {
     position: relative;
     width: 100%;
 }
+.custom-multiselect.open {
+    z-index: 10001;
+}
 .custom-multiselect .multiselect-header {
     display: flex;
     justify-content: space-between;
@@ -2643,18 +2646,18 @@ textarea.glass-input {
     top: 100%;
     left: 0;
     right: 0;
-    z-index: 100;
+    z-index: 10000;
     background: var(--bg-color); /* fallback */
-    background: rgba(20, 20, 25, 0.95);
+    background: rgba(20, 20, 25, 0.98);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
     border-radius: 8px;
     margin-top: 5px;
     max-height: 250px;
     overflow-y: auto;
     display: none;
     padding: 10px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.8);
 }
 .custom-multiselect.open .multiselect-dropdown {
     display: flex;
