@@ -4449,20 +4449,13 @@ const app = {
                         ${renderMultiSelect('color', 'Couleur', colorOptions, this.vehicleFilters)}
                         ${renderMultiSelect('supplier', 'Fournisseur', supplierOptions, this.vehicleFilters)}
                         ${renderMultiSelect('showroom', 'Showroom', showroomOpts, this.vehicleFilters)}
-                        ${renderMultiSelect('purchaseOrderId', 'Commande d\\'Achat', poOptions, this.vehicleFilters)}
+                        ${renderMultiSelect('purchaseOrderId', "Commande d'Achat", poOptions, this.vehicleFilters)}
                         <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; gap: 10px;">
                             <div style="display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
                                 <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
                                 <label for="filter-vehicle-archived" style="font-size: 0.8rem; cursor: pointer; margin: 0; color: var(--text-dim);">Archives</label>
                             </div>
                             <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; width: 100%;" onclick="app.vehicleFilters = {showArchived: false}; app.renderVehicles()"><i class="fas fa-undo"></i> Reset Filtres</button>
-                        </div>
-                    </div>n('')}
-                            </select>
-
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.85rem; width: 100%;" onclick="app.vehicleFilters = {showArchived: false}; app.renderVehicles()"><i class="fas fa-undo"></i> Reset</button>
                         </div>
                     </div>
                 </div>
