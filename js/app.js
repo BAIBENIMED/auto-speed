@@ -4384,7 +4384,7 @@ const app = {
 
                 app._filterTimeout = setTimeout(() => {
                     app.renderVehicles();
-                }, 1200); // 1.2 seconds delay
+                }, 5000); // 5 seconds delay
             };
         }
 
