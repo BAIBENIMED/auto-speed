@@ -2289,7 +2289,7 @@ const app = {
             case 'global-tracking':
                 this.renderGlobalTracking();
                 break;
-            case 'vehiclePrices':
+            case 'vehicle-prices':
                 this.renderVehiclePrices();
                 break;
             default:
