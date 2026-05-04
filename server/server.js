@@ -89,6 +89,7 @@ app.use('/api/tracking', require('./src/routes/tracking'));
 app.use('/api/voyages', require('./src/routes/voyages'));
 app.use('/api/maintenance', require('./src/routes/maintenance'));
 app.use('/api/public', require('./src/routes/public'));
+app.use('/api/vehicle-prices', require('./src/routes/vehiclePrices'));
 
 // Serve tracking page explicitly
 app.get('/tracking', (req, res) => {
@@ -391,7 +392,8 @@ const startServer = async () => {
             await models.Notification.sync({ alter: true });
             await models.VehicleTransfer.sync({ alter: true });
             await models.VehicleTrim.sync({ alter: true });
-            console.log('🔧 Tables Notification/VehicleTransfer/VehicleTrim vérifiées/créées (Fail-safe).');
+            await models.VehiclePrice.sync({ alter: true });
+            console.log('🔧 Tables Notification/VehicleTransfer/VehicleTrim/VehiclePrice vérifiées/créées (Fail-safe).');
 
             // Raw SQL Fail-safe for Voyages (Sequelize sync might be ignored due to index warnings)
             await sequelize.query(`
@@ -516,7 +518,16 @@ const startServer = async () => {
                 { table: 'clients', name: 'passport_drive_link', def: 'VARCHAR(500)' },
                 { table: 'clients', name: 'postal_code', def: 'VARCHAR(20)' },
                 { table: 'orders', name: 'tasks', def: 'JSON' },
-                { table: 'orders', name: 'tracking_code', def: 'VARCHAR(10)' }
+                { table: 'orders', name: 'tracking_code', def: 'VARCHAR(10)' },
+                { table: 'vehicle_prices', name: 'trim_id', def: 'VARCHAR(255)' },
+                { table: 'vehicle_prices', name: 'supplier_id', def: 'INT' },
+                { table: 'vehicle_prices', name: 'price_usd', def: 'DECIMAL(15,2)' },
+                { table: 'vehicle_prices', name: 'price_dzd_neuf', def: 'DECIMAL(15,2)' },
+                { table: 'vehicle_prices', name: 'price_dzd_3ans', def: 'DECIMAL(15,2)' },
+                { table: 'vehicle_prices', name: 'date', def: 'DATE' },
+                { table: 'vehicle_prices', name: 'notes', def: 'TEXT' },
+                { table: 'settings', name: 'coefficient_neuf', def: 'DECIMAL(8,4) DEFAULT 1.0' },
+                { table: 'settings', name: 'coefficient_3ans', def: 'DECIMAL(8,4) DEFAULT 1.0' }
             ];
 
             for (const col of columnsToEnsure) {

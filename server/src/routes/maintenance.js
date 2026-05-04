@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Shipment, Vehicle, Order } = require('../models');
+const { Op } = require('sequelize');
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 
 // Global Status Healing
@@ -10,7 +11,7 @@ router.post('/heal-statuses', async (req, res) => {
 
         // 1. Recover broken links: Ensure order.vehicleId and vehicle.orderId match
         const vehiclesWithOrders = await Vehicle.findAll({
-            where: { orderId: { $ne: null } }
+            where: { orderId: { [Op.ne]: null } }
         });
 
         for (const v of vehiclesWithOrders) {
@@ -22,7 +23,7 @@ router.post('/heal-statuses', async (req, res) => {
         }
 
         const ordersWithVehicles = await Order.findAll({
-            where: { vehicleId: { $ne: null } }
+            where: { vehicleId: { [Op.ne]: null } }
         });
 
         for (const o of ordersWithVehicles) {
@@ -51,3 +52,4 @@ router.post('/heal-statuses', async (req, res) => {
 });
 
 module.exports = router;
+

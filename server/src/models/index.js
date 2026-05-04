@@ -19,6 +19,7 @@ const Notification = require('./Notification');
 const Voyage = require('./Voyage');
 const VehicleTransfer = require('./VehicleTransfer');
 const VehicleTrim = require('./VehicleTrim');
+const VehiclePrice = require('./VehiclePrice');
 const attachAuditLog = require('../utils/auditLogger');
 
 // Define relationships
@@ -65,6 +66,13 @@ VehicleTrim.belongsTo(VehicleModel, { foreignKey: 'modelId', as: 'model' });
 Vehicle.belongsTo(VehicleTrim, { foreignKey: 'trimId', as: 'trimDetails' });
 VehicleTrim.hasMany(Vehicle, { foreignKey: 'trimId' });
 
+// Vehicle Price relationships
+VehiclePrice.belongsTo(VehicleTrim, { foreignKey: 'trimId', as: 'trim' });
+VehicleTrim.hasMany(VehiclePrice, { foreignKey: 'trimId', as: 'prices' });
+
+VehiclePrice.belongsTo(Supplier, { foreignKey: 'supplierId', as: 'supplier' });
+Supplier.hasMany(VehiclePrice, { foreignKey: 'supplierId', as: 'vehiclePrices' });
+
 // Voyage relationships
 Voyage.hasMany(Shipment, { foreignKey: 'voyageId', as: 'shipments' });
 Shipment.belongsTo(Voyage, { foreignKey: 'voyageId', as: 'voyageDetails' });
@@ -78,6 +86,7 @@ attachAuditLog(User, 'Utilisateur');
 attachAuditLog(Settings, 'Paramètres');
 attachAuditLog(PurchaseOrder, 'Commande Achat');
 attachAuditLog(Supplier, 'Fournisseur');
+attachAuditLog(VehiclePrice, 'Prix Vehicule');
 attachAuditLog(Shipment, 'Expedition');
 attachAuditLog(Voyage, 'Voyage');
 
@@ -101,7 +110,8 @@ module.exports = {
     Notification,
     Voyage,
     VehicleTransfer,
-    VehicleTrim
+    VehicleTrim,
+    VehiclePrice
 };
 
 // Audit Log associations

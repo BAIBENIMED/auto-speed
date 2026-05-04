@@ -2289,6 +2289,9 @@ const app = {
             case 'global-tracking':
                 this.renderGlobalTracking();
                 break;
+            case 'vehiclePrices':
+                this.renderVehiclePrices();
+                break;
             default:
                 this.renderDashboard();
         }
@@ -14245,6 +14248,205 @@ const app = {
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    async renderVehiclePrices() {
+        this.viewContainer.innerHTML = `
+            <div class="view-header">
+                <div>
+                    <h1><i class="fas fa-tags"></i> Prix Véhicules</h1>
+                    <p>Suivi des tarifs fournisseurs et conversion DZD</p>
+                </div>
+                <button class="btn-primary" onclick="app.showVehiclePriceModal()">
+                    <i class="fas fa-plus"></i> Ajouter un Prix
+                </button>
+            </div>
+
+            <div class="glass-card" style="margin-top: 20px; overflow: hidden;">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Véhicule</th>
+                                <th>Fournisseur</th>
+                                <th>Date</th>
+                                <th>Prix (USD)</th>
+                                <th>Prix DZD (Neuf)</th>
+                                <th>Prix DZD (-3 Ans)</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prices-table-body">
+                            <tr><td colspan="8" style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Chargement...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        try {
+            const pricesRes = await ApiService.getVehiclePrices();
+
+            const tbody = document.getElementById('prices-table-body');
+            if (pricesRes.success && pricesRes.data.length > 0) {
+                tbody.innerHTML = pricesRes.data.map(p => {
+                    const trimName = p.trim ? `${p.trim.model.brand.name} ${p.trim.model.name} - ${p.trim.name}` : 'N/A';
+                    
+                    return `
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600;">${trimName}</div>
+                            </td>
+                            <td>${p.supplier?.name || 'N/A'}</td>
+                            <td>${new Date(p.date).toLocaleDateString()}</td>
+                            <td style="font-weight: 700; color: var(--primary);">$ ${Number(p.priceUSD).toLocaleString()}</td>
+                            <td style="font-weight: 700; color: var(--success);">${p.priceDzdNeuf ? Number(p.priceDzdNeuf).toLocaleString() + ' DA' : '--'}</td>
+                            <td style="font-weight: 700; color: var(--warning);">${p.priceDzd3Ans ? Number(p.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
+                            <td style="font-size: 0.85rem; color: var(--text-dim); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.notes || ''}</td>
+                            <td>
+                                <div class="actions">
+                                    <button class="btn-icon" onclick="app.showVehiclePriceModal('${p.id}')" title="Modifier"><i class="fas fa-edit"></i></button>
+                                    <button class="btn-icon danger" onclick="app.deleteVehiclePrice('${p.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucun prix enregistré.</td></tr>`;
+            }
+        } catch (error) {
+            console.error('Error rendering vehicle prices:', error);
+            this.showToast("Erreur lors du chargement des prix", "error");
+        }
+    },
+
+    async showVehiclePriceModal(priceId = null) {
+        const [brandsRes, suppliersRes, pricesRes] = await Promise.all([
+            ApiService.getBrands(),
+            ApiService.getSuppliers(),
+            priceId ? ApiService.getVehiclePrices() : Promise.resolve({ success: true, data: [] })
+        ]);
+
+        const price = priceId ? pricesRes.data.find(p => p.id === priceId) : null;
+        const brands = brandsRes.success ? brandsRes.data : [];
+        const suppliers = suppliersRes.success ? suppliersRes.data : [];
+
+        const modalHtml = `
+            <div id="modal-overlay" class="modal-overlay">
+                <div class="modal-content glass" style="width: 500px;">
+                    <div class="modal-header">
+                        <h2>${priceId ? 'Modifier le Prix' : 'Ajouter un Prix'}</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <form id="price-form">
+                        <div class="form-group">
+                            <label>Marque & Modèle</label>
+                            <select id="modal-brand-select" class="glass-select" required>
+                                <option value="">Sélectionner une marque</option>
+                                ${brands.map(b => `<option value="${b.id}" ${price?.trim?.model?.brandId === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
+                            </select>
+                            <select id="modal-trim-select" name="trimId" class="glass-select" style="margin-top: 10px;" required>
+                                <option value="">Sélectionner une finition</option>
+                                ${price ? `<option value="${price.trimId}" selected>${price.trim.model.name} - ${price.trim.name}</option>` : ''}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Fournisseur</label>
+                            <select name="supplierId" class="glass-select" required>
+                                <option value="">Sélectionner un fournisseur</option>
+                                ${suppliers.map(s => `<option value="${s.id}" ${price?.supplierId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Prix (USD)</label>
+                            <input type="number" name="priceUSD" class="glass-input" step="0.01" value="${price?.priceUSD || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Prix DZD (Neuf)</label>
+                            <input type="number" name="priceDzdNeuf" class="glass-input" step="0.01" value="${price?.priceDzdNeuf || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Prix DZD (-3 Ans)</label>
+                            <input type="number" name="priceDzd3Ans" class="glass-input" step="0.01" value="${price?.priceDzd3Ans || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Date</label>
+                            <input type="date" name="date" class="glass-input" value="${price?.date || new Date().toISOString().split('T')[0]}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea name="notes" class="glass-input" rows="3">${price?.notes || ''}</textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
+                            <button type="submit" class="btn-primary">${priceId ? 'Mettre à jour' : 'Enregistrer'}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const brandSelect = document.getElementById('modal-brand-select');
+        const trimSelect = document.getElementById('modal-trim-select');
+
+        brandSelect.onchange = () => {
+            const selectedBrand = brands.find(b => b.id === brandSelect.value);
+            if (selectedBrand && selectedBrand.models) {
+                let options = '<option value="">Sélectionner une finition</option>';
+                selectedBrand.models.forEach(m => {
+                    if (m.trims) {
+                        m.trims.forEach(t => {
+                            options += `<option value="${t.id}">${m.name} - ${t.name}</option>`;
+                        });
+                    }
+                });
+                trimSelect.innerHTML = options;
+            } else {
+                trimSelect.innerHTML = '<option value="">Sélectionner une finition</option>';
+            }
+        };
+
+        document.getElementById('price-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const res = priceId 
+                    ? await ApiService.updateVehiclePrice(priceId, data)
+                    : await ApiService.createVehiclePrice(data);
+
+                if (res.success) {
+                    this.showToast(priceId ? "Prix mis à jour" : "Prix ajouté", "success");
+                    this.closeModal();
+                    this.renderVehiclePrices();
+                } else {
+                    this.showToast(res.message || "Erreur lors de l'enregistrement", "error");
+                }
+            } catch (error) {
+                console.error(error);
+                this.showToast("Erreur serveur", "error");
+            }
+        };
+    },
+
+    async deleteVehiclePrice(id) {
+        if (!confirm("Voulez-vous vraiment supprimer ce tarif ?")) return;
+        try {
+            const res = await ApiService.deleteVehiclePrice(id);
+            if (res.success) {
+                this.showToast("Tarif supprimé", "info");
+                this.renderVehiclePrices();
+            } else {
+                this.showToast(res.message || "Erreur lors de la suppression", "error");
+            }
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur serveur", "error");
+        }
     }
 };
 

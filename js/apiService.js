@@ -179,6 +179,12 @@ const ApiService = {
     createSupplier: (data) => ApiService.request('/suppliers', { method: 'POST', body: data }),
     updateSupplier: (id, data) => ApiService.request(`/suppliers/${id}`, { method: 'PUT', body: data }),
     deleteSupplier: (id) => ApiService.request(`/suppliers/${id}`, { method: 'DELETE' }),
+    
+    // Vehicle Prices
+    getVehiclePrices: () => ApiService.request('/vehicle-prices'),
+    createVehiclePrice: (data) => ApiService.request('/vehicle-prices', { method: 'POST', body: data }),
+    updateVehiclePrice: (id, data) => ApiService.request(`/vehicle-prices/${id}`, { method: 'PUT', body: data }),
+    deleteVehiclePrice: (id) => ApiService.request(`/vehicle-prices/${id}`, { method: 'DELETE' }),
 
     // Bulk Sync
     syncAllBulk: () => ApiService.request('/sync/sync-all'),
