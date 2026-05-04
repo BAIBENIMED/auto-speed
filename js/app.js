@@ -114,6 +114,16 @@ const app = {
         }
     },
 
+    formatDate(dateStr) {
+        if (!dateStr) return '--';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr;
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day} ${month} ${year}`;
+    },
+
     isOutdated(dateStr) {
         if (!dateStr) return true;
         const lastUpdate = new Date(dateStr);
@@ -14430,7 +14440,7 @@ const app = {
                         rowHtml += `
                             <td style="font-weight: 700; color: ${priceColor};">
                                 $ ${Number(latestPrice.priceUSD).toLocaleString()}
-                                <div style="font-size: 0.7rem; color: var(--text-dim); font-weight: normal;">${new Date(latestPrice.date).toLocaleDateString()}</div>
+                                <div style="font-size: 0.7rem; color: var(--text-dim); font-weight: normal;">${this.formatDate(latestPrice.date)}</div>
                             </td>`;
                     } else {
                         rowHtml += `<td style="color: var(--text-dim);">--</td>`;
@@ -14665,7 +14675,7 @@ const app = {
 
             return `
                 <tr>
-                    <td>${new Date(p.date).toLocaleDateString()}</td>
+                    <td>${this.formatDate(p.date)}</td>
                     <td>${p.supplierName || 'N/A'}</td>
                     <td style="font-weight: 700; color: ${priceColor};">$ ${Number(p.priceUSD).toLocaleString()}${bestBadge}</td>
                     <td style="font-size: 0.85rem; color: var(--text-dim);">${p.notes || ''}</td>
