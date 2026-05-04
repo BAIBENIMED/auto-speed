@@ -14595,20 +14595,30 @@ const app = {
         const trimData = this.vehiclePricingDashboardData.find(t => t.trimId === trimId);
         if (!trimData) return;
 
-        const historyRows = trimData.history.map(p => `
-            <tr>
-                <td>${new Date(p.date).toLocaleDateString()}</td>
-                <td>${p.supplierName || 'N/A'}</td>
-                <td style="font-weight: 700; color: var(--primary);">$ ${Number(p.priceUSD).toLocaleString()}</td>
-                <td style="font-size: 0.85rem; color: var(--text-dim);">${p.notes || ''}</td>
-                <td>
-                    <div class="actions">
-                        <button class="btn-icon" onclick="app.closeModal(); app.showVehiclePriceModal('${p.id}', '${trimId}');" title="Modifier"><i class="fas fa-edit"></i></button>
-                        <button class="btn-icon danger" onclick="app.deleteVehiclePrice('${p.id}'); app.closeModal();" title="Supprimer"><i class="fas fa-trash"></i></button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
+        // Determine best price value
+        const prices = trimData.history.map(p => Number(p.priceUSD)).filter(val => !isNaN(val));
+        const bestPriceValue = prices.length > 0 ? Math.min(...prices) : null;
+
+        const historyRows = trimData.history.map(p => {
+            const isBest = Number(p.priceUSD) === bestPriceValue;
+            const priceColor = isBest ? 'var(--success)' : 'var(--primary)';
+            const bestBadge = isBest ? ' <span class="badge-outline success" style="margin-left: 5px;"><i class="fas fa-star"></i> Meilleur</span>' : '';
+
+            return `
+                <tr>
+                    <td>${new Date(p.date).toLocaleDateString()}</td>
+                    <td>${p.supplierName || 'N/A'}</td>
+                    <td style="font-weight: 700; color: ${priceColor};">$ ${Number(p.priceUSD).toLocaleString()}${bestBadge}</td>
+                    <td style="font-size: 0.85rem; color: var(--text-dim);">${p.notes || ''}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn-icon" onclick="app.closeModal(); app.showVehiclePriceModal('${p.id}', '${trimId}');" title="Modifier"><i class="fas fa-edit"></i></button>
+                            <button class="btn-icon danger" onclick="app.deleteVehiclePrice('${p.id}'); app.closeModal();" title="Supprimer"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
 
         const modalHtml = `
             <div id="modal-overlay" class="modal-overlay">
