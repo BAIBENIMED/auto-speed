@@ -14602,7 +14602,10 @@ const app = {
                 <td style="font-weight: 700; color: var(--primary);">$ ${Number(p.priceUSD).toLocaleString()}</td>
                 <td style="font-size: 0.85rem; color: var(--text-dim);">${p.notes || ''}</td>
                 <td>
-                    <button class="btn-icon danger" onclick="app.deleteVehiclePrice('${p.id}'); app.closeModal();" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    <div class="actions">
+                        <button class="btn-icon" onclick="app.closeModal(); app.showVehiclePriceModal('${p.id}', '${trimId}');" title="Modifier"><i class="fas fa-edit"></i></button>
+                        <button class="btn-icon danger" onclick="app.deleteVehiclePrice('${p.id}'); app.closeModal();" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `).join('');
