@@ -14359,32 +14359,74 @@ const app = {
     },
 
     renderVehiclePricesTable(data) {
+        const thead = document.querySelector('.data-table.bordered thead');
         const tbody = document.getElementById('prices-table-body');
+        
         if (!data || data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucun résultat trouvé.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucun résultat trouvé.</td></tr>`;
             return;
         }
 
+        // Get all unique suppliers from the global dashboard data to keep columns consistent
+        const globalSuppliers = new Set();
+        if (this.vehiclePricingDashboardData) {
+            this.vehiclePricingDashboardData.forEach(trim => {
+                trim.history.forEach(p => {
+                    if (p.supplierName) globalSuppliers.add(p.supplierName);
+                });
+            });
+        }
+        const suppliersList = Array.from(globalSuppliers).sort();
+
+        // Render table headers
+        let headerHtml = `
+            <tr>
+                <th>Véhicule (Finition)</th>
+                <th>Prix Vente (Neuf)</th>
+                <th>Prix Vente (-3 Ans)</th>
+        `;
+        suppliersList.forEach(sup => {
+            headerHtml += `<th>${sup} (USD)</th>`;
+        });
+        headerHtml += `<th>Actions</th></tr>`;
+        thead.innerHTML = headerHtml;
+
+        // Render table body
         tbody.innerHTML = data.map(trim => {
-            const lastPriceHtml = trim.lastPrice 
-                ? `<div style="font-weight: 700; color: var(--primary);">$ ${Number(trim.lastPrice.priceUSD).toLocaleString()}</div>
-                   <div style="font-size: 0.8rem; color: var(--text-dim);">${trim.lastPrice.supplierName || 'N/A'} - ${new Date(trim.lastPrice.date).toLocaleDateString()}</div>`
-                : '<span style="color: var(--text-dim);">--</span>';
+            // Find the best overall price for highlighting
+            const prices = trim.history.map(p => Number(p.priceUSD)).filter(val => !isNaN(val));
+            const bestPriceValue = prices.length > 0 ? Math.min(...prices) : null;
 
-            const bestPriceHtml = trim.bestPrice 
-                ? `<div style="font-weight: 700; color: var(--success);">$ ${Number(trim.bestPrice.priceUSD).toLocaleString()}</div>
-                   <div style="font-size: 0.8rem; color: var(--text-dim);">${trim.bestPrice.supplierName || 'N/A'} - ${new Date(trim.bestPrice.date).toLocaleDateString()}</div>`
-                : '<span style="color: var(--text-dim);">--</span>';
-
-            return `
+            let rowHtml = `
                 <tr>
                     <td>
                         <div style="font-weight: 600;">${trim.trimName}</div>
                     </td>
-                    <td>${lastPriceHtml}</td>
-                    <td>${bestPriceHtml}</td>
                     <td style="font-weight: 700; color: var(--info);">${trim.priceDzdNeuf ? Number(trim.priceDzdNeuf).toLocaleString() + ' DA' : '--'}</td>
                     <td style="font-weight: 700; color: var(--warning);">${trim.priceDzd3Ans ? Number(trim.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
+            `;
+
+            // For each supplier, find the latest price for this trim
+            suppliersList.forEach(sup => {
+                const supplierPrices = trim.history.filter(p => p.supplierName === sup);
+                if (supplierPrices.length > 0) {
+                    // Sort by date DESC to get the latest
+                    supplierPrices.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    const latestPrice = supplierPrices[0];
+                    const isBest = Number(latestPrice.priceUSD) === bestPriceValue;
+                    const priceColor = isBest ? 'var(--success)' : 'var(--primary)';
+                    
+                    rowHtml += `
+                        <td style="font-weight: 700; color: ${priceColor};">
+                            $ ${Number(latestPrice.priceUSD).toLocaleString()}
+                            <div style="font-size: 0.7rem; color: var(--text-dim); font-weight: normal;">${new Date(latestPrice.date).toLocaleDateString()}</div>
+                        </td>`;
+                } else {
+                    rowHtml += `<td style="color: var(--text-dim);">--</td>`;
+                }
+            });
+
+            rowHtml += `
                     <td>
                         <div class="actions">
                             <button class="btn-icon" onclick="app.showVehiclePriceModal(null, '${trim.trimId}')" title="Ajouter un prix d'achat"><i class="fas fa-plus-circle" style="color: var(--success);"></i></button>
@@ -14394,6 +14436,7 @@ const app = {
                     </td>
                 </tr>
             `;
+            return rowHtml;
         }).join('');
     },
 
