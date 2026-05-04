@@ -2682,3 +2682,6 @@ textarea.glass-input {
     cursor: pointer;
 }
 
+
+.data-table.bordered th, .data-table.bordered td { border: 1px solid var(--border-glass); }
+.data-table.bordered { border: 1px solid var(--border-glass); }

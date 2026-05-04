@@ -14278,7 +14278,7 @@ const app = {
 
             <div class="glass-card" style="margin-top: 20px; overflow: hidden;">
                 <div class="table-responsive">
-                    <table class="data-table">
+                    <table class="data-table bordered">
                         <thead>
                             <tr>
                                 <th>Véhicule (Finition)</th>
@@ -14301,7 +14301,19 @@ const app = {
             const dashboardRes = await ApiService.getVehiclePricesDashboard();
             
             if (dashboardRes.success) {
-                this.vehiclePricingDashboardData = dashboardRes.data;
+                // Sort by TrimName (Brand/Model), then by bestPrice
+                const sortedData = dashboardRes.data.sort((a, b) => {
+                    const nameA = a.trimName.toLowerCase();
+                    const nameB = b.trimName.toLowerCase();
+                    if (nameA < nameB) return -1;
+                    if (nameA > nameB) return 1;
+                    
+                    const priceA = a.bestPrice ? Number(a.bestPrice.priceUSD) : Infinity;
+                    const priceB = b.bestPrice ? Number(b.bestPrice.priceUSD) : Infinity;
+                    return priceA - priceB;
+                });
+
+                this.vehiclePricingDashboardData = sortedData;
                 
                 // Populate supplier filter
                 const supplierSelect = document.getElementById('filter-vp-supplier');
