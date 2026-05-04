@@ -14251,15 +14251,19 @@ const app = {
     },
 
     async renderVehiclePrices() {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        const isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'Super Admin');
+
         this.viewContainer.innerHTML = `
             <div class="view-header">
                 <div>
                     <h1><i class="fas fa-tags"></i> Prix Véhicules</h1>
                     <p>Comparatif des prix fournisseurs et configuration des prix de vente DZD</p>
                 </div>
+                ${isAdmin ? `
                 <button class="btn-primary" onclick="app.showVehiclePriceModal()">
                     <i class="fas fa-plus"></i> Nouvel Achat (USD)
-                </button>
+                </button>` : ''}
             </div>
 
             <div class="filters-container glass-card" style="margin-top: 20px; padding: 15px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
@@ -14269,25 +14273,19 @@ const app = {
                         <input type="text" id="filter-vp-search" class="glass-input" placeholder="Rechercher par Marque, Modèle, Finition..." onkeyup="app.filterVehiclePrices()">
                     </div>
                 </div>
+                ${isAdmin ? `
                 <div style="flex: 1; min-width: 200px;">
                     <select id="filter-vp-supplier" class="glass-select" onchange="app.filterVehiclePrices()">
                         <option value="">Tous les fournisseurs</option>
                     </select>
-                </div>
+                </div>` : ''}
             </div>
 
             <div class="glass-card" style="margin-top: 20px; overflow: hidden;">
                 <div class="table-responsive">
                     <table class="data-table bordered">
                         <thead>
-                            <tr>
-                                <th>Véhicule (Finition)</th>
-                                <th>Dernier Achat (USD)</th>
-                                <th>Meilleur Achat (USD)</th>
-                                <th>Prix Vente (Neuf)</th>
-                                <th>Prix Vente (-3 Ans)</th>
-                                <th>Actions</th>
-                            </tr>
+                            <!-- Dynamic headers -->
                         </thead>
                         <tbody id="prices-table-body">
                             <tr><td colspan="6" style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Chargement...</td></tr>
@@ -14315,17 +14313,19 @@ const app = {
 
                 this.vehiclePricingDashboardData = sortedData;
                 
-                // Populate supplier filter
+                // Populate supplier filter if admin
                 const supplierSelect = document.getElementById('filter-vp-supplier');
-                const uniqueSuppliers = new Set();
-                dashboardRes.data.forEach(trim => {
-                    trim.history.forEach(p => {
-                        if (p.supplierName) uniqueSuppliers.add(p.supplierName);
+                if (supplierSelect) {
+                    const uniqueSuppliers = new Set();
+                    dashboardRes.data.forEach(trim => {
+                        trim.history.forEach(p => {
+                            if (p.supplierName) uniqueSuppliers.add(p.supplierName);
+                        });
                     });
-                });
-                Array.from(uniqueSuppliers).sort().forEach(sup => {
-                    supplierSelect.insertAdjacentHTML('beforeend', `<option value="${sup}">${sup}</option>`);
-                });
+                    Array.from(uniqueSuppliers).sort().forEach(sup => {
+                        supplierSelect.insertAdjacentHTML('beforeend', `<option value="${sup}">${sup}</option>`);
+                    });
+                }
 
                 this.renderVehiclePricesTable(dashboardRes.data);
             } else {
@@ -14341,7 +14341,8 @@ const app = {
         if (!this.vehiclePricingDashboardData) return;
         
         const searchTerm = document.getElementById('filter-vp-search').value.toLowerCase();
-        const supplierTerm = document.getElementById('filter-vp-supplier').value;
+        const supplierSelect = document.getElementById('filter-vp-supplier');
+        const supplierTerm = supplierSelect ? supplierSelect.value : '';
 
         const filtered = this.vehiclePricingDashboardData.filter(trim => {
             const matchesSearch = trim.trimName.toLowerCase().includes(searchTerm);
@@ -14359,6 +14360,9 @@ const app = {
     },
 
     renderVehiclePricesTable(data) {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        const isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'Super Admin');
+
         const thead = document.querySelector('.data-table.bordered thead');
         const tbody = document.getElementById('prices-table-body');
         
@@ -14368,15 +14372,16 @@ const app = {
         }
 
         // Get all unique suppliers from the global dashboard data to keep columns consistent
-        const globalSuppliers = new Set();
-        if (this.vehiclePricingDashboardData) {
+        const suppliersList = [];
+        if (isAdmin && this.vehiclePricingDashboardData) {
+            const globalSuppliers = new Set();
             this.vehiclePricingDashboardData.forEach(trim => {
                 trim.history.forEach(p => {
                     if (p.supplierName) globalSuppliers.add(p.supplierName);
                 });
             });
+            suppliersList.push(...Array.from(globalSuppliers).sort());
         }
-        const suppliersList = Array.from(globalSuppliers).sort();
 
         // Render table headers
         let headerHtml = `
@@ -14385,16 +14390,18 @@ const app = {
                 <th>Prix Vente (Neuf)</th>
                 <th>Prix Vente (-3 Ans)</th>
         `;
-        suppliersList.forEach(sup => {
-            headerHtml += `<th>${sup} (USD)</th>`;
-        });
+        if (isAdmin) {
+            suppliersList.forEach(sup => {
+                headerHtml += `<th>${sup} (USD)</th>`;
+            });
+        }
         headerHtml += `<th>Actions</th></tr>`;
         thead.innerHTML = headerHtml;
 
         // Render table body
         tbody.innerHTML = data.map(trim => {
-            // Find the best overall price for highlighting
-            const prices = trim.history.map(p => Number(p.priceUSD)).filter(val => !isNaN(val));
+            // Find the best overall price for highlighting (only if admin)
+            const prices = isAdmin ? trim.history.map(p => Number(p.priceUSD)).filter(val => !isNaN(val)) : [];
             const bestPriceValue = prices.length > 0 ? Math.min(...prices) : null;
 
             let rowHtml = `
@@ -14409,32 +14416,38 @@ const app = {
                     <td style="font-weight: 700; color: var(--warning);">${trim.priceDzd3Ans ? Number(trim.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
             `;
 
-            // For each supplier, find the latest price for this trim
-            suppliersList.forEach(sup => {
-                const supplierPrices = trim.history.filter(p => p.supplierName === sup);
-                if (supplierPrices.length > 0) {
-                    // Sort by date DESC to get the latest
-                    supplierPrices.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    const latestPrice = supplierPrices[0];
-                    const isBest = Number(latestPrice.priceUSD) === bestPriceValue;
-                    const priceColor = isBest ? 'var(--success)' : 'var(--primary)';
-                    
-                    rowHtml += `
-                        <td style="font-weight: 700; color: ${priceColor};">
-                            $ ${Number(latestPrice.priceUSD).toLocaleString()}
-                            <div style="font-size: 0.7rem; color: var(--text-dim); font-weight: normal;">${new Date(latestPrice.date).toLocaleDateString()}</div>
-                        </td>`;
-                } else {
-                    rowHtml += `<td style="color: var(--text-dim);">--</td>`;
-                }
-            });
+            // For each supplier, find the latest price for this trim (only if admin)
+            if (isAdmin) {
+                suppliersList.forEach(sup => {
+                    const supplierPrices = trim.history.filter(p => p.supplierName === sup);
+                    if (supplierPrices.length > 0) {
+                        // Sort by date DESC to get the latest
+                        supplierPrices.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        const latestPrice = supplierPrices[0];
+                        const isBest = Number(latestPrice.priceUSD) === bestPriceValue;
+                        const priceColor = isBest ? 'var(--success)' : 'var(--primary)';
+                        
+                        rowHtml += `
+                            <td style="font-weight: 700; color: ${priceColor};">
+                                $ ${Number(latestPrice.priceUSD).toLocaleString()}
+                                <div style="font-size: 0.7rem; color: var(--text-dim); font-weight: normal;">${new Date(latestPrice.date).toLocaleDateString()}</div>
+                            </td>`;
+                    } else {
+                        rowHtml += `<td style="color: var(--text-dim);">--</td>`;
+                    }
+                });
+            }
 
             rowHtml += `
                     <td>
                         <div class="actions">
+                            ${isAdmin ? `
                             <button class="btn-icon" onclick="app.showVehiclePriceModal(null, '${trim.trimId}')" title="Ajouter un prix d'achat"><i class="fas fa-plus-circle" style="color: var(--success);"></i></button>
+                            ` : ''}
                             <button class="btn-icon" onclick="app.showTrimPriceModal('${trim.trimId}', '${trim.priceDzdNeuf || ''}', '${trim.priceDzd3Ans || ''}')" title="Configurer prix de vente DZD"><i class="fas fa-money-bill-wave" style="color: var(--primary);"></i></button>
+                            ${isAdmin ? `
                             <button class="btn-icon" onclick="app.showTrimHistoryModal('${trim.trimId}')" title="Historique & Comparatif"><i class="fas fa-chart-line" style="color: #0ea5e9;"></i></button>
+                            ` : ''}
                         </div>
                     </td>
                 </tr>
