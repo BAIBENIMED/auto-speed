@@ -199,11 +199,11 @@ const app = {
                 <div class="login-wrapper">
                     <div class="login-box glass">
                         <div class="login-logo" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
-                            <div class="logo-text-wrapper" style="font-size: 3.5rem; letter-spacing: -2px;">
+                            <div class="logo-text-wrapper" style="font-size: 3.5rem; letter-spacing: -2px; flex-direction: row; gap: 15px; width: auto;">
                                 <span class="tibou" style="color: white;">TIBOU</span>
-                                <span class="auto">AUTO</span>
+                                <span class="auto" style="color: #D32F2F;">AUTO</span>
                             </div>
-                            <div style="color: #ff0000; font-size: 0.7rem; font-weight: 800; letter-spacing: 5px; margin-top: -5px; text-transform: uppercase;">CHINA CARS</div>
+                            <div style="color: #D32F2F; font-size: 0.9rem; font-weight: 600; letter-spacing: 6px; margin-top: -10px; text-transform: uppercase; opacity: 0.9;">SHOWROOMS</div>
                         </div>
                         
                         <form id="login-form" autocomplete="off">
