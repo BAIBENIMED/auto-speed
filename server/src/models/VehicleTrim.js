@@ -32,6 +32,16 @@ const VehicleTrim = sequelize.define('VehicleTrim', {
         set(value) {
             this.setDataValue('characteristics', value ? JSON.stringify(value) : null);
         }
+    },
+    priceDzdNeuf: {
+        type: DataTypes.DECIMAL(15, 2),
+        field: 'price_dzd_neuf',
+        allowNull: true
+    },
+    priceDzd3Ans: {
+        type: DataTypes.DECIMAL(15, 2),
+        field: 'price_dzd_3ans',
+        allowNull: true
     }
 }, {
     tableName: 'vehicle_trims',

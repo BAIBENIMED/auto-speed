@@ -182,6 +182,7 @@ const ApiService = {
     
     // Vehicle Prices
     getVehiclePrices: () => ApiService.request('/vehicle-prices'),
+    getVehiclePricesDashboard: () => ApiService.request('/vehicle-prices/dashboard'),
     createVehiclePrice: (data) => ApiService.request('/vehicle-prices', { method: 'POST', body: data }),
     updateVehiclePrice: (id, data) => ApiService.request(`/vehicle-prices/${id}`, { method: 'PUT', body: data }),
     deleteVehiclePrice: (id) => ApiService.request(`/vehicle-prices/${id}`, { method: 'DELETE' }),

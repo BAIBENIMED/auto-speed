@@ -522,10 +522,10 @@ const startServer = async () => {
                 { table: 'vehicle_prices', name: 'trim_id', def: 'VARCHAR(255)' },
                 { table: 'vehicle_prices', name: 'supplier_id', def: 'INT' },
                 { table: 'vehicle_prices', name: 'price_usd', def: 'DECIMAL(15,2)' },
-                { table: 'vehicle_prices', name: 'price_dzd_neuf', def: 'DECIMAL(15,2)' },
-                { table: 'vehicle_prices', name: 'price_dzd_3ans', def: 'DECIMAL(15,2)' },
                 { table: 'vehicle_prices', name: 'date', def: 'DATE' },
                 { table: 'vehicle_prices', name: 'notes', def: 'TEXT' },
+                { table: 'vehicle_trims', name: 'price_dzd_neuf', def: 'DECIMAL(15,2)' },
+                { table: 'vehicle_trims', name: 'price_dzd_3ans', def: 'DECIMAL(15,2)' },
                 { table: 'settings', name: 'coefficient_neuf', def: 'DECIMAL(8,4) DEFAULT 1.0' },
                 { table: 'settings', name: 'coefficient_3ans', def: 'DECIMAL(8,4) DEFAULT 1.0' }
             ];

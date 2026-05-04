@@ -14255,10 +14255,10 @@ const app = {
             <div class="view-header">
                 <div>
                     <h1><i class="fas fa-tags"></i> Prix Véhicules</h1>
-                    <p>Suivi des tarifs fournisseurs et conversion DZD</p>
+                    <p>Comparatif des prix fournisseurs et configuration des prix de vente DZD</p>
                 </div>
                 <button class="btn-primary" onclick="app.showVehiclePriceModal()">
-                    <i class="fas fa-plus"></i> Ajouter un Prix
+                    <i class="fas fa-plus"></i> Nouvel Achat (USD)
                 </button>
             </div>
 
@@ -14267,18 +14267,16 @@ const app = {
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Véhicule</th>
-                                <th>Fournisseur</th>
-                                <th>Date</th>
-                                <th>Prix (USD)</th>
-                                <th>Prix DZD (Neuf)</th>
-                                <th>Prix DZD (-3 Ans)</th>
-                                <th>Notes</th>
+                                <th>Véhicule (Finition)</th>
+                                <th>Dernier Achat (USD)</th>
+                                <th>Meilleur Achat (USD)</th>
+                                <th>Prix Vente (Neuf)</th>
+                                <th>Prix Vente (-3 Ans)</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="prices-table-body">
-                            <tr><td colspan="8" style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Chargement...</td></tr>
+                            <tr><td colspan="6" style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Chargement...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -14286,35 +14284,45 @@ const app = {
         `;
 
         try {
-            const pricesRes = await ApiService.getVehiclePrices();
-
+            const dashboardRes = await ApiService.getVehiclePricesDashboard();
             const tbody = document.getElementById('prices-table-body');
-            if (pricesRes.success && pricesRes.data.length > 0) {
-                tbody.innerHTML = pricesRes.data.map(p => {
-                    const trimName = p.trim ? `${p.trim.model.brand.name} ${p.trim.model.name} - ${p.trim.name}` : 'N/A';
-                    
+            
+            if (dashboardRes.success && dashboardRes.data.length > 0) {
+                // Store the raw dashboard data so we can use it in the history modal
+                this.vehiclePricingDashboardData = dashboardRes.data;
+
+                tbody.innerHTML = dashboardRes.data.map(trim => {
+                    const lastPriceHtml = trim.lastPrice 
+                        ? `<div style="font-weight: 700; color: var(--primary);">$ ${Number(trim.lastPrice.priceUSD).toLocaleString()}</div>
+                           <div style="font-size: 0.8rem; color: var(--text-dim);">${trim.lastPrice.supplierName || 'N/A'} - ${new Date(trim.lastPrice.date).toLocaleDateString()}</div>`
+                        : '<span style="color: var(--text-dim);">--</span>';
+
+                    const bestPriceHtml = trim.bestPrice 
+                        ? `<div style="font-weight: 700; color: var(--success);">$ ${Number(trim.bestPrice.priceUSD).toLocaleString()}</div>
+                           <div style="font-size: 0.8rem; color: var(--text-dim);">${trim.bestPrice.supplierName || 'N/A'} - ${new Date(trim.bestPrice.date).toLocaleDateString()}</div>`
+                        : '<span style="color: var(--text-dim);">--</span>';
+
                     return `
                         <tr>
                             <td>
-                                <div style="font-weight: 600;">${trimName}</div>
+                                <div style="font-weight: 600;">${trim.trimName}</div>
                             </td>
-                            <td>${p.supplier?.name || 'N/A'}</td>
-                            <td>${new Date(p.date).toLocaleDateString()}</td>
-                            <td style="font-weight: 700; color: var(--primary);">$ ${Number(p.priceUSD).toLocaleString()}</td>
-                            <td style="font-weight: 700; color: var(--success);">${p.priceDzdNeuf ? Number(p.priceDzdNeuf).toLocaleString() + ' DA' : '--'}</td>
-                            <td style="font-weight: 700; color: var(--warning);">${p.priceDzd3Ans ? Number(p.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
-                            <td style="font-size: 0.85rem; color: var(--text-dim); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.notes || ''}</td>
+                            <td>${lastPriceHtml}</td>
+                            <td>${bestPriceHtml}</td>
+                            <td style="font-weight: 700; color: var(--info);">${trim.priceDzdNeuf ? Number(trim.priceDzdNeuf).toLocaleString() + ' DA' : '--'}</td>
+                            <td style="font-weight: 700; color: var(--warning);">${trim.priceDzd3Ans ? Number(trim.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
                             <td>
                                 <div class="actions">
-                                    <button class="btn-icon" onclick="app.showVehiclePriceModal('${p.id}')" title="Modifier"><i class="fas fa-edit"></i></button>
-                                    <button class="btn-icon danger" onclick="app.deleteVehiclePrice('${p.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                    <button class="btn-icon" onclick="app.showVehiclePriceModal(null, '${trim.trimId}')" title="Ajouter un prix d'achat"><i class="fas fa-plus-circle"></i></button>
+                                    <button class="btn-icon" onclick="app.showTrimPriceModal('${trim.trimId}', '${trim.priceDzdNeuf || ''}', '${trim.priceDzd3Ans || ''}')" title="Configurer prix de vente DZD"><i class="fas fa-money-bill-wave"></i></button>
+                                    <button class="btn-icon" onclick="app.showTrimHistoryModal('${trim.trimId}')" title="Historique & Comparatif"><i class="fas fa-chart-line"></i></button>
                                 </div>
                             </td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucun prix enregistré.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucun prix enregistré.</td></tr>`;
             }
         } catch (error) {
             console.error('Error rendering vehicle prices:', error);
@@ -14322,7 +14330,7 @@ const app = {
         }
     },
 
-    async showVehiclePriceModal(priceId = null) {
+    async showVehiclePriceModal(priceId = null, defaultTrimId = null) {
         const [brandsRes, suppliersRes, pricesRes] = await Promise.all([
             ApiService.getBrands(),
             ApiService.getSuppliers(),
@@ -14333,11 +14341,30 @@ const app = {
         const brands = brandsRes.success ? brandsRes.data : [];
         const suppliers = suppliersRes.success ? suppliersRes.data : [];
 
+        // If we have a defaultTrimId, we should try to find its brand to pre-select it
+        let defaultBrandId = '';
+        if (defaultTrimId && brands.length > 0) {
+            for (const b of brands) {
+                if (b.models) {
+                    for (const m of b.models) {
+                        if (m.trims && m.trims.find(t => t.id === defaultTrimId)) {
+                            defaultBrandId = b.id;
+                            break;
+                        }
+                    }
+                }
+                if (defaultBrandId) break;
+            }
+        }
+
+        const selectedBrandId = price?.trim?.model?.brandId || defaultBrandId;
+        const selectedTrimId = price?.trimId || defaultTrimId;
+
         const modalHtml = `
             <div id="modal-overlay" class="modal-overlay">
                 <div class="modal-content glass" style="width: 500px;">
                     <div class="modal-header">
-                        <h2>${priceId ? 'Modifier le Prix' : 'Ajouter un Prix'}</h2>
+                        <h2>${priceId ? 'Modifier Prix d\'Achat' : 'Nouvel Achat Fournisseur'}</h2>
                         <button class="btn-close" onclick="app.closeModal()">&times;</button>
                     </div>
                     <form id="price-form">
@@ -14345,11 +14372,10 @@ const app = {
                             <label>Marque & Modèle</label>
                             <select id="modal-brand-select" class="glass-select" required>
                                 <option value="">Sélectionner une marque</option>
-                                ${brands.map(b => `<option value="${b.id}" ${price?.trim?.model?.brandId === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
+                                ${brands.map(b => `<option value="${b.id}" ${selectedBrandId === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
                             </select>
                             <select id="modal-trim-select" name="trimId" class="glass-select" style="margin-top: 10px;" required>
                                 <option value="">Sélectionner une finition</option>
-                                ${price ? `<option value="${price.trimId}" selected>${price.trim.model.name} - ${price.trim.name}</option>` : ''}
                             </select>
                         </div>
                         <div class="form-group">
@@ -14360,19 +14386,11 @@ const app = {
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Prix (USD)</label>
+                            <label>Prix d'Achat (USD)</label>
                             <input type="number" name="priceUSD" class="glass-input" step="0.01" value="${price?.priceUSD || ''}" required>
                         </div>
                         <div class="form-group">
-                            <label>Prix DZD (Neuf)</label>
-                            <input type="number" name="priceDzdNeuf" class="glass-input" step="0.01" value="${price?.priceDzdNeuf || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>Prix DZD (-3 Ans)</label>
-                            <input type="number" name="priceDzd3Ans" class="glass-input" step="0.01" value="${price?.priceDzd3Ans || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>Date</label>
+                            <label>Date de l'offre / achat</label>
                             <input type="date" name="date" class="glass-input" value="${price?.date || new Date().toISOString().split('T')[0]}" required>
                         </div>
                         <div class="form-group">
@@ -14408,6 +14426,13 @@ const app = {
                 trimSelect.innerHTML = '<option value="">Sélectionner une finition</option>';
             }
         };
+
+        if (selectedBrandId) {
+            brandSelect.onchange();
+            if (selectedTrimId) {
+                trimSelect.value = selectedTrimId;
+            }
+        }
 
         document.getElementById('price-form').onsubmit = async (e) => {
             e.preventDefault();
@@ -14447,6 +14472,101 @@ const app = {
             console.error(error);
             this.showToast("Erreur serveur", "error");
         }
+    },
+
+    showTrimPriceModal(trimId, currentNeuf, current3Ans) {
+        const modalHtml = `
+            <div id="modal-overlay" class="modal-overlay">
+                <div class="modal-content glass" style="width: 400px;">
+                    <div class="modal-header">
+                        <h2>Configurer Prix de Vente DZD</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <form id="trim-price-form">
+                        <div class="form-group">
+                            <label>Prix DZD (Neuf)</label>
+                            <input type="number" name="priceDzdNeuf" class="glass-input" step="0.01" value="${currentNeuf || ''}">
+                            <small style="color: var(--text-dim);">Laissez vide si non applicable</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Prix DZD (-3 Ans)</label>
+                            <input type="number" name="priceDzd3Ans" class="glass-input" step="0.01" value="${current3Ans || ''}">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
+                            <button type="submit" class="btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('trim-price-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const res = await ApiService.updateVehicleTrim(trimId, data);
+                if (res.success) {
+                    this.showToast("Prix de vente configuré", "success");
+                    this.closeModal();
+                    this.renderVehiclePrices();
+                } else {
+                    this.showToast(res.message || "Erreur lors de l'enregistrement", "error");
+                }
+            } catch (error) {
+                console.error(error);
+                this.showToast("Erreur serveur", "error");
+            }
+        };
+    },
+
+    showTrimHistoryModal(trimId) {
+        if (!this.vehiclePricingDashboardData) return;
+        const trimData = this.vehiclePricingDashboardData.find(t => t.trimId === trimId);
+        if (!trimData) return;
+
+        const historyRows = trimData.history.map(p => `
+            <tr>
+                <td>${new Date(p.date).toLocaleDateString()}</td>
+                <td>${p.supplierName || 'N/A'}</td>
+                <td style="font-weight: 700; color: var(--primary);">$ ${Number(p.priceUSD).toLocaleString()}</td>
+                <td style="font-size: 0.85rem; color: var(--text-dim);">${p.notes || ''}</td>
+                <td>
+                    <button class="btn-icon danger" onclick="app.deleteVehiclePrice('${p.id}'); app.closeModal();" title="Supprimer"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+
+        const modalHtml = `
+            <div id="modal-overlay" class="modal-overlay">
+                <div class="modal-content glass" style="width: 700px;">
+                    <div class="modal-header">
+                        <h2>Historique d'Achat : ${trimData.trimName}</h2>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="table-responsive" style="margin-top: 15px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Fournisseur</th>
+                                    <th>Prix (USD)</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${historyRows || '<tr><td colspan="5" style="text-align: center; color: var(--text-dim);">Aucun historique</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
 };
 

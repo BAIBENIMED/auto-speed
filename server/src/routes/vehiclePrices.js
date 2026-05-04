@@ -5,6 +5,7 @@ const { authMiddleware } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
+router.get('/dashboard', vehiclePricesController.getDashboard);
 router.get('/', vehiclePricesController.getAll);
 router.post('/', vehiclePricesController.create);
 router.put('/:id', vehiclePricesController.update);

@@ -29,16 +29,6 @@ const VehiclePrice = sequelize.define('VehiclePrice', {
         field: 'price_usd',
         allowNull: false
     },
-    priceDzdNeuf: {
-        type: DataTypes.DECIMAL(15, 2),
-        field: 'price_dzd_neuf',
-        allowNull: true
-    },
-    priceDzd3Ans: {
-        type: DataTypes.DECIMAL(15, 2),
-        field: 'price_dzd_3ans',
-        allowNull: true
-    },
     date: {
         type: DataTypes.DATEONLY,
         allowNull: false

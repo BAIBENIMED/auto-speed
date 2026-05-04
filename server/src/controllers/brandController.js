@@ -123,7 +123,12 @@ const brandController = {
         try {
             const trim = await VehicleTrim.findByPk(req.params.trimId);
             if (!trim) return res.status(404).json({ success: false, message: 'Finition non trouvée' });
-            await trim.update(req.body);
+
+            const updateData = { ...req.body };
+            if (updateData.priceDzdNeuf === '') updateData.priceDzdNeuf = null;
+            if (updateData.priceDzd3Ans === '') updateData.priceDzd3Ans = null;
+
+            await trim.update(updateData);
             res.json({ success: true, data: trim });
         } catch (error) {
             console.error('Error updating trim:', error);
