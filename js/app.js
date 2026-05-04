@@ -14387,9 +14387,9 @@ const app = {
                     <td style="font-weight: 700; color: var(--warning);">${trim.priceDzd3Ans ? Number(trim.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
                     <td>
                         <div class="actions">
-                            <button class="btn-icon" onclick="app.showVehiclePriceModal(null, '${trim.trimId}')" title="Ajouter un prix d'achat"><i class="fas fa-plus-circle"></i></button>
-                            <button class="btn-icon" onclick="app.showTrimPriceModal('${trim.trimId}', '${trim.priceDzdNeuf || ''}', '${trim.priceDzd3Ans || ''}')" title="Configurer prix de vente DZD"><i class="fas fa-money-bill-wave"></i></button>
-                            <button class="btn-icon" onclick="app.showTrimHistoryModal('${trim.trimId}')" title="Historique & Comparatif"><i class="fas fa-chart-line"></i></button>
+                            <button class="btn-icon" onclick="app.showVehiclePriceModal(null, '${trim.trimId}')" title="Ajouter un prix d'achat"><i class="fas fa-plus-circle" style="color: var(--success);"></i></button>
+                            <button class="btn-icon" onclick="app.showTrimPriceModal('${trim.trimId}', '${trim.priceDzdNeuf || ''}', '${trim.priceDzd3Ans || ''}')" title="Configurer prix de vente DZD"><i class="fas fa-money-bill-wave" style="color: var(--primary);"></i></button>
+                            <button class="btn-icon" onclick="app.showTrimHistoryModal('${trim.trimId}')" title="Historique & Comparatif"><i class="fas fa-chart-line" style="color: #0ea5e9;"></i></button>
                         </div>
                     </td>
                 </tr>
