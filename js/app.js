@@ -14262,6 +14262,20 @@ const app = {
                 </button>
             </div>
 
+            <div class="filters-container glass-card" style="margin-top: 20px; padding: 15px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                <div style="flex: 1; min-width: 250px;">
+                    <div class="search-bar" style="margin-bottom: 0;">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="filter-vp-search" class="glass-input" placeholder="Rechercher par Marque, Modèle, Finition..." onkeyup="app.filterVehiclePrices()">
+                    </div>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <select id="filter-vp-supplier" class="glass-select" onchange="app.filterVehiclePrices()">
+                        <option value="">Tous les fournisseurs</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="glass-card" style="margin-top: 20px; overflow: hidden;">
                 <div class="table-responsive">
                     <table class="data-table">
@@ -14285,49 +14299,90 @@ const app = {
 
         try {
             const dashboardRes = await ApiService.getVehiclePricesDashboard();
-            const tbody = document.getElementById('prices-table-body');
             
-            if (dashboardRes.success && dashboardRes.data.length > 0) {
-                // Store the raw dashboard data so we can use it in the history modal
+            if (dashboardRes.success) {
                 this.vehiclePricingDashboardData = dashboardRes.data;
+                
+                // Populate supplier filter
+                const supplierSelect = document.getElementById('filter-vp-supplier');
+                const uniqueSuppliers = new Set();
+                dashboardRes.data.forEach(trim => {
+                    trim.history.forEach(p => {
+                        if (p.supplierName) uniqueSuppliers.add(p.supplierName);
+                    });
+                });
+                Array.from(uniqueSuppliers).sort().forEach(sup => {
+                    supplierSelect.insertAdjacentHTML('beforeend', `<option value="${sup}">${sup}</option>`);
+                });
 
-                tbody.innerHTML = dashboardRes.data.map(trim => {
-                    const lastPriceHtml = trim.lastPrice 
-                        ? `<div style="font-weight: 700; color: var(--primary);">$ ${Number(trim.lastPrice.priceUSD).toLocaleString()}</div>
-                           <div style="font-size: 0.8rem; color: var(--text-dim);">${trim.lastPrice.supplierName || 'N/A'} - ${new Date(trim.lastPrice.date).toLocaleDateString()}</div>`
-                        : '<span style="color: var(--text-dim);">--</span>';
-
-                    const bestPriceHtml = trim.bestPrice 
-                        ? `<div style="font-weight: 700; color: var(--success);">$ ${Number(trim.bestPrice.priceUSD).toLocaleString()}</div>
-                           <div style="font-size: 0.8rem; color: var(--text-dim);">${trim.bestPrice.supplierName || 'N/A'} - ${new Date(trim.bestPrice.date).toLocaleDateString()}</div>`
-                        : '<span style="color: var(--text-dim);">--</span>';
-
-                    return `
-                        <tr>
-                            <td>
-                                <div style="font-weight: 600;">${trim.trimName}</div>
-                            </td>
-                            <td>${lastPriceHtml}</td>
-                            <td>${bestPriceHtml}</td>
-                            <td style="font-weight: 700; color: var(--info);">${trim.priceDzdNeuf ? Number(trim.priceDzdNeuf).toLocaleString() + ' DA' : '--'}</td>
-                            <td style="font-weight: 700; color: var(--warning);">${trim.priceDzd3Ans ? Number(trim.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
-                            <td>
-                                <div class="actions">
-                                    <button class="btn-icon" onclick="app.showVehiclePriceModal(null, '${trim.trimId}')" title="Ajouter un prix d'achat"><i class="fas fa-plus-circle"></i></button>
-                                    <button class="btn-icon" onclick="app.showTrimPriceModal('${trim.trimId}', '${trim.priceDzdNeuf || ''}', '${trim.priceDzd3Ans || ''}')" title="Configurer prix de vente DZD"><i class="fas fa-money-bill-wave"></i></button>
-                                    <button class="btn-icon" onclick="app.showTrimHistoryModal('${trim.trimId}')" title="Historique & Comparatif"><i class="fas fa-chart-line"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
+                this.renderVehiclePricesTable(dashboardRes.data);
             } else {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucun prix enregistré.</td></tr>`;
+                document.getElementById('prices-table-body').innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucun prix enregistré.</td></tr>`;
             }
         } catch (error) {
             console.error('Error rendering vehicle prices:', error);
             this.showToast("Erreur lors du chargement des prix", "error");
         }
+    },
+
+    filterVehiclePrices() {
+        if (!this.vehiclePricingDashboardData) return;
+        
+        const searchTerm = document.getElementById('filter-vp-search').value.toLowerCase();
+        const supplierTerm = document.getElementById('filter-vp-supplier').value;
+
+        const filtered = this.vehiclePricingDashboardData.filter(trim => {
+            const matchesSearch = trim.trimName.toLowerCase().includes(searchTerm);
+            
+            let matchesSupplier = true;
+            if (supplierTerm) {
+                // Check if the trim history contains the selected supplier
+                matchesSupplier = trim.history.some(p => p.supplierName === supplierTerm);
+            }
+
+            return matchesSearch && matchesSupplier;
+        });
+
+        this.renderVehiclePricesTable(filtered);
+    },
+
+    renderVehiclePricesTable(data) {
+        const tbody = document.getElementById('prices-table-body');
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucun résultat trouvé.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(trim => {
+            const lastPriceHtml = trim.lastPrice 
+                ? `<div style="font-weight: 700; color: var(--primary);">$ ${Number(trim.lastPrice.priceUSD).toLocaleString()}</div>
+                   <div style="font-size: 0.8rem; color: var(--text-dim);">${trim.lastPrice.supplierName || 'N/A'} - ${new Date(trim.lastPrice.date).toLocaleDateString()}</div>`
+                : '<span style="color: var(--text-dim);">--</span>';
+
+            const bestPriceHtml = trim.bestPrice 
+                ? `<div style="font-weight: 700; color: var(--success);">$ ${Number(trim.bestPrice.priceUSD).toLocaleString()}</div>
+                   <div style="font-size: 0.8rem; color: var(--text-dim);">${trim.bestPrice.supplierName || 'N/A'} - ${new Date(trim.bestPrice.date).toLocaleDateString()}</div>`
+                : '<span style="color: var(--text-dim);">--</span>';
+
+            return `
+                <tr>
+                    <td>
+                        <div style="font-weight: 600;">${trim.trimName}</div>
+                    </td>
+                    <td>${lastPriceHtml}</td>
+                    <td>${bestPriceHtml}</td>
+                    <td style="font-weight: 700; color: var(--info);">${trim.priceDzdNeuf ? Number(trim.priceDzdNeuf).toLocaleString() + ' DA' : '--'}</td>
+                    <td style="font-weight: 700; color: var(--warning);">${trim.priceDzd3Ans ? Number(trim.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn-icon" onclick="app.showVehiclePriceModal(null, '${trim.trimId}')" title="Ajouter un prix d'achat"><i class="fas fa-plus-circle"></i></button>
+                            <button class="btn-icon" onclick="app.showTrimPriceModal('${trim.trimId}', '${trim.priceDzdNeuf || ''}', '${trim.priceDzd3Ans || ''}')" title="Configurer prix de vente DZD"><i class="fas fa-money-bill-wave"></i></button>
+                            <button class="btn-icon" onclick="app.showTrimHistoryModal('${trim.trimId}')" title="Historique & Comparatif"><i class="fas fa-chart-line"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     },
 
     async showVehiclePriceModal(priceId = null, defaultTrimId = null) {
