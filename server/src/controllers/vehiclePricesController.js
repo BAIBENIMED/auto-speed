@@ -70,6 +70,7 @@ const vehiclePricesController = {
                 return {
                     trimId: trim.id,
                     trimName: `${trim.model.brand.name} ${trim.model.name} - ${trim.name}`,
+                    brandLogo: trim.model.brand.logo,
                     priceDzdNeuf: trim.priceDzdNeuf,
                     priceDzd3Ans: trim.priceDzd3Ans,
                     lastPrice: lastPrice ? {

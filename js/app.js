@@ -14400,7 +14400,10 @@ const app = {
             let rowHtml = `
                 <tr>
                     <td>
-                        <div style="font-weight: 600;">${trim.trimName}</div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            ${trim.brandLogo ? `<img src="${trim.brandLogo}" style="width: 24px; height: 24px; object-fit: contain; border-radius: 4px;">` : ''}
+                            <div style="font-weight: 600;">${trim.trimName}</div>
+                        </div>
                     </td>
                     <td style="font-weight: 700; color: var(--info);">${trim.priceDzdNeuf ? Number(trim.priceDzdNeuf).toLocaleString() + ' DA' : '--'}</td>
                     <td style="font-weight: 700; color: var(--warning);">${trim.priceDzd3Ans ? Number(trim.priceDzd3Ans).toLocaleString() + ' DA' : '--'}</td>
