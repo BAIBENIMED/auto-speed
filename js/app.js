@@ -6294,7 +6294,7 @@ const app = {
                                     <tr>
                                         <td>${u.name}</td>
                                         <td><code>${u.username}</code></td>
-                                        <td><span class="status-badge ${u.role}">${roles.find(r => r.id === u.role)?.name || u.role}</span></td>
+                                        <td><span class="status-badge ${((typeof u.role === 'object' && u.role !== null) ? u.role.id : u.role)}">${roles.find(r => r.id === ((typeof u.role === 'object' && u.role !== null) ? u.role.id : u.role))?.name || u.role}</span></td>
                                         <td class="table-actions">
                                             <button type="button" class="btn-action" onclick="app.showEditUserModal('${u.id}')" title="Modifier">
                                                 <i class="fas fa-edit"></i>
@@ -6405,7 +6405,10 @@ const app = {
                                         <div class="form-group">
                                             <label>Rôle</label>
                                             <select name="role" class="glass-select" ${user.username === 'admin' ? 'disabled' : ''}>
-                                                ${roles.map(r => `<option value="${r.id}" ${user.role === r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
+                                                ${roles.map(r => {
+                                                    const userRoleId = (typeof user.role === 'object' && user.role !== null) ? user.role.id : user.role;
+                                                    return `<option value="${r.id}" ${userRoleId === r.id ? 'selected' : ''}>${r.name}</option>`;
+                                                }).join('')}
                                             </select>
                                         </div>
                                         <div class="modal-footer">

@@ -391,7 +391,13 @@ const StorageService = {
                 if (data.shipments) localStorage.setItem(STORAGE_KEYS.SHIPMENTS, JSON.stringify(data.shipments));
                 if (data.cashTransactions) localStorage.setItem(STORAGE_KEYS.CASH, JSON.stringify(data.cashTransactions));
                 if (data.exchangeRates) localStorage.setItem(STORAGE_KEYS.EXCHANGE_RATES, JSON.stringify(data.exchangeRates));
-                if (data.users) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(data.users));
+                if (data.users) {
+                    const normalizedUsers = data.users.map(u => ({
+                        ...u,
+                        role: (u.role && typeof u.role === 'object') ? u.role.id : (u.role || u.roleId)
+                    }));
+                    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(normalizedUsers));
+                }
                 if (data.roles) localStorage.setItem(STORAGE_KEYS.ROLES, JSON.stringify(data.roles));
                 if (data.purchaseOrders) localStorage.setItem(STORAGE_KEYS.PURCHASE_ORDERS, JSON.stringify(data.purchaseOrders));
                 if (data.suppliers) localStorage.setItem(STORAGE_KEYS.SUPPLIERS, JSON.stringify(data.suppliers));
