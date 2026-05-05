@@ -6488,17 +6488,28 @@ const app = {
         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
         if (!currentUser) return false;
 
-        // Special case for hardcoded admin or if role is already 'admin'
-        if (currentUser.role === 'admin' || currentUser.role === 'ADMIN') return true;
+        // 1. Check by Role ID (Common defaults)
+        const adminIds = ['admin', 'ADMIN', 'superadmin', 'SUPERADMIN', 'root'];
+        if (adminIds.includes(currentUser.role)) return true;
 
+        // 2. Check by Role Name and Permissions
         const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
-        const userRole = roles.find(r => r.id === currentUser.role);
+        const userRole = roles.find(r => String(r.id) === String(currentUser.role));
 
-        if (!userRole) return false;
+        if (userRole) {
+            const name = (userRole.name || '').toUpperCase();
+            const adminKeywords = ['ADMIN', 'GÉRANT', 'DIRECTEUR', 'PROPRIÉTAIRE', 'BOSS', 'SUPER'];
+            
+            // If name contains any admin keyword
+            if (adminKeywords.some(key => name.includes(key))) return true;
+            
+            // If permissions include 'all'
+            if (userRole.permissions && (userRole.permissions.includes('all') || userRole.permissions.includes('view_all'))) {
+                return true;
+            }
+        }
 
-        // Check if role name matches common admin variants
-        const adminNames = ['ADMIN', 'SUPER ADMIN', 'ADMINISTRATEUR', 'GÉRANT', 'DIRECTEUR'];
-        return adminNames.includes(userRole.name.toUpperCase());
+        return false;
     },
 
     canAccess(view) {
@@ -6557,10 +6568,10 @@ const app = {
             }
         });
 
-        // Specific check for audit log visibility (redundant but safe)
+        // Specific check for audit log visibility
         const auditLink = document.querySelector('[data-view="audit"]');
         if (auditLink) {
-            auditLink.style.display = (currentUser.role === 'admin') ? 'flex' : 'none';
+            auditLink.style.display = (this.isAdmin()) ? 'flex' : 'none';
         }
     },
 
