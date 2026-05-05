@@ -1659,11 +1659,13 @@ const app = {
                 filtered = filtered.filter(v => {
                     const vClient = v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null;
                     const vClientName = vClient ? (vClient.lastName + ' ' + vClient.firstName).toLowerCase() : '';
+                    const vClientNIN = vClient ? (vClient.nin || '').toLowerCase() : '';
                     return (v.brand || '').toLowerCase().includes(searchText) ||
                         (v.model || '').toLowerCase().includes(searchText) ||
                         (v.chassisNumber || '').toLowerCase().includes(searchText) ||
                         (String(v.id)).toLowerCase().includes(searchText) ||
-                        vClientName.includes(searchText)
+                        vClientName.includes(searchText) ||
+                        vClientNIN.includes(searchText)
                     ;
                 });
             }
@@ -1685,7 +1687,7 @@ const app = {
                 const cond = v.category || v.condition || 'N/A';
                 
                 const vClient = v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null;
-                const clientSuffix = vClient ? ` | RÉSERVÉ: ${vClient.lastName.toUpperCase()}` : '';
+                const clientSuffix = vClient ? ` | RÉSERVÉ: ${vClient.lastName.toUpperCase()} ${vClient.firstName.toUpperCase()} ${vClient.nin ? `(NIN: ${vClient.nin})` : ''}` : '';
 
                 option.textContent = `[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) | ${vin} | ${color} | ${km} | ${cond} ${clientSuffix} - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}`;
                 editVehicleSelect.appendChild(option);
