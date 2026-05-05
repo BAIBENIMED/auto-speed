@@ -6497,8 +6497,8 @@ const app = {
         if (!userRole) return false;
 
         // Check if role name matches common admin variants
-        const adminNames = ['ADMIN', 'Admin', 'Super Admin', 'Administrateur', 'Gérant'];
-        return adminNames.includes(userRole.name);
+        const adminNames = ['ADMIN', 'SUPER ADMIN', 'ADMINISTRATEUR', 'GÉRANT', 'DIRECTEUR'];
+        return adminNames.includes(userRole.name.toUpperCase());
     },
 
     canAccess(view) {
@@ -6506,7 +6506,7 @@ const app = {
         if (!currentUser) return false;
 
         // Admin always has full access
-        if (currentUser.role === 'admin') return true;
+        if (this.isAdmin()) return true;
 
         const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
         const userRole = roles.find(r => r.id === currentUser.role);
