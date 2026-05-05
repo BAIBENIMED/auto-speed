@@ -5213,32 +5213,26 @@ const app = {
             };
 
             // Capture Original Owner if marking as Sold CG for the first time
-            if (newVehicle.soldRegistration && !newVehicle.originalOwnerName) {
-                // Priority 1: The client currently selected in the modal's assignment table
-                const currentFormClientId = formData.get('clientId');
+            // IMPORTANT: Only use existingVehicle DB data (before any CG changes), NOT formData.get('clientId')
+            if (newVehicle.soldRegistration && !newVehicle.originalOwnerName && existingVehicle) {
                 let oldClient = null;
-
-                if (currentFormClientId) {
-                    oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(currentFormClientId));
-                }
-
-                // Priority 2: The client already linked to the vehicle or its order
-                if (!oldClient && existingVehicle) {
-                    if (existingVehicle.clientId) {
-                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(existingVehicle.clientId));
-                    } else if (existingVehicle.orderId) {
-                        const oldOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === existingVehicle.orderId);
-                        if (oldOrder) {
-                            oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(oldOrder.clientId));
-                        }
+                // Use the vehicle's ORIGINAL orderId (stored in DB before this save)
+                if (existingVehicle.orderId) {
+                    const originalOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === existingVehicle.orderId);
+                    if (originalOrder) {
+                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrder.clientId));
                     }
+                }
+                // Fallback: vehicle's direct clientId in DB
+                if (!oldClient && existingVehicle.clientId) {
+                    oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(existingVehicle.clientId));
                 }
 
                 if (oldClient) {
                     newVehicle.originalClientId = oldClient.id;
                     newVehicle.originalOwnerName = `${oldClient.lastName} ${oldClient.firstName}`.toUpperCase();
-                } else if (existingVehicle) {
-                    newVehicle.originalOwnerName = "STOCK";
+                } else {
+                    newVehicle.originalOwnerName = 'STOCK';
                 }
             }
 
@@ -5251,16 +5245,15 @@ const app = {
                     newVehicle.clientId = soldRegistrationOwnerId;
                 }
                 if (soldRegistrationOrderId) {
-                    newVehicle.orderId = soldRegistrationOrderId;
+                    // NOTE: Do NOT overwrite orderId — the original orderId links to the ancien propriétaire
+                    // Just link the CG order bidirectionally
                     newVehicle.status = 'Reserved';
-                    
-                    // Bidirectional link: update the order to point to this vehicle
                     const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-                    const order = orders.find(o => o.id === soldRegistrationOrderId);
-                    if (order && order.vehicleId !== newVehicle.id) {
-                        order.vehicleId = newVehicle.id;
-                        order.vehicleName = `${newVehicle.brand} ${newVehicle.model || ''} ${newVehicle.trim || ''} (${newVehicle.year})`.trim().replace(/\s+/g, ' ');
-                        await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
+                    const cgOrder = orders.find(o => o.id === soldRegistrationOrderId);
+                    if (cgOrder && cgOrder.vehicleId !== newVehicle.id) {
+                        cgOrder.vehicleId = newVehicle.id;
+                        cgOrder.vehicleName = `${newVehicle.brand} ${newVehicle.model || ''} ${newVehicle.trim || ''} (${newVehicle.year})`.trim().replace(/\s+/g, ' ');
+                        await StorageService.update(STORAGE_KEYS.ORDERS, cgOrder.id, cgOrder);
                     }
                 }
             }
@@ -10792,8 +10785,20 @@ const app = {
             // For Vendu CG: resolve ORIGINAL owner separately (before the CG transfer)
             let ancienClient = null;
             if (v.soldRegistration) {
+                // Step 1: try stored originalClientId
                 if (v.originalClientId) {
-                    ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(v.originalClientId));
+                    const candidate = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(v.originalClientId));
+                    // Only use if it's a DIFFERENT person from the new CG owner
+                    if (candidate && String(candidate.id) !== String(v.clientId)) {
+                        ancienClient = candidate;
+                    }
+                }
+                // Step 2: if not found or same as new owner, try the vehicle's orderId → original order client
+                if (!ancienClient && v.orderId) {
+                    const originalOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId);
+                    if (originalOrder && String(originalOrder.clientId) !== String(v.clientId)) {
+                        ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrder.clientId));
+                    }
                 }
             }
 
