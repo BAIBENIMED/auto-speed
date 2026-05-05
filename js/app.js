@@ -4981,6 +4981,12 @@ const app = {
                                     <option value="">-- Sélectionner un client --</option>
                                     ${StorageService.get(STORAGE_KEYS.CLIENTS).map(c => `<option value="${c.id}" data-name="${c.lastName} ${c.firstName} (NIN: ${c.nin || 'N/A'})">${c.lastName} ${c.firstName} | NIN: ${c.nin || 'N/A'}</option>`).join('')}
                                 </select>
+                                <div id="sold-order-selection-container" style="margin-top: 10px; display: none;">
+                                    <label style="color: var(--primary); font-size: 0.8rem; font-weight: 600;"><i class="fas fa-file-invoice"></i> Lier à une commande existante (Optionnel)</label>
+                                    <select name="soldRegistrationOrderId" id="sold-order-select" class="glass-select">
+                                        <option value="">-- Pas de commande spécifique --</option>
+                                    </select>
+                                </div>
                                 <input type="hidden" name="soldRegistrationOwner" id="sold-registration-owner-text">
                             </div>
 
@@ -5104,8 +5110,26 @@ const app = {
 
             soldClientSelect.addEventListener('change', (e) => {
                 const selectedOption = e.target.options[e.target.selectedIndex];
-                if (soldRegistrationOwnerText) {
-                    soldRegistrationOwnerText.value = selectedOption.value ? selectedOption.getAttribute('data-name') : '';
+                const clientId = e.target.value;
+                soldRegistrationOwnerText.value = selectedOption.value ? selectedOption.getAttribute('data-name') : '';
+                
+                // Populate orders for this client
+                const orderContainer = document.getElementById('sold-order-selection-container');
+                const orderSelect = document.getElementById('sold-order-select');
+                if (orderContainer && orderSelect) {
+                    if (clientId) {
+                        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                        const clientOrders = orders.filter(o => o.clientId === clientId && o.status !== 'ANNULÉE');
+                        if (clientOrders.length > 0) {
+                            orderContainer.style.display = 'block';
+                            orderSelect.innerHTML = '<option value="">-- Pas de commande spécifique --</option>' + 
+                                clientOrders.map(o => `<option value="${o.id}">${o.id} | ${o.vehicleName || 'N/A'} (${this.formatDate(o.date)})</option>`).join('');
+                        } else {
+                            orderContainer.style.display = 'none';
+                        }
+                    } else {
+                        orderContainer.style.display = 'none';
+                    }
                 }
             });
         }
@@ -5185,6 +5209,29 @@ const app = {
                 showroom: formData.get('showroom') || null,
                 status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
             };
+
+            // Linking Logic for Vendu CG
+            const soldRegistrationOwnerId = formData.get('soldRegistrationOwnerId');
+            const soldRegistrationOrderId = formData.get('soldRegistrationOrderId');
+            
+            if (newVehicle.soldRegistration) {
+                if (soldRegistrationOwnerId) {
+                    newVehicle.clientId = soldRegistrationOwnerId;
+                }
+                if (soldRegistrationOrderId) {
+                    newVehicle.orderId = soldRegistrationOrderId;
+                    newVehicle.status = 'Reserved';
+                    
+                    // Bidirectional link: update the order to point to this vehicle
+                    const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                    const order = orders.find(o => o.id === soldRegistrationOrderId);
+                    if (order && order.vehicleId !== newVehicle.id) {
+                        order.vehicleId = newVehicle.id;
+                        order.vehicleName = `${newVehicle.brand} ${newVehicle.model || ''} ${newVehicle.trim || ''} (${newVehicle.year})`.trim().replace(/\s+/g, ' ');
+                        await StorageService.update(STORAGE_KEYS.ORDERS, order.id, order);
+                    }
+                }
+            }
 
             if (vehicleId) {
                 await StorageService.update(STORAGE_KEYS.VEHICLES, vehicleId, newVehicle);
@@ -5501,6 +5548,12 @@ const app = {
                                             <option value="">-- Garder le propriétaire actuel --</option>
                                             ${StorageService.get(STORAGE_KEYS.CLIENTS).map(c => `<option value="${c.id}" data-name="${c.lastName} ${c.firstName} (NIN: ${c.nin || 'N/A'})">${c.lastName} ${c.firstName} | NIN: ${c.nin || 'N/A'}</option>`).join('')}
                                         </select>
+                                        <div id="edit-sold-order-selection-container" style="margin-top: 10px; display: none;">
+                                            <label style="color: var(--primary); font-size: 0.8rem; font-weight: 600;"><i class="fas fa-file-invoice"></i> Lier à une commande existante (Optionnel)</label>
+                                            <select name="soldRegistrationOrderId" id="edit-sold-order-select" class="glass-select">
+                                                <option value="">-- Pas de commande spécifique --</option>
+                                            </select>
+                                        </div>
                                         <input type="hidden" name="soldRegistrationOwner" id="edit-sold-registration-owner-text" value="${vehicle.soldRegistrationOwner || ''}">
                                     </div>
 
@@ -5642,8 +5695,28 @@ const app = {
 
             editSoldClientSelect.addEventListener('change', (e) => {
                 const selectedOption = e.target.options[e.target.selectedIndex];
+                const clientId = e.target.value;
                 if (selectedOption.value && editSoldRegistrationOwnerText) {
                     editSoldRegistrationOwnerText.value = selectedOption.getAttribute('data-name');
+                }
+                
+                // Populate orders for this client
+                const orderContainer = document.getElementById('edit-sold-order-selection-container');
+                const orderSelect = document.getElementById('edit-sold-order-select');
+                if (orderContainer && orderSelect) {
+                    if (clientId) {
+                        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                        const clientOrders = orders.filter(o => o.clientId === clientId && o.status !== 'ANNULÉE');
+                        if (clientOrders.length > 0) {
+                            orderContainer.style.display = 'block';
+                            orderSelect.innerHTML = '<option value="">-- Pas de commande spécifique --</option>' + 
+                                clientOrders.map(o => `<option value="${o.id}">${o.id} | ${o.vehicleName || 'N/A'} (${this.formatDate(o.date)})</option>`).join('');
+                        } else {
+                            orderContainer.style.display = 'none';
+                        }
+                    } else {
+                        orderContainer.style.display = 'none';
+                    }
                 }
             });
         }
