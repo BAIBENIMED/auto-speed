@@ -121,6 +121,14 @@ const Vehicle = sequelize.define('Vehicle', {
     blLink: {
         type: DataTypes.STRING(500),
         field: 'bl_link'
+    },
+    originalClientId: {
+        type: DataTypes.STRING(50),
+        field: 'original_client_id'
+    },
+    originalOwnerName: {
+        type: DataTypes.STRING(200),
+        field: 'original_owner_name'
     }
 }, {
     tableName: 'vehicles',

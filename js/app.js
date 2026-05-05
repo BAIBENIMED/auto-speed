@@ -5206,9 +5206,35 @@ const app = {
                 shipmentId: existingVehicle ? existingVehicle.shipmentId : null,
                 soldRegistration: formData.get('soldRegistration') === 'on' || formData.get('soldRegistration') === 'true',
                 soldRegistrationOwner: formData.get('soldRegistrationOwner') || '',
+                originalClientId: existingVehicle ? existingVehicle.originalClientId : null,
+                originalOwnerName: existingVehicle ? existingVehicle.originalOwnerName : null,
                 showroom: formData.get('showroom') || null,
                 status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
             };
+
+            // Capture Original Owner if marking as Sold CG for the first time
+            if (newVehicle.soldRegistration && !newVehicle.originalOwnerName) {
+                // The "Original" owner is whoever was linked to the vehicle BEFORE it was sold via CG
+                if (existingVehicle) {
+                    let oldClient = null;
+                    if (existingVehicle.clientId) {
+                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === existingVehicle.clientId);
+                    } else if (existingVehicle.orderId) {
+                        const oldOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === existingVehicle.orderId);
+                        if (oldOrder) {
+                            oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === oldOrder.clientId);
+                        }
+                    }
+
+                    if (oldClient) {
+                        newVehicle.originalClientId = oldClient.id;
+                        newVehicle.originalOwnerName = `${oldClient.lastName} ${oldClient.firstName}`.toUpperCase();
+                    } else {
+                        // Fallback to "STOCK" if it was in stock
+                        newVehicle.originalOwnerName = "STOCK";
+                    }
+                }
+            }
 
             // Linking Logic for Vendu CG
             const soldRegistrationOwnerId = formData.get('soldRegistrationOwnerId');
@@ -10842,14 +10868,25 @@ const app = {
                                                         <div style="font-size: 0.85rem;">${v.trim || '-'}</div>
                                                     </td>
                                                     <td>
-                                                        ${displayClient ? `
+                                                        ${v.soldRegistration ? `
+                                                            <div style="margin-bottom: 5px;">
+                                                                <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: bold;">Ancien Propriétaire:</span>
+                                                                <div style="font-weight: 600; color: var(--warning); text-decoration: line-through;">${(v.originalOwnerName || 'INCONNU').toUpperCase()}</div>
+                                                                <span class="status-badge danger" style="font-size: 0.6rem; padding: 1px 4px;">VENDU C.G</span>
+                                                            </div>
+                                                            <div>
+                                                                <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: bold;">Nouveau Propriétaire:</span>
+                                                                <div style="font-weight: 600; color: var(--success);">${(v.soldRegistrationOwner || 'NON SPÉCIFIÉ').toUpperCase()}</div>
+                                                                ${order ? `<div style="font-size: 0.75rem; color: var(--primary);">CMD #${order.id}</div>` : ''}
+                                                            </div>
+                                                        ` : (displayClient ? `
                                                             <div style="font-weight: 600; color: ${isAmendmentRevertedDisplay ? 'var(--warning)' : 'inherit'};">${(displayClient.lastName + ' ' + displayClient.firstName).toUpperCase()}</div>
-                                                            <div style="font-size: 0.8rem; font-weight: bold; color: ${v.soldRegistration ? 'var(--danger)' : 'var(--info)'}; padding: 2px 0;">
+                                                            <div style="font-size: 0.8rem; font-weight: bold; color: var(--info); padding: 2px 0;">
                                                                 <i class="fas fa-store"></i> ${showroomText}
                                                             </div>
                                                             ${order ? `<div style="font-size: 0.8rem; color: var(--primary);">CMD #${order.id}</div>` : '<div style="font-size: 0.8rem; color: var(--success);">RÉSERVÉ</div>'}
                                                             ${isAmendmentRevertedDisplay ? '<div style="font-size: 0.75rem; color: var(--warning);"><i class="fas fa-exclamation-triangle"></i> Sans chang. BL</div>' : ''}
-                                                        ` : '<span style="color: var(--text-dim);">STOCK</span>'}
+                                                        ` : '<span style="color: var(--text-dim);">STOCK</span>')}
                                                     </td>
                                                     <td style="text-align: center;">
                                                         ${amendmentHtml}
@@ -13961,7 +13998,7 @@ const app = {
                 po.id,
                 displayShowroom,
                 v.orderId || "-",
-                client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
+                v.soldRegistration ? (v.originalOwnerName || "VENDU C.G") : (client ? `${client.firstName} ${client.lastName}` : "EN STOCK"),
                 client ? (client.passportNumber || "-") : "-",
                 client ? (client.nin || "-") : "-",
                 v.brand || "-",
