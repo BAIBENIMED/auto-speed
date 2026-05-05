@@ -132,6 +132,43 @@ const app = {
         return diffHours > 24;
     },
 
+    initDatePickers() {
+        if (typeof flatpickr === 'undefined') return;
+        
+        document.querySelectorAll('input[type="date"]').forEach(el => {
+            if (el.classList.contains('flatpickr-input')) return; // Already initialized
+            
+            flatpickr(el, {
+                locale: 'fr',
+                altInput: true,
+                altFormat: 'd/m/Y',
+                dateFormat: 'Y-m-d',
+                allowInput: true
+            });
+        });
+    },
+
+    initMutationObserver() {
+        const observer = new MutationObserver((mutations) => {
+            let needsInit = false;
+            mutations.forEach(mutation => {
+                if (mutation.addedNodes.length) {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) {
+                            if (node.querySelector('input[type="date"]') || (node.tagName === 'INPUT' && node.type === 'date')) {
+                                needsInit = true;
+                            }
+                        }
+                    });
+                }
+            });
+            if (needsInit) {
+                this.initDatePickers();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    },
+
     async init() {
         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
 
@@ -185,6 +222,8 @@ const app = {
             this.setupEventListeners();
             this.applyTheme();
             this.renderSidebar();
+            this.initMutationObserver();
+            this.initDatePickers();
             this.renderView(this.currentView);
         } else {
             appContainer.style.display = 'none';
@@ -2333,6 +2372,7 @@ const app = {
 
     renderView(viewName) {
         this.viewContainer.innerHTML = ''; // Clear container
+        this.initDatePickers(); // Pre-emptive cleanup if needed (though observer handles additions)
 
         switch (viewName) {
             case 'dashboard':
