@@ -52,6 +52,10 @@ const Order = sequelize.define('Order', {
         type: DataTypes.STRING(100),
         field: 'requested_color'
     },
+    requestedTrim: {
+        type: DataTypes.STRING(100),
+        field: 'requested_trim'
+    },
     showroom: {
         type: DataTypes.STRING(100)
     },

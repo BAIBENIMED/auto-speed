@@ -517,7 +517,6 @@ const app = {
         const brands = StorageService.get(STORAGE_KEYS.BRANDS);
         const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
         const colors = StorageService.get(STORAGE_KEYS.COLORS);
-        const motors = StorageService.get(STORAGE_KEYS.MOTORS) || [];
         const currentYear = new Date().getFullYear();
 
         const preSelectedVehicle = vehicleId ? StorageService.get(STORAGE_KEYS.VEHICLES).find(v => v.id === vehicleId) : null;
@@ -573,10 +572,9 @@ const app = {
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label>Motorisation</label>
-                                        <select name="requestedMotorization" id="filter-motor" class="glass-select">
-                                            <option value="">Toutes</option>
-                                            ${motors.map(m => `<option value="${m}">${m}</option>`).join('')}
+                                        <label>Finition (Version)</label>
+                                        <select name="requestedTrim" id="filter-trim" class="glass-select">
+                                            <option value="">Toutes les finitions</option>
                                         </select>
                                     </div>
                                     <div class="form-group">
@@ -652,7 +650,16 @@ const app = {
                 modelSel.innerHTML = '<option value="">Tous les modèles</option>' + opts;
                 if (v.model) modelSel.value = v.model;
             }
-            if (v.motorization) document.getElementById('filter-motor').value = v.motorization;
+            if (v.trim) {
+                const trimSel = document.getElementById('filter-trim');
+                if (trimSel) {
+                    const opt = document.createElement('option');
+                    opt.value = v.trim;
+                    opt.textContent = v.trim;
+                    trimSel.appendChild(opt);
+                    trimSel.value = v.trim;
+                }
+            }
             if (v.color) document.querySelector('#order-form [name="requestedColor"]').value = v.color;
             if (v.showroom) document.querySelector('#order-form select[name="showroom"]').value = v.showroom;
             const vSelect = document.getElementById('order-vehicle-select');
@@ -690,7 +697,7 @@ const app = {
 
         const brandFilter = document.getElementById('filter-brand');
         const modelFilter = document.getElementById('filter-model');
-        const motorFilter = document.getElementById('filter-motor');
+        const trimFilter = document.getElementById('filter-trim');
         const categoryFilter = document.getElementById('filter-category');
         const showroomFilter = document.getElementById('filter-showroom');
         const vehicleSelect = document.getElementById('order-vehicle-select');
@@ -708,6 +715,10 @@ const app = {
 
             if (brand) filtered = filtered.filter(v => v.brand === brand);
             if (model) filtered = filtered.filter(v => (v.model || '') === model);
+            
+            const trim = trimFilter ? trimFilter.value : '';
+            if (trim) filtered = filtered.filter(v => (v.trim || '') === trim);
+
             if (showroom) filtered = filtered.filter(v => v.showroom === showroom);
             
             if (category === 'Neuf') {
@@ -748,6 +759,9 @@ const app = {
         brandFilter.addEventListener('change', () => {
             const brand = brandFilter.value;
             modelFilter.innerHTML = '<option value="">Tous les modèles</option>';
+            const trimSel = document.getElementById('filter-trim');
+            if (trimSel) trimSel.innerHTML = '<option value="">Toutes les finitions</option>';
+
             if (brand && brandModels[brand]) {
                 brandModels[brand].forEach(m => {
                     const opt = document.createElement('option');
@@ -759,7 +773,35 @@ const app = {
             refreshVehicles();
         });
 
-        modelFilter.addEventListener('change', refreshVehicles);
+        modelFilter.addEventListener('change', () => {
+            const brand = brandFilter.value;
+            const model = modelFilter.value;
+            const trimSel = document.getElementById('filter-trim');
+            
+            if (trimSel) {
+                trimSel.innerHTML = '<option value="">Toutes les finitions</option>';
+                if (brand && model) {
+                    const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+                    const brandObj = brandsRaw.find(b => b.name === brand);
+                    if (brandObj && brandObj.models) {
+                        const modelObj = brandObj.models.find(m => m.name === model);
+                        if (modelObj && modelObj.trims) {
+                            modelObj.trims.forEach(t => {
+                                const opt = document.createElement('option');
+                                opt.value = t.name;
+                                opt.textContent = t.name;
+                                trimSel.appendChild(opt);
+                            });
+                        }
+                    }
+                }
+            }
+            refreshVehicles();
+        });
+
+        if (trimFilter) {
+            trimFilter.addEventListener('change', refreshVehicles);
+        }
         // Initial population of vehicles
         refreshVehicles();
         
@@ -914,10 +956,10 @@ const app = {
                         clientId: client.id,
                         clientName: `${client.firstName} ${client.lastName}`,
                         vehicleId: vehicleId || null,
-                        vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.motorization || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''}`,
+                        vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''} ${formData.get('requestedTrim') || ''}`.trim(),
                         requestedBrand: formData.get('requestedBrand') || '',
                         requestedModel: formData.get('requestedModel') || '',
-                        requestedMotorization: formData.get('requestedMotorization') || '',
+                        requestedTrim: formData.get('requestedTrim') || '',
                         requestedColor: formData.get('requestedColor') || '',
                         totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
                         discount: 0,
@@ -956,10 +998,10 @@ const app = {
                     clientId: client.id,
                     clientName: `${client.firstName} ${client.lastName}`,
                     vehicleId: vehicleId || null,
-                    vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''}`,
+                    vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})` : `${formData.get('requestedBrand') || 'N/A'} ${formData.get('requestedModel') || ''} ${formData.get('requestedTrim') || ''}`.trim(),
                     requestedBrand: formData.get('requestedBrand') || '',
                     requestedModel: formData.get('requestedModel') || '',
-                    requestedMotorization: formData.get('requestedMotorization') || '',
+                    requestedTrim: formData.get('requestedTrim') || '',
                     requestedColor: formData.get('requestedColor') || '',
                     date: new Date().toISOString(),
                     totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
@@ -1186,6 +1228,7 @@ const app = {
                                 ` : `
                                     <p><strong>Marque Souhaitée:</strong> ${order.requestedBrand || 'N/A'}</p>
                                     <p><strong>Modèle Souhaité:</strong> ${order.requestedModel || 'N/A'}</p>
+                                    <p><strong>Finition Souhaitée:</strong> ${order.requestedTrim || 'N/A'}</p>
                                     <p><strong>Couleur Souhaitée:</strong> ${order.requestedColor || 'N/A'}</p>
                                 `}
                                 ${vehicle && vehicle.options ? `<p><strong>Options:</strong> <span style="font-size: 0.85rem; color: var(--text-dim);">${vehicle.options}</span></p>` : ''}
@@ -1477,7 +1520,20 @@ const app = {
                                             ${brandModels[order.requestedBrand] ? brandModels[order.requestedBrand].map(m => `<option value="${m}" ${order.requestedModel === m ? 'selected' : ''}>${m}</option>`).join('') : (order.requestedModel ? `<option value="${order.requestedModel}" selected>${order.requestedModel}</option>` : '')}
                                         </select>
                                     </div>
-                                    <div style="grid-column: span 2;">
+                                    <div>
+                                        <label style="font-size: 0.8rem;">Finition Souhaitée</label>
+                                        <select name="requestedTrim" id="edit-requested-trim" class="glass-select">
+                                            <option value="">Sélectionner...</option>
+                                            ${(() => {
+                                                if (!order.requestedBrand || !order.requestedModel) return '';
+                                                const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+                                                const b = brandsRaw.find(br => br.name === order.requestedBrand);
+                                                const m = b?.models?.find(md => md.name === order.requestedModel);
+                                                return m?.trims?.map(t => `<option value="${t.name}" ${order.requestedTrim === t.name ? 'selected' : ''}>${t.name}</option>`).join('') || '';
+                                            })()}
+                                        </select>
+                                    </div>
+                                    <div>
                                         <label style="font-size: 0.8rem;">Couleur Souhaitée</label>
                                         <select name="requestedColor" class="glass-select">
                                             <option value="">Peu importe</option>
@@ -1609,6 +1665,9 @@ const app = {
             reqBrandSelect.addEventListener('change', () => {
                 const brand = reqBrandSelect.value;
                 reqModelSelect.innerHTML = '<option value="">Sélectionner...</option>';
+                const trimSel = document.getElementById('edit-requested-trim');
+                if (trimSel) trimSel.innerHTML = '<option value="">Sélectionner...</option>';
+
                 if (brand && brandModels[brand]) {
                     brandModels[brand].forEach(m => {
                         const opt = document.createElement('option');
@@ -1616,6 +1675,31 @@ const app = {
                         opt.textContent = m;
                         reqModelSelect.appendChild(opt);
                     });
+                }
+            });
+
+            reqModelSelect.addEventListener('change', () => {
+                const brand = reqBrandSelect.value;
+                const model = reqModelSelect.value;
+                const trimSel = document.getElementById('edit-requested-trim');
+                
+                if (trimSel) {
+                    trimSel.innerHTML = '<option value="">Sélectionner...</option>';
+                    if (brand && model) {
+                        const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+                        const brandObj = brandsRaw.find(b => b.name === brand);
+                        if (brandObj && brandObj.models) {
+                            const modelObj = brandObj.models.find(m => m.name === model);
+                            if (modelObj && modelObj.trims) {
+                                modelObj.trims.forEach(t => {
+                                    const opt = document.createElement('option');
+                                    opt.value = t.name;
+                                    opt.textContent = t.name;
+                                    trimSel.appendChild(opt);
+                                });
+                            }
+                        }
+                    }
                 }
             });
         }
