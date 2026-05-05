@@ -14685,6 +14685,7 @@ const app = {
         // Render table headers
         let headerHtml = `
             <tr>
+                <th>Marque</th>
                 <th>Véhicule (Finition)</th>
                 <th>Prix Vente (Neuf)</th>
                 <th>Prix Vente (-3 Ans)</th>
@@ -14698,17 +14699,39 @@ const app = {
         thead.innerHTML = headerHtml;
 
         // Render table body
-        tbody.innerHTML = data.map(trim => {
+        // To handle merging, we'll pre-calculate rowspans for brands
+        const brandRowspans = {};
+        data.forEach(trim => {
+            brandRowspans[trim.brandName] = (brandRowspans[trim.brandName] || 0) + 1;
+        });
+
+        const brandCounts = {}; // Track how many rows of a brand we've rendered
+
+        tbody.innerHTML = data.map((trim, index) => {
             // Find the best overall price for highlighting (only if admin)
             const prices = isAdmin ? trim.history.map(p => Number(p.priceUSD)).filter(val => !isNaN(val)) : [];
             const bestPriceValue = prices.length > 0 ? Math.min(...prices) : null;
 
+            const brandName = trim.brandName;
+            const isFirstOfBrand = !brandCounts[brandName];
+            brandCounts[brandName] = (brandCounts[brandName] || 0) + 1;
+
             let rowHtml = `
                 <tr>
+                    ${isFirstOfBrand ? `
+                    <td rowspan="${brandRowspans[brandName]}" style="vertical-align: middle; text-align: center; border-right: 1px solid rgba(255,255,255,0.1); background: rgba(var(--primary-rgb), 0.05);">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            ${trim.brandLogo ? `<img src="${trim.brandLogo}" style="width: 40px; height: 40px; object-fit: contain;">` : ''}
+                            <div style="font-weight: 800; font-size: 0.8rem; color: var(--text-bright); text-transform: uppercase;">${brandName}</div>
+                        </div>
+                    </td>
+                    ` : ''}
                     <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            ${trim.brandLogo ? `<img src="${trim.brandLogo}" style="width: 24px; height: 24px; object-fit: contain; border-radius: 4px;">` : ''}
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
                             <div style="font-weight: 600;">${trim.trimName}</div>
+                            <button class="btn-xs" onclick="app.showTrimCharacteristicsModal('${trim.trimId}')" style="align-self: flex-start; padding: 2px 8px; font-size: 0.65rem; background: rgba(14, 165, 233, 0.1); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.2); border-radius: 4px; cursor: pointer;">
+                                <i class="fas fa-list-ul"></i> Voir Options
+                            </button>
                         </div>
                     </td>
                     <td style="font-weight: 700; color: var(--info);">${trim.priceDzdNeuf ? Number(trim.priceDzdNeuf).toLocaleString() + ' DA' : '--'}</td>
@@ -14753,6 +14776,88 @@ const app = {
             `;
             return rowHtml;
         }).join('');
+    },
+
+    showTrimCharacteristicsModal(trimId) {
+        const trim = this.vehiclePricingDashboardData.find(t => t.trimId === trimId);
+        if (!trim) return;
+
+        const chars = trim.characteristics || {};
+        const categories = {
+            'Moteur & Performance': ['Moteur', 'Puissance', 'Transmission', 'Transmission Type', 'Cylindre'],
+            'Dimensions & Poids': ['Dimensions', 'Poids', 'Rservoir'],
+            'Extrieur': ['Jantes', 'Phares', 'Toit'],
+            'Intrieur & Confort': ['Sellerie', 'Siges', 'Climatisation', 'Systme Audio'],
+            'Scurit & Aide': ['Airbags', 'Aide Conduite', 'Camra']
+        };
+
+        let contentHtml = '';
+        
+        // Group characteristics by category
+        Object.entries(categories).forEach(([catName, fields]) => {
+            const catFields = Object.entries(chars).filter(([key]) => fields.some(f => key.includes(f)));
+            if (catFields.length > 0) {
+                contentHtml += `
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: var(--primary); margin-bottom: 10px; border-bottom: 1px solid rgba(var(--primary-rgb), 0.2); padding-bottom: 5px;">${catName}</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                            ${catFields.map(([key, val]) => `
+                                <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+                                    <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">${key}</div>
+                                    <div style="font-weight: 600;">${val || '--'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        // Add remaining characteristics not in categories
+        const categorizedKeys = Object.values(categories).flat();
+        const otherFields = Object.entries(chars).filter(([key]) => !categorizedKeys.some(f => key.includes(f)));
+        
+        if (otherFields.length > 0) {
+            contentHtml += `
+                <div>
+                    <h4 style="color: var(--primary); margin-bottom: 10px; border-bottom: 1px solid rgba(var(--primary-rgb), 0.2); padding-bottom: 5px;">Autres Options</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                        ${otherFields.map(([key, val]) => `
+                            <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+                                <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">${key}</div>
+                                <div style="font-weight: 600;">${val || '--'}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (!contentHtml) contentHtml = '<div style="text-align: center; padding: 40px; color: var(--text-dim);">Aucune option détaillée enregistrée.</div>';
+
+        const modalHtml = `
+            <div class="modal-overlay" onclick="app.closeModal()">
+                <div class="modal-content large" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            ${trim.brandLogo ? `<img src="${trim.brandLogo}" style="width: 40px; height: 40px; object-fit: contain;">` : ''}
+                            <div>
+                                <h2 style="margin: 0;">Options & Caractéristiques</h2>
+                                <div style="color: var(--primary); font-weight: 600;">${trim.trimName}</div>
+                            </div>
+                        </div>
+                        <button class="close-modal" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 20px;">
+                        ${contentHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-primary" onclick="app.closeModal()">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
     async showVehiclePriceModal(priceId = null, defaultTrimId = null) {
