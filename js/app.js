@@ -10786,7 +10786,17 @@ const app = {
                                             <input type="hidden" class="model-input" value="${o.requestedModel || ''}">
                                             <input type="hidden" class="trim-input" value="${o.requestedTrim || ''}">
                                         </td>
-                                        <td><input type="text" class="glass-input trim-input" value="${o.requestedTrim || ''}" placeholder="Finition" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td>
+                                            <select class="glass-select trim-input" style="width: 100px; padding: 4px; font-size: 0.8rem;">
+                                                <option value="">Finition</option>
+                                                ${(() => {
+                                                    const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+                                                    const b = brandsRaw.find(br => br.name === o.requestedBrand);
+                                                    const m = b?.models?.find(md => md.name === o.requestedModel);
+                                                    return m?.trims?.map(t => `<option value="${t.name}" ${o.requestedTrim === t.name ? 'selected' : ''}>${t.name}</option>`).join('') || (o.requestedTrim ? `<option value="${o.requestedTrim}" selected>${o.requestedTrim}</option>` : '');
+                                                })()}
+                                            </select>
+                                        </td>
                                         <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
@@ -10826,12 +10836,22 @@ const app = {
                                                 ${brands.map(b => `<option value="${b}" ${v.brand === b ? 'selected' : ''}>${b}</option>`).join('')}
                                             </select>
                                             <br>
-                                            <select class="glass-select model-input" style="width: 100px; padding: 4px; font-size: 0.8rem;">
+                                            <select class="glass-select model-input" style="width: 100px; padding: 4px; font-size: 0.8rem;" onchange="app.updatePOVehicleTrim(this)">
                                                 <option value="">Modèle</option>
                                                 ${(brandModels[v.brand] || []).map(m => `<option value="${m}" ${v.model === m ? 'selected' : ''}>${m}</option>`).join('')}
                                             </select>
                                         </td>
-                                        <td><input type="text" class="glass-input trim-input" value="${v.trim || ''}" placeholder="Finition" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td>
+                                            <select class="glass-select trim-input" style="width: 100px; padding: 4px; font-size: 0.8rem;">
+                                                <option value="">Finition</option>
+                                                ${(() => {
+                                                    const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+                                                    const b = brandsRaw.find(br => br.name === v.brand);
+                                                    const m = b?.models?.find(md => md.name === v.model);
+                                                    return m?.trims?.map(t => `<option value="${t.name}" ${v.trim === t.name ? 'selected' : ''}>${t.name}</option>`).join('') || (v.trim ? `<option value="${v.trim}" selected>${v.trim}</option>` : '');
+                                                })()}
+                                            </select>
+                                        </td>
                                         <td><input type="text" class="glass-input vin-input" value="${v.chassisNumber || ''}" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
@@ -11098,12 +11118,42 @@ const app = {
     updatePOVehicleModel(brandSelect) {
         const row = brandSelect.closest('tr');
         const modelSelect = row.querySelector('.model-input');
+        const trimSelect = row.querySelector('.trim-input');
         const brand = brandSelect.value;
         const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
         const models = brandModels[brand] || [];
 
         modelSelect.innerHTML = '<option value="">Modèle</option>' +
             models.map(m => `<option value="${m}">${m}</option>`).join('');
+
+        if (trimSelect) {
+            trimSelect.innerHTML = '<option value="">Finition</option>';
+        }
+    },
+
+    updatePOVehicleTrim(modelSelect) {
+        const row = modelSelect.closest('tr');
+        const brandSelect = row.querySelector('.brand-input');
+        const trimSelect = row.querySelector('.trim-input');
+        const brand = brandSelect?.value || row.querySelector('.brand-input')?.textContent || '';
+        const model = modelSelect.value;
+
+        if (!trimSelect) return;
+        trimSelect.innerHTML = '<option value="">Finition</option>';
+
+        if (brand && model) {
+            const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
+            const bObj = brandsRaw.find(b => b.name === brand);
+            const mObj = bObj?.models?.find(m => m.name === model);
+            if (mObj?.trims) {
+                mObj.trims.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.name;
+                    opt.textContent = t.name;
+                    trimSelect.appendChild(opt);
+                });
+            }
+        }
     },
 
     addStockRowToPO() {
@@ -11128,11 +11178,15 @@ const app = {
                     ${brands.map(b => `<option value="${b}">${b}</option>`).join('')}
                 </select>
                 <br>
-                <select class="glass-select model-input" style="width: 100px; padding: 4px; font-size: 0.8rem;">
+                <select class="glass-select model-input" style="width: 100px; padding: 4px; font-size: 0.8rem;" onchange="app.updatePOVehicleTrim(this)">
                     <option value="">Modèle</option>
                 </select>
             </td>
-            <td><input type="text" class="glass-input trim-input" placeholder="Finition" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+            <td>
+                <select class="glass-select trim-input" style="width: 100px; padding: 4px; font-size: 0.8rem;">
+                    <option value="">Finition</option>
+                </select>
+            </td>
             <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
             <td>
                 <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
