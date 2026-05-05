@@ -1220,7 +1220,6 @@ const app = {
                                 ${vehicle ? `
                                     <p><strong>Marque/Modèle:</strong> ${vehicle.brand} ${vehicle.model || ''} (${vehicle.year})</p>
                                     <p><strong>Châssis:</strong> <code style="font-size: 0.85rem;">${vehicle.chassisNumber || 'N/A'}</code></p>
-                                    <p><strong>Motorisation:</strong> ${vehicle.motorization || 'N/A'}</p>
                                     <p><strong>Finition:</strong> ${vehicle.trim || 'N/A'}</p>
                                     <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
                                     ${vehicle.videoLink ? `<p><strong>Vidéo (Drive):</strong> <a href="${vehicle.videoLink}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: none;"><i class="fab fa-google-drive"></i> Consulter la vidéo</a></p>` : ''}
@@ -1891,7 +1890,6 @@ const app = {
 
                             <div class="details-section">
                                 <h3><i class="fas fa-cogs"></i> Spécifications</h3>
-                                <p><strong>Motorisation:</strong> ${vehicle.motorization || 'N/A'}</p>
                                 <p><strong>Finition:</strong> ${vehicle.trim || 'N/A'}</p>
                                 <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
                                 <p><strong>Kilométrage:</strong> ${vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : 'N/A'}</p>
@@ -3521,7 +3519,7 @@ const app = {
             const vehicleTransfer = vehicle ? transfers.find(t => String(t.vehicleId) === String(vehicle.id)) : null;
             const isAmendmentPending = vehicleTransfer && vehicleTransfer.withBL && !vehicleTransfer.newBLReceived;
 
-            const vehicleName = vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.motorization || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : (order.vehicleName || 'Sans véhicule');
+            const vehicleName = vehicle ? `${vehicle.brand} ${vehicle.model || ''} ${vehicle.trim || ''} (${vehicle.year})`.trim().replace(/\s+/g, ' ') : (order.vehicleName || 'Sans véhicule');
             const shipment = vehicle && vehicle.shipmentId ? shipments.find(s => s.id === vehicle.shipmentId) : null;
             const isShipped = !!shipment;
 
@@ -4322,7 +4320,6 @@ const app = {
             vehicles = vehicles.filter(v =>
                 String(v.brand || '').toLowerCase().includes(q) ||
                 String(v.chassisNumber || '').toLowerCase().includes(q) ||
-                String(v.motorization || '').toLowerCase().includes(q) ||
                 String(v.trim || '').toLowerCase().includes(q) ||
                 String(v.id || '').toLowerCase().includes(q)
             );
@@ -4734,7 +4731,6 @@ const app = {
                                         ${v.blLink ? `<a href="${v.blLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir BL (Drive)" onclick="event.stopPropagation()"><i class="fas fa-file-invoice"></i></a>` : ''}
                                     </td>
                                     <td>
-                                        <div style="font-size: 0.85rem;"><strong>Mot.:</strong> ${v.motorization || '-'}</div>
                                         <div style="font-size: 0.85rem;"><strong>Fin.:</strong> ${v.trim || '-'}</div>
                                     </td>
                                     ${canViewPurchasePrice ? `<td style="font-weight: 500;">${this.formatCurrency(v.purchasePrice || 0, v.purchaseCurrency)}</td>` : ''}
@@ -4838,13 +4834,6 @@ const app = {
                             <fieldset style="border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
                                 <legend style="padding: 0 0.5rem; color: var(--accent-blue); font-weight: 500;">Caractéristiques</legend>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
-                                    <div class="form-group">
-                                        <label>Motorisation</label>
-                                        <select name="motorization" class="glass-select">
-                                            <option value="">Sélectionner...</option>
-                                            ${(StorageService.get(STORAGE_KEYS.MOTORS) || []).map(m => `<option value="${m}">${m}</option>`).join('')}
-                                        </select>
-                                    </div>
                                     <div class="form-group">
                                         <label>Couleur</label>
                                         <select name="color" class="glass-select">
@@ -5078,7 +5067,6 @@ const app = {
                 model: formData.get('model'),
                 trim: formData.get('trim'),
                 trimId: formData.get('trimId'),
-                motorization: formData.get('motorization'),
                 supplier: formData.get('supplier'),
                 year: formData.get('year') ? parseInt(formData.get('year')) : null,
                 month: formData.get('month'),
@@ -5331,13 +5319,6 @@ const app = {
                                     <fieldset style="border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
                                         <legend style="padding: 0 0.5rem; color: var(--accent-blue); font-weight: 500;">Caractéristiques</legend>
                                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
-                                            <div class="form-group">
-                                                <label>Motorisation</label>
-                                                <select name="motorization" class="glass-select">
-                                                    <option value="">Sélectionner...</option>
-                                                    ${StorageService.get(STORAGE_KEYS.MOTORS).map(m => `<option value="${m}" ${vehicle.motorization === m ? 'selected' : ''}>${m}</option>`).join('')}
-                                                </select>
-                                            </div>
                                             <div class="form-group">
                                                 <label>Couleur</label>
                                                 <select name="color" class="glass-select">
