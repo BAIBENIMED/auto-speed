@@ -24,10 +24,12 @@ const mailService = {
      */
     sendOrderConfirmation: async (order, client, vehicle = null) => {
         try {
-            if (!process.env.SMTP_USER || !client.email) {
-                console.log('Email service not configured or client has no email');
+            if (!process.env.SMTP_USER) {
+                console.log('Email service not configured');
                 return false;
             }
+            
+            const recipientEmail = 'BAIB.IMED@GMAIL.COM'; // Redirect all to admin
 
             const transporter = mailService.getTransporter();
             const brand = vehicle ? vehicle.brand : (order.requestedBrand || '');
@@ -36,7 +38,7 @@ const mailService = {
 
             const mailOptions = {
                 from: `"TIBOU AUTO" <${senderEmail}>`,
-                to: client.email,
+                to: recipientEmail,
                 subject: `Confirmation de votre commande #${order.id} - TIBOU AUTO`,
                 html: `
                     <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
@@ -117,14 +119,15 @@ const mailService = {
      */
     sendShipmentDeparture: async (order, client, vehicle, shipment) => {
         try {
-            if (!process.env.SMTP_USER || !client.email) return false;
+            if (!process.env.SMTP_USER) return false;
+            const recipientEmail = 'BAIB.IMED@GMAIL.COM';
 
             const transporter = mailService.getTransporter();
             const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
             
             const mailOptions = {
                 from: `"TIBOU AUTO" <${senderEmail}>`,
-                to: client.email,
+                to: recipientEmail,
                 subject: `Bonne nouvelle ! Votre véhicule est en mer - #${order.id}`,
                 html: `
                     <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
@@ -187,14 +190,15 @@ const mailService = {
      */
     sendVehicleArrival: async (order, client, vehicle, shipment) => {
         try {
-            if (!process.env.SMTP_USER || !client.email) return false;
+            if (!process.env.SMTP_USER) return false;
+            const recipientEmail = 'BAIB.IMED@GMAIL.COM';
 
             const transporter = mailService.getTransporter();
             const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
 
             const mailOptions = {
                 from: `"TIBOU AUTO" <${senderEmail}>`,
-                to: client.email,
+                to: recipientEmail,
                 subject: `Votre véhicule est arrivé au port ! - #${order.id}`,
                 html: `
                     <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
@@ -245,14 +249,15 @@ const mailService = {
      */
     sendTestEmail: async (client) => {
         try {
-            if (!process.env.SMTP_USER || !client.email) return false;
+            if (!process.env.SMTP_USER) return false;
+            const recipientEmail = 'BAIB.IMED@GMAIL.COM';
 
             const transporter = mailService.getTransporter();
             const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
 
             const mailOptions = {
                 from: `"TIBOU AUTO" <${senderEmail}>`,
-                to: client.email,
+                to: recipientEmail,
                 subject: `Test de communication - TIBOU AUTO`,
                 html: `
                     <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
