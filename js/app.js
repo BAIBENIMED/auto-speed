@@ -635,7 +635,7 @@ const app = {
                                         <label>Showroom</label>
                                         <select name="showroom" id="filter-showroom" required class="glass-select">
                                             <option value="">Sélectionner un showroom</option>
-                                            ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}">${s}</option>`).join('')}
+                                            ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'TOUGGOURT' ? 'selected' : ''}>${s}</option>`).join('')}
                                         </select>
                                     </div>
                                 </div>
@@ -3792,7 +3792,7 @@ const app = {
                                 <label>Showroom</label>
                                 <select name="showroom" class="glass-select">
                                     <option value="">Sélectionner un showroom</option>
-                                    ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}">${s}</option>`).join('')}
+                                    ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'TOUGGOURT' ? 'selected' : ''}>${s}</option>`).join('')}
                                 </select>
                             </div>
                             <div class="form-row">
