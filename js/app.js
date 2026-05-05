@@ -8471,7 +8471,7 @@ const app = {
             }
 
             // 2. Extract Unique Colors (Columns)
-            const colors = [...new Set(pendingOrders.map(o => o.requestedColor || 'Non spécifié'))].sort();
+            const colors = [...new Set(pendingOrders.map(o => this.translateColorToEnglish(o.requestedColor) || 'Non spécifié'))].sort();
             // Ensure 'Non spécifié' is last
             const nsIndex = colors.indexOf('Non spécifié');
             if (nsIndex > -1) {
@@ -8483,7 +8483,7 @@ const app = {
 
             pendingOrders.forEach(o => {
                 const key = `${o.requestedBrand} - ${o.requestedModel}`;
-                const color = o.requestedColor || 'Non spécifié';
+                const color = this.translateColorToEnglish(o.requestedColor) || 'Non spécifié';
 
                 if (!matrix[key]) matrix[key] = { total: 0 };
                 if (!matrix[key][color]) matrix[key][color] = 0;
@@ -13650,7 +13650,7 @@ const app = {
                     client ? (client.nin || "-") : "-",
                     v.brand || "-",
                     v.model || "-",
-                    v.color || "-",
+                    this.translateColorToEnglish(v.color),
                     v.chassisNumber || "-",
                     client ? (client.address || "-") : "-",
                     client ? (client.postalCode || "-") : "-"
@@ -13734,7 +13734,7 @@ const app = {
                 client ? (client.nin || "-") : "-",
                 v.brand || "-",
                 v.model || "-",
-                v.color || "-",
+                this.translateColorToEnglish(v.color),
                 v.chassisNumber || "-",
                 client ? (client.address || "-") : "-",
                 client ? (client.postalCode || "-") : "-"
@@ -14852,6 +14852,26 @@ const app = {
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+    translateColorToEnglish(color) {
+        if (!color) return "-";
+        const c = String(color).trim().toUpperCase();
+        const map = {
+            'BLANC': 'WHITE',
+            'NOIR': 'BLACK',
+            'GRIS': 'GREY',
+            'ROUGE': 'RED',
+            'BLEU': 'BLUE',
+            'VERT': 'GREEN',
+            'JAUNE': 'YELLOW',
+            'ARGENT': 'SILVER',
+            'MARRON': 'BROWN',
+            'OR': 'GOLD',
+            'BEIGE': 'BEIGE',
+            'VIOLET': 'PURPLE',
+            'ORANGE': 'ORANGE'
+        };
+        return map[c] || c;
     }
 };
 
