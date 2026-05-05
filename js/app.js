@@ -10800,6 +10800,18 @@ const app = {
                         ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrder.clientId));
                     }
                 }
+                // Step 3: scan ALL orders that still point to this vehicle but belong to a different client
+                // This recovers the original buyer when orderId was overwritten by the CG save
+                if (!ancienClient) {
+                    const allOrders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                    const originalOrderByVehicle = allOrders.find(o =>
+                        String(o.vehicleId) === String(v.id) &&
+                        String(o.clientId) !== String(v.clientId)
+                    );
+                    if (originalOrderByVehicle) {
+                        ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrderByVehicle.clientId));
+                    }
+                }
             }
 
             let isAmendmentRevertedDisplay = false;
