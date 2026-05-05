@@ -1310,7 +1310,7 @@ const app = {
                                             <tbody>
                                                 ${cash.map(t => `
                                                     <tr>
-                                                        <td>${new Date(t.date).toLocaleDateString()}</td>
+                                                        <td>${this.formatDate(t.date)}</td>
                                                         <td>${t.paymentMethod}</td>
                                                         <td>${t.description || '-'}</td>
                                                         <td class="success" style="font-weight: 600;">${this.formatCurrency(t.amount, t.currency)}</td>
@@ -1334,7 +1334,7 @@ const app = {
 
                             <div class="details-section">
                                 <h3><i class="fas fa-info-circle"></i> État de la Commande</h3>
-                                <p><strong>Date Bc:</strong> ${new Date(order.date).toLocaleDateString()}</p>
+                                <p><strong>Date Bc:</strong> ${this.formatDate(order.date)}</p>
                                 <p><strong>Statut:</strong> <span class="status-badge ${(order.status || 'N/A').toLowerCase().replace(/\s+/g, '-')}">${order.status || 'N/A'}</span></p>
                                 ${order.remarks ? `<p><strong>Commentaires:</strong> <i style="color: var(--text-dim);">${order.remarks}</i></p>` : ''}
                             </div>
@@ -1966,13 +1966,13 @@ const app = {
                         <div>
                             <div style="font-weight: 600;">Transfert vers : ${t.toClient?.lastName || 'Client Supprimé'} ${t.toClient?.firstName || ''}</div>
                             <div style="color: var(--text-dim); font-size: 0.8rem;">
-                                ${new Date(t.transferDate).toLocaleDateString()} | ${t.withBL ? '<span style="color: var(--success);">Avec BL</span>' : '<span style="color: var(--warning);">Sans BL</span>'}
+                                ${this.formatDate(t.transferDate)} | ${t.withBL ? '<span style="color: var(--success);">Avec BL</span>' : '<span style="color: var(--warning);">Sans BL</span>'}
                             </div>
                             <div style="margin-top: 6px; margin-bottom: 6px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; color: var(--text-dim);">
                                 <label style="color: ${t.amendmentRequestSent ? 'var(--warning)' : 'inherit'}; cursor: pointer; display: flex; align-items: center; gap: 8px;">
                                     <input type="checkbox" ${t.amendmentRequestSent ? 'checked' : ''} onchange="app.toggleTransferStatus('${t.id}', 'amendmentRequestSent', this.checked, '${vehicleId}')"> 
                                     Amendement demandé
-                                    ${t.amendmentRequestSent ? `<span style="font-size: 0.75rem; margin-left: 5px;">(Date : ${new Date(t.transferDate).toLocaleDateString()})</span>` : ''}
+                                    ${t.amendmentRequestSent ? `<span style="font-size: 0.75rem; margin-left: 5px;">(Date : ${this.formatDate(t.transferDate)})</span>` : ''}
                                 </label>
                                 <label style="color: ${t.newBLReceived ? 'var(--success)' : 'inherit'}; cursor: pointer; display: flex; align-items: center; gap: 8px;">
                                     <input type="checkbox" ${t.newBLReceived ? 'checked' : ''} onchange="app.toggleTransferStatus('${t.id}', 'newBLReceived', this.checked, '${vehicleId}')"> 
@@ -2751,7 +2751,7 @@ const app = {
                                                     </div>
                                                 </div>
                                                 <div style="font-size: 0.7rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">
-                                                    ${new Date(pa.transferDate).toLocaleDateString()}
+                                                    ${this.formatDate(pa.transferDate)}
                                                 </div>
                                             </li>
                                         `).join('')}
@@ -2777,7 +2777,7 @@ const app = {
                                                     </div>
                                                 </div>
                                                 <div style="font-size: 0.7rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">
-                                                    ${new Date(mbl.transferDate).toLocaleDateString()}
+                                                    ${this.formatDate(mbl.transferDate)}
                                                 </div>
                                             </li>
                                         `).join('')}
@@ -3061,7 +3061,7 @@ const app = {
                                         </div>
                                     </div>
                                     <div style="font-size: 0.65rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px; align-self: flex-start;">
-                                        ${new Date(pa.transferDate).toLocaleDateString()}
+                                        ${this.formatDate(pa.transferDate)}
                                     </div>
                                 </li>
                             `).join('')}
@@ -3089,7 +3089,7 @@ const app = {
                                         </div>
                                     </div>
                                     <div style="font-size: 0.65rem; text-align: right; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px; align-self: flex-start;">
-                                        ${new Date(mbl.transferDate).toLocaleDateString()}
+                                        ${this.formatDate(mbl.transferDate)}
                                     </div>
                                 </li>
                             `).join('')}
@@ -3553,7 +3553,7 @@ const app = {
                                         </div>
                                     </td>
                                     <td>${vehicleName}</td>
-                                    <td>${new Date(order.date).toLocaleDateString()}</td>
+                                    <td>${this.formatDate(order.date)}</td>
                                     <td style="text-align: center;">
                                         <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
                                             <span class="status-badge ${(this.calculateOrderStatus(order) || 'EN COURS').toLowerCase().replace(/\s+/g, '-')}">
@@ -4030,7 +4030,7 @@ const app = {
                                         ${orders.map(o => `
                                             <tr style="cursor: pointer;" onclick="app.showOrderDetails('${o.id}')">
                                                 <td><strong style="color: var(--primary);">#${o.id}</strong></td>
-                                                <td>${new Date(o.date).toLocaleDateString()}</td>
+                                                <td>${this.formatDate(o.date)}</td>
                                                 <td>${o.vehicleName || '-'}</td>
                                                 <td>${this.formatCurrency(o.totalAmount, o.currency)}</td>
                                                 <td><span class="badge-pill" style="background: ${this.getStatusColor(o.status)}22; color: ${this.getStatusColor(o.status)}; border: none;">${o.status}</span></td>
@@ -6659,7 +6659,7 @@ const app = {
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
                             ${s.loadingPort ? `<span style="padding: 4px 10px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3); border-radius: 12px; font-size: 0.75rem; color: var(--primary);"><i class="fas fa-anchor" style="margin-right: 4px;"></i>${s.loadingPort}</span>` : ''}
                             ${s.destination ? `<span style="padding: 4px 10px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; font-size: 0.75rem; color: var(--danger);"><i class="fas fa-map-marker-alt" style="margin-right: 4px;"></i>${s.destination}</span>` : ''}
-                            ${s.eta ? `<span style="padding: 4px 10px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; font-size: 0.75rem; color: var(--success);"><i class="fas fa-calendar-check" style="margin-right: 4px;"></i>ETA: ${new Date(s.eta).toLocaleDateString('fr-FR')}</span>` : ''}
+                            ${s.eta ? `<span style="padding: 4px 10px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; font-size: 0.75rem; color: var(--success);"><i class="fas fa-calendar-check" style="margin-right: 4px;"></i>ETA: ${this.formatDate(s.eta)}</span>` : ''}
                         </div>
                         <div>${eventsHtml}</div>
                     </div>
@@ -6836,7 +6836,7 @@ const app = {
                         <tbody>
                             ${filteredRates.length ? filteredRates.map(r => `
                                 <tr>
-                                    <td>${new Date(r.date).toLocaleDateString()}</td>
+                                    <td>${this.formatDate(r.date)}</td>
                                     <td><span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">${r.fromCurrency}</span></td>
                                     <td><span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">${r.toCurrency}</span></td>
                                     <td style="font-family: monospace; font-size: 1.1em;">${parseFloat(r.rate).toFixed(4)}</td>
@@ -7232,7 +7232,7 @@ const app = {
                                                 ${s.shipStatus ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;"><i class="fas fa-ship" style="margin-right: 4px; color: var(--text-dim);"></i><strong>Navire:</strong> ${s.shipStatus}</div>` : ''}
                                                 ${s.loadingPort ? `<div style="font-size: 0.75rem; color: var(--text-dim);"><i class="fas fa-anchor" style="margin-right: 4px;"></i>Départ: <strong>${s.loadingPort}</strong></div>` : ''}
                                                 ${s.destination ? `<div style="font-size: 0.75rem; color: var(--text-dim);"><i class="fas fa-map-marker-alt" style="margin-right: 4px; color: var(--danger);"></i>Dest: <strong>${s.destination}</strong></div>` : ''}
-                                                ${s.arrivalDate ? `<div style="font-size: 0.75rem; margin-top: 4px; color: var(--success); font-weight: 700;"><i class="fas fa-check-double" style="margin-right: 4px;"></i>Arrivée: ${new Date(s.arrivalDate).toLocaleDateString('fr-FR')}</div>` : (s.eta ? `<div style="font-size: 0.75rem; margin-top: 4px; color: ${new Date(s.eta) < new Date() ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;"><i class="fas fa-calendar-check" style="margin-right: 4px;"></i>ETA: ${new Date(s.eta).toLocaleDateString('fr-FR')}</div>` : '')}
+                                                ${s.arrivalDate ? `<div style="font-size: 0.75rem; margin-top: 4px; color: var(--success); font-weight: 700;"><i class="fas fa-check-double" style="margin-right: 4px;"></i>Arrivée: ${this.formatDate(s.arrivalDate)}</div>` : (s.eta ? `<div style="font-size: 0.75rem; margin-top: 4px; color: ${this.formatDate(s.eta) < new Date() ? 'var(--danger)' : 'var(--success)'}; font-weight: 600;"><i class="fas fa-calendar-check" style="margin-right: 4px;"></i>ETA: ${new Date(s.eta)}</div>` : '')}
                                                 ${lastEvent ? `<div style="margin-top: 6px; padding: 4px 6px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 0.72rem; color: var(--text-dim);"><i class="fas fa-history" style="margin-right: 4px;"></i>${lastEvent.description || lastEvent.location || 'Dernier événement'}</div>` : ''}
                                                 <div style="display: flex; gap: 4px; margin-top: 6px;">
                                                     <button onclick="app.showTrackingHistoryModal('${s.id}')" style="flex:1; padding: 3px 6px; font-size: 0.7rem; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 4px; color: var(--primary); cursor: pointer;"><i class="fas fa-list"></i> Historique</button>
@@ -7251,13 +7251,13 @@ const app = {
                 })()}
                                 </td>
                                 <td>
-                                    <div style="font-size: 0.85rem;"><strong>ETD:</strong> ${s.etd ? new Date(s.etd).toLocaleDateString('fr-FR') : '-'}</div>
-                                    <div style="font-size: 0.85rem;"><strong>ETA:</strong> ${s.eta ? new Date(s.eta).toLocaleDateString('fr-FR') : '-'}</div>
-                                    <div style="font-size: 0.85rem; color: var(--success);"><strong>Arr:</strong> ${s.arrivalDate ? new Date(s.arrivalDate).toLocaleDateString('fr-FR') : '-'}</div>
+                                    <div style="font-size: 0.85rem;"><strong>ETD:</strong> ${s.etd ? this.formatDate(s.etd) : '-'}</div>
+                                    <div style="font-size: 0.85rem;"><strong>ETA:</strong> ${s.eta ? this.formatDate(s.eta) : '-'}</div>
+                                    <div style="font-size: 0.85rem; color: var(--success);"><strong>Arr:</strong> ${s.arrivalDate ? this.formatDate(s.arrivalDate) : '-'}</div>
                                 </td>
                                 <td>
                                     <div style="font-size: 0.85rem;"><strong>BL:</strong> ${s.blNumber || '-'}</div>
-                                    <div style="font-size: 0.75rem; color: var(--text-dim);">Docs: ${s.docReceptionDate ? new Date(s.docReceptionDate).toLocaleDateString('fr-FR') : 'Non reçus'}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-dim);">Docs: ${s.docReceptionDate ? this.formatDate(s.docReceptionDate) : 'Non reçus'}</div>
                                 </td>
                                 <td><span class="status-badge ${(s.status || 'en cours').toLowerCase().replace(/\s+/g, '-').replace(/[éè]/g, 'e').replace(/[àâ]/g, 'a')}">${s.status || 'En cours'}</span></td>
                                 <td>
@@ -7698,14 +7698,14 @@ const app = {
                                         </td>
                                         <td>
                                             <div style="font-size: 0.8rem; color: var(--accent-blue);">
-                                                <i class="far fa-calendar-alt"></i> ETD: ${v.etd ? new Date(v.etd).toLocaleDateString() : '-'}
+                                                <i class="far fa-calendar-alt"></i> ETD: ${v.etd ? this.formatDate(v.etd) : '-'}
                                             </div>
                                             ${v.arrivalDate ? `
                                             <div style="font-size: 0.8rem; color: var(--success); font-weight: 700;">
-                                                <i class="fas fa-check-double"></i> Arrivée: ${new Date(v.arrivalDate).toLocaleDateString()}
+                                                <i class="fas fa-check-double"></i> Arrivée: ${this.formatDate(v.arrivalDate)}
                                             </div>` : `
                                             <div style="font-size: 0.8rem; color: var(--success);">
-                                                <i class="far fa-calendar-check"></i> ETA: ${v.eta ? new Date(v.eta).toLocaleDateString() : '-'}
+                                                <i class="far fa-calendar-check"></i> ETA: ${v.eta ? this.formatDate(v.eta) : '-'}
                                             </div>`}
                                         </td>
                                         <td style="text-align: center;">
@@ -8333,7 +8333,7 @@ const app = {
 
                 return [
                     escape(o.id),
-                    escape(new Date(o.date).toLocaleDateString()),
+                    escape(this.formatDate(o.date)),
                     escape(o.clientName),
                     escape(o.vehicleName),
                     escape(vehicle ? vehicle.chassisNumber : '-'),
@@ -8393,7 +8393,7 @@ const app = {
 
                 const orderData = [
                     order.id,
-                    new Date(order.date).toLocaleDateString(),
+                    this.formatDate(order.date),
                     (order.clientName || '').toUpperCase(),
                     order.vehicleName,
                     displayStatus,
@@ -9470,7 +9470,7 @@ const app = {
             const isIn = t.type === 'In';
             return `
                                 <tr>
-                                    <td>${new Date(t.date).toLocaleDateString()}</td>
+                                    <td>${this.formatDate(t.date)}</td>
                                     <td><span class="badge-pill" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">#${t.id}</span></td>
                                     <td>
                                         <div class="user-cell">
@@ -9527,7 +9527,7 @@ const app = {
         }
 
         const tableData = cash.map(t => [
-            new Date(t.date).toLocaleDateString(),
+            this.formatDate(t.date),
             t.id,
             t.clientName || 'N/A',
             t.showroom || 'N/A',
@@ -10068,7 +10068,7 @@ const app = {
                         type: 'info',
                         icon: 'fa-ship',
                         title: `Arrivée Imminente : ${s.shipName || s.shippingLine}`,
-                        message: `Le navire est attendu le ${arrival.toLocaleDateString()} (dans moins de 10 jours).`,
+                        message: `Le navire est attendu le ${this.formatDate(arrival)} (dans moins de 10 jours).`,
                         date: s.arrivalDate
                     });
                 }
@@ -10162,7 +10162,7 @@ const app = {
                                 <p style="color: var(--text-dim); font-size: 0.9rem;">${alert.message}</p>
                             </div>
                             <div style="text-align: right; color: var(--text-dim); font-size: 0.8rem;">
-                                ${new Date(alert.date).toLocaleDateString()}
+                                ${this.formatDate(alert.date)}
                             </div>
                         </div>
                     `).join('')}
@@ -10307,7 +10307,7 @@ const app = {
                                                 </div>`
                             : '-'}
                                         </td>
-                                        <td>${p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A'}</td>
+                                        <td>${p.purchaseDate ? this.formatDate(p.purchaseDate) : 'N/A'}</td>
                                         <td>
                                             <div style="display: flex; flex-direction: column; gap: 4px;">
                                                 <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Doc: ${p.documentStatus || 'Rien'}</span>
@@ -10500,7 +10500,7 @@ const app = {
                             <div class="modal-header">
                                 <div>
                                     <h2>Détails Commande d'Achat #${p.id}</h2>
-                                    <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A'}</p>
+                                    <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? this.formatDate(p.purchaseDate) : 'N/A'}</p>
                                     <div style="display: flex; gap: 10px; margin-top: 5px;">
                                         <span class="status-badge ${p.documentStatus === 'BL Finale' ? 'success' : (['BL Draft', 'BL EN COURS DE MODIFICATIONS'].includes(p.documentStatus) ? 'warning' : 'neutral')}" style="font-size: 0.75rem; padding: 2px 8px;">
                                             Statut Doc: ${p.documentStatus || 'Rien'}
@@ -10653,15 +10653,15 @@ const app = {
                                         </div>
                                         <div>
                                             <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Date de Chargement</p>
-                                            <strong style="font-size: 0.9rem;">${p.loadingDate ? new Date(p.loadingDate).toLocaleDateString() : 'N/A'}</strong>
+                                            <strong style="font-size: 0.9rem;">${p.loadingDate ? this.formatDate(p.loadingDate) : 'N/A'}</strong>
                                         </div>
                                         <div>
                                             <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">ETD (Départ)</p>
-                                            <strong style="font-size: 0.9rem;">${p.etd ? new Date(p.etd).toLocaleDateString() : 'N/A'}</strong>
+                                            <strong style="font-size: 0.9rem;">${p.etd ? this.formatDate(p.etd) : 'N/A'}</strong>
                                         </div>
                                         <div>
                                             <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">ETA (Arrivée)</p>
-                                            <strong style="font-size: 0.9rem; color: var(--success);">${p.eta ? new Date(p.eta).toLocaleDateString() : 'N/A'}</strong>
+                                            <strong style="font-size: 0.9rem; color: var(--success);">${p.eta ? this.formatDate(p.eta) : 'N/A'}</strong>
                                         </div>
                                         <div>
                                             <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Transitaire (Forwarder)</p>
@@ -13829,7 +13829,7 @@ const app = {
                 else totalOut += amount;
 
                 rows.push([
-                    new Date(c.date).toLocaleDateString(),
+                    this.formatDate(c.date),
                     c.type === 'IN' ? 'ENTRÉE' : 'SORTIE',
                     c.category,
                     c.description,
@@ -13889,7 +13889,7 @@ const app = {
                 const netPrice = (o.totalAmount || 0) - (o.discount || 0);
                 totalSales += this.convertCurrency(netPrice, o.currency, reportingCurrency);
                 rows.push([
-                    new Date(o.date).toLocaleDateString(),
+                    this.formatDate(o.date),
                     o.clientName,
                     o.vehicleName,
                     o.showroom || 'N/A',
