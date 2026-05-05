@@ -4965,9 +4965,17 @@ const app = {
                                 </label>
                             </div>
                             
-                            <div id="sold-owner-container" class="form-group" style="display: none; margin-top: 10px;">
-                                <label>Détails du Nouveau Propriétaire</label>
-                                <textarea name="soldRegistrationOwner" class="glass-input" rows="2" placeholder="Nom, Prénom, Téléphone, etc."></textarea>
+                            <div id="sold-owner-container" class="form-group" style="display: none; margin-top: 10px; background: rgba(var(--primary-rgb), 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(var(--primary-rgb), 0.1);">
+                                <label style="color: var(--primary); font-weight: 600;"><i class="fas fa-user-check"></i> Sélectionner le Propriétaire</label>
+                                <div style="position: relative; margin-bottom: 8px;">
+                                    <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 0.8rem;"></i>
+                                    <input type="text" id="sold-client-search" class="glass-input" placeholder="Rechercher par Nom ou NIN..." style="padding-left: 30px; font-size: 0.85rem;" autocomplete="off">
+                                </div>
+                                <select name="soldRegistrationOwnerId" id="sold-client-select" class="glass-select">
+                                    <option value="">-- Sélectionner un client --</option>
+                                    ${StorageService.get(STORAGE_KEYS.CLIENTS).map(c => `<option value="${c.id}" data-name="${c.lastName} ${c.firstName} (NIN: ${c.nin || 'N/A'})">${c.lastName} ${c.firstName} | NIN: ${c.nin || 'N/A'}</option>`).join('')}
+                                </select>
+                                <input type="hidden" name="soldRegistrationOwner" id="sold-registration-owner-text">
                             </div>
 
                             <div class="modal-footer">
@@ -5068,6 +5076,33 @@ const app = {
 
 
         this.initClientSelectionTable();
+
+        // Client search in Add Vehicle modal (for Sold CG)
+        const soldClientSearch = document.getElementById('sold-client-search');
+        const soldClientSelect = document.getElementById('sold-client-select');
+        const soldRegistrationOwnerText = document.getElementById('sold-registration-owner-text');
+
+        if (soldClientSearch && soldClientSelect) {
+            const allClients = StorageService.get(STORAGE_KEYS.CLIENTS);
+            soldClientSearch.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = allClients.filter(c => 
+                    (c.lastName + ' ' + c.firstName).toLowerCase().includes(term) ||
+                    (c.nin || '').toLowerCase().includes(term)
+                );
+                
+                let opts = '<option value="">-- Sélectionner un client --</option>';
+                opts += filtered.map(c => `<option value="${c.id}" data-name="${c.lastName} ${c.firstName} (NIN: ${c.nin || 'N/A'})">${c.lastName} ${c.firstName} | NIN: ${c.nin || 'N/A'}</option>`).join('');
+                soldClientSelect.innerHTML = opts;
+            });
+
+            soldClientSelect.addEventListener('change', (e) => {
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                if (soldRegistrationOwnerText) {
+                    soldRegistrationOwnerText.value = selectedOption.value ? selectedOption.getAttribute('data-name') : '';
+                }
+            });
+        }
 
         document.getElementById('vehicle-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -5450,9 +5485,17 @@ const app = {
                                         </label>
                                     </div>
 
-                                    <div id="edit-sold-owner-container" class="form-group" style="display: ${vehicle.soldRegistration ? 'block' : 'none'}; margin-top: 10px;">
-                                        <label>Détails du Nouveau Propriétaire</label>
-                                        <textarea name="soldRegistrationOwner" class="glass-input" rows="2" placeholder="Nom, Prénom, Téléphone, etc.">${vehicle.soldRegistrationOwner || ''}</textarea>
+                                    <div id="edit-sold-owner-container" class="form-group" style="display: ${vehicle.soldRegistration ? 'block' : 'none'}; margin-top: 10px; background: rgba(var(--primary-rgb), 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(var(--primary-rgb), 0.1);">
+                                        <label style="color: var(--primary); font-weight: 600;"><i class="fas fa-user-check"></i> Propriétaire Actuel: ${vehicle.soldRegistrationOwner || 'N/A'}</label>
+                                        <div style="position: relative; margin-bottom: 8px;">
+                                            <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 0.8rem;"></i>
+                                            <input type="text" id="edit-sold-client-search" class="glass-input" placeholder="Changer de propriétaire (Nom ou NIN)..." style="padding-left: 30px; font-size: 0.85rem;" autocomplete="off">
+                                        </div>
+                                        <select name="soldRegistrationOwnerId" id="edit-sold-client-select" class="glass-select">
+                                            <option value="">-- Garder le propriétaire actuel --</option>
+                                            ${StorageService.get(STORAGE_KEYS.CLIENTS).map(c => `<option value="${c.id}" data-name="${c.lastName} ${c.firstName} (NIN: ${c.nin || 'N/A'})">${c.lastName} ${c.firstName} | NIN: ${c.nin || 'N/A'}</option>`).join('')}
+                                        </select>
+                                        <input type="hidden" name="soldRegistrationOwner" id="edit-sold-registration-owner-text" value="${vehicle.soldRegistrationOwner || ''}">
                                     </div>
 
                                     <div class="modal-footer">
@@ -5571,6 +5614,33 @@ const app = {
         }
 
         this.initClientSelectionTable();
+
+        // Client search in Edit Vehicle modal
+        const editSoldClientSearch = document.getElementById('edit-sold-client-search');
+        const editSoldClientSelect = document.getElementById('edit-sold-client-select');
+        const editSoldRegistrationOwnerText = document.getElementById('edit-sold-registration-owner-text');
+
+        if (editSoldClientSearch && editSoldClientSelect) {
+            const allClients = StorageService.get(STORAGE_KEYS.CLIENTS);
+            editSoldClientSearch.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = allClients.filter(c => 
+                    (c.lastName + ' ' + c.firstName).toLowerCase().includes(term) ||
+                    (c.nin || '').toLowerCase().includes(term)
+                );
+                
+                let opts = '<option value="">-- Sélectionner un client --</option>';
+                opts += filtered.map(c => `<option value="${c.id}" data-name="${c.lastName} ${c.firstName} (NIN: ${c.nin || 'N/A'})">${c.lastName} ${c.firstName} | NIN: ${c.nin || 'N/A'}</option>`).join('');
+                editSoldClientSelect.innerHTML = opts;
+            });
+
+            editSoldClientSelect.addEventListener('change', (e) => {
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                if (selectedOption.value && editSoldRegistrationOwnerText) {
+                    editSoldRegistrationOwnerText.value = selectedOption.getAttribute('data-name');
+                }
+            });
+        }
 
         document.getElementById('vehicle-form').addEventListener('submit', (e) => {
             e.preventDefault();
