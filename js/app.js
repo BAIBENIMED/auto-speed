@@ -5214,25 +5214,31 @@ const app = {
 
             // Capture Original Owner if marking as Sold CG for the first time
             if (newVehicle.soldRegistration && !newVehicle.originalOwnerName) {
-                // The "Original" owner is whoever was linked to the vehicle BEFORE it was sold via CG
-                if (existingVehicle) {
-                    let oldClient = null;
+                // Priority 1: The client currently selected in the modal's assignment table
+                const currentFormClientId = formData.get('clientId');
+                let oldClient = null;
+
+                if (currentFormClientId) {
+                    oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(currentFormClientId));
+                }
+
+                // Priority 2: The client already linked to the vehicle or its order
+                if (!oldClient && existingVehicle) {
                     if (existingVehicle.clientId) {
-                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === existingVehicle.clientId);
+                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(existingVehicle.clientId));
                     } else if (existingVehicle.orderId) {
                         const oldOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === existingVehicle.orderId);
                         if (oldOrder) {
-                            oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === oldOrder.clientId);
+                            oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(oldOrder.clientId));
                         }
                     }
+                }
 
-                    if (oldClient) {
-                        newVehicle.originalClientId = oldClient.id;
-                        newVehicle.originalOwnerName = `${oldClient.lastName} ${oldClient.firstName}`.toUpperCase();
-                    } else {
-                        // Fallback to "STOCK" if it was in stock
-                        newVehicle.originalOwnerName = "STOCK";
-                    }
+                if (oldClient) {
+                    newVehicle.originalClientId = oldClient.id;
+                    newVehicle.originalOwnerName = `${oldClient.lastName} ${oldClient.firstName}`.toUpperCase();
+                } else if (existingVehicle) {
+                    newVehicle.originalOwnerName = "STOCK";
                 }
             }
 
