@@ -10783,9 +10783,19 @@ const app = {
                                         <tbody>
                                             ${(p.vehicles || []).map((v, index) => {
             const order = v.orderId ? StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId) : null;
+            
+            // For Vendu CG vehicles: displayClient = NEW owner (via clientId/orderId after transfer)
             let displayClient = order
                 ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId)
                 : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
+
+            // For Vendu CG: resolve ORIGINAL owner separately (before the CG transfer)
+            let ancienClient = null;
+            if (v.soldRegistration) {
+                if (v.originalClientId) {
+                    ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(v.originalClientId));
+                }
+            }
 
             let isAmendmentRevertedDisplay = false;
             let amendmentHtml = '';
@@ -10877,12 +10887,16 @@ const app = {
                                                         ${v.soldRegistration ? `
                                                             <div style="margin-bottom: 5px;">
                                                                 <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: bold;">Ancien Propriétaire:</span>
-                                                                <div style="font-weight: 600; color: var(--warning); text-decoration: line-through;">${(v.originalOwnerName || 'INCONNU').toUpperCase()}</div>
+                                                                <div style="font-weight: 600; color: var(--warning); text-decoration: line-through;">${
+                                                                    ancienClient 
+                                                                        ? (ancienClient.lastName + ' ' + ancienClient.firstName).toUpperCase()
+                                                                        : (v.originalOwnerName || 'INCONNU').toUpperCase()
+                                                                }</div>
                                                                 <span class="status-badge danger" style="font-size: 0.6rem; padding: 1px 4px;">VENDU C.G</span>
                                                             </div>
                                                             <div>
                                                                 <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: bold;">Nouveau Propriétaire:</span>
-                                                                <div style="font-weight: 600; color: var(--success);">${(v.soldRegistrationOwner || 'NON SPÉCIFIÉ').toUpperCase()}</div>
+                                                                <div style="font-weight: 600; color: var(--success);">${(v.soldRegistrationOwner || (displayClient ? (displayClient.lastName + ' ' + displayClient.firstName) : 'NON SPÉCIFIÉ')).toUpperCase()}</div>
                                                                 ${order ? `<div style="font-size: 0.75rem; color: var(--primary);">CMD #${order.id}</div>` : ''}
                                                             </div>
                                                         ` : (displayClient ? `
