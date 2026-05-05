@@ -6766,6 +6766,13 @@ const app = {
                 { id: 'vehicles.delete', label: 'Supprimer' },
                 { id: 'vehicles.purchase_price', label: 'Voir Prix Achat' }
             ],
+            'Achats (Fournisseurs)': [
+                { id: 'purchases', label: 'Accès Vue' },
+                { id: 'purchases.create', label: 'Créer' },
+                { id: 'purchases.edit', label: 'Modifier' },
+                { id: 'purchases.delete', label: 'Supprimer' },
+                { id: 'purchases.manage_tasks', label: 'Gérer les tâches' }
+            ],
             'Clients': [
                 { id: 'clients', label: 'Accès Vue' },
                 { id: 'clients.create', label: 'Créer' },
@@ -10243,11 +10250,16 @@ const app = {
                 }
             }
 
+            const canCreate = this.canAccess('purchases.create');
+            const canEdit = this.canAccess('purchases.edit');
+            const canDelete = this.canAccess('purchases.delete');
+            const canManageTasks = this.canAccess('purchases.manage_tasks');
+
             if (query) {
                 const q = query.toLowerCase();
                 purchases = purchases.filter(p =>
                     (p.supplierName && p.supplierName.toLowerCase().includes(q)) ||
-                    (p.id && p.id.toLowerCase().includes(q))
+                    (p.id && String(p.id).toLowerCase().includes(q))
                 );
             }
 
@@ -10261,9 +10273,11 @@ const app = {
                             <button class="btn-secondary" onclick="app.showPurchaseOrderPrintFiltersModal()" style="background: rgba(79, 70, 229, 0.1); color: #4f46e5; border-color: rgba(79, 70, 229, 0.2);" title="Imprimer l'état des achats avec filtres">
                                 <i class="fas fa-print"></i> IMPRIMER
                             </button>
+                            ${canCreate ? `
                             <button class="btn-primary" onclick="app.showPurchaseOrderModal()">
                                 <i class="fas fa-plus"></i> Nouveau Achat
                             </button>
+                            ` : ''}
                         </div>
                     </div>
 
@@ -10365,8 +10379,8 @@ const app = {
                                             <div class="actions-cell">
                                                 <button class="btn-icon" onclick="app.showPurchaseOrderDetails('${p.id}')" title="Détails" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);"><i class="fas fa-eye"></i></button>
                                                 <button class="btn-icon" onclick="app.exportSinglePurchaseOrderToPDF('${p.id}')" title="Imprimer" style="background: rgba(var(--success-rgb), 0.1); color: var(--success);"><i class="fas fa-print"></i></button>
-                                                <button class="btn-icon" onclick="app.showPurchaseOrderModal('${p.id}')" title="Modifier"><i class="fas fa-edit"></i></button>
-                                                <button class="btn-icon variant-danger" onclick="app.deletePurchaseOrder('${p.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                                ${canEdit ? `<button class="btn-icon" onclick="app.showPurchaseOrderModal('${p.id}')" title="Modifier"><i class="fas fa-edit"></i></button>` : ''}
+                                                ${canDelete ? `<button class="btn-icon variant-danger" onclick="app.deletePurchaseOrder('${p.id}')" title="Supprimer"><i class="fas fa-trash"></i></button>` : ''}
                                             </div>
                                         </td>
                                     </tr>
