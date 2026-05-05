@@ -1656,16 +1656,22 @@ const app = {
             }
 
             if (searchText) {
-                filtered = filtered.filter(v => 
-                    (v.brand || '').toLowerCase().includes(searchText) ||
-                    (v.model || '').toLowerCase().includes(searchText) ||
-                    (v.chassisNumber || '').toLowerCase().includes(searchText) ||
-                    (String(v.id)).toLowerCase().includes(searchText)
-                );
+                filtered = filtered.filter(v => {
+                    const vClient = v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null;
+                    const vClientName = vClient ? (vClient.lastName + ' ' + vClient.firstName).toLowerCase() : '';
+                    return (v.brand || '').toLowerCase().includes(searchText) ||
+                        (v.model || '').toLowerCase().includes(searchText) ||
+                        (v.chassisNumber || '').toLowerCase().includes(searchText) ||
+                        (String(v.id)).toLowerCase().includes(searchText) ||
+                        vClientName.includes(searchText)
+                    ;
+                });
             }
 
-            // Client check: Free or assigned to this client
-            filtered = filtered.filter(v => !v.clientId || v.clientId === selectedClientId);
+            // Client check: Free or assigned to this client (Relaxed if search text is used)
+            if (!searchText) {
+                filtered = filtered.filter(v => !v.clientId || v.clientId === selectedClientId);
+            }
 
             editVehicleSelect.innerHTML = '<option value="">[SANS VÉHICULE EN STOCK]</option>';
             filtered.forEach(v => {
@@ -1677,7 +1683,11 @@ const app = {
                 const color = v.color ? `${v.color}` : 'N/A';
                 const km = v.mileage ? `${v.mileage.toLocaleString()} km` : '0 km';
                 const cond = v.category || v.condition || 'N/A';
-                option.textContent = `[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) | ${vin} | ${color} | ${km} | ${cond} - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}`;
+                
+                const vClient = v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null;
+                const clientSuffix = vClient ? ` | RÉSERVÉ: ${vClient.lastName.toUpperCase()}` : '';
+
+                option.textContent = `[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) | ${vin} | ${color} | ${km} | ${cond} ${clientSuffix} - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}`;
                 editVehicleSelect.appendChild(option);
             });
         };
