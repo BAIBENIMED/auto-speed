@@ -10315,7 +10315,7 @@ const app = {
                                     const client = v.orderId ? (StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId)?.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId).clientId) : null) : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
                                     const clientName = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || client.name : 'STOCK';
                                     return `<div style="margin-bottom: 2px; cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails du véhicule">
-                                    • <strong>${clientName}</strong> : ${v.brand} ${v.model || ''} ${v.motorization ? `[${v.motorization}]` : ''} 
+                                    • <strong>${clientName}</strong> : ${v.brand} ${v.model || ''} ${v.trim ? `[${v.trim}]` : ''} 
                                     ${(() => {
                                         const amend = this.getAmendmentStatus(v.id);
                                         return amend ? `<span class="badge-pill" style="font-size: 0.6rem; background: ${amend.color}22; color: ${amend.color}; padding: 1px 4px; border: 1px solid ${amend.color}33;" title="${amend.label}">AMEND.</span>` : '';
@@ -10539,7 +10539,7 @@ const app = {
                                                 <th>#</th>
                                                 <th>Marque / Modèle</th>
                                                 <th>Identification</th>
-                                                <th>Motorisation</th>
+                                                <th>Finition</th>
                                                 <th>Client Affecté</th>
                                                 <th>Amendement</th>
                                                 <th>Statut Livraison Client</th>
@@ -10626,7 +10626,7 @@ const app = {
                                                         <div style="font-size: 0.85rem;"><strong>ID:</strong> #${v.id}</div>
                                                     </td>
                                                     <td>
-                                                        <div style="font-size: 0.85rem;">${v.motorization || '-'}</div>
+                                                        <div style="font-size: 0.85rem;">${v.trim || '-'}</div>
                                                     </td>
                                                     <td>
                                                         ${displayClient ? `
@@ -10762,7 +10762,7 @@ const app = {
                                     <th>Commande</th>
                                     <th>Client</th>
                                     <th>Véhicule (Marque/Modèle)</th>
-                                    <th>Motorisation</th>
+                                    <th>Finition</th>
                                     <th>VIN Châssis</th>
                                     <th>Couleur/Cat.</th>
                                     <th>Kilo.</th>
@@ -10781,10 +10781,12 @@ const app = {
                                         <td>${o.clientName}</td>
                                         <td>
                                             <div style="font-weight: 600; font-size: 0.9rem;">${o.requestedBrand || ''} ${o.requestedModel || ''}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-dim);">${o.requestedTrim || ''}</div>
                                             <input type="hidden" class="brand-input" value="${o.requestedBrand || ''}">
                                             <input type="hidden" class="model-input" value="${o.requestedModel || ''}">
+                                            <input type="hidden" class="trim-input" value="${o.requestedTrim || ''}">
                                         </td>
-                                        <td><input type="text" class="glass-input motorization-input" placeholder="Motorisation" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td><input type="text" class="glass-input trim-input" value="${o.requestedTrim || ''}" placeholder="Finition" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
@@ -10829,7 +10831,7 @@ const app = {
                                                 ${(brandModels[v.brand] || []).map(m => `<option value="${m}" ${v.model === m ? 'selected' : ''}>${m}</option>`).join('')}
                                             </select>
                                         </td>
-                                        <td><input type="text" class="glass-input motorization-input" value="${v.motorization || ''}" placeholder="Motorisation" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+                                        <td><input type="text" class="glass-input trim-input" value="${v.trim || ''}" placeholder="Finition" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td><input type="text" class="glass-input vin-input" value="${v.chassisNumber || ''}" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
                                             <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
@@ -11011,7 +11013,7 @@ const app = {
                             orderId: tr.getAttribute('data-order-id') || null,
                             brand: tr.querySelector('.brand-input')?.value || '',
                             model: tr.querySelector('.model-input')?.value || '',
-                            motorization: tr.querySelector('.motorization-input').value,
+                            trim: tr.querySelector('.trim-input').value,
                             chassisNumber: tr.querySelector('.vin-input').value,
                             color: tr.querySelector('.color-select').value,
                             category: tr.querySelector('.category-select').value,
@@ -11055,7 +11057,7 @@ const app = {
                         orderId: tr.getAttribute('data-order-id') || null,
                         brand: tr.querySelector('.brand-input')?.value || '',
                         model: tr.querySelector('.model-input')?.value || '',
-                        motorization: tr.querySelector('.motorization-input').value,
+                        trim: tr.querySelector('.trim-input').value,
                         chassisNumber: tr.querySelector('.vin-input').value,
                         color: tr.querySelector('.color-select').value,
                         category: tr.querySelector('.category-select').value,
@@ -11130,7 +11132,7 @@ const app = {
                     <option value="">Modèle</option>
                 </select>
             </td>
-            <td><input type="text" class="glass-input motorization-input" placeholder="Motorisation" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
+            <td><input type="text" class="glass-input trim-input" placeholder="Finition" style="width: 100px; padding: 4px; font-size: 0.8rem;"></td>
             <td><input type="text" class="glass-input vin-input" placeholder="N° Châssis" style="width: 140px; padding: 4px; font-size: 0.8rem;"></td>
             <td>
                 <select class="glass-select color-select" style="padding: 2px; font-size: 0.8rem; margin-bottom: 2px; width: 100px;">
