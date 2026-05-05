@@ -10633,6 +10633,17 @@ const app = {
                                                     <td>
                                                         <div style="font-weight: 600;">${v.brand} ${v.model || ''}</div>
                                                         <div style="font-size: 0.8rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
+                                                        ${(() => {
+                                                            const currentYear = new Date().getFullYear();
+                                                            const vYear = parseInt(v.year);
+                                                            if (!vYear || vYear >= currentYear) {
+                                                                return '<div style="font-size: 0.75rem; font-weight: 800; color: #10b981; margin-top: 2px;">VEHICULE NEUF</div>';
+                                                            } else if (vYear >= currentYear - 3) {
+                                                                return '<div style="font-size: 0.75rem; font-weight: 800; color: #e67e22; margin-top: 2px;">MOINS DE TROIS ANS</div>';
+                                                            } else {
+                                                                return '<div style="font-size: 0.75rem; font-weight: 800; color: var(--text-dim); margin-top: 2px;">OCCASION</div>';
+                                                            }
+                                                        })()}
                                                     </td>
                                                     <td>
                                                         <div style="font-size: 0.85rem;"><strong>VIN:</strong> <code style="font-family: monospace;">${v.chassisNumber || 'N/A'}</code></div>
