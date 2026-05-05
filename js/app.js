@@ -6367,6 +6367,23 @@ const app = {
         }
     },
 
+    isAdmin() {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        if (!currentUser) return false;
+
+        // Special case for hardcoded admin or if role is already 'admin'
+        if (currentUser.role === 'admin' || currentUser.role === 'ADMIN') return true;
+
+        const roles = StorageService.get(STORAGE_KEYS.ROLES) || [];
+        const userRole = roles.find(r => r.id === currentUser.role);
+
+        if (!userRole) return false;
+
+        // Check if role name matches common admin variants
+        const adminNames = ['ADMIN', 'Admin', 'Super Admin', 'Administrateur', 'Gérant'];
+        return adminNames.includes(userRole.name);
+    },
+
     canAccess(view) {
         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
         if (!currentUser) return false;
@@ -14261,8 +14278,7 @@ const app = {
     },
 
     async renderVehiclePrices() {
-        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-        const isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'Super Admin');
+        const isAdmin = this.isAdmin();
 
         this.viewContainer.innerHTML = `
             <div class="view-header">
@@ -14370,8 +14386,7 @@ const app = {
     },
 
     renderVehiclePricesTable(data) {
-        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
-        const isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'Super Admin');
+        const isAdmin = this.isAdmin();
 
         const thead = document.querySelector('.data-table.bordered thead');
         const tbody = document.getElementById('prices-table-body');
