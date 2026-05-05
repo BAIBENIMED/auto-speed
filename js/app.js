@@ -6335,7 +6335,7 @@ const app = {
                                     <div class="form-group">
                                         <label>Rôle</label>
                                         <select id="user-role" class="glass-select">
-                                            ${roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
+                                            ${roles.map(r => `<option value="${r.id}" ${r.name.toUpperCase() === 'COMMERCIAL' ? 'selected' : ''}>${r.name}</option>`).join('')}
                                         </select>
                                     </div>
                                 </div>
