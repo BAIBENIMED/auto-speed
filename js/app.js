@@ -786,7 +786,13 @@ const app = {
                 const color = v.color ? `${v.color}` : 'N/A';
                 const km = v.mileage ? `${v.mileage.toLocaleString()} km` : '0 km';
                 const category = v.category || v.condition || 'N/A';
-                option.textContent = `[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) | ${vin} | ${color} | ${km} | ${category} - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}`;
+                
+                let text = `[#${v.id}] ${v.brand} ${v.model || ''} (${v.year}) | ${vin} | ${color} | ${km} | ${category} - ${this.formatCurrency(v.sellingPrice || v.price, v.sellingCurrency)}`;
+                if (v.soldRegistration) {
+                    text += ` (VENDU CG: ${v.soldRegistrationOwner || 'N/A'})`;
+                }
+                
+                option.textContent = text;
                 vehicleSelect.appendChild(option);
             });
         };
