@@ -306,11 +306,26 @@ app.get('/api/migrate-po', async (req, res) => {
             await sequelize.query(`ALTER TABLE vehicles ADD COLUMN purchase_order_id VARCHAR(50) NULL`);
             logs.push('✅ Added purchase_order_id to vehicles table');
         } catch (err) {
-            if (err.message.includes('Duplicate column') || err.original?.code === 'ER_DUP_FIELDNAME') {
+            if (err.message.includes('Duplicate column')) {
                 logs.push('ℹ️ purchase_order_id already exists in vehicles table');
             } else {
                 logs.push(`❌ Error adding purchase_order_id to vehicles: ${err.message}`);
             }
+        }
+
+        // Add original owner columns
+        try {
+            await sequelize.query(`ALTER TABLE vehicles ADD COLUMN original_client_id VARCHAR(50) NULL AFTER bl_link`);
+            logs.push('✅ Added original_client_id to vehicles table');
+        } catch (err) {
+            if (!err.message.includes('Duplicate column')) logs.push(`❌ Error original_client_id: ${err.message}`);
+        }
+        
+        try {
+            await sequelize.query(`ALTER TABLE vehicles ADD COLUMN original_owner_name VARCHAR(200) NULL AFTER original_client_id`);
+            logs.push('✅ Added original_owner_name to vehicles table');
+        } catch (err) {
+            if (!err.message.includes('Duplicate column')) logs.push(`❌ Error original_owner_name: ${err.message}`);
         }
 
         logs.push('✅ Migration completed successfully!');
