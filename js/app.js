@@ -3536,7 +3536,7 @@ const app = {
                                     </td>
                                     <td>
                                         <div style="font-weight: 500; color: ${isAmendmentPending ? 'var(--warning)' : 'inherit'};">
-                                            ${client ? (client.lastName + ' ' + client.firstName) : 'Client Inconnu'}
+                                            ${client ? (client.lastName + ' ' + client.firstName).toUpperCase() : 'CLIENT INCONNU'}
                                         </div>
                                         ${client && client.passportDriveLink ? `<div style="font-size: 0.7rem;"><i class="fab fa-google-drive"></i> <a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary);">Passeport</a></div>` : ''}
                                         ${client && client.company ? `<div style="font-size: 0.75rem; color: var(--text-dim);">${client.company}</div>` : ''}
@@ -4683,7 +4683,7 @@ const app = {
                                             const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(clientId));
                                             if (client) {
                                                 clientName = `
-                                                    <div style="font-weight: 500;">${client.lastName} ${client.firstName}</div>
+                                                    <div style="font-weight: 500;">${(client.lastName + ' ' + client.firstName).toUpperCase()}</div>
                                                     ${client.passportDriveLink ? `<div style="font-size: 0.7rem;"><i class="fab fa-google-drive"></i> <a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary);">Passeport</a></div>` : ''}
                                                 `;
                                                 if (!rawShowroom && client.showroom) rawShowroom = client.showroom;
@@ -8394,7 +8394,7 @@ const app = {
                 const orderData = [
                     order.id,
                     new Date(order.date).toLocaleDateString(),
-                    order.clientName,
+                    (order.clientName || '').toUpperCase(),
                     order.vehicleName,
                     displayStatus,
                     this.formatCurrency(netPrice).replace(/\u202F/g, ' ').replace(/\u00A0/g, ' '),
@@ -10611,7 +10611,7 @@ const app = {
                                                     </td>
                                                     <td>
                                                         ${displayClient ? `
-                                                            <div style="font-weight: 600; color: ${isAmendmentRevertedDisplay ? 'var(--warning)' : 'inherit'};">${displayClient.lastName} ${displayClient.firstName}</div>
+                                                            <div style="font-weight: 600; color: ${isAmendmentRevertedDisplay ? 'var(--warning)' : 'inherit'};">${(displayClient.lastName + ' ' + displayClient.firstName).toUpperCase()}</div>
                                                             <div style="font-size: 0.8rem; font-weight: bold; color: ${v.soldRegistration ? 'var(--danger)' : 'var(--info)'}; padding: 2px 0;">
                                                                 <i class="fas fa-store"></i> ${showroomText}
                                                             </div>
