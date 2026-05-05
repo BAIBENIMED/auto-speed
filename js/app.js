@@ -9679,7 +9679,7 @@ const app = {
                                             </div>
                                             <div class="form-group">
                                                 <label>Date d'opération</label>
-                                                <input type="date" name="date" value="${new Date().toISOString().split('T')[0]}" required class="glass-input">
+                                                <input type="date" name="date" value="${preSelectedOrder && preSelectedOrder.date ? new Date(preSelectedOrder.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}" required class="glass-input">
                                             </div>
                                             <div class="form-group">
                                                 <label>Devise</label>
