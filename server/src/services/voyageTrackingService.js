@@ -2,6 +2,7 @@ const { Shipment, Notification, Voyage, Order } = require('../models');
 const containerTrackingService = require('./containerTrackingService');
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 const { Op } = require('sequelize');
+const { formatDate } = require('../utils/dateFormatter');
 
 /**
  * Service to handle high-level Voyage tracking logic,
@@ -152,7 +153,7 @@ class VoyageTrackingService {
                         await Notification.create({
                             type: 'WARNING',
                             title: 'Retard ETA',
-                            message: `Le voyage ${voyageName} est retardé. Nouvelle arrivée: ${newEta.toLocaleDateString()} (au lieu de ${oldEta.toLocaleDateString()})`,
+                            message: `Le voyage ${voyageName} est retardé. Nouvelle arrivée: ${formatDate(newEta)} (au lieu de ${formatDate(oldEta)})`,
                             entityType: 'Voyage',
                             entityId: voyageEntity ? voyageEntity.id : null
                         });

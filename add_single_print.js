@@ -93,7 +93,7 @@ const exportSingleFunction = `doc.save(\`etat_achats_\${new Date().toISOString()
         doc.setFontSize(10);
         doc.setTextColor(50);
         doc.text(\`Fournisseur: \${po.supplierName || 'N/A'}\`, 14, 38);
-        doc.text(\`Date: \${po.purchaseDate ? new Date(po.purchaseDate).toLocaleDateString() : 'N/A'}\`, 80, 38);
+        doc.text(`Date: ${po.purchaseDate ? this.formatDate(po.purchaseDate) : 'N/A'}`, 80, 38);
 
         doc.setFontSize(9);
         doc.setTextColor(100);

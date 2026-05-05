@@ -6,6 +6,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = form.querySelector('button');
     const btnText = btn.querySelector('.btn-text');
     const loader = btn.querySelector('.loader');
+    
+    function formatDate(dateStr) {
+        if (!dateStr) return '--';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr;
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day} ${month} ${year}`;
+    }
 
     // Auto-track if code is in URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -56,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateUI(data) {
         // Basic Info
         document.getElementById('display-order-id').textContent = `COMMANDE #${data.orderId}`;
-        document.getElementById('display-order-date').textContent = `Validée le ${new Date(data.orderDate).toLocaleDateString()}`;
+        document.getElementById('display-order-date').textContent = `Validée le ${formatDate(data.orderDate)}`;
         document.getElementById('display-status-badge').textContent = data.orderStatus;
         
         // Client Info
@@ -104,14 +114,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Shipment Info
-        document.getElementById('display-shipment-date').textContent = data.shipmentDate ? new Date(data.shipmentDate).toLocaleDateString() : 'En attente';
+        document.getElementById('display-shipment-date').textContent = data.shipmentDate ? formatDate(data.shipmentDate) : 'En attente';
         
         const shipment = data.shipment;
         if (shipment) {
             document.getElementById('display-loading-port').textContent = shipment.loadingPort || 'N/A';
             document.getElementById('display-destination').textContent = shipment.destination || 'N/A';
-            document.getElementById('display-etd').textContent = shipment.etd ? new Date(shipment.etd).toLocaleDateString() : 'En attente';
-            document.getElementById('display-eta').textContent = shipment.eta ? new Date(shipment.eta).toLocaleDateString() : 'En attente';
+            document.getElementById('display-etd').textContent = shipment.etd ? formatDate(shipment.etd) : 'En attente';
+            document.getElementById('display-eta').textContent = shipment.eta ? formatDate(shipment.eta) : 'En attente';
             document.getElementById('display-forwarder').textContent = shipment.forwarder || 'N/A';
             document.getElementById('display-container-number').textContent = shipment.containerNumber || 'N/A';
             document.getElementById('display-bl-number').textContent = shipment.blNumber || 'N/A';

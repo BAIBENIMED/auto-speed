@@ -6,6 +6,7 @@ const containerTrackingService = require('../services/containerTrackingService')
 
 // Helper to sync status (Imported from statusSynchronizer to ensure unified logic)
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
+const { formatDate } = require('../utils/dateFormatter');
 
 // Get tracking info for a Voyage (finds first valid BL or container in voyage)
 router.get('/voyage/:voyageName', async (req, res) => {
@@ -88,7 +89,7 @@ router.post('/:id/refresh', async (req, res) => {
                 await Notification.create({
                     type: 'WARNING',
                     title: 'Retard d\'arrivée',
-                    message: `L'expédition ${shipment.containerNumber || shipment.id} est retardée. Nouvelle arrivée: ${newDate.toLocaleDateString()} (au lieu de ${oldDate.toLocaleDateString()}).`,
+                    message: `L'expédition ${shipment.containerNumber || shipment.id} est retardée. Nouvelle arrivée: ${formatDate(newDate)} (au lieu de ${formatDate(oldDate)}).`,
                     entityType: 'Shipment',
                     entityId: shipment.id
                 });

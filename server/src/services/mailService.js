@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
+const { formatDate } = require('../utils/dateFormatter');
 
 const mailService = {
     /**
@@ -146,8 +147,8 @@ const mailService = {
                                 
                                 <div style="background: #f0f9ff; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #bae6fd;">
                                     <ul style="list-style: none; padding: 0; margin: 0;">
-                                        <li style="margin-bottom: 12px;"><strong>📅 Date de départ (ETD) :</strong> ${new Date(shipment.etd).toLocaleDateString()}</li>
-                                        <li style="margin-bottom: 12px;"><strong>🚢 Date d'arrivée estimée (ETA) :</strong> ${new Date(shipment.eta).toLocaleDateString()}</li>
+                                        <li style="margin-bottom: 12px;"><strong>📅 Date de départ (ETD) :</strong> ${formatDate(shipment.etd)}</li>
+                                        <li style="margin-bottom: 12px;"><strong>🚢 Date d'arrivée estimée (ETA) :</strong> ${formatDate(shipment.eta)}</li>
                                         <li style="margin-bottom: 0;"><strong>📍 Port de chargement :</strong> ${shipment.loadingPort || 'N/A'}</li>
                                     </ul>
                                 </div>
