@@ -1006,6 +1006,7 @@ const app = {
                         requestedModel: formData.get('requestedModel') || '',
                         requestedTrim: formData.get('requestedTrim') || '',
                         requestedColor: formData.get('requestedColor') || '',
+                        requestedCategory: formData.get('requestedCategory') || '',
                         totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
                         discount: 0,
                         date: (formData.get('date') && formData.get('date').trim() !== '') ? new Date(formData.get('date')).toISOString() : orders[orderIndex].date,
@@ -1048,6 +1049,7 @@ const app = {
                     requestedModel: formData.get('requestedModel') || '',
                     requestedTrim: formData.get('requestedTrim') || '',
                     requestedColor: formData.get('requestedColor') || '',
+                    requestedCategory: formData.get('requestedCategory') || '',
                     date: new Date().toISOString(),
                     totalAmount: vehicle ? (vehicle.sellingPrice || vehicle.price) : manualPrice,
                     discount: 0,
@@ -1274,6 +1276,7 @@ const app = {
                                     <p><strong>Modèle Souhaité:</strong> ${order.requestedModel || 'N/A'}</p>
                                     <p><strong>Finition Souhaitée:</strong> ${order.requestedTrim || 'N/A'}</p>
                                     <p><strong>Couleur Souhaitée:</strong> ${order.requestedColor || 'N/A'}</p>
+                                    <p><strong>Catégorie:</strong> ${order.requestedCategory || 'N/A'}</p>
                                 `}
                                 ${vehicle && vehicle.options ? `<p><strong>Options:</strong> <span style="font-size: 0.85rem; color: var(--text-dim);">${vehicle.options}</span></p>` : ''}
                                 
@@ -1582,6 +1585,14 @@ const app = {
                                         <select name="requestedColor" class="glass-select">
                                             <option value="">Peu importe</option>
                                             ${colors.map(c => `<option value="${c}" ${order.requestedColor === c ? 'selected' : ''}>${c}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.8rem;">Catégorie Souhaitée</label>
+                                        <select name="requestedCategory" class="glass-select">
+                                            <option value="">Toutes</option>
+                                            <option value="Neuf" ${order.requestedCategory === 'Neuf' ? 'selected' : ''}>Neuf</option>
+                                            <option value="Recent" ${order.requestedCategory === 'Recent' ? 'selected' : ''}>Moins de 3 ans</option>
                                         </select>
                                     </div>
                                 </div>
@@ -14126,23 +14137,27 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN", "Type",
+            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Adresse", "Tél", "Email", "CP", "Passport", "NIN", "Type",
             "Marque", "Modèle", "Couleur", "VIN", "Remarque"
         ].map(c => c.toUpperCase());
 
         const rows = [];
         let rowNum = 1;
         const poVehicles = po.vehicles || [];
+        let firstClient = null;
         poVehicles.forEach(v => {
             let client = null;
             if (v.clientId) {
-                client = clients.find(c => c.id === v.clientId);
+                client = clients.find(cl => cl.id === v.clientId);
             } else if (v.orderId) {
                 const order = orders.find(o => o.id === v.orderId);
                 if (order && order.clientId) {
-                    client = clients.find(c => c.id === order.clientId);
+                    client = clients.find(cl => cl.id === order.clientId);
                 }
             }
+            
+            // Track the first client found to display in the header
+            if (!firstClient && client) firstClient = client;
 
             // For Vendu CG: find the ORIGINAL (ancien) client to display on the row
             let ancienClient = null;
@@ -14200,6 +14215,10 @@ const app = {
                 displayShowroom,
                 v.orderId || "-",
                 rowClient ? `${rowClient.firstName} ${rowClient.lastName}` : "EN STOCK",
+                rowClient ? (rowClient.address || "-") : "-",
+                rowClient ? (rowClient.phone || "-") : "-",
+                rowClient ? (rowClient.email || "-") : "-",
+                rowClient ? (rowClient.postalCode || "-") : "-",
                 rowClient ? (rowClient.passportNumber || "-") : "-",
                 rowClient ? (rowClient.nin || "-") : "-",
                 typeDisplay,
@@ -14213,20 +14232,20 @@ const app = {
             rows.push(row);
         });
 
-        // Logo Simulation (Red & Black)
+        // Logo Rebranding
         doc.setFontSize(28);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("times", "bold");
         doc.setTextColor(0, 0, 0); // Black
         doc.text("TIBOU", 14, 20);
         
-        const tibouWidth = doc.getTextWidth("TIBOU ");
+        const tibouWidth = doc.getTextWidth("TIBOU");
         doc.setTextColor(213, 0, 0); // Red
         doc.text("AUTO", 14 + tibouWidth, 20);
 
-        doc.setFontSize(8);
+        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(255, 0, 0); // Red
-        doc.text("CHINA CARS", 14, 24);
+        doc.setTextColor(213, 0, 0); // Red
+        doc.text("SHOWROOMS", 14, 25);
 
         doc.setFontSize(14);
         doc.setFont("helvetica", "normal");
@@ -14238,6 +14257,19 @@ const app = {
         doc.text(`Fournisseur: ${po.supplierName || 'N/A'}`, 14, 38);
         doc.text(`Date: ${po.purchaseDate ? this.formatDate(po.purchaseDate) : 'N/A'}`, 80, 38);
 
+        // Client Info Block (Top Right)
+        if (firstClient) {
+            doc.setFont("helvetica", "bold");
+            doc.text("INFORMATIONS CLIENT:", 180, 32);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.text(`${firstClient.lastName} ${firstClient.firstName}`, 180, 38);
+            doc.text(`Tél: ${firstClient.phone || 'N/A'}`, 180, 43);
+            doc.text(`Email: ${firstClient.email || 'N/A'}`, 180, 48);
+            doc.text(`Adresse: ${firstClient.address || 'N/A'}`, 180, 53);
+            if (firstClient.postalCode) doc.text(`Code Postal: ${firstClient.postalCode}`, 180, 58);
+        }
+
         doc.setFontSize(9);
         doc.setTextColor(100);
         doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 44);
@@ -14248,15 +14280,25 @@ const app = {
             startY: 50,
             theme: 'grid',
             headStyles: { fillColor: [213, 0, 0] },
-            styles: { fontSize: 7 },
+            styles: { fontSize: 5.5, cellPadding: 1.5 },
             columnStyles: {
-                0: { cellWidth: 8 }, // N°
-                1: { cellWidth: 18 }, // ID Achat
-                2: { cellWidth: 15 }, // Showroom
-                3: { cellWidth: 18 }, // N° Vente
-                4: { cellWidth: 30 }, // Nom Client
-                7: { cellWidth: 18 }, // Âge/Type
-                12: { cellWidth: 40 } // Remarque
+                0: { cellWidth: 6 }, // N°
+                1: { cellWidth: 12 }, // ID Achat
+                2: { cellWidth: 10 }, // Showroom
+                3: { cellWidth: 12 }, // N° Vente
+                4: { cellWidth: 18 }, // Nom Client
+                5: { cellWidth: 20 }, // Adresse
+                6: { cellWidth: 15 }, // Tél
+                7: { cellWidth: 20 }, // Email
+                8: { cellWidth: 10 }, // CP
+                9: { cellWidth: 15 }, // Passport
+                10: { cellWidth: 15 }, // NIN
+                11: { cellWidth: 12 }, // Type
+                12: { cellWidth: 15 }, // Marque
+                13: { cellWidth: 15 }, // Modèle
+                14: { cellWidth: 12 }, // Couleur
+                15: { cellWidth: 22 }, // VIN
+                16: { cellWidth: 30 } // Remarque
             },
             didParseCell: function(data) {
                 if (data.section === 'body') {
@@ -14264,19 +14306,19 @@ const app = {
                     if (cellText.includes('3 ANS')) {
                         data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
-                        if (data.column.index === 7) {
+                        if (data.column.index === 11) {
                             data.cell.styles.cellPadding = { left: 7 };
                         }
                     }
                     // Highlight entire row in light red for Vendu CG vehicles
                     const rowData = rows[data.row.index];
-                    if (rowData && rowData[12] && String(rowData[12]).includes('VENDU CG')) {
+                    if (rowData && rowData[16] && String(rowData[16]).includes('VENDU CG')) {
                         data.cell.styles.fillColor = [255, 245, 245];
                     }
                 }
             },
             didDrawCell: function(data) {
-                if (data.section === 'body' && data.column.index === 7) {
+                if (data.section === 'body' && data.column.index === 11) {
                     const cellText = String(data.cell.raw || "").toUpperCase();
                     if (cellText.includes('3 ANS')) {
                         const x = data.cell.x + 2;
