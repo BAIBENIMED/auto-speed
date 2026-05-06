@@ -5212,32 +5212,43 @@ const app = {
                 status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
             };
 
-            // ALWAYS re-capture the original owner from DB state (before any CG logic changes things)
-            // This runs every time soldRegistration is checked, using the UNMODIFIED existingVehicle data
+            // ALWAYS re-capture the original owner from a full order scan
+            // This ensures corrupted originalClientId data is always overwritten correctly
             if (newVehicle.soldRegistration && existingVehicle) {
-                // Only capture if not already locked (i.e., originalClientId already set from a previous CORRECT save)
-                const alreadyHasCorrectOwner = existingVehicle.originalClientId &&
-                    String(existingVehicle.originalClientId) !== String(existingVehicle.clientId);
+                const soldRegistrationOwnerId = formData.get('soldRegistrationOwnerId');
+                const newOwnerId = soldRegistrationOwnerId || existingVehicle.clientId || '';
+                const allOrdersForScan = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
-                if (!alreadyHasCorrectOwner) {
-                    let oldClient = null;
-                    // Use the vehicle's ORIGINAL orderId (from DB, BEFORE CG logic changes it)
-                    if (existingVehicle.orderId) {
-                        const originalOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === existingVehicle.orderId);
-                        if (originalOrder) {
-                            oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrder.clientId));
-                        }
+                // Find the original order: points to this vehicle, NOT the CG owner, NOT the current orderId
+                const trueOriginalOrder = allOrdersForScan.find(o =>
+                    String(o.vehicleId) === String(existingVehicle.id) &&
+                    String(o.id) !== String(existingVehicle.orderId) &&
+                    String(o.clientId) !== String(newOwnerId)
+                );
+
+                let oldClient = null;
+                if (trueOriginalOrder) {
+                    oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(trueOriginalOrder.clientId));
+                }
+
+                // Fallback: use existingVehicle.orderId if it belongs to a different person
+                if (!oldClient && existingVehicle.orderId) {
+                    const existingOrder = allOrdersForScan.find(o => o.id === existingVehicle.orderId);
+                    if (existingOrder && String(existingOrder.clientId) !== String(newOwnerId)) {
+                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(existingOrder.clientId));
                     }
-                    // Fallback: direct clientId in DB
-                    if (!oldClient && existingVehicle.clientId) {
-                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(existingVehicle.clientId));
-                    }
-                    if (oldClient) {
-                        newVehicle.originalClientId = oldClient.id;
-                        newVehicle.originalOwnerName = `${oldClient.lastName} ${oldClient.firstName}`.toUpperCase();
-                    } else {
-                        newVehicle.originalOwnerName = 'STOCK';
-                    }
+                }
+
+                // Fallback: direct clientId
+                if (!oldClient && existingVehicle.clientId && String(existingVehicle.clientId) !== String(newOwnerId)) {
+                    oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(existingVehicle.clientId));
+                }
+
+                if (oldClient) {
+                    newVehicle.originalClientId = oldClient.id;
+                    newVehicle.originalOwnerName = `${oldClient.lastName} ${oldClient.firstName}`.toUpperCase();
+                } else {
+                    newVehicle.originalOwnerName = 'STOCK';
                 }
             }
 
@@ -10790,36 +10801,34 @@ const app = {
                 ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId)
                 : (v.clientId ? StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === v.clientId) : null);
 
-            // For Vendu CG: resolve ORIGINAL owner separately (before the CG transfer)
+            // For Vendu CG: resolve ORIGINAL owner (before the CG transfer)
             let ancienClient = null;
             if (v.soldRegistration) {
-                // Step 1: try stored originalClientId
-                if (v.originalClientId) {
-                    const candidate = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(v.originalClientId));
-                    // Only use if it's a DIFFERENT person from the new CG owner
-                    if (candidate && String(candidate.id) !== String(v.clientId)) {
-                        ancienClient = candidate;
-                    }
+                const allOrders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                const newOwnerId = String(v.clientId || '');
+                const currentOrderId = String(v.orderId || '');
+
+                // Step 1: Find an order pointing to this vehicle that is NOT the current orderId
+                // (current orderId might be the CG order → points to new owner)
+                const originalOrder = allOrders.find(o =>
+                    String(o.vehicleId) === String(v.id) &&
+                    String(o.id) !== currentOrderId &&
+                    String(o.clientId) !== newOwnerId
+                );
+                if (originalOrder) {
+                    ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrder.clientId));
                 }
-                // Step 2: if not found or same as new owner, try the vehicle's orderId → original order client
+
+                // Step 2: Try the current orderId (in case it IS the original order and orderId was not overwritten)
                 if (!ancienClient && v.orderId) {
-                    const originalOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === v.orderId);
-                    if (originalOrder && String(originalOrder.clientId) !== String(v.clientId)) {
-                        ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrder.clientId));
+                    const cgOrder = allOrders.find(o => o.id === v.orderId);
+                    if (cgOrder && String(cgOrder.clientId) !== newOwnerId) {
+                        ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(cgOrder.clientId));
                     }
                 }
-                // Step 3: scan ALL orders that still point to this vehicle but belong to a different client
-                // This recovers the original buyer when orderId was overwritten by the CG save
-                if (!ancienClient) {
-                    const allOrders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-                    const originalOrderByVehicle = allOrders.find(o =>
-                        String(o.vehicleId) === String(v.id) &&
-                        String(o.clientId) !== String(v.clientId)
-                    );
-                    if (originalOrderByVehicle) {
-                        ancienClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrderByVehicle.clientId));
-                    }
-                }
+
+                // Step 3: Fallback to stored originalOwnerName text
+                // (ancienClient stays null → display will show v.originalOwnerName or 'INCONNU')
             }
 
             let isAmendmentRevertedDisplay = false;
