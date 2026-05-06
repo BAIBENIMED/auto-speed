@@ -14257,18 +14257,6 @@ const app = {
         doc.text(`Date: ${po.purchaseDate ? this.formatDate(po.purchaseDate) : 'N/A'}`, 80, 38);
 
         // Client Info Block (Top Right)
-        if (firstClient) {
-            doc.setFont("helvetica", "bold");
-            doc.text("INFORMATIONS CLIENT:", 180, 32);
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-            doc.text(`${firstClient.lastName} ${firstClient.firstName}`, 180, 38);
-            doc.text(`Tél: ${firstClient.phone || 'N/A'}`, 180, 43);
-            doc.text(`Email: ${firstClient.email || 'N/A'}`, 180, 48);
-            doc.text(`Adresse: ${firstClient.address || 'N/A'}`, 180, 53);
-            if (firstClient.postalCode) doc.text(`Code Postal: ${firstClient.postalCode}`, 180, 58);
-        }
-
         doc.setFontSize(9);
         doc.setTextColor(100);
         doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 44);
@@ -14276,7 +14264,7 @@ const app = {
         doc.autoTable({
             head: [columns],
             body: rows,
-            startY: 65,
+            startY: 50,
             theme: 'grid',
             headStyles: { fillColor: [213, 0, 0] },
             styles: { fontSize: 5.5, cellPadding: 1.2 },
