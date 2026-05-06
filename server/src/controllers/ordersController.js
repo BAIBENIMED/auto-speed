@@ -157,6 +157,7 @@ const ordersController = {
 
             res.json({ success: true, data: order });
         } catch (error) {
+            console.error('Error updating order:', error);
             res.status(400).json({ success: false, message: 'Erreur lors de la mise à jour de la commande' });
         }
     },
