@@ -13940,7 +13940,7 @@ const app = {
         }
 
         const columns = [
-            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN", "Âge/Type",
+            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN", "Type",
             "Marque", "Modèle", "Couleur", "VIN", "Remarque"
         ].map(c => c.toUpperCase());
 
@@ -13996,13 +13996,9 @@ const app = {
 
                 const currentYear = new Date().getFullYear();
                 const vYear = parseInt(v.year) || 0;
-                let ageType = "NEUF";
-                if (vYear > 0) {
-                    if (currentYear - vYear <= 3) {
-                        ageType = "⚠ -3 ANS";
-                    } else {
-                        ageType = "OCCASION";
-                    }
+                let typeDisplay = v.category || "-";
+                if (vYear > 0 && (currentYear - vYear <= 3)) {
+                    if (!typeDisplay.includes('⚠')) typeDisplay = "⚠ " + typeDisplay;
                 }
 
                 let remark = v.remarks || "-";
@@ -14021,7 +14017,7 @@ const app = {
                     rowClient ? `${rowClient.firstName} ${rowClient.lastName}` : "EN STOCK",
                     rowClient ? (rowClient.passportNumber || "-") : "-",
                     rowClient ? (rowClient.nin || "-") : "-",
-                    ageType,
+                    typeDisplay,
                     v.brand || "-",
                     v.model || "-",
                     this.translateColorToEnglish(v.color),
@@ -14092,7 +14088,7 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN", "Âge/Type",
+            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN", "Type",
             "Marque", "Modèle", "Couleur", "VIN", "Remarque"
         ].map(c => c.toUpperCase());
 
@@ -14150,13 +14146,9 @@ const app = {
 
             const currentYear = new Date().getFullYear();
             const vYear = parseInt(v.year) || 0;
-            let ageType = "NEUF";
-            if (vYear > 0) {
-                if (currentYear - vYear <= 3) {
-                    ageType = "⚠ -3 ANS";
-                } else {
-                    ageType = "OCCASION";
-                }
+            let typeDisplay = v.category || "-";
+            if (vYear > 0 && (currentYear - vYear <= 3)) {
+                if (!typeDisplay.includes('⚠')) typeDisplay = "⚠ " + typeDisplay;
             }
 
             let remark = v.remarks || "-";
@@ -14175,7 +14167,7 @@ const app = {
                 rowClient ? `${rowClient.firstName} ${rowClient.lastName}` : "EN STOCK",
                 rowClient ? (rowClient.passportNumber || "-") : "-",
                 rowClient ? (rowClient.nin || "-") : "-",
-                ageType,
+                typeDisplay,
                 v.brand || "-",
                 v.model || "-",
                 this.translateColorToEnglish(v.color),
