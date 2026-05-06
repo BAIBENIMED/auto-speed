@@ -13940,9 +13940,8 @@ const app = {
         }
 
         const columns = [
-            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN",
-            "Marque", "Modèle", "Couleur", "VIN",
-            "Adresse", "C.P."
+            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN", "Âge/Type",
+            "Marque", "Modèle", "Couleur", "VIN", "Remarque"
         ].map(c => c.toUpperCase());
 
         const rows = [];
@@ -13960,7 +13959,58 @@ const app = {
                     }
                 }
 
-                const rawShowroom = client ? (client.showroom || "-") : "-";
+                // For Vendu CG: find the ORIGINAL (ancien) client to display on the row
+                let ancienClient = null;
+                let nouveauCGText = '-';
+                if (v.soldRegistration) {
+                    // Strategy 1: Use originalClientId if available
+                    if (v.originalClientId) {
+                        ancienClient = clients.find(c => String(c.id) === String(v.originalClientId));
+                    }
+
+                    // Strategy 2: Historical order scan (fallback)
+                    if (!ancienClient) {
+                        const newOwnerId = String(v.clientId || '');
+                        const currentOrderId = String(v.orderId || '');
+                        const origOrder = orders.find(o =>
+                            String(o.vehicleId) === String(v.id) &&
+                            String(o.id) !== currentOrderId &&
+                            String(o.clientId) !== newOwnerId
+                        );
+                        if (origOrder) {
+                            ancienClient = clients.find(c => String(c.id) === String(origOrder.clientId));
+                        }
+                    }
+
+                    // Strategy 3: Mock object from originalOwnerName if still nothing found
+                    if (!ancienClient && v.originalOwnerName && v.originalOwnerName !== 'STOCK') {
+                        ancienClient = { 
+                            firstName: v.originalOwnerName, 
+                            lastName: '', 
+                            isMock: true 
+                        };
+                    }
+
+                    nouveauCGText = v.soldRegistrationOwner || (client ? `${client.firstName} ${client.lastName}` : 'N/A');
+                }
+
+                const currentYear = new Date().getFullYear();
+                const vYear = parseInt(v.year) || 0;
+                let ageType = "NEUF";
+                if (vYear > 0) {
+                    if (currentYear - vYear <= 3) {
+                        ageType = "⚠ -3 ANS";
+                    } else {
+                        ageType = "OCCASION";
+                    }
+                }
+
+                let remark = v.remarks || "-";
+                if (v.soldRegistration) {
+                    remark = "VENDU CG À: " + nouveauCGText + (v.remarks ? " | " + v.remarks : "");
+                }
+
+                const rawShowroom = rowClient ? (rowClient.showroom || "-") : "-";
                 const displayShowroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
 
                 const row = [
@@ -13968,15 +14018,15 @@ const app = {
                     po.id,
                     displayShowroom,
                     v.orderId || "-",
-                    client ? `${client.firstName} ${client.lastName}` : "EN STOCK",
-                    client ? (client.passportNumber || "-") : "-",
-                    client ? (client.nin || "-") : "-",
+                    rowClient ? `${rowClient.firstName} ${rowClient.lastName}` : "EN STOCK",
+                    rowClient ? (rowClient.passportNumber || "-") : "-",
+                    rowClient ? (rowClient.nin || "-") : "-",
+                    ageType,
                     v.brand || "-",
                     v.model || "-",
                     this.translateColorToEnglish(v.color),
                     v.chassisNumber || "-",
-                    client ? (client.address || "-") : "-",
-                    client ? (client.postalCode || "-") : "-"
+                    remark
                 ].map(val => String(val || "-").toUpperCase());
 
                 rows.push(row);
@@ -13996,15 +14046,32 @@ const app = {
             body: rows,
             startY: 35,
             theme: 'grid',
-            headStyles: { fillColor: [79, 70, 229] }, // matching primary color
-            styles: { fontSize: 8 },
+            headStyles: { fillColor: [79, 70, 229] },
+            styles: { fontSize: 7 },
             rowPageBreak: 'avoid',
             columnStyles: {
-                0: { cellWidth: 8, halign: 'center' }, // N°
-                1: { cellWidth: 15 }, // ID Achat
-                2: { cellWidth: 20 }, // Showroom
-                3: { cellWidth: 15 }, // N° Vente
-                4: { cellWidth: 30 }  // Nom Client
+                0: { cellWidth: 8, halign: 'center' },
+                1: { cellWidth: 16 },
+                2: { cellWidth: 15 },
+                3: { cellWidth: 16 },
+                4: { cellWidth: 28 },
+                7: { cellWidth: 18 }, // Âge/Type
+                12: { cellWidth: 40 } // Remarque
+            },
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.column.index === 7) {
+                    if (data.cell.raw && data.cell.raw.includes('⚠')) {
+                        data.cell.styles.textColor = [255, 140, 0]; // Dark Orange
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+                // Highlight entire row in light red for Vendu CG vehicles
+                if (data.section === 'body') {
+                    const rowData = rows[data.row.index];
+                    if (rowData && rowData[12] && String(rowData[12]).includes('VENDU CG')) {
+                        data.cell.styles.fillColor = [255, 245, 245];
+                    }
+                }
             }
         });
 
@@ -14025,9 +14092,8 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN",
-            "Marque", "Modèle", "Couleur", "VIN",
-            "Adresse", "C.P."
+            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN", "Âge/Type",
+            "Marque", "Modèle", "Couleur", "VIN", "Remarque"
         ].map(c => c.toUpperCase());
 
         const rows = [];
@@ -14044,7 +14110,61 @@ const app = {
                 }
             }
 
-            const rawShowroom = client ? (client.showroom || "-") : "-";
+            // For Vendu CG: find the ORIGINAL (ancien) client to display on the row
+            let ancienClient = null;
+            let nouveauCGText = '-';
+            if (v.soldRegistration) {
+                // Strategy 1: Use originalClientId if available
+                if (v.originalClientId) {
+                    ancienClient = clients.find(c => String(c.id) === String(v.originalClientId));
+                }
+
+                // Strategy 2: Historical order scan (fallback)
+                if (!ancienClient) {
+                    const newOwnerId = String(v.clientId || '');
+                    const currentOrderId = String(v.orderId || '');
+                    const origOrder = orders.find(o =>
+                        String(o.vehicleId) === String(v.id) &&
+                        String(o.id) !== currentOrderId &&
+                        String(o.clientId) !== newOwnerId
+                    );
+                    if (origOrder) {
+                        ancienClient = clients.find(c => String(c.id) === String(origOrder.clientId));
+                    }
+                }
+
+                // Strategy 3: Mock object from originalOwnerName if still nothing found
+                if (!ancienClient && v.originalOwnerName && v.originalOwnerName !== 'STOCK') {
+                    ancienClient = { 
+                        firstName: v.originalOwnerName, 
+                        lastName: '', 
+                        isMock: true 
+                    };
+                }
+
+                nouveauCGText = v.soldRegistrationOwner || (client ? `${client.firstName} ${client.lastName}` : 'N/A');
+            }
+
+            // Use original (ancien) client data for the row when Vendu CG
+            const rowClient = v.soldRegistration ? (ancienClient || client) : client;
+
+            const currentYear = new Date().getFullYear();
+            const vYear = parseInt(v.year) || 0;
+            let ageType = "NEUF";
+            if (vYear > 0) {
+                if (currentYear - vYear <= 3) {
+                    ageType = "⚠ -3 ANS";
+                } else {
+                    ageType = "OCCASION";
+                }
+            }
+
+            let remark = v.remarks || "-";
+            if (v.soldRegistration) {
+                remark = "VENDU CG À: " + nouveauCGText + (v.remarks ? " | " + v.remarks : "");
+            }
+
+            const rawShowroom = rowClient ? (rowClient.showroom || "-") : "-";
             const displayShowroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
 
             const row = [
@@ -14052,15 +14172,15 @@ const app = {
                 po.id,
                 displayShowroom,
                 v.orderId || "-",
-                v.soldRegistration ? (v.originalOwnerName || "VENDU C.G") : (client ? `${client.firstName} ${client.lastName}` : "EN STOCK"),
-                client ? (client.passportNumber || "-") : "-",
-                client ? (client.nin || "-") : "-",
+                rowClient ? `${rowClient.firstName} ${rowClient.lastName}` : "EN STOCK",
+                rowClient ? (rowClient.passportNumber || "-") : "-",
+                rowClient ? (rowClient.nin || "-") : "-",
+                ageType,
                 v.brand || "-",
                 v.model || "-",
                 this.translateColorToEnglish(v.color),
                 v.chassisNumber || "-",
-                client ? (client.address || "-") : "-",
-                client ? (client.postalCode || "-") : "-"
+                remark
             ].map(val => String(val || "-").toUpperCase());
 
             rows.push(row);
@@ -14101,14 +14221,30 @@ const app = {
             startY: 50,
             theme: 'grid',
             headStyles: { fillColor: [213, 0, 0] },
-            styles: { fontSize: 8 },
-            rowPageBreak: 'avoid',
+            styles: { fontSize: 7 },
             columnStyles: {
-                0: { cellWidth: 8, halign: 'center' }, // N°
-                1: { cellWidth: 15 }, // ID Achat
-                2: { cellWidth: 20 }, // Showroom
-                3: { cellWidth: 15 }, // N° Vente
-                4: { cellWidth: 30 }  // Nom Client
+                0: { cellWidth: 8 }, // N°
+                1: { cellWidth: 18 }, // ID Achat
+                2: { cellWidth: 15 }, // Showroom
+                3: { cellWidth: 18 }, // N° Vente
+                4: { cellWidth: 30 }, // Nom Client
+                7: { cellWidth: 18 }, // Âge/Type
+                12: { cellWidth: 40 } // Remarque
+            },
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.column.index === 7) {
+                    if (data.cell.raw && data.cell.raw.includes('⚠')) {
+                        data.cell.styles.textColor = [255, 140, 0]; // Dark Orange
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+                // Highlight entire row in light red for Vendu CG vehicles
+                if (data.section === 'body') {
+                    const rowData = rows[data.row.index];
+                    if (rowData && rowData[12] && String(rowData[12]).includes('VENDU CG')) {
+                        data.cell.styles.fillColor = [255, 245, 245];
+                    }
+                }
             }
         });
 
