@@ -5212,27 +5212,32 @@ const app = {
                 status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
             };
 
-            // Capture Original Owner if marking as Sold CG for the first time
-            // IMPORTANT: Only use existingVehicle DB data (before any CG changes), NOT formData.get('clientId')
-            if (newVehicle.soldRegistration && !newVehicle.originalOwnerName && existingVehicle) {
-                let oldClient = null;
-                // Use the vehicle's ORIGINAL orderId (stored in DB before this save)
-                if (existingVehicle.orderId) {
-                    const originalOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === existingVehicle.orderId);
-                    if (originalOrder) {
-                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrder.clientId));
-                    }
-                }
-                // Fallback: vehicle's direct clientId in DB
-                if (!oldClient && existingVehicle.clientId) {
-                    oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(existingVehicle.clientId));
-                }
+            // ALWAYS re-capture the original owner from DB state (before any CG logic changes things)
+            // This runs every time soldRegistration is checked, using the UNMODIFIED existingVehicle data
+            if (newVehicle.soldRegistration && existingVehicle) {
+                // Only capture if not already locked (i.e., originalClientId already set from a previous CORRECT save)
+                const alreadyHasCorrectOwner = existingVehicle.originalClientId &&
+                    String(existingVehicle.originalClientId) !== String(existingVehicle.clientId);
 
-                if (oldClient) {
-                    newVehicle.originalClientId = oldClient.id;
-                    newVehicle.originalOwnerName = `${oldClient.lastName} ${oldClient.firstName}`.toUpperCase();
-                } else {
-                    newVehicle.originalOwnerName = 'STOCK';
+                if (!alreadyHasCorrectOwner) {
+                    let oldClient = null;
+                    // Use the vehicle's ORIGINAL orderId (from DB, BEFORE CG logic changes it)
+                    if (existingVehicle.orderId) {
+                        const originalOrder = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === existingVehicle.orderId);
+                        if (originalOrder) {
+                            oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(originalOrder.clientId));
+                        }
+                    }
+                    // Fallback: direct clientId in DB
+                    if (!oldClient && existingVehicle.clientId) {
+                        oldClient = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => String(c.id) === String(existingVehicle.clientId));
+                    }
+                    if (oldClient) {
+                        newVehicle.originalClientId = oldClient.id;
+                        newVehicle.originalOwnerName = `${oldClient.lastName} ${oldClient.firstName}`.toUpperCase();
+                    } else {
+                        newVehicle.originalOwnerName = 'STOCK';
+                    }
                 }
             }
 
@@ -5721,8 +5726,11 @@ const app = {
             editSoldClientSelect.addEventListener('change', (e) => {
                 const selectedOption = e.target.options[e.target.selectedIndex];
                 const clientId = e.target.value;
-                if (selectedOption.value && editSoldRegistrationOwnerText) {
-                    editSoldRegistrationOwnerText.value = selectedOption.getAttribute('data-name');
+                if (editSoldRegistrationOwnerText) {
+                    // Always update (clear if deselected, set if selected)
+                    editSoldRegistrationOwnerText.value = selectedOption.value
+                        ? selectedOption.getAttribute('data-name')
+                        : '';
                 }
                 
                 // Populate orders for this client
