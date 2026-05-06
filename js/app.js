@@ -13997,9 +13997,8 @@ const app = {
                 const currentYear = new Date().getFullYear();
                 const vYear = parseInt(v.year) || 0;
                 let typeDisplay = v.category || "-";
-                if (vYear > 0 && (currentYear - vYear <= 3)) {
-                    if (!typeDisplay.includes('[!]')) typeDisplay = "[!] " + typeDisplay;
-                }
+                // We will draw the icon in didDrawCell, so we just need the text here
+                // We ensure it has '3 ANS' for detection logic
 
                 let remark = v.remarks || "-";
                 if (v.soldRegistration) {
@@ -14057,14 +14056,40 @@ const app = {
             didParseCell: function(data) {
                 if (data.section === 'body') {
                     const cellText = String(data.cell.raw || "").toUpperCase();
-                    if (cellText.includes('3 ANS') || cellText.includes('[!]')) {
+                    if (cellText.includes('3 ANS')) {
                         data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
+                        if (data.column.index === 7) {
+                            data.cell.styles.cellPadding = { left: 7 };
+                        }
                     }
                     // Highlight entire row in light red for Vendu CG vehicles
                     const rowData = rows[data.row.index];
                     if (rowData && rowData[12] && String(rowData[12]).includes('VENDU CG')) {
                         data.cell.styles.fillColor = [255, 245, 245];
+                    }
+                }
+            },
+            didDrawCell: function(data) {
+                if (data.section === 'body' && data.column.index === 7) {
+                    const cellText = String(data.cell.raw || "").toUpperCase();
+                    if (cellText.includes('3 ANS')) {
+                        const x = data.cell.x + 2;
+                        const y = data.cell.y + (data.cell.height / 2) - 2;
+                        
+                        // Draw red triangle
+                        data.doc.setDrawColor(213, 0, 0);
+                        data.doc.setFillColor(213, 0, 0);
+                        data.doc.triangle(x, y + 4, x + 2.5, y, x + 5, y + 4, 'F');
+                        
+                        // Draw white '!'
+                        data.doc.setTextColor(255, 255, 255);
+                        data.doc.setFontSize(6);
+                        data.doc.setFont("helvetica", "bold");
+                        data.doc.text('!', x + 2.1, y + 3.2);
+                        
+                        // Reset for next cells
+                        data.doc.setTextColor(0, 0, 0);
                     }
                 }
             }
@@ -14146,9 +14171,6 @@ const app = {
             const currentYear = new Date().getFullYear();
             const vYear = parseInt(v.year) || 0;
             let typeDisplay = v.category || "-";
-            if (vYear > 0 && (currentYear - vYear <= 3)) {
-                if (!typeDisplay.includes('[!]')) typeDisplay = "[!] " + typeDisplay;
-            }
 
             let remark = v.remarks || "-";
             if (v.soldRegistration) {
@@ -14225,14 +14247,40 @@ const app = {
             didParseCell: function(data) {
                 if (data.section === 'body') {
                     const cellText = String(data.cell.raw || "").toUpperCase();
-                    if (cellText.includes('3 ANS') || cellText.includes('[!]')) {
+                    if (cellText.includes('3 ANS')) {
                         data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
+                        if (data.column.index === 7) {
+                            data.cell.styles.cellPadding = { left: 7 };
+                        }
                     }
                     // Highlight entire row in light red for Vendu CG vehicles
                     const rowData = rows[data.row.index];
                     if (rowData && rowData[12] && String(rowData[12]).includes('VENDU CG')) {
                         data.cell.styles.fillColor = [255, 245, 245];
+                    }
+                }
+            },
+            didDrawCell: function(data) {
+                if (data.section === 'body' && data.column.index === 7) {
+                    const cellText = String(data.cell.raw || "").toUpperCase();
+                    if (cellText.includes('3 ANS')) {
+                        const x = data.cell.x + 2;
+                        const y = data.cell.y + (data.cell.height / 2) - 2;
+                        
+                        // Draw red triangle
+                        data.doc.setDrawColor(213, 0, 0);
+                        data.doc.setFillColor(213, 0, 0);
+                        data.doc.triangle(x, y + 4, x + 2.5, y, x + 5, y + 4, 'F');
+                        
+                        // Draw white '!'
+                        data.doc.setTextColor(255, 255, 255);
+                        data.doc.setFontSize(6);
+                        data.doc.setFont("helvetica", "bold");
+                        data.doc.text('!', x + 2.1, y + 3.2);
+                        
+                        // Reset for next cells
+                        data.doc.setTextColor(0, 0, 0);
                     }
                 }
             }
