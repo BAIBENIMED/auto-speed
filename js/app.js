@@ -5562,7 +5562,7 @@ const app = {
                                     </div>
 
                                     <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px; background: rgba(var(--danger-rgb, 239, 68, 68), 0.1); border-radius: 8px; border: 1px solid rgba(var(--danger-rgb, 239, 68, 68), 0.2);">
-                                        <input type="checkbox" name="soldRegistration" id="editSoldRegistration" style="width: 20px; height: 20px;" ${vehicle.soldRegistration ? 'checked' : ''} onchange="document.getElementById('edit-sold-owner-container').style.display = this.checked ? 'block' : 'none'">
+                                        <input type="checkbox" name="soldRegistration" id="editSoldRegistration" style="width: 20px; height: 20px;" ${vehicle.soldRegistration ? 'checked' : ''} onchange="document.getElementById('edit-sold-owner-container').style.display = this.checked ? 'block' : 'none'; if(!this.checked){ document.getElementById('edit-sold-registration-owner-text').value = ''; document.getElementById('edit-sold-client-select').value = ''; }">
                                         <label for="editSoldRegistration" style="color: var(--danger); font-weight: bold; margin: 0; cursor: pointer;">
                                             Vendu Carte Grise (Affiche 'VENDU C.G' au lieu du Showroom)
                                         </label>
@@ -10921,7 +10921,7 @@ const app = {
                                                             </div>
                                                             <div>
                                                                 <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: bold;">Nouveau Propriétaire:</span>
-                                                                <div style="font-weight: 600; color: var(--success);">${(v.soldRegistrationOwner || (displayClient ? (displayClient.lastName + ' ' + displayClient.firstName) : 'NON SPÉCIFIÉ')).toUpperCase()}</div>
+                                                                <div style="font-weight: 600; color: var(--success);">${(v.soldRegistrationOwner || 'NON SPÉCIFIÉ').toUpperCase()}</div>
                                                                 ${order ? `<div style="font-size: 0.75rem; color: var(--primary);">CMD #${order.id}</div>` : ''}
                                                             </div>
                                                         ` : (displayClient ? `
