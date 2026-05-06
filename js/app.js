@@ -5261,12 +5261,15 @@ const app = {
                     newVehicle.clientId = soldRegistrationOwnerId;
                 }
                 if (soldRegistrationOrderId) {
-                    // NOTE: Do NOT overwrite orderId — the original orderId links to the ancien propriétaire
-                    // Just link the CG order bidirectionally
+                    // Update the vehicle's orderId to link it to the NEW sales order
+                    // The original owner/order info is already preserved in originalClientId/originalOwnerName
+                    newVehicle.orderId = soldRegistrationOrderId;
                     newVehicle.status = 'Reserved';
+
+                    // Ensure bidirectional link (Order -> Vehicle)
                     const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-                    const cgOrder = orders.find(o => o.id === soldRegistrationOrderId);
-                    if (cgOrder && cgOrder.vehicleId !== newVehicle.id) {
+                    const cgOrder = orders.find(o => String(o.id).trim() === String(soldRegistrationOrderId).trim());
+                    if (cgOrder) {
                         cgOrder.vehicleId = newVehicle.id;
                         cgOrder.vehicleName = `${newVehicle.brand} ${newVehicle.model || ''} ${newVehicle.trim || ''} (${newVehicle.year})`.trim().replace(/\s+/g, ' ');
                         await StorageService.update(STORAGE_KEYS.ORDERS, cgOrder.id, cgOrder);
@@ -5738,13 +5741,9 @@ const app = {
                 const selectedOption = e.target.options[e.target.selectedIndex];
                 const clientId = e.target.value;
                 if (editSoldRegistrationOwnerText) {
-                    // Always update (clear if deselected, set if selected)
-                    editSoldRegistrationOwnerText.value = selectedOption.value
-                        ? selectedOption.getAttribute('data-name')
-                        : '';
+                    editSoldRegistrationOwnerText.value = selectedOption.value ? selectedOption.getAttribute('data-name') : '';
                 }
                 
-                // Populate orders for this client
                 const orderContainer = document.getElementById('edit-sold-order-selection-container');
                 const orderSelect = document.getElementById('edit-sold-order-select');
                 if (orderContainer && orderSelect) {
@@ -5763,6 +5762,20 @@ const app = {
                     }
                 }
             });
+
+            // Pre-populate orders if vehicle already has a client assigned (for Vendu CG edit modal load)
+            if (vehicle.soldRegistration && vehicle.clientId) {
+                const orderContainer = document.getElementById('edit-sold-order-selection-container');
+                const orderSelect = document.getElementById('edit-sold-order-select');
+                if (orderContainer && orderSelect) {
+                    const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+                    const clientOrders = orders.filter(o => o.clientId === vehicle.clientId && o.status !== 'ANNULÉE');
+                    if (clientOrders.length > 0) {
+                        orderContainer.style.display = 'block';
+                        orderSelect.innerHTML = '<option value="">-- Pas de commande spécifique --</option>' + 
+                            clientOrders.map(o => `<option value="${o.id}" ${o.id === vehicle.orderId ? 'selected' : ''}>${o.id} | ${o.vehicleName || 'N/A'} (${this.formatDate(o.date)})</option>`).join('');
+                    }
+            }
         }
 
         document.getElementById('vehicle-form').addEventListener('submit', (e) => {
