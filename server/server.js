@@ -105,11 +105,11 @@ app.get('/tracking.html', (req, res) => {
 // More routes will be added here
 
 // Basic reachability test
-app.get('/', (req, res) => res.json({ message: 'TIBOU AUTO API is running', version: '2.6-ANTIGRAVITY' }));
+app.get('/', (req, res) => res.json({ message: 'TIBOU AUTO API is running', version: '2.7-ANTIGRAVITY' }));
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.6-ANTIGRAVITY)' });
+    res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.7-ANTIGRAVITY)' });
 });
 
 // Diagnostic endpoint for Cloud deployment
