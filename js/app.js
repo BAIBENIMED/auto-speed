@@ -14137,8 +14137,8 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Adresse", "Tél", "Email", "CP", "Passport", "NIN", "Type",
-            "Marque", "Modèle", "Couleur", "VIN", "Remarque"
+            "N°", "Showroom", "N° Vente", "Nom Client", "VIN", "Adresse", "Tél", "Email", "CP", "Passport", "NIN", "Type",
+            "Marque", "Modèle", "Couleur", "Remarque"
         ].map(c => c.toUpperCase());
 
         const rows = [];
@@ -14211,10 +14211,10 @@ const app = {
 
             const row = [
                 rowNum++,
-                po.id,
                 displayShowroom,
                 v.orderId || "-",
                 rowClient ? `${rowClient.firstName} ${rowClient.lastName}` : "EN STOCK",
+                v.chassisNumber || "-",
                 rowClient ? (rowClient.address || "-") : "-",
                 rowClient ? (rowClient.phone || "-") : "-",
                 rowClient ? (rowClient.email || "-") : "-",
@@ -14225,7 +14225,6 @@ const app = {
                 v.brand || "-",
                 v.model || "-",
                 this.translateColorToEnglish(v.color),
-                v.chassisNumber || "-",
                 remark
             ].map(val => String(val || "-").toUpperCase());
 
@@ -14277,28 +14276,28 @@ const app = {
         doc.autoTable({
             head: [columns],
             body: rows,
-            startY: 50,
+            startY: 65,
             theme: 'grid',
             headStyles: { fillColor: [213, 0, 0] },
-            styles: { fontSize: 5.5, cellPadding: 1.5 },
+            styles: { fontSize: 5.5, cellPadding: 1.2 },
+            margin: { left: 10, right: 10 },
             columnStyles: {
-                0: { cellWidth: 6 }, // N°
-                1: { cellWidth: 12 }, // ID Achat
-                2: { cellWidth: 10 }, // Showroom
-                3: { cellWidth: 12 }, // N° Vente
-                4: { cellWidth: 18 }, // Nom Client
-                5: { cellWidth: 20 }, // Adresse
-                6: { cellWidth: 15 }, // Tél
-                7: { cellWidth: 20 }, // Email
+                0: { cellWidth: 7 }, // N°
+                1: { cellWidth: 10 }, // Showroom
+                2: { cellWidth: 12 }, // N° Vente
+                3: { cellWidth: 20 }, // Nom Client
+                4: { cellWidth: 25 }, // VIN
+                5: { cellWidth: 25 }, // Adresse
+                6: { cellWidth: 18 }, // Tél
+                7: { cellWidth: 22 }, // Email
                 8: { cellWidth: 10 }, // CP
-                9: { cellWidth: 15 }, // Passport
-                10: { cellWidth: 15 }, // NIN
+                9: { cellWidth: 18 }, // Passport
+                10: { cellWidth: 18 }, // NIN
                 11: { cellWidth: 12 }, // Type
                 12: { cellWidth: 15 }, // Marque
                 13: { cellWidth: 15 }, // Modèle
                 14: { cellWidth: 12 }, // Couleur
-                15: { cellWidth: 22 }, // VIN
-                16: { cellWidth: 30 } // Remarque
+                15: { cellWidth: 'auto' } // Remarque
             },
             didParseCell: function(data) {
                 if (data.section === 'body') {
