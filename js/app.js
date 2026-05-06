@@ -13998,7 +13998,7 @@ const app = {
                 const vYear = parseInt(v.year) || 0;
                 let typeDisplay = v.category || "-";
                 if (vYear > 0 && (currentYear - vYear <= 3)) {
-                    if (!typeDisplay.includes('⚠')) typeDisplay = "⚠ " + typeDisplay;
+                    if (!typeDisplay.includes('[!]')) typeDisplay = "[!] " + typeDisplay;
                 }
 
                 let remark = v.remarks || "-";
@@ -14055,14 +14055,13 @@ const app = {
                 12: { cellWidth: 40 } // Remarque
             },
             didParseCell: function(data) {
-                if (data.section === 'body' && data.column.index === 7) {
-                    if (data.cell.raw && data.cell.raw.includes('⚠')) {
-                        data.cell.styles.textColor = [255, 140, 0]; // Dark Orange
+                if (data.section === 'body') {
+                    const cellText = String(data.cell.raw || "").toUpperCase();
+                    if (cellText.includes('3 ANS') || cellText.includes('[!]')) {
+                        data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
                     }
-                }
-                // Highlight entire row in light red for Vendu CG vehicles
-                if (data.section === 'body') {
+                    // Highlight entire row in light red for Vendu CG vehicles
                     const rowData = rows[data.row.index];
                     if (rowData && rowData[12] && String(rowData[12]).includes('VENDU CG')) {
                         data.cell.styles.fillColor = [255, 245, 245];
@@ -14148,7 +14147,7 @@ const app = {
             const vYear = parseInt(v.year) || 0;
             let typeDisplay = v.category || "-";
             if (vYear > 0 && (currentYear - vYear <= 3)) {
-                if (!typeDisplay.includes('⚠')) typeDisplay = "⚠ " + typeDisplay;
+                if (!typeDisplay.includes('[!]')) typeDisplay = "[!] " + typeDisplay;
             }
 
             let remark = v.remarks || "-";
@@ -14224,14 +14223,13 @@ const app = {
                 12: { cellWidth: 40 } // Remarque
             },
             didParseCell: function(data) {
-                if (data.section === 'body' && data.column.index === 7) {
-                    if (data.cell.raw && data.cell.raw.includes('⚠')) {
-                        data.cell.styles.textColor = [255, 140, 0]; // Dark Orange
+                if (data.section === 'body') {
+                    const cellText = String(data.cell.raw || "").toUpperCase();
+                    if (cellText.includes('3 ANS') || cellText.includes('[!]')) {
+                        data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
                     }
-                }
-                // Highlight entire row in light red for Vendu CG vehicles
-                if (data.section === 'body') {
+                    // Highlight entire row in light red for Vendu CG vehicles
                     const rowData = rows[data.row.index];
                     if (rowData && rowData[12] && String(rowData[12]).includes('VENDU CG')) {
                         data.cell.styles.fillColor = [255, 245, 245];
