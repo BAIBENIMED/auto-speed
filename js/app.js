@@ -14137,8 +14137,7 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "N°", "Showroom", "N° Vente", "Nom Client", "VIN", "Adresse", "Tél", "Email", "CP", "Passport", "NIN", "Type",
-            "Marque", "Modèle", "Couleur", "Remarque"
+            "N°", "Showroom", "N° Vente", "Client", "NIN", "Passport", "VIN", "Marque", "Couleur", "Type", "Adresse", "CP", "Tél", "Email", "Remarque"
         ].map(c => c.toUpperCase());
 
         const rows = [];
@@ -14209,22 +14208,26 @@ const app = {
             const rawShowroom = rowClient ? (rowClient.showroom || "-") : "-";
             const displayShowroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
 
+            const cleanPhone = (rowClient?.phone || "").replace(/\s/g, "");
+            const formattedPhone = (cleanPhone.length === 10) 
+                ? cleanPhone.replace(/(\d{4})(\d{3})(\d{3})/, "$1 $2 $3") 
+                : cleanPhone || "-";
+
             const row = [
                 rowNum++,
                 displayShowroom,
                 v.orderId || "-",
                 rowClient ? `${rowClient.firstName} ${rowClient.lastName}` : "EN STOCK",
-                v.chassisNumber || "-",
-                rowClient ? (rowClient.address || "-") : "-",
-                rowClient ? (rowClient.phone || "-") : "-",
-                rowClient ? (rowClient.email || "-") : "-",
-                rowClient ? (rowClient.postalCode || "-") : "-",
-                rowClient ? (rowClient.passportNumber || "-") : "-",
                 rowClient ? (rowClient.nin || "-") : "-",
-                typeDisplay,
+                rowClient ? (rowClient.passportNumber || "-") : "-",
+                v.chassisNumber || "-",
                 v.brand || "-",
-                v.model || "-",
                 this.translateColorToEnglish(v.color),
+                typeDisplay,
+                rowClient ? (rowClient.address || "-") : "-",
+                rowClient ? (rowClient.postalCode || "-") : "-",
+                formattedPhone,
+                rowClient ? (rowClient.email || "-") : "-",
                 remark
             ].map(val => String(val || "-").toUpperCase());
 
@@ -14270,22 +14273,21 @@ const app = {
             styles: { fontSize: 5.5, cellPadding: 1.2 },
             margin: { left: 10, right: 10 },
             columnStyles: {
-                0: { cellWidth: 4 }, // N° (-0.3 cm)
+                0: { cellWidth: 4 }, // N°
                 1: { cellWidth: 10 }, // Showroom
                 2: { cellWidth: 12 }, // N° Vente
-                3: { cellWidth: 20 }, // Nom Client
-                4: { cellWidth: 21 }, // VIN (-0.4 cm)
-                5: { cellWidth: 'auto' }, // Adresse (Le reste)
-                6: { cellWidth: 15 }, // Tél (-0.3 cm)
-                7: { cellWidth: 42 }, // Email (+2 cm)
-                8: { cellWidth: 8 }, // CP (-0.2 cm)
-                9: { cellWidth: 10 }, // Passport (-0.8 cm)
-                10: { cellWidth: 26 }, // NIN (+0.8 cm)
-                11: { cellWidth: 9 }, // Type (-0.3 cm)
-                12: { cellWidth: 13 }, // Marque (-0.2 cm)
-                13: { cellWidth: 15 }, // Modèle
-                14: { cellWidth: 12 }, // Couleur
-                15: { cellWidth: 25 } // Remarque
+                3: { cellWidth: 20 }, // Client
+                4: { cellWidth: 26 }, // NIN
+                5: { cellWidth: 13 }, // Passport
+                6: { cellWidth: 23 }, // VIN
+                7: { cellWidth: 13 }, // Marque
+                8: { cellWidth: 12 }, // Couleur
+                9: { cellWidth: 9 }, // Type
+                10: { cellWidth: 'auto' }, // Adresse
+                11: { cellWidth: 8 }, // CP
+                12: { cellWidth: 18 }, // Tél
+                13: { cellWidth: 42 }, // Email
+                14: { cellWidth: 25 } // Remarque
             },
             didParseCell: function(data) {
                 if (data.section === 'body') {
