@@ -5775,6 +5775,7 @@ const app = {
                         orderSelect.innerHTML = '<option value="">-- Pas de commande spécifique --</option>' + 
                             clientOrders.map(o => `<option value="${o.id}" ${o.id === vehicle.orderId ? 'selected' : ''}>${o.id} | ${o.vehicleName || 'N/A'} (${this.formatDate(o.date)})</option>`).join('');
                     }
+                }
             }
         }
 
