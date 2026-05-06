@@ -48,7 +48,12 @@ exports.updateUser = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Utilisateur non trouvé.' });
         }
 
-        await user.update({ username, password, name, roleId });
+        const updateData = { username, name, roleId };
+        if (password && password.trim() !== '' && password !== 'undefined') {
+            updateData.password = password;
+        }
+
+        await user.update(updateData);
         const updatedUser = await User.findByPk(id, {
             include: [{ model: Role, as: 'role' }],
             attributes: { exclude: ['password'] }

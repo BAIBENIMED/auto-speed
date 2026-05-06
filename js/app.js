@@ -6617,8 +6617,8 @@ const app = {
                                             <input type="text" name="username" value="${user.username}" required class="glass-input" ${user.username === 'admin' ? 'readonly' : ''}>
                                         </div>
                                         <div class="form-group">
-                                            <label>Mot de passe</label>
-                                            <input type="password" name="password" value="${user.password}" required class="glass-input">
+                                            <label>Nouveau Mot de passe (laisser vide pour ne pas changer)</label>
+                                            <input type="password" name="password" value="" class="glass-input" placeholder="••••••••">
                                         </div>
                                         <div class="form-group">
                                             <label>Rôle</label>
