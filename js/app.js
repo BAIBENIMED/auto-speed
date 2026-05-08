@@ -10,6 +10,8 @@ const app = {
     navLinks: document.querySelectorAll('.nav-link'),
     currentView: 'dashboard',
     mapTracking: null,
+    activeDropdown: null,
+    _filterTimeout: null,
 
     getStatusColor(status) {
         switch (status) {
@@ -65,18 +67,18 @@ const app = {
         endDate: ''
     },
     orderFilters: {
-        status: '',
-        showroom: '',
+        status: [],
+        showroom: [],
         startDate: '',
         endDate: '',
         showArchived: false
     },
     vehicleFilters: {
-        brand: '',
-        model: '',
-        status: '',
-        supplier: '',
-        purchaseOrderId: '',
+        brand: [],
+        model: [],
+        status: [],
+        supplier: [],
+        purchaseOrderId: [],
         showArchived: false
     },
     purchaseFilters: {
@@ -146,6 +148,80 @@ const app = {
                 allowInput: true
             });
         });
+    },
+
+    isSelected(filterVal, optionVal) {
+        if (!filterVal) return false;
+        if (Array.isArray(filterVal)) {
+            return filterVal.map(v => String(v)).includes(String(optionVal));
+        }
+        return String(filterVal) === String(optionVal);
+    },
+
+    handleMultiSelect(filtersKey, key, value, isChecked, renderFnName, extraLogic = null) {
+        let current = this[filtersKey][key] || [];
+        if (!Array.isArray(current)) current = [current];
+        
+        if (isChecked) {
+            if (!current.includes(value)) current.push(value);
+        } else {
+            current = current.filter(v => String(v) !== String(value));
+        }
+        
+        this[filtersKey][key] = current;
+        
+        if (extraLogic && typeof extraLogic === 'function') {
+            extraLogic(this[filtersKey]);
+        }
+        
+        if (this._filterTimeout) clearTimeout(this._filterTimeout);
+        
+        const header = document.querySelector(`.custom-multiselect.open .multiselect-header span`);
+        if (header) header.innerHTML = '<i class="fas fa-sync fa-spin"></i> Mise à jour...';
+
+        this._filterTimeout = setTimeout(() => {
+            this[renderFnName]();
+        }, 3000); 
+    },
+
+    renderMultiSelect(filtersKey, key, label, options, renderFnName) {
+        const isOpen = this.activeDropdown === key;
+        const current = this[filtersKey][key] || [];
+        const currentArr = Array.isArray(current) ? current : [current];
+        const selectedCount = currentArr.filter(Boolean).length;
+        const headerText = selectedCount > 0 ? `${selectedCount} sélection(s)` : `Tous`;
+        
+        let extraLogicStr = 'null';
+        if (filtersKey === 'vehicleFilters' && key === 'brand') {
+            extraLogicStr = '(f) => { f.model = []; }';
+        }
+
+        return `
+        <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size: 0.8rem; color: var(--text-dim);">${label}</label>
+            <div class="custom-multiselect ${isOpen ? 'open' : ''}" onclick="app.activeDropdown = app.activeDropdown === '${key}' ? null : '${key}'; app.${renderFnName}(); event.stopPropagation()">
+                <div class="multiselect-header">
+                    <span>${headerText}</span>
+                    <i class="fas fa-chevron-${isOpen ? 'up' : 'down'}"></i>
+                </div>
+                <div class="multiselect-dropdown" onclick="event.stopPropagation()">
+                    ${options.length === 0 ? '<div style="font-size: 0.8rem; color: var(--text-dim); text-align: center;">Aucune option</div>' : ''}
+                    <div class="multiselect-options-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+                        ${options.map(opt => `
+                            <label class="multiselect-option">
+                                <input type="checkbox" value="${String(opt.value).replace(/"/g, '&quot;')}" ${this.isSelected(this[filtersKey][key], opt.value) ? 'checked' : ''} 
+                                    onchange="app.handleMultiSelect('${filtersKey}', '${key}', this.value, this.checked, '${renderFnName}', ${extraLogicStr})">
+                                ${opt.label}
+                            </label>
+                        `).join('')}
+                    </div>
+                    <button class="btn-primary" style="width: 100%; padding: 6px; font-size: 0.75rem; margin-top: 5px;" onclick="if(app._filterTimeout) clearTimeout(app._filterTimeout); app.activeDropdown = null; app.${renderFnName}();">
+                        <i class="fas fa-check"></i> Valider
+                    </button>
+                </div>
+            </div>
+        </div>
+        `;
     },
 
     initMutationObserver() {
@@ -3470,11 +3546,11 @@ const app = {
         }
 
         // Apply Advanced Filters
-        if (this.orderFilters.status) {
-            orders = orders.filter(o => o.status === this.orderFilters.status);
+        if (this.orderFilters.status && this.orderFilters.status.length > 0) {
+            orders = orders.filter(o => this.orderFilters.status.includes(o.status || 'EN COURS'));
         }
-        if (this.orderFilters.showroom) {
-            orders = orders.filter(o => o.showroom === this.orderFilters.showroom);
+        if (this.orderFilters.showroom && this.orderFilters.showroom.length > 0) {
+            orders = orders.filter(o => this.orderFilters.showroom.includes(o.showroom));
         }
         if (this.orderFilters.startDate) {
             const start = new Date(this.orderFilters.startDate);
@@ -3518,29 +3594,24 @@ const app = {
                     </div>
                 </div>
 
-                <div class="glass filter-bar" style="margin-bottom: 20px; padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; align-items: end;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="font-size: 0.75rem;">Statut</label>
-                        <select id="filter-order-status" class="glass-select" style="padding: 8px;">
-                            <option value="">Tous les statuts</option>
-                            <option value="EN ATTENTE DE VALIDATION" ${this.orderFilters.status === 'EN ATTENTE DE VALIDATION' ? 'selected' : ''}>Validation</option>
-                            <option value="EN COURS" ${this.orderFilters.status === 'EN COURS' ? 'selected' : ''}>En Cours</option>
-                            <option value="ATTENTE AFFECTATION VÉHICULE" ${this.orderFilters.status === 'ATTENTE AFFECTATION VÉHICULE' ? 'selected' : ''}>Affectation</option>
-                            <option value="ATTENTE EXPÉDITION" ${this.orderFilters.status === 'ATTENTE EXPÉDITION' ? 'selected' : ''}>Expédition</option>
-                            <option value="A BORD" ${this.orderFilters.status === 'A BORD' ? 'selected' : ''}>A Bord</option>
-                            <option value="EN MER" ${this.orderFilters.status === 'EN MER' ? 'selected' : ''}>En Mer</option>
-                            <option value="ARRIVÉE" ${this.orderFilters.status === 'ARRIVÉE' ? 'selected' : ''}>Arrivée</option>
-                            <option value="ENLEVÉE" ${this.orderFilters.status === 'ENLEVÉE' ? 'selected' : ''}>Enlevée</option>
-                            <option value="CONCLUE" ${this.orderFilters.status === 'CONCLUE' ? 'selected' : ''}>Conclue</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="font-size: 0.75rem;">Showroom</label>
-                        <select id="filter-order-showroom" class="glass-select" style="padding: 8px;">
-                            <option value="">Tous les showrooms</option>
-                            ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${this.orderFilters.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
-                        </select>
-                    </div>
+                <div class="glass filter-bar" style="margin-bottom: 20px; padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
+                    ${this.renderMultiSelect('orderFilters', 'status', 'Statuts', [
+                        { value: 'EN ATTENTE DE VALIDATION', label: 'Validation' },
+                        { value: 'EN COURS', label: 'En Cours' },
+                        { value: 'ATTENTE AFFECTATION VÉHICULE', label: 'Affectation' },
+                        { value: 'ATTENTE EXPÉDITION', label: 'Expédition' },
+                        { value: 'A BORD', label: 'A Bord' },
+                        { value: 'EN MER', label: 'En Mer' },
+                        { value: 'ARRIVÉE', label: 'Arrivée' },
+                        { value: 'ENLEVÉE', label: 'Enlevée' },
+                        { value: 'CONCLUE', label: 'Conclue' },
+                        { value: 'ANNULÉE', label: 'Annulée' }
+                    ], 'renderOrders')}
+
+                    ${this.renderMultiSelect('orderFilters', 'showroom', 'Showrooms', 
+                        StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => ({ value: s, label: s })), 
+                        'renderOrders')}
+
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-size: 0.75rem;">Depuis</label>
                         <input type="date" id="filter-order-start" class="glass-input" style="padding: 8px;" value="${this.orderFilters.startDate}">
@@ -3703,13 +3774,9 @@ const app = {
     },
 
     attachOrderFilterListeners() {
-        const statusF = document.getElementById('filter-order-status');
-        const showroomF = document.getElementById('filter-order-showroom');
         const startF = document.getElementById('filter-order-start');
         const endF = document.getElementById('filter-order-end');
 
-        if (statusF) statusF.addEventListener('change', (e) => { this.orderFilters.status = e.target.value; this.renderView('orders'); });
-        if (showroomF) showroomF.addEventListener('change', (e) => { this.orderFilters.showroom = e.target.value; this.renderView('orders'); });
         if (startF) startF.addEventListener('change', (e) => { this.orderFilters.startDate = e.target.value; this.renderView('orders'); });
         if (endF) endF.addEventListener('change', (e) => { this.orderFilters.endDate = e.target.value; this.renderView('orders'); });
 
@@ -3718,7 +3785,7 @@ const app = {
     },
 
     resetOrderFilters() {
-        this.orderFilters = { status: '', showroom: '', startDate: '', endDate: '', showArchived: false };
+        this.orderFilters = { status: [], showroom: [], startDate: '', endDate: '', showArchived: false };
         this.renderView('orders');
     },
 
@@ -4524,18 +4591,15 @@ const app = {
             });
         }
 
-        const isSelected = (filterVal, optionVal) => {
-            if (!filterVal) return false;
-            return Array.isArray(filterVal) ? filterVal.includes(optionVal) : filterVal === optionVal;
-        };
-
         const showroomOptions = [...new Set([...(StorageService.get(STORAGE_KEYS.SHOWROOMS) || []), 'VIDE', 'VENDU CG'])];
 
         if (!app._hasMultiselectListener) {
             document.addEventListener('click', () => {
                 if (app.activeDropdown) {
+                    const view = app.currentView;
+                    const renderFn = view === 'vehicles' ? 'renderVehicles' : (view === 'orders' ? 'renderOrders' : null);
                     app.activeDropdown = null;
-                    app.renderVehicles();
+                    if (renderFn && typeof app[renderFn] === 'function') app[renderFn]();
                 }
             });
             app._hasMultiselectListener = true;
@@ -4543,64 +4607,7 @@ const app = {
 
         if (!app.handleMultiSelect) {
             app._filterTimeout = null;
-            app.handleMultiSelect = function(key, value, isChecked, isBrand) {
-                let current = app.vehicleFilters[key] || [];
-                if (!Array.isArray(current)) current = [current];
-                if (isChecked) {
-                    if (!current.includes(value)) current.push(value);
-                } else {
-                    current = current.filter(v => String(v) !== String(value));
-                }
-                if (isBrand) app.vehicleFilters.model = [];
-                app.vehicleFilters[key] = current;
-                
-                // Debounce re-render to allow multiple selections
-                if (app._filterTimeout) clearTimeout(app._filterTimeout);
-                
-                // Show a small hint that update is pending in the header if possible
-                const header = document.querySelector(`.custom-multiselect.open .multiselect-header span`);
-                if (header) header.innerHTML = '<i class="fas fa-sync fa-spin"></i> Mise à jour...';
 
-                app._filterTimeout = setTimeout(() => {
-                    app.renderVehicles();
-                }, 5000); // 5 seconds delay
-            };
-        }
-
-        const renderMultiSelect = (key, label, options, currentFilters) => {
-            const isOpen = app.activeDropdown === key;
-            const current = currentFilters[key] || [];
-            const currentArr = Array.isArray(current) ? current : [current];
-            const selectedCount = currentArr.filter(Boolean).length;
-            const headerText = selectedCount > 0 ? `${selectedCount} sélection(s)` : `Tous`;
-            
-            return `
-            <div class="form-group" style="margin-bottom: 0;">
-                <label style="font-size: 0.8rem; color: var(--text-dim);">${label}</label>
-                <div class="custom-multiselect ${isOpen ? 'open' : ''}" onclick="app.activeDropdown = app.activeDropdown === '${key}' ? null : '${key}'; app.renderVehicles(); event.stopPropagation()">
-                    <div class="multiselect-header">
-                        <span>${headerText}</span>
-                        <i class="fas fa-chevron-${isOpen ? 'up' : 'down'}"></i>
-                    </div>
-                    <div class="multiselect-dropdown" onclick="event.stopPropagation()">
-                        ${options.length === 0 ? '<div style="font-size: 0.8rem; color: var(--text-dim); text-align: center;">Aucune option</div>' : ''}
-                        <div class="multiselect-options-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
-                            ${options.map(opt => `
-                                <label class="multiselect-option">
-                                    <input type="checkbox" value="${String(opt.value).replace(/"/g, '&quot;')}" ${isSelected(currentFilters[key], opt.value) ? 'checked' : ''} 
-                                        onchange="app.handleMultiSelect('${key}', this.value, this.checked, ${key === 'brand'})">
-                                    ${opt.label}
-                                </label>
-                            `).join('')}
-                        </div>
-                        <button class="btn-primary" style="width: 100%; padding: 6px; font-size: 0.75rem; margin-top: 5px;" onclick="if(app._filterTimeout) clearTimeout(app._filterTimeout); app.activeDropdown = null; app.renderVehicles();">
-                            <i class="fas fa-check"></i> Valider
-                        </button>
-                    </div>
-                </div>
-            </div>
-            `;
-        };
 
         const brandOptions = (StorageService.get(STORAGE_KEYS.BRANDS) || []).filter(b => remainingBrands.has(b)).map(b => ({value: b, label: b}));
         const modelOptions = (this.vehicleFilters.brand ? (StorageService.get(STORAGE_KEYS.BRAND_MODELS)[Array.isArray(this.vehicleFilters.brand) ? this.vehicleFilters.brand[0] : this.vehicleFilters.brand] || []) : []).filter(m => remainingModels.has(m)).map(m => ({value: m, label: m}));
@@ -4638,13 +4645,13 @@ const app = {
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Recherche Rapide</label>
                             <input type="text" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" placeholder="VIN, Marque, ID..." value="${query || ''}" oninput="app.renderVehicles(this.value)">
                         </div>
-                        ${renderMultiSelect('brand', 'Marque', brandOptions, this.vehicleFilters)}
-                        ${renderMultiSelect('model', 'Modèle', modelOptions, this.vehicleFilters)}
-                        ${renderMultiSelect('status', 'Statut Stock', statusOptions, this.vehicleFilters)}
-                        ${renderMultiSelect('color', 'Couleur', colorOptions, this.vehicleFilters)}
-                        ${renderMultiSelect('supplier', 'Fournisseur', supplierOptions, this.vehicleFilters)}
-                        ${renderMultiSelect('showroom', 'Showroom', showroomOpts, this.vehicleFilters)}
-                        ${renderMultiSelect('purchaseOrderId', "Commande d'Achat", poOptions, this.vehicleFilters)}
+                        ${this.renderMultiSelect('vehicleFilters', 'brand', 'Marque', brandOptions, 'renderVehicles')}
+                        ${this.renderMultiSelect('vehicleFilters', 'model', 'Modèle', modelOptions, 'renderVehicles')}
+                        ${this.renderMultiSelect('vehicleFilters', 'status', 'Statut Stock', statusOptions, 'renderVehicles')}
+                        ${this.renderMultiSelect('vehicleFilters', 'color', 'Couleur', colorOptions, 'renderVehicles')}
+                        ${this.renderMultiSelect('vehicleFilters', 'supplier', 'Fournisseur', supplierOptions, 'renderVehicles')}
+                        ${this.renderMultiSelect('vehicleFilters', 'showroom', 'Showroom', showroomOpts, 'renderVehicles')}
+                        ${this.renderMultiSelect('vehicleFilters', 'purchaseOrderId', "Commande d'Achat", poOptions, 'renderVehicles')}
                         <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; gap: 10px;">
                             <div style="display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; height: 38px;">
                                 <input type="checkbox" id="filter-vehicle-archived" ${this.vehicleFilters.showArchived ? 'checked' : ''} onchange="app.vehicleFilters = {...app.vehicleFilters, showArchived: this.checked}; app.renderVehicles()" style="width: 18px; height: 18px; cursor: pointer;">
