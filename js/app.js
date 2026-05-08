@@ -3594,7 +3594,7 @@ const app = {
                     </div>
                 </div>
 
-                <div class="glass filter-bar" style="margin-bottom: 20px; padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
+                <div class="glass filter-bar" style="margin-bottom: 20px; padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; position: relative; z-index: 50; overflow: visible;">
                     ${this.renderMultiSelect('orderFilters', 'status', 'Statuts', [
                         { value: 'EN ATTENTE DE VALIDATION', label: 'Validation' },
                         { value: 'EN COURS', label: 'En Cours' },
@@ -3631,7 +3631,7 @@ const app = {
                     </div>
                 </div>
 
-                <div class="glass data-table-container">
+                <div class="glass data-table-container" style="position: relative; z-index: 1;">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -4638,7 +4638,7 @@ const app = {
                     </div>
                 </div>
                 <div class="glass" style="margin-bottom: 20px; padding: 20px; position: relative; z-index: 1000;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; overflow: visible;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="font-size: 0.8rem; color: var(--text-dim);">Recherche Rapide</label>
                             <input type="text" class="glass-input" style="padding: 8px 12px; font-size: 0.9rem;" placeholder="VIN, Marque, ID..." value="${query || ''}" oninput="app.renderVehicles(this.value)">
