@@ -4605,8 +4605,6 @@ const app = {
             app._hasMultiselectListener = true;
         }
 
-        if (!app.handleMultiSelect) {
-            app._filterTimeout = null;
 
 
         const brandOptions = (StorageService.get(STORAGE_KEYS.BRANDS) || []).filter(b => remainingBrands.has(b)).map(b => ({value: b, label: b}));
@@ -4853,6 +4851,7 @@ const app = {
             });
         }
     },
+
 
     showVehicleModal() {
         const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
