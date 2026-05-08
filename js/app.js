@@ -4666,6 +4666,7 @@ const app = {
                                 <th>Showroom</th>
                                 <th>N° Vente</th>
                                 <th>Châssis (VIN)</th>
+                                <th>Type/Âge</th>
                                 <th>Specs Tech.</th>
                                 ${canViewPurchasePrice ? '<th>Prix Achat</th>' : ''}
                                 <th>DD (Est.)</th>
@@ -4800,6 +4801,20 @@ const app = {
                                         ${v.blLink ? `<a href="${v.blLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir BL (Drive)" onclick="event.stopPropagation()"><i class="fas fa-file-invoice"></i></a>` : ''}
                                     </td>
                                     <td>
+                                        ${(() => {
+                                            const currentYear = new Date().getFullYear();
+                                            const vYear = parseInt(v.year);
+                                            if (!vYear) return '<span style="color:var(--text-dim);">N/A</span>';
+                                            if (vYear === currentYear) {
+                                                return '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.2); color: #22c55e; font-weight: bold; font-size: 0.75rem;">NEUF</span>';
+                                            } else if (currentYear - vYear <= 3) {
+                                                return '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: bold; font-size: 0.75rem;">-3 ANS</span>';
+                                            } else {
+                                                return '<span class="badge-pill" style="background: rgba(255, 255, 255, 0.05); color: var(--text-dim); font-size: 0.75rem;">+3 ANS</span>';
+                                            }
+                                        })()}
+                                    </td>
+                                    <td>
                                         <div style="font-size: 0.85rem;"><strong>Fin.:</strong> ${v.trim || '-'}</div>
                                     </td>
                                     ${canViewPurchasePrice ? `<td style="font-weight: 500;">${this.formatCurrency(v.purchasePrice || 0, v.purchaseCurrency)}</td>` : ''}
@@ -4818,7 +4833,7 @@ const app = {
                                 </tr>
                             `;
         }).join('')}
-                            ${vehicles.length === 0 ? `<tr><td colspan="${canViewPurchasePrice ? 10 : 9}" style="text-align: center; padding: 3rem;">Aucun véhicule trouvé.</td></tr>` : ''}
+                            ${vehicles.length === 0 ? `<tr><td colspan="${canViewPurchasePrice ? 14 : 13}" style="text-align: center; padding: 3rem;">Aucun véhicule trouvé.</td></tr>` : ''}
                         </tbody>
                     </table>
                 </div>
