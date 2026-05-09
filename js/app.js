@@ -15117,6 +15117,15 @@ const app = {
 
         const brandCounts = {}; // Track how many rows of a brand we've rendered
 
+        // Sort: by brand, then by trim name, then by price
+        data = [...data].sort((a, b) => {
+            const brand = a.brandName.localeCompare(b.brandName);
+            if (brand !== 0) return brand;
+            const name = (a.trimName || '').localeCompare(b.trimName || '');
+            if (name !== 0) return name;
+            return (Number(a.priceDzdNeuf) || 0) - (Number(b.priceDzdNeuf) || 0);
+        });
+
         tbody.innerHTML = data.map((trim, index) => {
             // Find the best overall price for highlighting (only if admin)
             const prices = isAdmin ? trim.history.map(p => Number(p.priceUSD)).filter(val => !isNaN(val)) : [];
@@ -15131,7 +15140,7 @@ const app = {
                     ${isFirstOfBrand ? `
                     <td rowspan="${brandRowspans[brandName]}" style="vertical-align: middle; text-align: center; border-right: 1px solid rgba(255,255,255,0.1); background: rgba(var(--primary-rgb), 0.05);">
                         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                            ${trim.brandLogo ? `<img src="${trim.brandLogo}" style="width: 40px; height: 40px; object-fit: contain;">` : ''}
+                            ${trim.brandLogo ? `<img src="${trim.brandLogo}" style="width: 60px; height: 60px; object-fit: contain;">` : ''}
                             <div style="font-weight: 800; font-size: 0.8rem; color: var(--text-bright); text-transform: uppercase;">${brandName}</div>
                         </div>
                     </td>
