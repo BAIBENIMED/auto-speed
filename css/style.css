@@ -2746,3 +2746,10 @@ textarea.glass-input {
 ***REMOVED***}***REMOVED***
 ***REMOVED******REMOVED***
 ***REMOVED***
+/* FullCalendar Customizations */
+.fc-theme-standard td, .fc-theme-standard th, .fc-theme-standard .fc-scrollgrid { border-color: rgba(255, 255, 255, 0.1) !important; }
+.fc-theme-standard .fc-scrollgrid { border: 1px solid rgba(255, 255, 255, 0.1) !important; }
+.fc-col-header-cell-cushion, .fc-daygrid-day-number { color: var(--text-primary) !important; text-decoration: none !important; }
+.fc-button-primary { background-color: var(--primary) !important; border-color: var(--primary) !important; text-transform: capitalize; }
+.fc-event { border: none !important; padding: 2px 4px; border-radius: 4px; font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.fc-day-today { background-color: rgba(255, 255, 255, 0.05) !important; }

@@ -2526,6 +2526,9 @@ const app = {
             case 'global-tracking':
                 this.renderGlobalTracking();
                 break;
+            case 'calendar':
+                this.renderCalendar();
+                break;
             case 'vehicle-prices':
                 this.renderVehiclePrices();
                 break;
@@ -13142,6 +13145,127 @@ const app = {
             case 'DELETE': return 'fa-trash-alt';
             case 'LOGIN': return 'fa-sign-in-alt';
             default: return 'fa-info-circle';
+        }
+    },
+
+    renderCalendar() {
+        this.viewContainer.innerHTML = `
+            <div class="view-header">
+                <div class="header-info">
+                    <h1><i class="fas fa-calendar-alt"></i> Calendrier Global</h1>
+                    <p>Aperçu de toutes les dates importantes (Commandes, Achats, Expéditions, Transferts)</p>
+                </div>
+            </div>
+            <div class="glass" style="padding: 20px;">
+                <div id="global-calendar-container" style="min-height: 600px; color: var(--text-primary); background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 12px;"></div>
+            </div>
+        `;
+
+        const events = [];
+        
+        // 1. Commandes (Orders)
+        const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        orders.forEach(o => {
+            if (o.date && !o.archived) {
+                const client = clients.find(c => c.id === o.clientId);
+                const clientName = client ? `${client.lastName} ${client.firstName}` : 'Client inconnu';
+                events.push({
+                    title: `Cmd #${o.id} - ${clientName}`,
+                    start: new Date(o.date).toISOString().split('T')[0],
+                    color: '#3b82f6', // blue
+                    allDay: true,
+                    extendedProps: { type: 'Commande', id: o.id }
+                });
+            }
+        });
+
+        // 2. Commandes d'Achat (Purchase Orders)
+        const purchases = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
+        purchases.forEach(po => {
+            if (po.purchaseDate) {
+                events.push({
+                    title: `Achat #${po.id} - ${po.supplierName}`,
+                    start: new Date(po.purchaseDate).toISOString().split('T')[0],
+                    color: '#f59e0b', // orange
+                    allDay: true,
+                    extendedProps: { type: 'Achat', id: po.id }
+                });
+            }
+        });
+
+        // 3. Expéditions (Shipments)
+        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        shipments.forEach(s => {
+            if (s.etd) {
+                events.push({
+                    title: `Départ Navire - ${s.blNumber || s.containerNumber || s.id}`,
+                    start: new Date(s.etd).toISOString().split('T')[0],
+                    color: '#8b5cf6', // purple
+                    allDay: true,
+                    extendedProps: { type: 'Expédition (ETD)', id: s.id }
+                });
+            }
+            if (s.eta) {
+                events.push({
+                    title: `Arrivée Navire - ${s.blNumber || s.containerNumber || s.id}`,
+                    start: new Date(s.eta).toISOString().split('T')[0],
+                    color: '#10b981', // green
+                    allDay: true,
+                    extendedProps: { type: 'Expédition (ETA)', id: s.id }
+                });
+            }
+            if (s.loadingDate) {
+                events.push({
+                    title: `Chargement - ${s.blNumber || s.containerNumber || s.id}`,
+                    start: new Date(s.loadingDate).toISOString().split('T')[0],
+                    color: '#6366f1', // indigo
+                    allDay: true,
+                    extendedProps: { type: 'Expédition (Load)', id: s.id }
+                });
+            }
+        });
+
+        // 4. Transferts (Transfers)
+        const transfers = StorageService.get(STORAGE_KEYS.TRANSFERS) || [];
+        transfers.forEach(t => {
+            if (t.transferDate) {
+                events.push({
+                    title: `Transfert Véhicule - ${t.vehicleId}`,
+                    start: new Date(t.transferDate).toISOString().split('T')[0],
+                    color: '#ef4444', // red
+                    allDay: true,
+                    extendedProps: { type: 'Transfert', id: t.id }
+                });
+            }
+        });
+
+        // Add FullCalendar
+        const calendarEl = document.getElementById('global-calendar-container');
+        if (typeof FullCalendar !== 'undefined') {
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'fr',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,listWeek'
+                },
+                buttonText: {
+                    today: "Aujourd'hui",
+                    month: 'Mois',
+                    week: 'Semaine',
+                    list: 'Planning'
+                },
+                events: events,
+                eventClick: function(info) {
+                    app.showToast(info.event.extendedProps.type + ' : ' + info.event.title, 'info');
+                },
+                height: 'auto'
+            });
+            calendar.render();
+        } else {
+            calendarEl.innerHTML = "<p style='color:red;'>Erreur: FullCalendar n'est pas chargé. Vérifiez votre connexion internet.</p>";
         }
     },
 
