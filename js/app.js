@@ -2036,7 +2036,14 @@ const app = {
                                 <h3><i class="fas fa-cogs"></i> Spécifications</h3>
                                 <p><strong>Finition:</strong> ${vehicle.trim || 'N/A'}</p>
                                 <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
-                                <p><strong>État:</strong> ${vehicle.vehicleCondition ? `<span class="badge-pill" style="background: ${vehicle.vehicleCondition === 'Neuf' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)'}; color: ${vehicle.vehicleCondition === 'Neuf' ? 'var(--success)' : 'var(--warning)'};">${vehicle.vehicleCondition}</span>` : 'N/A'}</p>
+                                <p><strong>État:</strong> ${(() => {
+                                    const currentYear = new Date().getFullYear();
+                                    const vYear = parseInt(vehicle.year);
+                                    if (!vYear) return 'N/A';
+                                    if (vYear === currentYear) return '<span class="badge-pill" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">Neuf</span>';
+                                    if (currentYear - vYear <= 3) return '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">Moins de 3 ans</span>';
+                                    return '<span class="badge-pill" style="background: rgba(255, 255, 255, 0.05); color: var(--text-dim);">Plus de 3 ans</span>';
+                                })()}</p>
                                 <p><strong>Kilométrage:</strong> ${vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : 'N/A'}</p>
                                 
                                 ${c ? `
@@ -4759,7 +4766,14 @@ const app = {
                                                         return amend ? `<span class="badge-pill" style="font-size: 0.65rem; background: ${amend.color}22; color: ${amend.color}; margin-left: 5px; border: 1px solid ${amend.color}44;">${amend.label}</span>` : '';
                                                     })()}
                                                 </div>
-                                                <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'} ${v.vehicleCondition ? `| <span class="badge-pill" style="font-size: 0.65rem; background: ${v.vehicleCondition === 'Neuf' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}; color: ${v.vehicleCondition === 'Neuf' ? '#10b981' : '#f59e0b'}; padding: 2px 6px;">${v.vehicleCondition}</span>` : ''}</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'} ${(() => {
+                                                    const currentYear = new Date().getFullYear();
+                                                    const vYear = parseInt(v.year);
+                                                    if (!vYear) return '';
+                                                    if (vYear === currentYear) return '| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 6px;">Neuf</span>';
+                                                    if (currentYear - vYear <= 3) return '| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 2px 6px;">Moins de 3 ans</span>';
+                                                    return '| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(255, 255, 255, 0.05); color: var(--text-dim); padding: 2px 6px;">Plus de 3 ans</span>';
+                                                })()}</div>
                                             </div>
                                         </div>
                                     </td>
