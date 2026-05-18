@@ -50,6 +50,26 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
         defaultValue: 'Non',
         field: 'documents_received'
     },
+    mblStatus: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'mbl_status'
+    },
+    hblStatus: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'hbl_status'
+    },
+    mblReceived: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'mbl_received'
+    },
+    hblReceived: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'hbl_received'
+    },
     loadingPort: {
         type: DataTypes.STRING(100),
         field: 'loading_port'
