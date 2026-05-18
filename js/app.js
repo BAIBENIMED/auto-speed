@@ -3828,8 +3828,34 @@ const app = {
                         </button>
                     </div>
                 </div>
-                <div class="clients-grid">
-                    ${clients.map(client => `
+                \u003cdiv class="clients-grid"\u003e
+                    ${clients.map(client => {
+                        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+                        const canValidate = this.isAdmin() || (currentUser && currentUser.role === 'manager');
+                        let validationBadge = '';
+                        if (client.isValidated) {
+                            validationBadge = `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center;">
+                                    <span style="display: inline-flex; align-items: center; gap: 6px; color: #10b981; font-size: 0.82rem; font-weight: 600; padding: 5px 14px; background: rgba(16,185,129,0.12); border-radius: 20px; border: 1px solid rgba(16,185,129,0.25);">
+                                        <i class="fas fa-check-circle"></i> Validé${client.validatedBy ? ' par ' + client.validatedBy : ''}
+                                    </span>
+                                </div>`;
+                        } else if (canValidate) {
+                            validationBadge = `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center;">
+                                    <button onclick="app.showValidationModal('${client.id}')" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.4); color: #10b981; border-radius: 20px; padding: 5px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(16,185,129,0.3)'" onmouseout="this.style.background='rgba(16,185,129,0.15)'">
+                                        <i class="fas fa-user-check"></i> Valider le client
+                                    </button>
+                                </div>`;
+                        } else {
+                            validationBadge = `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center;">
+                                    <span style="display: inline-flex; align-items: center; gap: 6px; color: #f59e0b; font-size: 0.82rem; font-weight: 500; padding: 5px 14px; background: rgba(245,158,11,0.1); border-radius: 20px; border: 1px solid rgba(245,158,11,0.2);">
+                                        <i class="fas fa-clock"></i> En attente de validation
+                                    </span>
+                                </div>`;
+                        }
+                        return `
                         <div class="client-card glass">
                             <div class="client-avatar">
                                 <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(client.firstName + ' ' + client.lastName)}&background=6366f1&color=fff" alt="${client.firstName} ${client.lastName}">
@@ -3851,8 +3877,9 @@ const app = {
                                 <button class="btn-action" onclick="app.showEditClientModal('${client.id}')"><i class="fas fa-edit"></i></button>
                                 <button class="btn-action danger" onclick="app.deleteClient('${client.id}')"><i class="fas fa-trash"></i></button>
                             </div>
-                        </div>
-                    `).join('')}
+                            ${validationBadge}
+                        </div>`;
+                    }).join('')}
                     ${clients.length === 0 ? '<p style="grid-column: 1/-1; text-align: center; padding: 2rem;">Aucun client trouvé.</p>' : ''}
                 </div>
             `;
@@ -6178,6 +6205,49 @@ const app = {
                 this.showToast('Erreur lors de la suppression', 'error');
             }
         });
+    },
+
+    showValidationModal(id) {
+        const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === id);
+        if (!client) return;
+
+        const modalHtml = `
+            <div class="modal-overlay" id="validation-confirm-modal">
+                <div class="modal-content glass" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(client.firstName + ' ' + client.lastName)}&background=10b981&color=fff"
+                                 style="width: 44px; height: 44px; border-radius: 10px;">
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.1rem;">Validation du client</h2>
+                                <span style="font-size: 0.8rem; color: var(--text-dim);">Vérifiez les informations avant de valider</span>
+                            </div>
+                        </div>
+                        <button class="btn-close" onclick="document.getElementById('validation-confirm-modal').remove()">&times;</button>
+                    </div>
+                    <div style="padding: 1.2rem; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px; border: 1px solid rgba(255,255,255,0.07);">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
+                                <tr><td style="padding: 5px 10px 5px 0; color: var(--text-dim); white-space: nowrap;"><i class="fas fa-user"></i> Nom complet</td><td style="padding: 5px 0; font-weight: 600;">${client.lastName} ${client.firstName}</td></tr>
+                                <tr><td style="padding: 5px 10px 5px 0; color: var(--text-dim);"><i class="fas fa-hashtag"></i> Référence</td><td style="padding: 5px 0;">${client.reference || '-'}</td></tr>
+                                <tr><td style="padding: 5px 10px 5px 0; color: var(--text-dim);"><i class="fas fa-store"></i> Showroom</td><td style="padding: 5px 0;">${client.showroom || '-'}</td></tr>
+                                <tr><td style="padding: 5px 10px 5px 0; color: var(--text-dim);"><i class="fas fa-envelope"></i> Email</td><td style="padding: 5px 0;">${client.email || '-'}</td></tr>
+                                <tr><td style="padding: 5px 10px 5px 0; color: var(--text-dim);"><i class="fas fa-phone"></i> Téléphone</td><td style="padding: 5px 0;">${client.phone || '-'}</td></tr>
+                                <tr><td style="padding: 5px 10px 5px 0; color: var(--text-dim);"><i class="fas fa-map-marker-alt"></i> Adresse</td><td style="padding: 5px 0;">${client.address || '-'}</td></tr>
+                                <tr><td style="padding: 5px 10px 5px 0; color: var(--text-dim);"><i class="fas fa-id-card"></i> Passeport</td><td style="padding: 5px 0;">${client.passportNumber || '-'}</td></tr>
+                                <tr><td style="padding: 5px 10px 5px 0; color: var(--text-dim);"><i class="fas fa-fingerprint"></i> NIN</td><td style="padding: 5px 0;">${client.nin || '-'}</td></tr>
+                            </table>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 8px; justify-content: flex-end;">
+                            <button class="btn-secondary" onclick="document.getElementById('validation-confirm-modal').remove()">Annuler</button>
+                            <button class="btn-primary" style="background: #10b981; border-color: #10b981;" onclick="document.getElementById('validation-confirm-modal').remove(); app.validateClient('${client.id}')">
+                                <i class="fas fa-user-check"></i> Confirmer la validation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
     async validateClient(id) {
