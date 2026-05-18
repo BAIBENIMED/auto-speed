@@ -14167,7 +14167,7 @@ const app = {
 
         const columns = [
             "N°", "ID Achat", "Showroom", "N° Vente", "Nom Client", "Passport", "NIN", "Type",
-            "Marque", "Modèle", "Couleur", "VIN", "Remarque"
+            "Véhicule", "Couleur", "VIN", "KM", "Remarque"
         ].map(c => c.toUpperCase());
 
         const rows = [];
@@ -14222,9 +14222,10 @@ const app = {
 
                 const currentYear = new Date().getFullYear();
                 const vYear = parseInt(v.year) || 0;
-                let typeDisplay = v.category || "-";
-                // We will draw the icon in didDrawCell, so we just need the text here
-                // We ensure it has '3 ANS' for detection logic
+                let typeDisplay = "-";
+                if (v.category === 'Neuf') typeDisplay = 'NEW CAR';
+                else if (v.category === 'Recent' || v.category === 'Moins de 3 ans') typeDisplay = 'USED CAR';
+                else if (v.category) typeDisplay = v.category;
 
                 let remark = v.remarks || "-";
                 if (v.soldRegistration) {
@@ -14243,10 +14244,10 @@ const app = {
                     rowClient ? (rowClient.passportNumber || "-") : "-",
                     rowClient ? (rowClient.nin || "-") : "-",
                     typeDisplay,
-                    v.brand || "-",
-                    v.model || "-",
+                    `${v.brand || ""} ${v.model || ""} ${v.trim || ""}`.trim() || "-",
                     this.translateColorToEnglish(v.color),
                     v.chassisNumber || "-",
+                    v.mileage ? v.mileage.toString() + ' km' : "-",
                     remark
                 ].map(val => String(val || "-").toUpperCase());
 
@@ -14277,12 +14278,14 @@ const app = {
                 3: { cellWidth: 16 },
                 4: { cellWidth: 28 },
                 7: { cellWidth: 18 }, // Âge/Type
+                8: { cellWidth: 25 }, // Véhicule
+                11: { cellWidth: 12 }, // KM
                 12: { cellWidth: 40 } // Remarque
             },
             didParseCell: function(data) {
                 if (data.section === 'body') {
                     const cellText = String(data.cell.raw || "").toUpperCase();
-                    if (cellText.includes('3 ANS')) {
+                    if (cellText.includes('USED CAR')) {
                         data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
                         if (data.column.index === 7) {
@@ -14299,7 +14302,7 @@ const app = {
             didDrawCell: function(data) {
                 if (data.section === 'body' && data.column.index === 7) {
                     const cellText = String(data.cell.raw || "").toUpperCase();
-                    if (cellText.includes('3 ANS')) {
+                    if (cellText.includes('USED CAR')) {
                         const x = data.cell.x + 2;
                         const y = data.cell.y + (data.cell.height / 2) - 2;
                         
@@ -14338,7 +14341,7 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
 
         const columns = [
-            "N°", "Showroom", "N° Vente", "Client", "NIN", "Passport", "VIN", "Marque", "Couleur", "Type", "Adresse", "CP", "Tél", "Email", "Remarque"
+            "N°", "Showroom", "N° Vente", "Client", "NIN", "Passport", "VIN", "Véhicule", "Couleur", "Type", "KM", "Adresse", "CP", "Tél", "Email", "Remarque"
         ].map(c => c.toUpperCase());
 
         const rows = [];
@@ -14399,7 +14402,10 @@ const app = {
 
             const currentYear = new Date().getFullYear();
             const vYear = parseInt(v.year) || 0;
-            let typeDisplay = v.category || "-";
+            let typeDisplay = "-";
+            if (v.category === 'Neuf') typeDisplay = 'NEW CAR';
+            else if (v.category === 'Recent' || v.category === 'Moins de 3 ans') typeDisplay = 'USED CAR';
+            else if (v.category) typeDisplay = v.category;
 
             let remark = v.remarks || "-";
             if (v.soldRegistration) {
@@ -14422,9 +14428,10 @@ const app = {
                 rowClient ? (rowClient.nin || "-") : "-",
                 rowClient ? (rowClient.passportNumber || "-") : "-",
                 v.chassisNumber || "-",
-                v.brand || "-",
+                `${v.brand || ""} ${v.model || ""} ${v.trim || ""}`.trim() || "-",
                 this.translateColorToEnglish(v.color),
                 typeDisplay,
+                v.mileage ? v.mileage.toString() + ' km' : "-",
                 rowClient ? (rowClient.address || "-") : "-",
                 rowClient ? (rowClient.postalCode || "-") : "-",
                 formattedPhone,
@@ -14475,42 +14482,43 @@ const app = {
             margin: { left: 10, right: 10 },
             columnStyles: {
                 0: { cellWidth: 4 }, // N°
-                1: { cellWidth: 10 }, // Showroom
-                2: { cellWidth: 12 }, // N° Vente
-                3: { cellWidth: 20 }, // Client
-                4: { cellWidth: 26 }, // NIN
-                5: { cellWidth: 13 }, // Passport
-                6: { cellWidth: 23 }, // VIN
-                7: { cellWidth: 13 }, // Marque
-                8: { cellWidth: 12 }, // Couleur
-                9: { cellWidth: 9 }, // Type
-                10: { cellWidth: 'auto' }, // Adresse
-                11: { cellWidth: 8 }, // CP
-                12: { cellWidth: 18 }, // Tél
-                13: { cellWidth: 42 }, // Email
-                14: { cellWidth: 25 } // Remarque
+                1: { cellWidth: 9 }, // Showroom
+                2: { cellWidth: 11 }, // N° Vente
+                3: { cellWidth: 18 }, // Client
+                4: { cellWidth: 24 }, // NIN
+                5: { cellWidth: 12 }, // Passport
+                6: { cellWidth: 22 }, // VIN
+                7: { cellWidth: 20 }, // Véhicule
+                8: { cellWidth: 11 }, // Couleur
+                9: { cellWidth: 11 }, // Type
+                10: { cellWidth: 9 }, // KM
+                11: { cellWidth: 'auto' }, // Adresse
+                12: { cellWidth: 8 }, // CP
+                13: { cellWidth: 16 }, // Tél
+                14: { cellWidth: 38 }, // Email
+                15: { cellWidth: 23 } // Remarque
             },
             didParseCell: function(data) {
                 if (data.section === 'body') {
                     const cellText = String(data.cell.raw || "").toUpperCase();
-                    if (cellText.includes('3 ANS')) {
+                    if (cellText.includes('USED CAR')) {
                         data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
-                        if (data.column.index === 11) {
+                        if (data.column.index === 9) {
                             data.cell.styles.cellPadding = { left: 7 };
                         }
                     }
                     // Highlight entire row in light red for Vendu CG vehicles
                     const rowData = rows[data.row.index];
-                    if (rowData && rowData[16] && String(rowData[16]).includes('VENDU CG')) {
+                    if (rowData && rowData[15] && String(rowData[15]).includes('VENDU CG')) {
                         data.cell.styles.fillColor = [255, 245, 245];
                     }
                 }
             },
             didDrawCell: function(data) {
-                if (data.section === 'body' && data.column.index === 11) {
+                if (data.section === 'body' && data.column.index === 9) {
                     const cellText = String(data.cell.raw || "").toUpperCase();
-                    if (cellText.includes('3 ANS')) {
+                    if (cellText.includes('USED CAR')) {
                         const x = data.cell.x + 2;
                         const y = data.cell.y + (data.cell.height / 2) - 2;
                         
