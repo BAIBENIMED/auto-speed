@@ -11317,33 +11317,23 @@ const app = {
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label><i class="fas fa-file-contract"></i> Statut Documents (BL Électronique)</label>
-                                <select name="documentStatus" class="glass-select" style="margin-bottom: 8px;">
-                                    <option value="Rien" ${po && po.documentStatus === 'Rien' ? 'selected' : ''}>Rien</option>
-                                    <option value="BL Draft" ${po && po.documentStatus === 'BL Draft' ? 'selected' : ''}>BL Draft</option>
-                                    <option value="BL EN COURS DE MODIFICATIONS" ${po && po.documentStatus === 'BL EN COURS DE MODIFICATIONS' ? 'selected' : ''}>BL EN COURS DE MODIFICATIONS</option>
-                                    <option value="BL Finale" ${po && po.documentStatus === 'BL Finale' ? 'selected' : ''}>BL Finale</option>
-                                </select>
-                                <div style="display: flex; gap: 1rem; margin-top: 5px; padding-left: 5px;">
-                                    <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <label><i class="fas fa-file-contract"></i> BL Électronique</label>
+                                <div style="display: flex; gap: 1.5rem; margin-top: 8px; padding-left: 5px;">
+                                    <label style="font-size: 0.9rem; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                                         <input type="checkbox" name="mblStatus" value="1" ${po && po.mblStatus ? 'checked' : ''}> MBL
                                     </label>
-                                    <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                    <label style="font-size: 0.9rem; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                                         <input type="checkbox" name="hblStatus" value="1" ${po && po.hblStatus ? 'checked' : ''}> HBL
                                     </label>
                                 </div>
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label><i class="fas fa-check-circle"></i> Documents Reçus</label>
-                                <select name="documentsReceived" class="glass-select" style="margin-bottom: 8px;">
-                                    <option value="Non" ${po && po.documentsReceived === 'Non' ? 'selected' : ''}>Non</option>
-                                    <option value="Oui" ${po && po.documentsReceived === 'Oui' ? 'selected' : ''}>Oui</option>
-                                </select>
-                                <div style="display: flex; gap: 1rem; margin-top: 5px; padding-left: 5px;">
-                                    <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <div style="display: flex; gap: 1.5rem; margin-top: 8px; padding-left: 5px;">
+                                    <label style="font-size: 0.9rem; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                                         <input type="checkbox" name="mblReceived" value="1" ${po && po.mblReceived ? 'checked' : ''}> MBL
                                     </label>
-                                    <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                    <label style="font-size: 0.9rem; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                                         <input type="checkbox" name="hblReceived" value="1" ${po && po.hblReceived ? 'checked' : ''}> HBL
                                     </label>
                                 </div>
