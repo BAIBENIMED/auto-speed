@@ -4121,6 +4121,17 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS).filter(o => o.clientId === id);
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => v.clientId === id || (v.orderId && orders.some(o => o.id === v.orderId)));
 
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        const canValidate = this.isAdmin() || (currentUser && currentUser.role === 'manager');
+        let validationHtml = '';
+        if (client.isValidated) {
+            validationHtml = `<span style="display: inline-flex; align-items: center; gap: 5px; color: var(--success); font-size: 0.9rem; font-weight: 500; padding: 4px 10px; background: rgba(16, 185, 129, 0.1); border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.2);"><i class="fas fa-check-circle"></i> Validé par ${client.validatedBy || 'Admin'}</span>`;
+        } else if (canValidate) {
+            validationHtml = `<button class="btn-primary" style="background: var(--success); border-color: var(--success); font-size: 0.85rem; padding: 6px 12px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);" onclick="app.validateClient('${client.id}')"><i class="fas fa-check"></i> Valider les informations</button>`;
+        } else {
+            validationHtml = `<span style="display: inline-flex; align-items: center; gap: 5px; color: var(--warning); font-size: 0.9rem; font-weight: 500; padding: 4px 10px; background: rgba(245, 158, 11, 0.1); border-radius: 20px; border: 1px solid rgba(245, 158, 11, 0.2);"><i class="fas fa-exclamation-triangle"></i> En attente de validation</span>`;
+        }
+
         const modalHtml = `
             <div class="modal-overlay">
                 <div class="modal-content glass" style="width: 90vw; max-width: 900px; max-height: 85vh; overflow-y: auto;">
@@ -4138,7 +4149,10 @@ const app = {
                                 </div>` : ''}
                             </div>
                         </div>
-                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            ${validationHtml}
+                            <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                        </div>
                     </div>
                     <div class="modal-body" style="padding: 20px;">
                         
@@ -6159,6 +6173,48 @@ const app = {
                 this.showToast('Erreur lors de la suppression', 'error');
             }
         });
+    },
+
+    async validateClient(id) {
+        const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
+        if (!this.isAdmin() && (!currentUser || currentUser.role !== 'manager')) {
+            this.showToast("Vous n'avez pas les droits pour valider cette fiche.", "error");
+            return;
+        }
+
+        try {
+            const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === id);
+            if (!client) {
+                this.showToast("Client introuvable", "error");
+                return;
+            }
+
+            const username = currentUser ? currentUser.username : 'Admin';
+            
+            client.isValidated = true;
+            client.validatedBy = username;
+
+            // Update in backend
+            await ApiService.updateClient(id, client);
+            
+            // Update in local storage
+            const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
+            const index = clients.findIndex(c => c.id === id);
+            if (index !== -1) {
+                clients[index] = client;
+                StorageService.save(STORAGE_KEYS.CLIENTS, clients);
+            }
+
+            this.showToast('Fiche client validée avec succès', 'success');
+            
+            // Refresh modal and view
+            this.showClientDetails(id);
+            if (this.currentView === 'clients') this.renderClients();
+
+        } catch (error) {
+            console.error(error);
+            this.showToast("Erreur lors de la validation", "error");
+        }
     },
 
     async addConfigItem(type) {

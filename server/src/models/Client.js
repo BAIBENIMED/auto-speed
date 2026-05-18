@@ -49,6 +49,15 @@ const Client = sequelize.define('Client', {
     postalCode: {
         type: DataTypes.STRING(20),
         field: 'postal_code'
+    },
+    isValidated: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'is_validated'
+    },
+    validatedBy: {
+        type: DataTypes.STRING(100),
+        field: 'validated_by'
     }
 }, {
     tableName: 'clients',
