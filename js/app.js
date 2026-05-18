@@ -2038,7 +2038,7 @@ const app = {
                                 <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
                                 <p><strong>État:</strong> ${(() => {
                                     if (vehicle.category === 'Neuf') return '<span class="badge-pill" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">Neuf</span>';
-                                    if (vehicle.category === 'Recent' || vehicle.category === 'Moins de 3 ans') return '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">Moins de 3 ans</span>';
+                                    if (vehicle.category === 'Recent' || vehicle.category === 'Moins de 3 ans') return '<span class="badge-pill" style="background: rgba(234, 179, 8, 0.15); color: #eab308;">Moins de 3 ans</span>';
                                     if (vehicle.category) return `<span class="badge-pill" style="background: rgba(255, 255, 255, 0.05); color: var(--text-dim);">${vehicle.category}</span>`;
                                     return 'N/A';
                                 })()}</p>
@@ -4766,7 +4766,7 @@ const app = {
                                                 </div>
                                                 <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'} ${(() => {
                                                     if (v.category === 'Neuf') return '| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 6px;">Neuf</span>';
-                                                    if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 2px 6px;">Moins de 3 ans</span>';
+                                                    if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(234, 179, 8, 0.2); color: #eab308; padding: 2px 6px;">Moins de 3 ans</span>';
                                                     if (v.category) return `| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(255, 255, 255, 0.05); color: var(--text-dim); padding: 2px 6px;">${v.category}</span>`;
                                                     return '';
                                                 })()}</div>
@@ -4836,7 +4836,7 @@ const app = {
                                     <td>
                                         ${(() => {
                                             if (v.category === 'Neuf') return '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.2); color: #22c55e; font-weight: bold; font-size: 0.75rem;">NEUF</span>';
-                                            if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: bold; font-size: 0.75rem;">-3 ANS</span>';
+                                            if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '<span class="badge-pill" style="background: rgba(234, 179, 8, 0.2); color: #eab308; font-weight: bold; font-size: 0.75rem;">-3 ANS</span>';
                                             if (v.category) return `<span class="badge-pill" style="background: rgba(255, 255, 255, 0.05); color: var(--text-dim); font-size: 0.75rem;">${v.category.toUpperCase()}</span>`;
                                             return '<span style="color:var(--text-dim);">N/A</span>';
                                         })()}
@@ -11010,7 +11010,7 @@ const app = {
                                                         <div style="font-size: 0.8rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
                                                         ${(() => {
                                                             if (v.category === 'Neuf') return '<div style="font-size: 0.75rem; font-weight: 800; color: #10b981; margin-top: 2px;">VEHICULE NEUF</div>';
-                                                            if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '<div style="font-size: 0.75rem; font-weight: 800; color: #e67e22; margin-top: 2px;">MOINS DE TROIS ANS</div>';
+                                                            if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '<div style="font-size: 0.75rem; font-weight: 800; color: #eab308; margin-top: 2px;">MOINS DE TROIS ANS</div>';
                                                             if (v.category) return `<div style="font-size: 0.75rem; font-weight: 800; color: var(--text-dim); margin-top: 2px;">${v.category.toUpperCase()}</div>`;
                                                             return '';
                                                         })()}
