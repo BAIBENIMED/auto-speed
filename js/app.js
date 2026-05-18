@@ -3828,32 +3828,15 @@ const app = {
                         </button>
                     </div>
                 </div>
-                \u003cdiv class="clients-grid"\u003e
+                <div class="clients-grid">
                     ${clients.map(client => {
                         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
                         const canValidate = this.isAdmin() || (currentUser && currentUser.role === 'manager');
-                        let validationBadge = '';
+                        let validateBtn = '';
                         if (client.isValidated) {
-                            validationBadge = `
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center;">
-                                    <span style="display: inline-flex; align-items: center; gap: 6px; color: #10b981; font-size: 0.82rem; font-weight: 600; padding: 5px 14px; background: rgba(16,185,129,0.12); border-radius: 20px; border: 1px solid rgba(16,185,129,0.25);">
-                                        <i class="fas fa-check-circle"></i> Validé${client.validatedBy ? ' par ' + client.validatedBy : ''}
-                                    </span>
-                                </div>`;
+                            validateBtn = `<button class="btn-action" style="color: #10b981; border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.12); cursor: default;" title="Validé${client.validatedBy ? ' par ' + client.validatedBy : ''}"><i class="fas fa-user-check"></i></button>`;
                         } else if (canValidate) {
-                            validationBadge = `
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center;">
-                                    <button onclick="app.showValidationModal('${client.id}')" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.4); color: #10b981; border-radius: 20px; padding: 5px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(16,185,129,0.3)'" onmouseout="this.style.background='rgba(16,185,129,0.15)'">
-                                        <i class="fas fa-user-check"></i> Valider le client
-                                    </button>
-                                </div>`;
-                        } else {
-                            validationBadge = `
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center;">
-                                    <span style="display: inline-flex; align-items: center; gap: 6px; color: #f59e0b; font-size: 0.82rem; font-weight: 500; padding: 5px 14px; background: rgba(245,158,11,0.1); border-radius: 20px; border: 1px solid rgba(245,158,11,0.2);">
-                                        <i class="fas fa-clock"></i> En attente de validation
-                                    </span>
-                                </div>`;
+                            validateBtn = `<button class="btn-action" style="color: #f59e0b; border-color: rgba(245,158,11,0.4);" onclick="app.showValidationModal('${client.id}')" title="Valider ce client"><i class="fas fa-user-clock"></i></button>`;
                         }
                         return `
                         <div class="client-card glass">
@@ -3875,9 +3858,9 @@ const app = {
                             <div class="client-actions">
                                 <button class="btn-action info" onclick="app.showClientDetails('${client.id}')" title="Détails du client"><i class="fas fa-info-circle"></i></button>
                                 <button class="btn-action" onclick="app.showEditClientModal('${client.id}')"><i class="fas fa-edit"></i></button>
+                                ${validateBtn}
                                 <button class="btn-action danger" onclick="app.deleteClient('${client.id}')"><i class="fas fa-trash"></i></button>
                             </div>
-                            ${validationBadge}
                         </div>`;
                     }).join('')}
                     ${clients.length === 0 ? '<p style="grid-column: 1/-1; text-align: center; padding: 2rem;">Aucun client trouvé.</p>' : ''}
