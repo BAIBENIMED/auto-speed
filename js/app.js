@@ -14286,8 +14286,9 @@ const app = {
                 const currentYear = new Date().getFullYear();
                 const vYear = parseInt(v.year) || 0;
                 let typeDisplay = "-";
-                if (v.category === 'Neuf') typeDisplay = 'NEW CAR';
-                else if (v.category === 'Recent' || v.category === 'Moins de 3 ans') typeDisplay = 'USED CAR';
+                const cat = (v.category || '').toLowerCase().trim();
+                if (cat === 'neuf') typeDisplay = 'NEW CAR';
+                else if (cat.includes('3') || cat.includes('recent') || cat.includes('moins')) typeDisplay = 'USED CAR';
                 else if (v.category) typeDisplay = v.category;
 
                 let remark = v.remarks || "-";
@@ -14468,8 +14469,9 @@ const app = {
             const currentYear = new Date().getFullYear();
             const vYear = parseInt(v.year) || 0;
             let typeDisplay = "-";
-            if (v.category === 'Neuf') typeDisplay = 'NEW CAR';
-            else if (v.category === 'Recent' || v.category === 'Moins de 3 ans') typeDisplay = 'USED CAR';
+            const cat = (v.category || '').toLowerCase().trim();
+            if (cat === 'neuf') typeDisplay = 'NEW CAR';
+            else if (cat.includes('3') || cat.includes('recent') || cat.includes('moins')) typeDisplay = 'USED CAR';
             else if (v.category) typeDisplay = v.category;
 
             let remark = v.remarks || "-";
