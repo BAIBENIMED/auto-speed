@@ -14295,6 +14295,8 @@ const app = {
                     remark = "VENDU CG À: " + nouveauCGText + (v.remarks ? " | " + v.remarks : "");
                 }
 
+                const rowClient = v.soldRegistration ? (ancienClient || client) : client;
+
                 const rawShowroom = rowClient ? (rowClient.showroom || "-") : "-";
                 const displayShowroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
 
