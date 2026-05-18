@@ -14354,37 +14354,11 @@ const app = {
                     if (cellText.includes('USED CAR')) {
                         data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
-                        if (data.column.index === 7) {
-                            data.cell.styles.cellPadding = { left: 7 };
-                        }
                     }
                     // Highlight entire row in light red for Vendu CG vehicles
                     const rowData = rows[data.row.index];
                     if (rowData && rowData[12] && String(rowData[12]).includes('VENDU CG')) {
                         data.cell.styles.fillColor = [255, 245, 245];
-                    }
-                }
-            },
-            didDrawCell: function(data) {
-                if (data.section === 'body' && data.column.index === 7) {
-                    const cellText = String(data.cell.raw || "").toUpperCase();
-                    if (cellText.includes('USED CAR')) {
-                        const x = data.cell.x + 2;
-                        const y = data.cell.y + (data.cell.height / 2) - 2;
-                        
-                        // Draw red triangle
-                        data.doc.setDrawColor(213, 0, 0);
-                        data.doc.setFillColor(213, 0, 0);
-                        data.doc.triangle(x, y + 4, x + 2.5, y, x + 5, y + 4, 'F');
-                        
-                        // Draw white '!'
-                        data.doc.setTextColor(255, 255, 255);
-                        data.doc.setFontSize(6);
-                        data.doc.setFont("helvetica", "bold");
-                        data.doc.text('!', x + 2.1, y + 3.2);
-                        
-                        // Reset for next cells
-                        data.doc.setTextColor(0, 0, 0);
                     }
                 }
             }
@@ -14571,37 +14545,11 @@ const app = {
                     if (cellText.includes('USED CAR')) {
                         data.cell.styles.textColor = [200, 80, 0]; // Dark Orange
                         data.cell.styles.fontStyle = 'bold';
-                        if (data.column.index === 9) {
-                            data.cell.styles.cellPadding = { left: 7 };
-                        }
                     }
                     // Highlight entire row in light red for Vendu CG vehicles
                     const rowData = rows[data.row.index];
                     if (rowData && rowData[15] && String(rowData[15]).includes('VENDU CG')) {
                         data.cell.styles.fillColor = [255, 245, 245];
-                    }
-                }
-            },
-            didDrawCell: function(data) {
-                if (data.section === 'body' && data.column.index === 9) {
-                    const cellText = String(data.cell.raw || "").toUpperCase();
-                    if (cellText.includes('USED CAR')) {
-                        const x = data.cell.x + 2;
-                        const y = data.cell.y + (data.cell.height / 2) - 2;
-                        
-                        // Draw red triangle
-                        data.doc.setDrawColor(213, 0, 0);
-                        data.doc.setFillColor(213, 0, 0);
-                        data.doc.triangle(x, y + 4, x + 2.5, y, x + 5, y + 4, 'F');
-                        
-                        // Draw white '!'
-                        data.doc.setTextColor(255, 255, 255);
-                        data.doc.setFontSize(6);
-                        data.doc.setFont("helvetica", "bold");
-                        data.doc.text('!', x + 2.1, y + 3.2);
-                        
-                        // Reset for next cells
-                        data.doc.setTextColor(0, 0, 0);
                     }
                 }
             }
