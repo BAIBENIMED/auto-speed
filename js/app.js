@@ -3131,7 +3131,7 @@ const app = {
                             <!-- Filtre Fournisseur -->
                             <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
                                 <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Fournisseur</label>
-                                <select class="code-input" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseSupplier', this.value)">
+                                <select class="glass-select" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseSupplier', this.value)">
                                     <option value="">Tous les fournisseurs</option>
                                     ${uniqueSuppliers.map(s => `<option value="${s}" ${this.dashboardFilters.purchaseSupplier === s ? 'selected' : ''}>${s}</option>`).join('')}
                                 </select>
@@ -3140,7 +3140,7 @@ const app = {
                             <!-- Filtre Forwarder -->
                             <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
                                 <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Transitaire (Forwarder)</label>
-                                <select class="code-input" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseForwarder', this.value)">
+                                <select class="glass-select" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseForwarder', this.value)">
                                     <option value="">Tous les transitaires</option>
                                     ${uniqueForwarders.map(f => `<option value="${f}" ${this.dashboardFilters.purchaseForwarder === f ? 'selected' : ''}>${f}</option>`).join('')}
                                 </select>
@@ -3149,7 +3149,7 @@ const app = {
                             <!-- Filtre Port -->
                             <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
                                 <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Port de Chargement</label>
-                                <select class="code-input" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchasePort', this.value)">
+                                <select class="glass-select" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchasePort', this.value)">
                                     <option value="">Tous les ports</option>
                                     ${uniquePorts.map(p => `<option value="${p}" ${this.dashboardFilters.purchasePort === p ? 'selected' : ''}>${p}</option>`).join('')}
                                 </select>
@@ -3158,7 +3158,7 @@ const app = {
                             <!-- Filtre Statut / Situation -->
                             <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
                                 <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Statut (En cours / Chargée)</label>
-                                <select class="code-input" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseStatus', this.value)">
+                                <select class="glass-select" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseStatus', this.value)">
                                     <option value="">Toutes les situations</option>
                                     <option value="En cours" ${this.dashboardFilters.purchaseStatus === 'En cours' ? 'selected' : ''}>En cours</option>
                                     <option value="Chargement effectué" ${this.dashboardFilters.purchaseStatus === 'Chargement effectué' ? 'selected' : ''}>Chargement effectué</option>

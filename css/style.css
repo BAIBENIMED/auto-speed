@@ -113,6 +113,17 @@ button, input, select, textarea {
     color: inherit;
 }
 
+select {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    border: 1px solid var(--border-glass);
+}
+
+select option {
+    background-color: var(--bg-dark) !important;
+    color: var(--text-primary) !important;
+}
+
 * {
     margin: 0;
     padding: 0;
