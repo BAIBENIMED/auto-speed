@@ -985,11 +985,7 @@ const app = {
 
     calculateOrderStatus(order) {
         if (!order) return 'N/A';
-        
-        let status = order.status || '';
-        if (status === 'EN COURS') status = 'CHARGEMENT EFFECTUÉ';
-
-        if (['ANNULÉE', 'LIVRÉE', 'ANNULÉ', 'CONCLUE', 'CHARGEMENT EFFECTUÉ'].includes(status)) return status;
+        if (['ANNULÉE', 'LIVRÉE', 'ANNULÉ', 'CONCLUE', 'EN COURS'].includes(order.status)) return order.status;
         if (!order.isValidated) return 'EN ATTENTE DE VALIDATION';
 
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
@@ -1012,7 +1008,7 @@ const app = {
         if (shpStatus === 'en mer' || shpStatus === 'en route' || shpStatus.includes('transit') || shpStatus.includes('sailing')) return 'EN MER';
         if (shpStatus === 'préparation' || shpStatus === 'preparation' || shpStatus.includes('loaded') || shpStatus.includes('departure') || shipment.etd) return 'A BORD';
 
-        return status || 'CHARGEMENT EFFECTUÉ';
+        return order.status || 'EN COURS';
     },
 
     async syncOrderStatuses() {
@@ -1696,9 +1692,9 @@ const app = {
                             <div class="form-group">
                                 <label>Statut</label>
                                 <select name="status" class="glass-select">
-                                    <option value="${order.status === 'EN COURS' ? 'CHARGEMENT EFFECTUÉ' : order.status}" selected>${order.status === 'EN COURS' ? 'CHARGEMENT EFFECTUÉ' : order.status} (Actuel)</option>
+                                    <option value="${order.status}" selected>${order.status} (Actuel)</option>
                                     <option value="EN ATTENTE DE VALIDATION">EN ATTENTE DE VALIDATION</option>
-                                    <option value="CHARGEMENT EFFECTUÉ">CHARGEMENT EFFECTUÉ</option>
+                                    <option value="EN COURS">EN COURS</option>
                                     <option value="ATTENTE AFFECTATION VÉHICULE">ATTENTE AFFECTATION VÉHICULE</option>
                                     <option value="ATTENTE EXPÉDITION">ATTENTE EXPÉDITION</option>
                                     <option value="ENLEVÉE">ENLEVÉE</option>
@@ -3560,10 +3556,7 @@ const app = {
 
         // Apply Advanced Filters
         if (this.orderFilters.status && this.orderFilters.status.length > 0) {
-            orders = orders.filter(o => {
-                const s = o.status === 'EN COURS' ? 'CHARGEMENT EFFECTUÉ' : (o.status || 'CHARGEMENT EFFECTUÉ');
-                return this.orderFilters.status.includes(s);
-            });
+            orders = orders.filter(o => this.orderFilters.status.includes(o.status || 'EN COURS'));
         }
         if (this.orderFilters.showroom && this.orderFilters.showroom.length > 0) {
             orders = orders.filter(o => this.orderFilters.showroom.includes(o.showroom));
@@ -3613,7 +3606,7 @@ const app = {
                 <div class="glass filter-bar" style="margin-bottom: 20px; padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; position: relative; z-index: 50; overflow: visible;">
                     ${this.renderMultiSelect('orderFilters', 'status', 'Statuts', [
                         { value: 'EN ATTENTE DE VALIDATION', label: 'Validation' },
-                        { value: 'CHARGEMENT EFFECTUÉ', label: 'Chargement Effectué' },
+                        { value: 'EN COURS', label: 'En Cours' },
                         { value: 'ATTENTE AFFECTATION VÉHICULE', label: 'Affectation' },
                         { value: 'ATTENTE EXPÉDITION', label: 'Expédition' },
                         { value: 'A BORD', label: 'A Bord' },
@@ -10681,9 +10674,10 @@ const app = {
                                 </label>
                                 <select class="glass-select" style="padding: 10px 12px; font-size: 0.9rem;" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), status: this.value}; app.renderPurchases()">
                                     <option value="">Tous les statuts</option>
-                                    <option value="Ordered" ${this.purchaseFilters?.status === 'Ordered' ? 'selected' : ''}>Commandé</option>
-                                    <option value="Paid" ${this.purchaseFilters?.status === 'Paid' ? 'selected' : ''}>Payé</option>
-                                    <option value="Partial" ${this.purchaseFilters?.status === 'Partial' ? 'selected' : ''}>Partiel</option>
+                                    <option value="En cours" ${this.purchaseFilters?.status === 'En cours' ? 'selected' : ''}>Chargement effectué</option>
+                                    <option value="Commandé" ${this.purchaseFilters?.status === 'Commandé' ? 'selected' : ''}>Commandé</option>
+                                    <option value="Payé" ${this.purchaseFilters?.status === 'Payé' ? 'selected' : ''}>Payé</option>
+                                    <option value="Livré" ${this.purchaseFilters?.status === 'Livré' ? 'selected' : ''}>Livré</option>
                                 </select>
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
@@ -10751,7 +10745,7 @@ const app = {
                                                 </span>
                                             </div>
                                         </td>
-                                        <td><span class="status-badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${p.status}</span></td>
+                                        <td><span class="status-badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${p.status === 'En cours' ? 'Chargement effectué' : p.status}</span></td>
                                         <td>
                                             <div class="actions-cell">
                                                 <button class="btn-icon" onclick="app.showPurchaseOrderDetails('${p.id}')" title="Détails" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);"><i class="fas fa-eye"></i></button>
@@ -11365,7 +11359,7 @@ const app = {
                         <div class="form-group">
                             <label>Statut</label>
                             <select name="status" class="code-input">
-                                <option value="En cours" ${po && po.status === 'En cours' ? 'selected' : ''}>En cours</option>
+                                <option value="En cours" ${po && po.status === 'En cours' ? 'selected' : ''}>Chargement effectué</option>
                                 <option value="Commandé" ${po && po.status === 'Commandé' ? 'selected' : ''}>Commandé</option>
                                 <option value="Payé" ${po && po.status === 'Payé' ? 'selected' : ''}>Payé</option>
                                 <option value="Livré" ${po && po.status === 'Livré' ? 'selected' : ''}>Livré</option>
