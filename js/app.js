@@ -10739,11 +10739,35 @@ const app = {
                                         </td>
                                         <td>${p.purchaseDate ? this.formatDate(p.purchaseDate) : 'N/A'}</td>
                                         <td>
-                                            <div style="display: flex; flex-direction: column; gap: 4px;">
-                                                <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Doc: ${p.documentStatus || 'Rien'}</span>
-                                                <span class="status-badge ${p.documentsReceived === 'Oui' ? 'success' : 'danger'}" style="font-size: 0.65rem; padding: 2px 6px; width: fit-content;">
-                                                    REC: ${p.documentsReceived || 'Non'}
-                                                </span>
+                                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                                <!-- Électronique -->
+                                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                                    <span style="font-size: 0.68rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Électronique</span>
+                                                    <div style="display: flex; gap: 4px;">
+                                                        <span class="badge-pill" style="font-size: 0.65rem; padding: 1px 5px; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;
+                                                            ${p.mblStatus ? 'background: rgba(var(--success-rgb), 0.15); color: var(--success); border: 1px solid rgba(var(--success-rgb), 0.3);' : 'background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid rgba(255,255,255,0.1);'}">
+                                                            MBL
+                                                        </span>
+                                                        <span class="badge-pill" style="font-size: 0.65rem; padding: 1px 5px; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;
+                                                            ${p.hblStatus ? 'background: rgba(var(--success-rgb), 0.15); color: var(--success); border: 1px solid rgba(var(--success-rgb), 0.3);' : 'background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid rgba(255,255,255,0.1);'}">
+                                                            HBL
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <!-- Physique -->
+                                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                                    <span style="font-size: 0.68rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Physique / Reçu</span>
+                                                    <div style="display: flex; gap: 4px;">
+                                                        <span class="badge-pill" style="font-size: 0.65rem; padding: 1px 5px; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;
+                                                            ${p.mblReceived ? 'background: rgba(var(--success-rgb), 0.15); color: var(--success); border: 1px solid rgba(var(--success-rgb), 0.3);' : 'background: rgba(var(--danger-rgb), 0.1); color: var(--danger); border: 1px solid rgba(var(--danger-rgb), 0.2);'}">
+                                                            MBL
+                                                        </span>
+                                                        <span class="badge-pill" style="font-size: 0.65rem; padding: 1px 5px; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;
+                                                            ${p.hblReceived ? 'background: rgba(var(--success-rgb), 0.15); color: var(--success); border: 1px solid rgba(var(--success-rgb), 0.3);' : 'background: rgba(var(--danger-rgb), 0.1); color: var(--danger); border: 1px solid rgba(var(--danger-rgb), 0.2);'}">
+                                                            HBL
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                         <td><span class="status-badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${p.status || 'N/A'}</span></td>
