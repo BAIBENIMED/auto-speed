@@ -64,7 +64,11 @@ const app = {
     dashboardFilters: {
         showroom: '',
         startDate: '',
-        endDate: ''
+        endDate: '',
+        purchaseSupplier: '',
+        purchaseForwarder: '',
+        purchasePort: '',
+        purchaseStatus: ''
     },
     orderFilters: {
         status: [],
@@ -2429,6 +2433,19 @@ const app = {
         this.renderView(viewName);
     },
 
+    setDashboardFilter(key, value) {
+        this.dashboardFilters[key] = value;
+        this.renderDashboard();
+    },
+
+    resetPurchaseDashboardFilters() {
+        this.dashboardFilters.purchaseSupplier = '';
+        this.dashboardFilters.purchaseForwarder = '';
+        this.dashboardFilters.purchasePort = '';
+        this.dashboardFilters.purchaseStatus = '';
+        this.renderDashboard();
+    },
+
     attachDashboardListeners() {
         const showroomFilter = document.getElementById('dash-filter-showroom');
         const startFilter = document.getElementById('dash-filter-start');
@@ -2458,7 +2475,15 @@ const app = {
 
         if (resetBtn) {
             resetBtn.addEventListener('click', () => {
-                this.dashboardFilters = { showroom: '', startDate: '', endDate: '' };
+                this.dashboardFilters = {
+                    showroom: '',
+                    startDate: '',
+                    endDate: '',
+                    purchaseSupplier: '',
+                    purchaseForwarder: '',
+                    purchasePort: '',
+                    purchaseStatus: ''
+                };
                 this.renderDashboard();
             });
         }
@@ -3072,123 +3097,180 @@ const app = {
                                                 </td>
                                                 <td style="padding: 12px; text-align: center;">
                                                     ${v.blLink ? `<a href="${v.blLink}" target="_blank" style="color: var(--primary); font-size: 1.1rem;"><i class="fas fa-file-pdf"></i></a>` : '<i class="fas fa-minus" style="opacity: 0.2;"></i>'}
-                                                </td>
+                      <!-- Section Situations & Recaps -->
+                    ${(() => {
+                        const rawPurchasesForDashboard = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
+                        const uniqueSuppliers = Array.from(new Set(rawPurchasesForDashboard.map(p => p.supplierName).filter(Boolean))).sort();
+                        const uniqueForwarders = Array.from(new Set(rawPurchasesForDashboard.map(p => p.forwarder).filter(Boolean))).sort();
+                        const uniquePorts = Array.from(new Set(rawPurchasesForDashboard.map(p => p.loadingPort).filter(Boolean))).sort();
+
+                        const filteredPurchases = rawPurchasesForDashboard.filter(p => {
+                            if (this.dashboardFilters.purchaseSupplier && p.supplierName !== this.dashboardFilters.purchaseSupplier) return false;
+                            if (this.dashboardFilters.purchaseForwarder && p.forwarder !== this.dashboardFilters.purchaseForwarder) return false;
+                            if (this.dashboardFilters.purchasePort && p.loadingPort !== this.dashboardFilters.purchasePort) return false;
+                            if (this.dashboardFilters.purchaseStatus && p.status !== this.dashboardFilters.purchaseStatus) return false;
+                            return true;
+                        });
+
+                        return `
+                        <!-- Filtres Commandes d'Achat -->
+                        <div class="glass animate delay-2" style="padding: 15px; margin-top: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; background: rgba(255,255,255,0.02);">
+                            <div style="font-weight: 600; color: var(--primary); font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-filter"></i> Filtres Commande Achat :
+                            </div>
+                            
+                            <!-- Filtre Fournisseur -->
+                            <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                                <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Fournisseur</label>
+                                <select class="code-input" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseSupplier', this.value)">
+                                    <option value="">Tous les fournisseurs</option>
+                                    ${uniqueSuppliers.map(s => `<option value="${s}" ${this.dashboardFilters.purchaseSupplier === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <!-- Filtre Forwarder -->
+                            <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                                <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Transitaire (Forwarder)</label>
+                                <select class="code-input" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseForwarder', this.value)">
+                                    <option value="">Tous les transitaires</option>
+                                    ${uniqueForwarders.map(f => `<option value="${f}" ${this.dashboardFilters.purchaseForwarder === f ? 'selected' : ''}>${f}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <!-- Filtre Port -->
+                            <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                                <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Port de Chargement</label>
+                                <select class="code-input" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchasePort', this.value)">
+                                    <option value="">Tous les ports</option>
+                                    ${uniquePorts.map(p => `<option value="${p}" ${this.dashboardFilters.purchasePort === p ? 'selected' : ''}>${p}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <!-- Filtre Statut / Situation -->
+                            <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                                <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Statut (En cours / Chargée)</label>
+                                <select class="code-input" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('purchaseStatus', this.value)">
+                                    <option value="">Toutes les situations</option>
+                                    <option value="En cours" ${this.dashboardFilters.purchaseStatus === 'En cours' ? 'selected' : ''}>En cours</option>
+                                    <option value="Chargement effectué" ${this.dashboardFilters.purchaseStatus === 'Chargement effectué' ? 'selected' : ''}>Chargement effectué</option>
+                                </select>
+                            </div>
+
+                            <!-- Bouton Reset Filtres Commandes -->
+                            <button class="btn-primary" style="margin-top: 18px; padding: 6px 15px; font-size: 0.8rem; height: 32px; display: flex; align-items: center; gap: 6px; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); color: #f87171;" onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'" onclick="app.resetPurchaseDashboardFilters()">
+                                <i class="fas fa-undo"></i> Réinitialiser
+                            </button>
+                        </div>
+
+                        <div class="main-grid" style="margin-top: 20px; grid-template-columns: 1fr;">
+                            <!-- Table 1: Situation des Documents -->
+                            <div class="chart-section glass animate delay-3">
+                                <div class="section-title">
+                                    <h2><i class="fas fa-file-invoice"></i> Situation des Documents (HBL & MBL)</h2>
+                                </div>
+                                <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
+                                    <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-primary);">
+                                        <thead>
+                                            <tr style="background: rgba(255,255,255,0.02);">
+                                                <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">N° Commande Achat</th>
+                                                <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Fournisseur</th>
+                                                <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">MBL Électronique</th>
+                                                <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">HBL Électronique</th>
+                                                <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">MBL Physique</th>
+                                                <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">HBL Physique</th>
+                                                <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Statut Global</th>
                                             </tr>
-                                        `;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Section Situations & Recaps -->
-                    <div class="main-grid" style="margin-top: 30px; grid-template-columns: 1fr;">
-                        <!-- Table 1: Situation des Documents -->
-                        <div class="chart-section glass animate delay-3">
-                            <div class="section-title">
-                                <h2><i class="fas fa-file-invoice"></i> Situation des Documents (HBL & MBL)</h2>
+                                        </thead>
+                                        <tbody>
+                                            ${filteredPurchases.map(p => {
+                                                const isAllReceived = p.mblStatus && p.hblStatus && p.mblReceived && p.hblReceived;
+                                                const rowBg = isAllReceived ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.08)';
+                                                const rowBorderLeft = isAllReceived ? '4px solid var(--success)' : '4px solid var(--warning)';
+                                                const hoverBg = isAllReceived ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+                                                
+                                                return `
+                                                    <tr style="background: ${rowBg}; border-left: ${rowBorderLeft}; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${rowBg}'">
+                                                        <td style="padding: 12px; font-weight: 600; color: var(--text-primary); cursor: pointer;" onclick="app.showPurchaseOrderDetails('${p.id}')">
+                                                            ${p.id}
+                                                        </td>
+                                                        <td style="padding: 12px; color: var(--text-primary);">${p.supplierName || 'N/A'}</td>
+                                                        <td style="padding: 12px; text-align: center;">
+                                                            ${p.mblStatus ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="opacity: 0.4;"><i class="fas fa-times-circle"></i> NON</span>'}
+                                                        </td>
+                                                        <td style="padding: 12px; text-align: center;">
+                                                            ${p.hblStatus ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="opacity: 0.4;"><i class="fas fa-times-circle"></i> NON</span>'}
+                                                        </td>
+                                                        <td style="padding: 12px; text-align: center;">
+                                                            ${p.mblReceived ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="color: var(--danger); font-weight: bold;"><i class="fas fa-times-circle"></i> NON</span>'}
+                                                        </td>
+                                                        <td style="padding: 12px; text-align: center;">
+                                                            ${p.hblReceived ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="color: var(--danger); font-weight: bold;"><i class="fas fa-times-circle"></i> NON</span>'}
+                                                        </td>
+                                                        <td style="padding: 12px; text-align: center; font-weight: 700; color: ${isAllReceived ? 'var(--success)' : 'var(--warning)'};">
+                                                            ${isAllReceived ? '<i class="fas fa-check-double"></i> TOUT REÇU' : '<i class="fas fa-exclamation-triangle"></i> EN ATTENTE'}
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                            ${filteredPurchases.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                            <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
-                                <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-primary);">
-                                    <thead>
-                                        <tr style="background: rgba(255,255,255,0.02);">
-                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">N° Commande Achat</th>
-                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Fournisseur</th>
-                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">MBL Électronique</th>
-                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">HBL Électronique</th>
-                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">MBL Physique</th>
-                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">HBL Physique</th>
-                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Statut Global</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${purchases.map(p => {
-                                            const isAllReceived = p.mblStatus && p.hblStatus && p.mblReceived && p.hblReceived;
-                                            const rowBg = isAllReceived ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.08)';
-                                            const rowBorderLeft = isAllReceived ? '4px solid var(--success)' : '4px solid var(--warning)';
-                                            const hoverBg = isAllReceived ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)';
-                                            
-                                            return `
-                                                <tr style="background: ${rowBg}; border-left: ${rowBorderLeft}; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${rowBg}'">
-                                                    <td style="padding: 12px; font-weight: 600; color: var(--text-primary); cursor: pointer;" onclick="app.showPurchaseOrderDetails('${p.id}')">
-                                                        ${p.id}
-                                                    </td>
-                                                    <td style="padding: 12px; color: var(--text-primary);">${p.supplierName || 'N/A'}</td>
-                                                    <td style="padding: 12px; text-align: center;">
-                                                        ${p.mblStatus ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="opacity: 0.4;"><i class="fas fa-times-circle"></i> NON</span>'}
-                                                    </td>
-                                                    <td style="padding: 12px; text-align: center;">
-                                                        ${p.hblStatus ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="opacity: 0.4;"><i class="fas fa-times-circle"></i> NON</span>'}
-                                                    </td>
-                                                    <td style="padding: 12px; text-align: center;">
-                                                        ${p.mblReceived ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="color: var(--danger); font-weight: bold;"><i class="fas fa-times-circle"></i> NON</span>'}
-                                                    </td>
-                                                    <td style="padding: 12px; text-align: center;">
-                                                        ${p.hblReceived ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="color: var(--danger); font-weight: bold;"><i class="fas fa-times-circle"></i> NON</span>'}
-                                                    </td>
-                                                    <td style="padding: 12px; text-align: center; font-weight: 700; color: ${isAllReceived ? 'var(--success)' : 'var(--warning)'};">
-                                                        ${isAllReceived ? '<i class="fas fa-check-double"></i> TOUT REÇU' : '<i class="fas fa-exclamation-triangle"></i> EN ATTENTE'}
-                                                    </td>
-                                                </tr>
-                                            `;
-                                        }).join('')}
-                                        ${purchases.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
 
-                        <!-- Table 2: Récapitulatif des Commandes -->
-                        <div class="chart-section glass animate delay-3" style="margin-top: 30px;">
-                            <div class="section-title">
-                                <h2><i class="fas fa-list-alt"></i> Récapitulatif & Situation des Commandes d'Achat</h2>
-                            </div>
-                            <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
-                                <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-primary);">
-                                    <thead>
-                                        <tr style="background: rgba(255,255,255,0.02);">
-                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">N° Commande Achat</th>
-                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Modèles & Nb Véhicules</th>
-                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Transitaire (Forwarder)</th>
-                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Date Embarquement (ETD)</th>
-                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Port de chargement</th>
-                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Situation Commande</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${purchases.map(p => {
-                                            const vehicleCounts = {};
-                                            (p.vehicles || []).forEach(v => {
-                                                const modelName = `${v.brand} ${v.model || ''}`.trim();
-                                                vehicleCounts[modelName] = (vehicleCounts[modelName] || 0) + 1;
-                                            });
-                                            const modelSummary = Object.entries(vehicleCounts)
-                                                .map(([model, count]) => `• <strong>${model}</strong> (${count})`)
-                                                .join('<br>') || '<span style="opacity: 0.4; font-style: italic;">Aucun véhicule</span>';
+                            <!-- Table 2: Récapitulatif des Commandes -->
+                            <div class="chart-section glass animate delay-3" style="margin-top: 30px;">
+                                <div class="section-title">
+                                    <h2><i class="fas fa-list-alt"></i> Récapitulatif & Situation des Commandes d'Achat</h2>
+                                </div>
+                                <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
+                                    <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-primary);">
+                                        <thead>
+                                            <tr style="background: rgba(255,255,255,0.02);">
+                                                <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">N° Commande Achat</th>
+                                                <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Modèles & Nb Véhicules</th>
+                                                <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Transitaire (Forwarder)</th>
+                                                <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Date Embarquement (ETD)</th>
+                                                <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Port de chargement</th>
+                                                <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Situation Commande</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${filteredPurchases.map(p => {
+                                                const vehicleCounts = {};
+                                                (p.vehicles || []).forEach(v => {
+                                                    const modelName = `${v.brand} ${v.model || ''}`.trim();
+                                                    vehicleCounts[modelName] = (vehicleCounts[modelName] || 0) + 1;
+                                                });
+                                                const modelSummary = Object.entries(vehicleCounts)
+                                                    .map(([model, count]) => `• <strong>${model}</strong> (${count})`)
+                                                    .join('<br>') || '<span style="opacity: 0.4; font-style: italic;">Aucun véhicule</span>';
 
-                                            return `
-                                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-                                                    <td style="padding: 12px; font-weight: 600; color: var(--primary); cursor: pointer;" onclick="app.showPurchaseOrderDetails('${p.id}')">
-                                                        ${p.id}
-                                                    </td>
-                                                    <td style="padding: 12px; line-height: 1.4;">${modelSummary}</td>
-                                                    <td style="padding: 12px;">${p.forwarder || '<span style="opacity: 0.4;">N/A</span>'}</td>
-                                                    <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">
-                                                        ${p.etd ? this.formatDate(p.etd) : '<span style="opacity: 0.4; font-weight: normal;">N/A</span>'}
-                                                    </td>
-                                                    <td style="padding: 12px;">${p.loadingPort || '<span style="opacity: 0.4;">N/A</span>'}</td>
-                                                    <td style="padding: 12px; font-weight: 500; color: var(--text-primary);">
-                                                        ${p.situation ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(var(--primary-rgb), 0.2);">${p.situation}</span>` : '<span style="opacity: 0.4; font-style: italic;">Aucune situation</span>'}
-                                                    </td>
-                                                </tr>
-                                            `;
-                                        }).join('')}
-                                        ${purchases.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
-                                    </tbody>
-                                </table>
+                                                return `
+                                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                                                        <td style="padding: 12px; font-weight: 600; color: var(--primary); cursor: pointer;" onclick="app.showPurchaseOrderDetails('${p.id}')">
+                                                            ${p.id}
+                                                        </td>
+                                                        <td style="padding: 12px; line-height: 1.4;">${modelSummary}</td>
+                                                        <td style="padding: 12px;">${p.forwarder || '<span style="opacity: 0.4;">N/A</span>'}</td>
+                                                        <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">
+                                                            ${p.etd ? this.formatDate(p.etd) : '<span style="opacity: 0.4; font-weight: normal;">N/A</span>'}
+                                                        </td>
+                                                        <td style="padding: 12px;">${p.loadingPort || '<span style="opacity: 0.4;">N/A</span>'}</td>
+                                                        <td style="padding: 12px; font-weight: 500; color: var(--text-primary);">
+                                                            ${p.situation ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(var(--primary-rgb), 0.2);">${p.situation}</span>` : '<span style="opacity: 0.4; font-style: italic;">Aucune situation</span>'}
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                            ${filteredPurchases.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                        `;
+                    })()}
 
                     <!-- Alert Center -->
                     <div class="chart-section glass animate delay-3" style="margin-top: 30px; margin-bottom: 30px;">
