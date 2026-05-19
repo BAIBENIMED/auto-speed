@@ -31,6 +31,7 @@ const purchaseOrdersController = {
             const {
                 supplierId, status, purchaseDate,
                 documentStatus, documentsReceived,
+                mblStatus, hblStatus, mblReceived, hblReceived,
                 loadingPort, loadingDate, etd, eta, isLoaded, forwarder, carrier, unbundler,
                 notes, vehicles, tasks, piNumber, situation, destinationPort
             } = req.body;
@@ -60,6 +61,10 @@ const purchaseOrdersController = {
                 purchaseDate: purchaseDate || new Date(),
                 documentStatus,
                 documentsReceived,
+                mblStatus: mblStatus !== undefined ? mblStatus : false,
+                hblStatus: hblStatus !== undefined ? hblStatus : false,
+                mblReceived: mblReceived !== undefined ? mblReceived : false,
+                hblReceived: hblReceived !== undefined ? hblReceived : false,
                 loadingPort,
                 loadingDate,
                 destinationPort,
@@ -157,6 +162,7 @@ const purchaseOrdersController = {
             const {
                 supplierId, status, purchaseDate,
                 documentStatus, documentsReceived,
+                mblStatus, hblStatus, mblReceived, hblReceived,
                 loadingPort, loadingDate, etd, eta, isLoaded, forwarder, carrier, unbundler,
                 notes, vehicles, tasks, piNumber, situation, destinationPort
             } = req.body;
@@ -175,6 +181,10 @@ const purchaseOrdersController = {
                 purchaseDate: purchaseDate !== undefined ? purchaseDate : po.purchaseDate,
                 documentStatus: documentStatus !== undefined ? documentStatus : po.documentStatus,
                 documentsReceived: documentsReceived !== undefined ? documentsReceived : po.documentsReceived,
+                mblStatus: mblStatus !== undefined ? mblStatus : po.mblStatus,
+                hblStatus: hblStatus !== undefined ? hblStatus : po.hblStatus,
+                mblReceived: mblReceived !== undefined ? mblReceived : po.mblReceived,
+                hblReceived: hblReceived !== undefined ? hblReceived : po.hblReceived,
                 loadingPort: loadingPort !== undefined ? loadingPort : po.loadingPort,
                 loadingDate: loadingDate !== undefined ? loadingDate : po.loadingDate,
                 destinationPort: destinationPort !== undefined ? destinationPort : po.destinationPort,
