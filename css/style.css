@@ -108,6 +108,11 @@ input[type=number] {
     -moz-appearance: textfield;
 }
 
+button, input, select, textarea {
+    font-family: inherit;
+    color: inherit;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -445,6 +450,7 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     border: 1px solid var(--border-glass);
     background: var(--bg-glass);
     border-radius: 10px;
+    color: var(--text-primary);
 }
 
 .btn-icon:hover {
@@ -2513,7 +2519,7 @@ textarea.glass-input {
         bottom: 0;
         margin: 0;
         height: 100vh;
-        z-index: 1000;
+        z-index: 99999;
         transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         background: var(--bg-dark);
         box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
@@ -2525,6 +2531,7 @@ textarea.glass-input {
 
     .sidebar-overlay.active {
         display: block;
+        z-index: 99998;
     }
 
     .mobile-menu-btn {
