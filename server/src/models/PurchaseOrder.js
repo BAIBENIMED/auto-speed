@@ -106,6 +106,11 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
     unbundler: {
         type: DataTypes.STRING(100),
         allowNull: true
+    },
+    piNumber: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        field: 'pi_number'
     }
 }, {
     tableName: 'purchase_orders',

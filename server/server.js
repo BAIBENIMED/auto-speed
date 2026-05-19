@@ -527,6 +527,7 @@ const startServer = async () => {
                 { table: 'purchase_orders', name: 'carrier', def: 'VARCHAR(100)' },
                 { table: 'purchase_orders', name: 'unbundler', def: 'VARCHAR(100)' },
                 { table: 'purchase_orders', name: 'tasks', def: 'JSON' },
+                { table: 'purchase_orders', name: 'pi_number', def: 'VARCHAR(100)' },
                 { table: 'vehicles', name: 'motorization', def: 'VARCHAR(100)' },
                 { table: 'vehicles', name: 'purchase_order_id', def: 'VARCHAR(50)' },
                 { table: 'vehicles', name: 'trim_id', def: 'VARCHAR(255)' },

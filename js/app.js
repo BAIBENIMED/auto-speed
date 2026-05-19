@@ -10716,7 +10716,10 @@ const app = {
                                 ${purchases.length === 0 ? '<tr><td colspan="8" style="text-align: center; padding: 40px;">Aucune commande d\'achat trouvée</td></tr>' :
                     purchases.map(p => `
                                     <tr>
-                                        <td><strong>${p.id}</strong></td>
+                                        <td>
+                                            <strong>${p.id}</strong>
+                                            ${p.piNumber ? `<div style="font-size: 0.72rem; color: var(--primary); margin-top: 3px; font-weight: 500;"><i class="fas fa-file-invoice"></i> PI: ${p.piNumber}</div>` : ''}
+                                        </td>
                                         <td>${p.supplierDetails ? `<span style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; border: 1px solid rgba(var(--primary-rgb), 0.2);">${p.supplierDetails.code}</span> ${p.supplierDetails.name}` : p.supplierName || 'N/A'}</td>
                                         <td><span style="background: rgba(255,255,255,0.05); color: var(--text-primary); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">${p.vehicles ? p.vehicles.length : 0}</span></td>
                                         <td>
@@ -10930,7 +10933,7 @@ const app = {
                             <div class="modal-header">
                                 <div>
                                     <h2>Détails Commande d'Achat #${p.id}</h2>
-                                    <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? this.formatDate(p.purchaseDate) : 'N/A'}</p>
+                                    <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? this.formatDate(p.purchaseDate) : 'N/A'}${p.piNumber ? ` | PI NUMBER: <strong>${p.piNumber}</strong>` : ''}</p>
                                     <div style="display: flex; gap: 10px; margin-top: 5px;">
                                         <span class="status-badge ${p.documentStatus === 'BL Finale' ? 'success' : (['BL Draft', 'BL EN COURS DE MODIFICATIONS'].includes(p.documentStatus) ? 'warning' : 'neutral')}" style="font-size: 0.75rem; padding: 2px 8px;">
                                             Statut Doc: ${p.documentStatus || 'Rien'}
@@ -11371,6 +11374,10 @@ const app = {
                             <label>Date d'achat</label>
                             <input type="date" name="purchaseDate" value="${po ? po.purchaseDate.split('T')[0] : new Date().toISOString().split('T')[0]}" class="code-input" required>
                         </div>
+                        <div class="form-group">
+                            <label>PI NUMBER</label>
+                            <input type="text" name="piNumber" value="${po && po.piNumber ? po.piNumber : ''}" class="code-input" placeholder="Ex: PI-12345">
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label><i class="fas fa-file-contract"></i> BL Électronique</label>
@@ -11476,6 +11483,7 @@ const app = {
                 supplierId: formData.get('supplierId'),
                 status: formData.get('status'),
                 purchaseDate: formData.get('purchaseDate'),
+                piNumber: formData.get('piNumber') || '',
                 documentStatus: formData.get('documentStatus'),
                 mblStatus: formData.get('mblStatus') ? true : false,
                 hblStatus: formData.get('hblStatus') ? true : false,
