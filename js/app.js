@@ -3097,6 +3097,15 @@ const app = {
                                                 </td>
                                                 <td style="padding: 12px; text-align: center;">
                                                     ${v.blLink ? `<a href="${v.blLink}" target="_blank" style="color: var(--primary); font-size: 1.1rem;"><i class="fas fa-file-pdf"></i></a>` : '<i class="fas fa-minus" style="opacity: 0.2;"></i>'}
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                       <!-- Section Situations & Recaps -->
                     ${(() => {
                         const rawPurchasesForDashboard = StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [];
