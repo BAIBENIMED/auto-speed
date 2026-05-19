@@ -10674,7 +10674,8 @@ const app = {
                                 </label>
                                 <select class="glass-select" style="padding: 10px 12px; font-size: 0.9rem;" onchange="app.purchaseFilters = {...(app.purchaseFilters || {}), status: this.value}; app.renderPurchases()">
                                     <option value="">Tous les statuts</option>
-                                    <option value="En cours" ${this.purchaseFilters?.status === 'En cours' ? 'selected' : ''}>Chargement effectué</option>
+                                    <option value="En cours" ${this.purchaseFilters?.status === 'En cours' ? 'selected' : ''}>En cours</option>
+                                    <option value="Chargement effectué" ${this.purchaseFilters?.status === 'Chargement effectué' ? 'selected' : ''}>Chargement effectué</option>
                                     <option value="Commandé" ${this.purchaseFilters?.status === 'Commandé' ? 'selected' : ''}>Commandé</option>
                                     <option value="Payé" ${this.purchaseFilters?.status === 'Payé' ? 'selected' : ''}>Payé</option>
                                     <option value="Livré" ${this.purchaseFilters?.status === 'Livré' ? 'selected' : ''}>Livré</option>
@@ -10745,7 +10746,7 @@ const app = {
                                                 </span>
                                             </div>
                                         </td>
-                                        <td><span class="status-badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${p.status === 'En cours' ? 'Chargement effectué' : p.status}</span></td>
+                                        <td><span class="status-badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);">${p.status || 'N/A'}</span></td>
                                         <td>
                                             <div class="actions-cell">
                                                 <button class="btn-icon" onclick="app.showPurchaseOrderDetails('${p.id}')" title="Détails" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary);"><i class="fas fa-eye"></i></button>
@@ -11359,7 +11360,8 @@ const app = {
                         <div class="form-group">
                             <label>Statut</label>
                             <select name="status" class="code-input">
-                                <option value="En cours" ${po && po.status === 'En cours' ? 'selected' : ''}>Chargement effectué</option>
+                                <option value="En cours" ${po && po.status === 'En cours' ? 'selected' : ''}>En cours</option>
+                                <option value="Chargement effectué" ${po && po.status === 'Chargement effectué' ? 'selected' : ''}>Chargement effectué</option>
                                 <option value="Commandé" ${po && po.status === 'Commandé' ? 'selected' : ''}>Commandé</option>
                                 <option value="Payé" ${po && po.status === 'Payé' ? 'selected' : ''}>Payé</option>
                                 <option value="Livré" ${po && po.status === 'Livré' ? 'selected' : ''}>Livré</option>
