@@ -11603,7 +11603,7 @@ const app = {
                         </div>
                         <div class="form-group">
                             <label>SITUATION COMMANDE</label>
-                            <input type="text" name="situation" value="${po && po.situation ? po.situation : ''}" class="code-input" placeholder="Ex: En attente d'embarquement, Livré au port, etc.">
+                            <textarea name="situation" class="glass-input" rows="3" placeholder="Ex: En attente d'embarquement, Livré au port, etc.">${po && po.situation ? po.situation : ''}</textarea>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
                             <div class="form-group" style="margin-bottom: 0;">

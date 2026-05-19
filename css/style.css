@@ -1044,7 +1044,7 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     /* Dark Blue */
 }
 
-.glass-input {
+.glass-input, .code-input {
     background: var(--bg-glass);
     border: 1px solid var(--border-glass);
     padding: 12px 15px;
@@ -1053,14 +1053,15 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     font-family: inherit;
     outline: none;
     transition: var(--transition);
+    width: 100%;
 }
 
-.glass-input:focus {
+.glass-input:focus, .code-input:focus {
     border-color: var(--primary);
     background: rgba(255, 255, 255, 0.1);
 }
 
-textarea.glass-input {
+textarea.glass-input, textarea.code-input {
     resize: vertical;
     min-height: 80px;
 }
