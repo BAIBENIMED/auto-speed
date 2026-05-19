@@ -68,7 +68,11 @@ const app = {
         purchaseSupplier: '',
         purchaseForwarder: '',
         purchasePort: '',
-        purchaseStatus: ''
+        purchaseStatus: '',
+        recapSupplier: '',
+        recapForwarder: '',
+        recapPort: '',
+        recapStatus: ''
     },
     orderFilters: {
         status: [],
@@ -2446,6 +2450,14 @@ const app = {
         this.renderDashboard();
     },
 
+    resetRecapDashboardFilters() {
+        this.dashboardFilters.recapSupplier = '';
+        this.dashboardFilters.recapForwarder = '';
+        this.dashboardFilters.recapPort = '';
+        this.dashboardFilters.recapStatus = '';
+        this.renderDashboard();
+    },
+
     attachDashboardListeners() {
         const showroomFilter = document.getElementById('dash-filter-showroom');
         const startFilter = document.getElementById('dash-filter-start');
@@ -2482,7 +2494,11 @@ const app = {
                     purchaseSupplier: '',
                     purchaseForwarder: '',
                     purchasePort: '',
-                    purchaseStatus: ''
+                    purchaseStatus: '',
+                    recapSupplier: '',
+                    recapForwarder: '',
+                    recapPort: '',
+                    recapStatus: ''
                 };
                 this.renderDashboard();
             });
@@ -3121,6 +3137,14 @@ const app = {
                             return true;
                         });
 
+                        const recapFilteredPurchases = rawPurchasesForDashboard.filter(p => {
+                            if (this.dashboardFilters.recapSupplier && p.supplierName !== this.dashboardFilters.recapSupplier) return false;
+                            if (this.dashboardFilters.recapForwarder && p.forwarder !== this.dashboardFilters.recapForwarder) return false;
+                            if (this.dashboardFilters.recapPort && p.loadingPort !== this.dashboardFilters.recapPort) return false;
+                            if (this.dashboardFilters.recapStatus && p.status !== this.dashboardFilters.recapStatus) return false;
+                            return true;
+                        });
+
                         return `
                         <!-- Filtres Commandes d'Achat -->
                         <div class="glass animate delay-2" style="padding: 15px; margin-top: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; background: rgba(255,255,255,0.02);">
@@ -3232,6 +3256,55 @@ const app = {
                                 <div class="section-title">
                                     <h2><i class="fas fa-list-alt"></i> Récapitulatif & Situation des Commandes d'Achat</h2>
                                 </div>
+
+                                <!-- Filtres Récapitulatif (Indépendants) -->
+                                <div class="glass animate" style="padding: 15px; margin-bottom: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; background: rgba(255,255,255,0.02);">
+                                    <div style="font-weight: 600; color: var(--primary); font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                                        <i class="fas fa-filter"></i> Filtres Récapitulatif :
+                                    </div>
+                                    
+                                    <!-- Filtre Fournisseur -->
+                                    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                                        <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Fournisseur</label>
+                                        <select class="glass-select" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('recapSupplier', this.value)">
+                                            <option value="">Tous les fournisseurs</option>
+                                            ${uniqueSuppliers.map(s => `<option value="${s}" ${this.dashboardFilters.recapSupplier === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                        </select>
+                                    </div>
+
+                                    <!-- Filtre Forwarder -->
+                                    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                                        <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Transitaire (Forwarder)</label>
+                                        <select class="glass-select" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('recapForwarder', this.value)">
+                                            <option value="">Tous les transitaires</option>
+                                            ${uniqueForwarders.map(f => `<option value="${f}" ${this.dashboardFilters.recapForwarder === f ? 'selected' : ''}>${f}</option>`).join('')}
+                                        </select>
+                                    </div>
+
+                                    <!-- Filtre Port -->
+                                    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                                        <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Port de Chargement</label>
+                                        <select class="glass-select" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('recapPort', this.value)">
+                                            <option value="">Tous les ports</option>
+                                            ${uniquePorts.map(p => `<option value="${p}" ${this.dashboardFilters.recapPort === p ? 'selected' : ''}>${p}</option>`).join('')}
+                                        </select>
+                                    </div>
+
+                                    <!-- Filtre Statut / Situation -->
+                                    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                                        <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Statut (En cours / Chargée)</label>
+                                        <select class="glass-select" style="padding: 6px 12px; font-size: 0.82rem; height: 34px;" onchange="app.setDashboardFilter('recapStatus', this.value)">
+                                            <option value="">Toutes les situations</option>
+                                            <option value="En cours" ${this.dashboardFilters.recapStatus === 'En cours' ? 'selected' : ''}>En cours</option>
+                                            <option value="Chargement effectué" ${this.dashboardFilters.recapStatus === 'Chargement effectué' ? 'selected' : ''}>Chargement effectué</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Bouton Reset Filtres Récapitulatif -->
+                                    <button class="btn-primary" style="margin-top: 18px; padding: 6px 15px; font-size: 0.8rem; height: 32px; display: flex; align-items: center; gap: 6px; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); color: #f87171;" onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'" onclick="app.resetRecapDashboardFilters()">
+                                        <i class="fas fa-undo"></i> Réinitialiser
+                                    </button>
+                                </div>
                                 <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
                                     <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-primary);">
                                         <thead>
@@ -3245,7 +3318,7 @@ const app = {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${filteredPurchases.map(p => {
+                                            ${recapFilteredPurchases.map(p => {
                                                 const vehicleCounts = {};
                                                 (p.vehicles || []).forEach(v => {
                                                     const modelName = `${v.brand} ${v.model || ''}`.trim();
@@ -3272,7 +3345,7 @@ const app = {
                                                     </tr>
                                                 `;
                                             }).join('')}
-                                            ${filteredPurchases.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
+                                            ${recapFilteredPurchases.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
                                         </tbody>
                                     </table>
                                 </div>
