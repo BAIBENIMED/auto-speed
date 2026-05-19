@@ -111,6 +111,11 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
         type: DataTypes.STRING(100),
         allowNull: true,
         field: 'pi_number'
+    },
+    situation: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: 'situation'
     }
 }, {
     tableName: 'purchase_orders',

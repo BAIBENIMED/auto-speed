@@ -3081,6 +3081,115 @@ const app = {
                         </div>
                     </div>
 
+                    <!-- Section Situations & Recaps -->
+                    <div class="main-grid" style="margin-top: 30px; grid-template-columns: 1fr;">
+                        <!-- Table 1: Situation des Documents -->
+                        <div class="chart-section glass animate delay-3">
+                            <div class="section-title">
+                                <h2><i class="fas fa-file-invoice"></i> Situation des Documents (HBL & MBL)</h2>
+                            </div>
+                            <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
+                                <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-primary);">
+                                    <thead>
+                                        <tr style="background: rgba(255,255,255,0.02);">
+                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">N° Commande Achat</th>
+                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Fournisseur</th>
+                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">MBL Électronique</th>
+                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">HBL Électronique</th>
+                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">MBL Physique</th>
+                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">HBL Physique</th>
+                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Statut Global</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${purchases.map(p => {
+                                            const isAllReceived = p.mblStatus && p.hblStatus && p.mblReceived && p.hblReceived;
+                                            const rowBg = isAllReceived ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.08)';
+                                            const rowBorderLeft = isAllReceived ? '4px solid var(--success)' : '4px solid var(--warning)';
+                                            const hoverBg = isAllReceived ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+                                            
+                                            return `
+                                                <tr style="background: ${rowBg}; border-left: ${rowBorderLeft}; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${rowBg}'">
+                                                    <td style="padding: 12px; font-weight: 600; color: var(--text-primary); cursor: pointer;" onclick="app.showPurchaseOrderDetails('${p.id}')">
+                                                        ${p.id}
+                                                    </td>
+                                                    <td style="padding: 12px; color: var(--text-primary);">${p.supplierName || 'N/A'}</td>
+                                                    <td style="padding: 12px; text-align: center;">
+                                                        ${p.mblStatus ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="opacity: 0.4;"><i class="fas fa-times-circle"></i> NON</span>'}
+                                                    </td>
+                                                    <td style="padding: 12px; text-align: center;">
+                                                        ${p.hblStatus ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="opacity: 0.4;"><i class="fas fa-times-circle"></i> NON</span>'}
+                                                    </td>
+                                                    <td style="padding: 12px; text-align: center;">
+                                                        ${p.mblReceived ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="color: var(--danger); font-weight: bold;"><i class="fas fa-times-circle"></i> NON</span>'}
+                                                    </td>
+                                                    <td style="padding: 12px; text-align: center;">
+                                                        ${p.hblReceived ? '<span style="color: var(--success); font-weight: bold;"><i class="fas fa-check-circle"></i> OUI</span>' : '<span style="color: var(--danger); font-weight: bold;"><i class="fas fa-times-circle"></i> NON</span>'}
+                                                    </td>
+                                                    <td style="padding: 12px; text-align: center; font-weight: 700; color: ${isAllReceived ? 'var(--success)' : 'var(--warning)'};">
+                                                        ${isAllReceived ? '<i class="fas fa-check-double"></i> TOUT REÇU' : '<i class="fas fa-exclamation-triangle"></i> EN ATTENTE'}
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                        ${purchases.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Table 2: Récapitulatif des Commandes -->
+                        <div class="chart-section glass animate delay-3" style="margin-top: 30px;">
+                            <div class="section-title">
+                                <h2><i class="fas fa-list-alt"></i> Récapitulatif & Situation des Commandes d'Achat</h2>
+                            </div>
+                            <div class="glass-scroll" style="overflow-x: auto; padding: 15px;">
+                                <table class="pivot-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-primary);">
+                                    <thead>
+                                        <tr style="background: rgba(255,255,255,0.02);">
+                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">N° Commande Achat</th>
+                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Modèles & Nb Véhicules</th>
+                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Transitaire (Forwarder)</th>
+                                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Date Embarquement (ETD)</th>
+                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Port de chargement</th>
+                                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Situation Commande</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${purchases.map(p => {
+                                            const vehicleCounts = {};
+                                            (p.vehicles || []).forEach(v => {
+                                                const modelName = `${v.brand} ${v.model || ''}`.trim();
+                                                vehicleCounts[modelName] = (vehicleCounts[modelName] || 0) + 1;
+                                            });
+                                            const modelSummary = Object.entries(vehicleCounts)
+                                                .map(([model, count]) => `• <strong>${model}</strong> (${count})`)
+                                                .join('<br>') || '<span style="opacity: 0.4; font-style: italic;">Aucun véhicule</span>';
+
+                                            return `
+                                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                                                    <td style="padding: 12px; font-weight: 600; color: var(--primary); cursor: pointer;" onclick="app.showPurchaseOrderDetails('${p.id}')">
+                                                        ${p.id}
+                                                    </td>
+                                                    <td style="padding: 12px; line-height: 1.4;">${modelSummary}</td>
+                                                    <td style="padding: 12px;">${p.forwarder || '<span style="opacity: 0.4;">N/A</span>'}</td>
+                                                    <td style="padding: 12px; text-align: center; color: var(--warning); font-weight: 600;">
+                                                        ${p.etd ? this.formatDate(p.etd) : '<span style="opacity: 0.4; font-weight: normal;">N/A</span>'}
+                                                    </td>
+                                                    <td style="padding: 12px;">${p.loadingPort || '<span style="opacity: 0.4;">N/A</span>'}</td>
+                                                    <td style="padding: 12px; font-weight: 500; color: var(--text-primary);">
+                                                        ${p.situation ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(var(--primary-rgb), 0.2);">${p.situation}</span>` : '<span style="opacity: 0.4; font-style: italic;">Aucune situation</span>'}
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                        ${purchases.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Alert Center -->
                     <div class="chart-section glass animate delay-3" style="margin-top: 30px; margin-bottom: 30px;">
                         <div class="section-title">
@@ -10959,7 +11068,7 @@ const app = {
                             <div class="modal-header">
                                 <div>
                                     <h2>Détails Commande d'Achat #${p.id}</h2>
-                                    <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? this.formatDate(p.purchaseDate) : 'N/A'}${p.piNumber ? ` | PI NUMBER: <strong>${p.piNumber}</strong>` : ''}</p>
+                                    <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Fournisseur: ${p.supplierName} | Date: ${p.purchaseDate ? this.formatDate(p.purchaseDate) : 'N/A'}${p.piNumber ? ` | PI NUMBER: <strong>${p.piNumber}</strong>` : ''}${p.situation ? ` | Situation: <strong>${p.situation}</strong>` : ''}</p>
                                     <div style="display: flex; gap: 10px; margin-top: 5px;">
                                         <span class="status-badge ${p.documentStatus === 'BL Finale' ? 'success' : (['BL Draft', 'BL EN COURS DE MODIFICATIONS'].includes(p.documentStatus) ? 'warning' : 'neutral')}" style="font-size: 0.75rem; padding: 2px 8px;">
                                             Statut Doc: ${p.documentStatus || 'Rien'}
@@ -11401,6 +11510,10 @@ const app = {
                             <label>PI NUMBER</label>
                             <input type="text" name="piNumber" value="${po && po.piNumber ? po.piNumber : ''}" class="code-input" placeholder="Ex: PI-12345">
                         </div>
+                        <div class="form-group">
+                            <label>SITUATION COMMANDE</label>
+                            <input type="text" name="situation" value="${po && po.situation ? po.situation : ''}" class="code-input" placeholder="Ex: En attente d'embarquement, Livré au port, etc.">
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(var(--primary-rgb), 0.05); padding: 10px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label><i class="fas fa-file-contract"></i> BL Électronique</label>
@@ -11507,6 +11620,7 @@ const app = {
                 status: formData.get('status'),
                 purchaseDate: formData.get('purchaseDate'),
                 piNumber: formData.get('piNumber') || '',
+                situation: formData.get('situation') || '',
                 documentStatus: formData.get('documentStatus'),
                 mblStatus: formData.get('mblStatus') ? true : false,
                 hblStatus: formData.get('hblStatus') ? true : false,
