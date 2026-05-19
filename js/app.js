@@ -10676,9 +10676,6 @@ const app = {
                                     <option value="">Tous les statuts</option>
                                     <option value="En cours" ${this.purchaseFilters?.status === 'En cours' ? 'selected' : ''}>En cours</option>
                                     <option value="Chargement effectué" ${this.purchaseFilters?.status === 'Chargement effectué' ? 'selected' : ''}>Chargement effectué</option>
-                                    <option value="Commandé" ${this.purchaseFilters?.status === 'Commandé' ? 'selected' : ''}>Commandé</option>
-                                    <option value="Payé" ${this.purchaseFilters?.status === 'Payé' ? 'selected' : ''}>Payé</option>
-                                    <option value="Livré" ${this.purchaseFilters?.status === 'Livré' ? 'selected' : ''}>Livré</option>
                                 </select>
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
@@ -11365,9 +11362,6 @@ const app = {
                             <select name="status" class="code-input">
                                 <option value="En cours" ${po && po.status === 'En cours' ? 'selected' : ''}>En cours</option>
                                 <option value="Chargement effectué" ${po && po.status === 'Chargement effectué' ? 'selected' : ''}>Chargement effectué</option>
-                                <option value="Commandé" ${po && po.status === 'Commandé' ? 'selected' : ''}>Commandé</option>
-                                <option value="Payé" ${po && po.status === 'Payé' ? 'selected' : ''}>Payé</option>
-                                <option value="Livré" ${po && po.status === 'Livré' ? 'selected' : ''}>Livré</option>
                             </select>
                         </div>
                         <div class="form-group">
