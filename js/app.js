@@ -10727,6 +10727,11 @@ const app = {
                                     const clientName = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || client.name : 'STOCK';
                                     return `<div style="margin-bottom: 2px; cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails du véhicule">
                                     • <strong>${clientName}</strong> : ${v.brand} ${v.model || ''} ${v.trim ? `[${v.trim}]` : ''} 
+                                     ${v.category === 'Neuf' ? `
+                                     <span class="badge-pill" style="font-size: 0.65rem; background: rgba(var(--success-rgb), 0.15); color: var(--success); padding: 1px 5px; border: 1px solid rgba(var(--success-rgb), 0.3); border-radius: 4px; font-weight: 600; margin-left: 2px; margin-right: 2px;">NEW CAR</span>
+                                     ` : (v.category && (v.category.includes('3 ans') || v.category.includes('Recent')) ? `
+                                     <span class="badge-pill" style="font-size: 0.65rem; background: rgba(var(--warning-rgb), 0.15); color: var(--warning); padding: 1px 5px; border: 1px solid rgba(var(--warning-rgb), 0.3); border-radius: 4px; font-weight: 600; margin-left: 2px; margin-right: 2px;">USED CAR</span>
+                                     ` : '')} 
                                     ${(() => {
                                         const amend = this.getAmendmentStatus(v.id);
                                         return amend ? `<span class="badge-pill" style="font-size: 0.6rem; background: ${amend.color}22; color: ${amend.color}; padding: 1px 4px; border: 1px solid ${amend.color}33;" title="${amend.label}">AMEND.</span>` : '';
