@@ -3312,8 +3312,9 @@ const app = {
                                                 <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">N° Commande Achat</th>
                                                 <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Modèles & Nb Véhicules</th>
                                                 <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Transitaire (Forwarder)</th>
-                                                <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Date Embarquement (ETD)</th>
+                                                <th style="text-align: center; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Date Départ Navire (ETD)</th>
                                                 <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Port de chargement</th>
+                                                <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Port d'Arrivée</th>
                                                 <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);">Situation Commande</th>
                                             </tr>
                                         </thead>
@@ -3327,7 +3328,7 @@ const app = {
                                                 const modelSummary = Object.entries(vehicleCounts)
                                                     .map(([model, count]) => `• <strong>${model}</strong> (${count})`)
                                                     .join('<br>') || '<span style="opacity: 0.4; font-style: italic;">Aucun véhicule</span>';
-
+ 
                                                 return `
                                                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
                                                         <td style="padding: 12px; font-weight: 600; color: var(--primary); cursor: pointer;" onclick="app.showPurchaseOrderDetails('${p.id}')">
@@ -3339,13 +3340,14 @@ const app = {
                                                             ${p.etd ? this.formatDate(p.etd) : '<span style="opacity: 0.4; font-weight: normal;">N/A</span>'}
                                                         </td>
                                                         <td style="padding: 12px;">${p.loadingPort || '<span style="opacity: 0.4;">N/A</span>'}</td>
+                                                        <td style="padding: 12px;">${p.destinationPort || '<span style="opacity: 0.4;">N/A</span>'}</td>
                                                         <td style="padding: 12px; font-weight: 500; color: var(--text-primary);">
                                                             ${p.situation ? `<span class="badge-pill" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(var(--primary-rgb), 0.2);">${p.situation}</span>` : '<span style="opacity: 0.4; font-style: italic;">Aucune situation</span>'}
                                                         </td>
                                                     </tr>
                                                 `;
                                             }).join('')}
-                                            ${recapFilteredPurchases.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
+                                            ${recapFilteredPurchases.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">Aucune commande d\'achat trouvée</td></tr>' : ''}
                                         </tbody>
                                     </table>
                                 </div>
@@ -11437,11 +11439,15 @@ const app = {
                                             <strong style="font-size: 0.9rem;">${p.loadingPort || 'N/A'}</strong>
                                         </div>
                                         <div>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Port d'Arrivée</p>
+                                            <strong style="font-size: 0.9rem;">${p.destinationPort || 'N/A'}</strong>
+                                        </div>
+                                        <div>
                                             <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Date de Chargement</p>
                                             <strong style="font-size: 0.9rem;">${p.loadingDate ? this.formatDate(p.loadingDate) : 'N/A'}</strong>
                                         </div>
                                         <div>
-                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">ETD (Départ)</p>
+                                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">Date Départ Navire (ETD)</p>
                                             <strong style="font-size: 0.9rem;">${p.etd ? this.formatDate(p.etd) : 'N/A'}</strong>
                                         </div>
                                         <div>
@@ -11711,6 +11717,10 @@ const app = {
                                     <input type="text" name="loadingPort" value="${po && po.loadingPort ? po.loadingPort : ''}" class="glass-input" placeholder="Nom du port">
                                 </div>
                                 <div class="form-group">
+                                    <label>Port d'Arrivée (Destination)</label>
+                                    <input type="text" name="destinationPort" value="${po && po.destinationPort ? po.destinationPort : ''}" class="glass-input" placeholder="Nom du port d'arrivée">
+                                </div>
+                                <div class="form-group">
                                     <label>Date de Chargement</label>
                                     <input type="date" name="loadingDate" value="${po && po.loadingDate ? po.loadingDate.split('T')[0] : ''}" class="glass-input">
                                 </div>
@@ -11722,7 +11732,7 @@ const app = {
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>ETD (Estimation Départ)</label>
+                                    <label>Date de Départ Navire (ETD)</label>
                                     <input type="date" name="etd" value="${po && po.etd ? po.etd.split('T')[0] : ''}" class="glass-input">
                                 </div>
                                 <div class="form-group">
@@ -11792,6 +11802,7 @@ const app = {
                 mblReceived: formData.get('mblReceived') ? true : false,
                 hblReceived: formData.get('hblReceived') ? true : false,
                 loadingPort: formData.get('loadingPort'),
+                destinationPort: formData.get('destinationPort') || '',
                 loadingDate: formData.get('loadingDate') || null,
                 etd: formData.get('etd') || null,
                 eta: formData.get('eta') || null,

@@ -116,6 +116,11 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
         type: DataTypes.TEXT,
         allowNull: true,
         field: 'situation'
+    },
+    destinationPort: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        field: 'destination_port'
     }
 }, {
     tableName: 'purchase_orders',

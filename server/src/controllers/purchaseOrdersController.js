@@ -32,7 +32,7 @@ const purchaseOrdersController = {
                 supplierId, status, purchaseDate,
                 documentStatus, documentsReceived,
                 loadingPort, loadingDate, etd, eta, isLoaded, forwarder, carrier, unbundler,
-                notes, vehicles, tasks, piNumber, situation
+                notes, vehicles, tasks, piNumber, situation, destinationPort
             } = req.body;
 
             // Generate PO ID: CMD/ANNEE/FOURNISSEUR/SEQUENCE
@@ -62,6 +62,7 @@ const purchaseOrdersController = {
                 documentsReceived,
                 loadingPort,
                 loadingDate,
+                destinationPort,
                 etd,
                 eta,
                 isLoaded,
@@ -157,7 +158,7 @@ const purchaseOrdersController = {
                 supplierId, status, purchaseDate,
                 documentStatus, documentsReceived,
                 loadingPort, loadingDate, etd, eta, isLoaded, forwarder, carrier, unbundler,
-                notes, vehicles, tasks, piNumber, situation
+                notes, vehicles, tasks, piNumber, situation, destinationPort
             } = req.body;
 
             const po = await PurchaseOrder.findByPk(id);
@@ -176,6 +177,7 @@ const purchaseOrdersController = {
                 documentsReceived: documentsReceived !== undefined ? documentsReceived : po.documentsReceived,
                 loadingPort: loadingPort !== undefined ? loadingPort : po.loadingPort,
                 loadingDate: loadingDate !== undefined ? loadingDate : po.loadingDate,
+                destinationPort: destinationPort !== undefined ? destinationPort : po.destinationPort,
                 etd: etd !== undefined ? etd : po.etd,
                 eta: eta !== undefined ? eta : po.eta,
                 isLoaded: isLoaded !== undefined ? isLoaded : po.isLoaded,
