@@ -323,8 +323,8 @@ const app = {
                     <div class="login-box glass">
                         <div class="login-logo" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
                             <div class="logo-text-wrapper" style="font-size: 3.5rem; letter-spacing: -2px; flex-direction: row; gap: 15px; width: auto;">
-                                <span class="tibou" style="color: white;">TIBOU</span>
-                                <span class="auto" style="color: #D32F2F;">AUTO</span>
+                                <span class="tibou" style="color: white;">AUTO</span>
+                                <span class="auto" style="color: #D32F2F;">SPEED</span>
                             </div>
                             <div style="color: #D32F2F; font-size: 0.9rem; font-weight: 600; letter-spacing: 6px; margin-top: -10px; text-transform: uppercase; opacity: 0.9;">SHOWROOMS</div>
                         </div>
@@ -346,7 +346,7 @@ const app = {
                         <p class="login-subtitle" style="color: #D50000; font-weight: bold; font-size: 0.85rem; letter-spacing: 2px; text-align: center; margin-top: 25px;">AUTO SHOWROOM</p>
                         
                         <div class="login-footer">
-                            <p>&copy; 2026 TIBOU AUTO. Tous droits réservés.</p>
+                            <p>&copy; 2026 AUTO SPEED. Tous droits réservés.</p>
                         </div>
                     </div>
                 </div>
@@ -6135,7 +6135,7 @@ const app = {
             }
 
             const settings = StorageService.get(STORAGE_KEYS.SETTINGS) || {
-                companyName: 'TIBOU AUTO',
+                companyName: 'AUTO SPEED',
                 purchaseCurrency: 'EUR',
                 sellingCurrency: 'EUR',
                 customsCurrency: 'XAF',
@@ -9076,7 +9076,7 @@ const app = {
             // Header
             doc.setFontSize(18);
             doc.setTextColor(40, 40, 40);
-            doc.text('Liste des Commandes - TIBOU AUTO', 14, 20);
+            doc.text('Liste des Commandes - AUTO SPEED', 14, 20);
 
             doc.setFontSize(10);
             doc.setTextColor(100);
@@ -9145,7 +9145,7 @@ const app = {
                 }
             });
 
-            doc.save(`commandes_tibou_auto_${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.save(`commandes_auto_speed_${new Date().toISOString().split('T')[0]}.pdf`);
             this.showToast('Téléchargement du PDF lancé...', 'success');
         } catch (e) {
             console.error('PDF Export Error:', e);
@@ -14810,11 +14810,11 @@ const app = {
         doc.setFontSize(28);
         doc.setFont("times", "bold");
         doc.setTextColor(0, 0, 0); // Black
-        doc.text("TIBOU", 14, 20);
+        doc.text("AUTO", 14, 20);
         
-        const tibouWidth = doc.getTextWidth("TIBOU");
+        const tibouWidth = doc.getTextWidth("AUTO");
         doc.setTextColor(213, 0, 0); // Red
-        doc.text("AUTO", 14 + tibouWidth, 20);
+        doc.text("SPEED", 14 + tibouWidth, 20);
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");

@@ -12,7 +12,7 @@ const models = require('./src/models');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-console.log(`[Startup] Initializing Tibou Auto Server...`);
+console.log(`[Startup] Initializing AUTO SPEED Server...`);
 console.log(`[Startup] Target Port: ${PORT}`);
 
 // Global error handlers for better debugging on Render
@@ -105,11 +105,11 @@ app.get('/tracking.html', (req, res) => {
 // More routes will be added here
 
 // Basic reachability test
-app.get('/', (req, res) => res.json({ message: 'TIBOU AUTO API is running', version: '2.7-ANTIGRAVITY' }));
+app.get('/', (req, res) => res.json({ message: 'AUTO SPEED API is running', version: '2.7-ANTIGRAVITY' }));
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', message: 'TIBOU AUTO API is running (v2.7-ANTIGRAVITY)' });
+    res.json({ status: 'OK', message: 'AUTO SPEED API is running (v2.7-ANTIGRAVITY)' });
 });
 
 // Diagnostic endpoint for Cloud deployment
@@ -191,7 +191,7 @@ app.get('/api/test-email', async (req, res) => {
         const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
         
         const mailOptions = {
-            from: `"TEST TIBOU AUTO" <${senderEmail}>`,
+            from: `"AUTO SPEED" <${senderEmail}>`,
             to: 'BAIB.IMED@GMAIL.COM',
             subject: 'Test Diagnostic Email Serveur',
             text: 'Ceci est un test direct depuis le serveur Render pour vérifier la configuration SMTP.'
@@ -394,6 +394,14 @@ const startServer = async () => {
         try {
             await sequelize.sync({ alter: true });
             console.log('✅ Base de données synchronisée (MODE: ALTER)');
+            
+            // Migration fail-safe: Change companyName from TIBOU AUTO to AUTO SPEED in settings table
+            try {
+                await sequelize.query("UPDATE settings SET company_name = 'AUTO SPEED' WHERE company_name = 'TIBOU AUTO'");
+                console.log('✅ Base de données migrée : TIBOU AUTO renommé en AUTO SPEED dans les paramètres.');
+            } catch (updateError) {
+                console.warn('⚠️ [DB Warning] Impossible de mettre à jour la table settings :', updateError.message);
+            }
         } catch (syncError) {
             if (syncError.name === 'SequelizeDatabaseError' && syncError.parent && syncError.parent.code === 'ER_TOO_MANY_KEYS') {
                 console.warn('⚠️ [DB Warning] Trop d\'index détectés sur certaines tables. La synchronisation automatique a été ignorée pour éviter de bloquer le serveur.');

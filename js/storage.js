@@ -1,5 +1,5 @@
 /**
- * Storage Service for TIBOU AUTO - Integrated with API
+ * Storage Service for AUTO SPEED - Integrated with API
  */
 
 const STORAGE_KEYS = {

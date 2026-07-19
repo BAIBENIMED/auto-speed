@@ -1,7 +1,7 @@
 {
-  "name": "tibouauto-backend",
+  "name": "autospeed-backend",
   "version": "1.0.0",
-  "description": "Backend API pour TIBOU AUTO - Gestion de Parc Automobile",
+  "description": "Backend API pour AUTO SPEED - Gestion de Parc Automobile",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -14,7 +14,7 @@
     "api",
     "node"
   ],
-  "author": "TIBOU AUTO",
+  "author": "AUTO SPEED",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.13.3",

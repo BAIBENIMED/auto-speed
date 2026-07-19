@@ -10,7 +10,7 @@ const Settings = sequelize.define('Settings', {
     companyName: {
         type: DataTypes.STRING(200),
         field: 'company_name',
-        defaultValue: 'TIBOU AUTO'
+        defaultValue: 'AUTO SPEED'
     },
     purchaseCurrency: {
         type: DataTypes.STRING(10),

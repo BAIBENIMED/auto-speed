@@ -7,7 +7,7 @@ const settingsController = {
             if (!settings) {
                 // Return default settings but don't create them yet to avoid noise
                 settings = {
-                    companyName: 'TIBOU AUTO',
+                    companyName: 'AUTO SPEED',
                     purchaseCurrency: 'EUR',
                     sellingCurrency: 'EUR',
                     customsCurrency: 'XAF',

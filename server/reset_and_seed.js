@@ -30,7 +30,7 @@ async function resetAndSeed() {
         // 0. Créer les paramètres et attributs par défaut
         console.log('⚙️  Création des paramètres par défaut...');
         await Settings.create({
-            companyName: 'TIBOU AUTO',
+            companyName: 'AUTO SPEED',
             purchaseCurrency: 'EUR',
             sellingCurrency: 'EUR',
             theme: 'dark'

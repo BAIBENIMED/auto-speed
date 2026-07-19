@@ -38,15 +38,15 @@ const mailService = {
             const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
 
             const mailOptions = {
-                from: `"TIBOU AUTO" <${senderEmail}>`,
+                from: `"AUTO SPEED" <${senderEmail}>`,
                 to: recipientEmail,
-                subject: `Confirmation de votre commande #${order.id} - TIBOU AUTO`,
+                subject: `Confirmation de votre commande #${order.id} - AUTO SPEED`,
                 html: `
                     <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
                         <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden;">
                             <div style="background: #1e293b; padding: 30px; text-align: center;">
                                 <div style="font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; color: #ffffff; margin: 0;">
-                                    TIBOU<span style="color: #ef4444;">AUTO</span>
+                                    AUTO<span style="color: #ef4444;">SPEED</span>
                                 </div>
                                 <div style="color: #ef4444; font-size: 0.6rem; font-weight: 800; letter-spacing: 4px; margin-top: -2px; text-transform: uppercase;">CHINA CARS</div>
                             </div>
@@ -68,7 +68,7 @@ const mailService = {
                                     <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Votre Code de Suivi</p>
                                     <div style="font-size: 2.5rem; font-weight: 900; letter-spacing: 10px; color: #1e293b; font-family: monospace;">${order.trackingCode || 'N/A'}</div>
                                     <p style="margin: 10px 0 20px; font-size: 0.85rem; color: #94a3b8;">Conservez ce code pour suivre votre commande</p>
-                                    <a href="${process.env.APP_URL || 'https://tbiou-auto.onrender.com'}/tracking.html?code=${order.trackingCode || ''}" 
+                                    <a href="${process.env.APP_URL || 'https://auto-speed.onrender.com'}/tracking.html?code=${order.trackingCode || ''}" 
                                        style="background: #2563eb; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block;">
                                         🚗 SUIVRE MA COMMANDE EN DIRECT
                                     </a>
@@ -90,7 +90,7 @@ const mailService = {
                                 <p style="font-size: 16px;">Nos équipes s'occupent dès maintenant de la préparation de votre véhicule.</p>
                                 
                                 <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
+                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe AUTO SPEED</p>
                                     <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
                                 </div>
                             </div>
@@ -100,7 +100,7 @@ const mailService = {
                             </div>
                         </div>
                         <div style="text-align: center; font-size: 0.75rem; color: #94a3b8; padding: 20px;">
-                            <p style="margin: 5px 0;">&copy; 2026 TIBOU AUTO. Tous droits réservés.</p>
+                            <p style="margin: 5px 0;">&copy; 2026 AUTO SPEED. Tous droits réservés.</p>
                         </div>
                     </div>
                 `
@@ -127,7 +127,7 @@ const mailService = {
             const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
             
             const mailOptions = {
-                from: `"TIBOU AUTO" <${senderEmail}>`,
+                from: `"AUTO SPEED" <${senderEmail}>`,
                 to: recipientEmail,
                 subject: `Bonne nouvelle ! Votre véhicule est en mer - #${order.id}`,
                 html: `
@@ -135,7 +135,7 @@ const mailService = {
                         <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden;">
                             <div style="background: #1e293b; padding: 30px; text-align: center;">
                                 <div style="font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; color: #ffffff; margin: 0;">
-                                    TIBOU<span style="color: #ef4444;">AUTO</span>
+                                    AUTO<span style="color: #ef4444;">SPEED</span>
                                 </div>
                                 <div style="color: #ef4444; font-size: 0.6rem; font-weight: 800; letter-spacing: 4px; margin-top: -2px; text-transform: uppercase;">CHINA CARS</div>
                             </div>
@@ -158,14 +158,14 @@ const mailService = {
                                 <div style="text-align: center; margin: 35px 0; background: #f0f9ff; padding: 25px; border-radius: 14px; border: 1px solid #bae6fd;">
                                     <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Code de Suivi</p>
                                     <div style="font-size: 2.5rem; font-weight: 900; letter-spacing: 10px; color: #1e293b; font-family: monospace;">${order.trackingCode || 'N/A'}</div>
-                                    <a href="${process.env.APP_URL || 'https://tbiou-auto.onrender.com'}/tracking.html?code=${order.trackingCode || ''}" 
+                                    <a href="${process.env.APP_URL || 'https://auto-speed.onrender.com'}/tracking.html?code=${order.trackingCode || ''}" 
                                        style="background: #2563eb; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; margin-top: 15px;">
                                         🗺️ VOIR SUR LA CARTE
                                     </a>
                                 </div>
                                 
                                 <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
+                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe AUTO SPEED</p>
                                     <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
                                 </div>
                             </div>
@@ -198,7 +198,7 @@ const mailService = {
             const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
 
             const mailOptions = {
-                from: `"TIBOU AUTO" <${senderEmail}>`,
+                from: `"AUTO SPEED" <${senderEmail}>`,
                 to: recipientEmail,
                 subject: `Votre véhicule est arrivé au port ! - #${order.id}`,
                 html: `
@@ -206,7 +206,7 @@ const mailService = {
                         <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden;">
                             <div style="background: #1e293b; padding: 30px; text-align: center;">
                                 <div style="font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; color: #ffffff; margin: 0;">
-                                    TIBOU<span style="color: #ef4444;">AUTO</span>
+                                    AUTO<span style="color: #ef4444;">SPEED</span>
                                 </div>
                                 <div style="color: #ef4444; font-size: 0.6rem; font-weight: 800; letter-spacing: 4px; margin-top: -2px; text-transform: uppercase;">CHINA CARS</div>
                             </div>
@@ -224,7 +224,7 @@ const mailService = {
                                 <p style="font-size: 16px;">Nos équipes vont maintenant procéder aux formalités de dédouanement. Nous vous contacterons très prochainement pour organiser la livraison finale.</p>
                                 
                                 <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
+                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe AUTO SPEED</p>
                                     <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
                                 </div>
                             </div>
@@ -257,15 +257,15 @@ const mailService = {
             const senderEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
 
             const mailOptions = {
-                from: `"TIBOU AUTO" <${senderEmail}>`,
+                from: `"AUTO SPEED" <${senderEmail}>`,
                 to: recipientEmail,
-                subject: `Test de communication - TIBOU AUTO`,
+                subject: `Test de communication - AUTO SPEED`,
                 html: `
                     <div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
                         <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden;">
                             <div style="background: #1e293b; padding: 30px; text-align: center;">
                                 <div style="font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; color: #ffffff; margin: 0;">
-                                    TIBOU<span style="color: #ef4444;">AUTO</span>
+                                    AUTO<span style="color: #ef4444;">SPEED</span>
                                 </div>
                                 <div style="color: #ef4444; font-size: 0.6rem; font-weight: 800; letter-spacing: 4px; margin-top: -2px; text-transform: uppercase;">CHINA CARS</div>
                             </div>
@@ -273,7 +273,7 @@ const mailService = {
                             <div style="padding: 40px 30px; color: #1e293b; line-height: 1.6;">
                                 <h2 style="color: #3b82f6; font-size: 22px; margin-top: 0;">Message de test</h2>
                                 <p style="font-size: 16px;">Bonjour ${client.firstName},</p>
-                                <p style="font-size: 16px;">Ce message est un email de test envoyé depuis le système TIBOU AUTO pour s'assurer que nous pouvons bien communiquer avec vous.</p>
+                                <p style="font-size: 16px;">Ce message est un email de test envoyé depuis le système AUTO SPEED pour s'assurer que nous pouvons bien communiquer avec vous.</p>
                                 
                                 <div style="background: #eff6ff; padding: 20px; border-radius: 12px; margin: 30px 0; border: 1px solid #dbeafe; text-align: center;">
                                     <p style="margin: 0; color: #1e40af; font-weight: 600; font-size: 16px;">✓ Votre adresse email est bien configurée.</p>
@@ -282,7 +282,7 @@ const mailService = {
                                 <p style="font-size: 16px;">Si vous avez reçu ce message, vous n'avez rien de plus à faire.</p>
                                 
                                 <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe TIBOU AUTO</p>
+                                    <p style="font-size: 18px; color: #1e293b; margin-bottom: 5px;">L'équipe AUTO SPEED</p>
                                     <p style="font-size: 22px; color: #3b82f6; font-weight: bold; margin-top: 10px; font-family: 'Amiri', serif;" dir="rtl">نشكركم على ثقتكم</p>
                                 </div>
                             </div>
