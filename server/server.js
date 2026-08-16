@@ -31,7 +31,7 @@ app.use(helmet({
     contentSecurityPolicy: false // Disable CSP for easier integration of external fonts/icons
 }));
 
-// Servir les fichiers statiques (Cache désactivé pour développement/débogage)
+// Servir les fichiers statiques AUTO SPEED (Cache désactivé pour développement/débogage)
 app.use(express.static(path.join(__dirname, '..'), {
     setHeaders: (res, filePath) => {
         if (filePath.toLowerCase().endsWith('.html') ||
@@ -41,6 +41,16 @@ app.use(express.static(path.join(__dirname, '..'), {
         }
     }
 }));
+
+// ── BAIQ Finance Platform (/baiq) ──────────────────────────────────────────
+// Servir l'app BAIQ depuis /baiq (build Vite → finance/dist/)
+const baiqDistPath = path.join(__dirname, '..', 'finance', 'dist');
+app.use('/baiq', express.static(baiqDistPath));
+// Toutes les routes /baiq/* renvoient index.html (React Router client-side)
+app.get('/baiq/*', (req, res) => {
+    res.sendFile(path.join(baiqDistPath, 'index.html'));
+});
+// ───────────────────────────────────────────────────────────────────────────
 
 // CORS - strictly allow the render domain in production, or '*' with credentials handled
 const corsOptions = {

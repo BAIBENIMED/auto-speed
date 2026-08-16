@@ -1,0 +1,441 @@
+/* ═══════════════════════════════════════════════════════════
+   BAIQ — Référentiel Sectoriel Algérie (SCF)
+   Benchmarks & Fiscalité Spécifique Algérie (Loi de Finances / SCF Loi 07-11)
+   Sources : ONS Algérie, CNRC, Banque d'Algérie, DGI (Direction Générale des Impôts)
+   ═══════════════════════════════════════════════════════════ */
+
+export const REFERENTIEL_ALGERIE = {
+  devise: 'DZD (Dinar Algérien)',
+  loiComptable: 'SCF — Système Comptable Financier (Loi 07-11 / Décret 08-156)',
+  chargesPatronalesCNAS: '26 % de la masse salariale brute (Compte 635)',
+  tauxIBSStandard: {
+    production: '19 % (Activités de production de biens et BTPH)',
+    btpTourisme: '23 % (BTP, Travaux Publics, Tourisme, Hôtellerie)',
+    commerceServices: '26 % (Commerce de gros/détail, Services, Importation)',
+  },
+  tva: {
+    normal: '19 %',
+    reduit: '9 % (Produits de 1ère nécessité, intrants agricoles, équipements)',
+  },
+  tap: 'Supprimée pour toutes les activités de production de biens et services (Loi de Finances)',
+  dispositifsAide: 'AAPI (ex-ANDI), NESDA (ex-ANSEJ), ANGEM, CNAC, ASF (Startups), FNDRA (Agriculture)',
+};
+
+export const SECTEURS = [
+  {
+    id: 'commerce_detail',
+    label: 'Commerce de Détail / Négoce',
+    icon: 'storefront',
+    couleur: '#2563eb',
+    description: 'Vente au détail, supermarchés, magasins spécialisés',
+    tauxIBS: '26 %',
+    tvaStandard: '19 % (9% produits alimentaires de base)',
+    specificitesAlgerie: [
+      'Soumis au droit de timbre et au paiement électronique (TPE obligatoire selon LF)',
+      'Interdiction de facturation en espèces au-delà des seuils légaux',
+      'Marges plafonnées sur les produits de première nécessité (lait, huile, sucre)',
+    ],
+    caracteristiques: [
+      'Rotation des stocks très rapide (stocks marchandises 30)',
+      'Marges nettes faibles mais volumes élevés',
+      'BFR faible ou négatif (encaissements immédiats)',
+      'DSO très court (clients particuliers)',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.02, faible: 0.05, bon: 0.08, excellent: 0.12, norme: '5–10%' },
+      margeNette:          { critique: 0,    faible: 0.01, bon: 0.03, excellent: 0.06, norme: '1–5%'  },
+      tauxVA:              { critique: 0.08, faible: 0.15, bon: 0.22, excellent: 0.35, norme: '15–30%'},
+      liquiditeGenerale:   { critique: 0.7,  faible: 0.9,  bon: 1.1,  excellent: 1.5,  norme: '0.9–1.3'},
+      autonomieFinanciere: { critique: 0.15, faible: 0.25, bon: 0.35, excellent: 0.50, norme: '25–45%'},
+      dso:                 { excellent: 10,  bon: 20,   limite: 35,   critique: 60,   norme: '≤ 20 j'},
+      dpo:                 { min: 20,        bon: 45,   max: 75,      norme: '30–60 j'},
+      rotationStocks:      { excellent: 20,  bon: 45,   limite: 75,   critique: 120,  norme: '≤ 60 j'},
+      bfrJoursCA:          { excellent: 10,  bon: 25,   limite: 45,   critique: 70,   norme: '≤ 30 j'},
+      couvertureFin:       { critique: 1.5,  faible: 2,  bon: 3,  excellent: 5,  norme: '≥ 2x'      },
+      productivite:        { critique: 1.0,  faible: 1.3, bon: 1.6, excellent: 2.2,  norme: '≥ 1.5x'},
+    },
+  },
+  {
+    id: 'commerce_gros',
+    label: 'Commerce de Gros / Distribution',
+    icon: 'inventory_2',
+    couleur: '#0ea5e9',
+    description: 'Grossistes, importateurs, distributeurs agréés',
+    tauxIBS: '26 %',
+    tvaStandard: '19 %',
+    specificitesAlgerie: [
+      'Réglementation CNRC stricte sur les locaux de stockage (entrepôts agréés)',
+      'Délais de domiciliation bancaire pour l\'importation (Règlement Banque d\'Algérie)',
+      'Paiement par chèque/virement obligatoire au-delà du seuil légal',
+    ],
+    caracteristiques: [
+      'Marges plus larges que le détail',
+      'DSO plus long (crédit accordé aux détaillants)',
+      'Stocks importants selon le rythme d\'approvisionnement import',
+      'DPO stratégique pour financer le BFR',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.03, faible: 0.06, bon: 0.10, excellent: 0.15, norme: '6–12%' },
+      margeNette:          { critique: 0,    faible: 0.02, bon: 0.04, excellent: 0.08, norme: '2–7%'  },
+      tauxVA:              { critique: 0.10, faible: 0.18, bon: 0.28, excellent: 0.40, norme: '18–35%'},
+      liquiditeGenerale:   { critique: 0.8,  faible: 1.0,  bon: 1.2,  excellent: 1.8,  norme: '1.0–1.5'},
+      autonomieFinanciere: { critique: 0.20, faible: 0.30, bon: 0.40, excellent: 0.55, norme: '30–50%'},
+      dso:                 { excellent: 30,  bon: 50,   limite: 75,   critique: 110,  norme: '≤ 60 j'},
+      dpo:                 { min: 30,        bon: 60,   max: 90,      norme: '45–75 j'},
+      rotationStocks:      { excellent: 30,  bon: 60,   limite: 90,   critique: 150,  norme: '≤ 75 j'},
+      bfrJoursCA:          { excellent: 20,  bon: 45,   limite: 70,   critique: 100,  norme: '≤ 50 j'},
+      couvertureFin:       { critique: 2,    faible: 3,  bon: 4,  excellent: 6,  norme: '≥ 3x'       },
+      productivite:        { critique: 1.2,  faible: 1.5, bon: 2.0, excellent: 2.8,  norme: '≥ 1.8x'},
+    },
+  },
+  {
+    id: 'industrie',
+    label: 'Industrie Manufacturière',
+    icon: 'factory',
+    couleur: '#7c3aed',
+    description: 'Production industrielle, transformation, usines, assemblage',
+    tauxIBS: '19 % (Taux réduit incitatif à la production nationale)',
+    tvaStandard: '19 % (Possibilité d\'exonération TVA sur intrants selon régimes d\'investissement AAPI)',
+    specificitesAlgerie: [
+      'Bénéficie du taux d\'IBS réduit de 19% pour encourager le Produit National (Made in Algeria)',
+      'Avantages fiscaux AAPI (ex-ANDI) : exonération d\'IBS et de taxe foncière durant la phase d\'exploitation',
+      'Crédits bancaires d\'investissement bonifiés (Taux bonifié par le Trésor Public)',
+    ],
+    caracteristiques: [
+      'Forte immobilisation en actifs fixes (Classe 2)',
+      'Cycles de production longs',
+      'Trois catégories de stocks : Matières premières (31), En-cours (33), Produits finis (35)',
+      'Fonds propres importants requis',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.08, faible: 0.12, bon: 0.18, excellent: 0.25, norme: '12–22%'},
+      margeNette:          { critique: 0,    faible: 0.03, bon: 0.06, excellent: 0.12, norme: '3–10%' },
+      tauxVA:              { critique: 0.25, faible: 0.35, bon: 0.50, excellent: 0.65, norme: '35–60%'},
+      liquiditeGenerale:   { critique: 0.9,  faible: 1.1,  bon: 1.4,  excellent: 2.0,  norme: '1.2–2.0'},
+      autonomieFinanciere: { critique: 0.25, faible: 0.35, bon: 0.50, excellent: 0.65, norme: '40–60%'},
+      dso:                 { excellent: 30,  bon: 60,   limite: 90,   critique: 120,  norme: '≤ 75 j'},
+      dpo:                 { min: 45,        bon: 75,   max: 120,     norme: '60–90 j'},
+      rotationStocks:      { excellent: 45,  bon: 90,   limite: 150,  critique: 210,  norme: '≤ 120 j'},
+      bfrJoursCA:          { excellent: 40,  bon: 70,   limite: 100,  critique: 150,  norme: '≤ 90 j'},
+      couvertureFin:       { critique: 2.5,  faible: 3.5, bon: 5,  excellent: 8,  norme: '≥ 4x'      },
+      productivite:        { critique: 1.5,  faible: 2.0, bon: 2.5, excellent: 3.5,  norme: '≥ 2.0x'},
+    },
+  },
+  {
+    id: 'btp',
+    label: 'BTP / Construction / Travaux Publics',
+    icon: 'construction',
+    couleur: '#d97706',
+    description: 'Bâtiment, travaux publics, hydraulique, génie civil, chantiers',
+    tauxIBS: '23 %',
+    tvaStandard: '19 %',
+    specificitesAlgerie: [
+      'Certificat de qualification et de classification professionnelle (Ministère de l\'Habitat/Travaux Publics)',
+      'Retenue de garantie de 5% sur les situations d\'avancement (Compte 411/401 spécifique)',
+      'Délais de paiement des commandes publiques (marchés de l\'État, wilayas, communes) souvent longs',
+      'Cautonnements bancaires exigés (Caution de bonne exécution, caution d\'avance)',
+    ],
+    caracteristiques: [
+      'Cycles de réalisation pluriannuels',
+      'BFR très élevé et instable selon le calendrier des décomptes et situations',
+      'Créances publiques prépondérantes',
+      'Besoin important d\'engagements par signature bancaires (cautions)',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.05, faible: 0.08, bon: 0.12, excellent: 0.20, norme: '8–18%' },
+      margeNette:          { critique: 0,    faible: 0.02, bon: 0.05, excellent: 0.10, norme: '2–8%'  },
+      tauxVA:              { critique: 0.20, faible: 0.30, bon: 0.45, excellent: 0.60, norme: '30–55%'},
+      liquiditeGenerale:   { critique: 0.8,  faible: 1.0,  bon: 1.3,  excellent: 1.8,  norme: '1.0–1.6'},
+      autonomieFinanciere: { critique: 0.20, faible: 0.30, bon: 0.40, excellent: 0.55, norme: '30–50%'},
+      dso:                 { excellent: 45,  bon: 90,   limite: 150,  critique: 210,  norme: '≤ 120 j'},
+      dpo:                 { min: 30,        bon: 60,   max: 90,      norme: '45–75 j'},
+      rotationStocks:      { excellent: 30,  bon: 60,   limite: 100,  critique: 150,  norme: '≤ 80 j'},
+      bfrJoursCA:          { excellent: 60,  bon: 100,  limite: 150,  critique: 200,  norme: '≤ 120 j'},
+      couvertureFin:       { critique: 2,    faible: 3,  bon: 4,  excellent: 6,  norme: '≥ 3x'       },
+      productivite:        { critique: 1.5,  faible: 2.0, bon: 2.5, excellent: 3.5,  norme: '≥ 2.0x'},
+    },
+  },
+  {
+    id: 'services',
+    label: 'Services / Conseil / Prestations',
+    icon: 'handshake',
+    couleur: '#059669',
+    description: 'Expertise, consulting, informatique, ingénierie, formation',
+    tauxIBS: '26 %',
+    tvaStandard: '19 %',
+    specificitesAlgerie: [
+      'Retenue à la source sur les prestations de services étrangères (si applicables)',
+      'Non assujetti à la taxe foncière industrielle',
+      'Facturation électronique recommandée',
+    ],
+    caracteristiques: [
+      'Très forte Valeur Ajoutée (Taux VA > 70%)',
+      'Absence de stocks physiques (Comptes 30/31 quasi nuls)',
+      'Masse salariale prépondérante (Compte 63)',
+      'BFR dépendant exclusivement des créances clients',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.10, faible: 0.18, bon: 0.28, excellent: 0.40, norme: '18–40%'},
+      margeNette:          { critique: 0.02, faible: 0.06, bon: 0.12, excellent: 0.20, norme: '6–18%' },
+      tauxVA:              { critique: 0.50, faible: 0.65, bon: 0.80, excellent: 0.92, norme: '65–90%'},
+      liquiditeGenerale:   { critique: 0.8,  faible: 1.0,  bon: 1.3,  excellent: 2.0,  norme: '1.0–2.0'},
+      autonomieFinanciere: { critique: 0.25, faible: 0.40, bon: 0.55, excellent: 0.70, norme: '40–65%'},
+      dso:                 { excellent: 30,  bon: 60,   limite: 90,   critique: 120,  norme: '≤ 75 j'},
+      dpo:                 { min: 15,        bon: 30,   max: 60,      norme: '20–45 j'},
+      rotationStocks:      { excellent: 0,   bon: 0,    limite: 30,   critique: 60,   norme: 'N/A (pas de stock)'},
+      bfrJoursCA:          { excellent: 20,  bon: 40,   limite: 65,   critique: 90,   norme: '≤ 50 j'},
+      couvertureFin:       { critique: 3,    faible: 5,  bon: 8,  excellent: 15, norme: '≥ 5x'       },
+      productivite:        { critique: 2.0,  faible: 2.8, bon: 3.5, excellent: 5.0,  norme: '≥ 3.0x'},
+    },
+  },
+  {
+    id: 'agroalimentaire',
+    label: 'Agriculture / Agroalimentaire',
+    icon: 'agriculture',
+    couleur: '#16a34a',
+    description: 'Production agricole, IAA, transformation de céréales, lait, huiles',
+    tauxIBS: '19 % (Exonération partielle pour l\'agriculture directe)',
+    tvaStandard: '9 % (Taux réduit pour produits agricoles de base et aliments de bétail)',
+    specificitesAlgerie: [
+      'Exonération permanente d\'IBS pour les activités agricoles directes (Article 138 du CIDTA)',
+      'Subventions d\'État à la filière céréales/lait (enregistrées au compte 74 — Subventions d\'exploitation)',
+      'Financements FNDRA et crédits RFIG/ETTAHADI bonifiés par la BADR',
+    ],
+    caracteristiques: [
+      'Saisonnalité marquée du chiffre d\'affaires et des achats',
+      'Stocks de récoltes et matières premières périssables',
+      'Impact fort des aides et régulations de prix de l\'État',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.06, faible: 0.10, bon: 0.16, excellent: 0.24, norme: '10–20%'},
+      margeNette:          { critique: 0,    faible: 0.02, bon: 0.05, excellent: 0.10, norme: '2–8%'  },
+      tauxVA:              { critique: 0.20, faible: 0.30, bon: 0.45, excellent: 0.60, norme: '28–55%'},
+      liquiditeGenerale:   { critique: 0.9,  faible: 1.1,  bon: 1.4,  excellent: 2.0,  norme: '1.1–1.8'},
+      autonomieFinanciere: { critique: 0.25, faible: 0.35, bon: 0.50, excellent: 0.65, norme: '35–60%'},
+      dso:                 { excellent: 20,  bon: 45,   limite: 75,   critique: 100,  norme: '≤ 60 j'},
+      dpo:                 { min: 30,        bon: 60,   max: 90,      norme: '45–75 j'},
+      rotationStocks:      { excellent: 30,  bon: 75,   limite: 120,  critique: 180,  norme: '≤ 90 j'},
+      bfrJoursCA:          { excellent: 30,  bon: 65,   limite: 100,  critique: 140,  norme: '≤ 80 j'},
+      couvertureFin:       { critique: 2,    faible: 3,  bon: 4,  excellent: 6,  norme: '≥ 3x'       },
+      productivite:        { critique: 1.3,  faible: 1.7, bon: 2.2, excellent: 3.0,  norme: '≥ 1.8x'},
+    },
+  },
+  {
+    id: 'transport',
+    label: 'Transport / Logistique',
+    icon: 'local_shipping',
+    couleur: '#dc2626',
+    description: 'Transport de marchandises, voyageurs, entreposage, transit',
+    tauxIBS: '23 % (Transport de personnes/marchandises)',
+    tvaStandard: '19 %',
+    specificitesAlgerie: [
+      'Agrément du Ministère des Transports obligatoire pour les cartes grises professionnelles',
+      'Amortissements fortement pondérés sur les matériels roulants (Compte 2182)',
+      'Impact direct des prix réglementés du carburant (Compte 6061)',
+    ],
+    caracteristiques: [
+      'Actifs fixes matériels très lourds (parc de véhicules)',
+      'Charges de carburant et d\'entretien prépondérantes (Compte 606 & 615)',
+      'Génération d\'EBE solide nécessaire pour renouveler la flotte',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.08, faible: 0.14, bon: 0.20, excellent: 0.30, norme: '12–25%'},
+      margeNette:          { critique: 0,    faible: 0.02, bon: 0.05, excellent: 0.10, norme: '2–8%'  },
+      tauxVA:              { critique: 0.40, faible: 0.55, bon: 0.68, excellent: 0.82, norme: '50–75%'},
+      liquiditeGenerale:   { critique: 0.8,  faible: 1.0,  bon: 1.2,  excellent: 1.7,  norme: '1.0–1.5'},
+      autonomieFinanciere: { critique: 0.20, faible: 0.30, bon: 0.45, excellent: 0.60, norme: '30–55%'},
+      dso:                 { excellent: 20,  bon: 40,   limite: 65,   critique: 90,   norme: '≤ 50 j'},
+      dpo:                 { min: 20,        bon: 45,   max: 75,      norme: '30–60 j'},
+      rotationStocks:      { excellent: 15,  bon: 30,   limite: 60,   critique: 90,   norme: '≤ 45 j'},
+      bfrJoursCA:          { excellent: 15,  bon: 35,   limite: 55,   critique: 80,   norme: '≤ 40 j'},
+      couvertureFin:       { critique: 2,    faible: 3,  bon: 4.5, excellent: 7,  norme: '≥ 3.5x'    },
+      productivite:        { critique: 2.0,  faible: 2.5, bon: 3.2, excellent: 4.5,  norme: '≥ 2.8x'},
+    },
+  },
+  {
+    id: 'hotellerie',
+    label: 'Hôtellerie / Restauration / Tourisme',
+    icon: 'hotel',
+    couleur: '#ec4899',
+    description: 'Hôtels, complexes touristiques, restaurants, agences de voyage',
+    tauxIBS: '23 % (Bénéficie du taux intermédiaire de 23%)',
+    tvaStandard: '9 % (Taux réduit de 9% appliqué aux prestations d\'hébergement et de restauration)',
+    specificitesAlgerie: [
+      'TVA à taux réduit de 9% pour promouvoir le tourisme local algérien',
+      'Taxe de séjour perçue pour le compte des communes (Compte 447)',
+      'Crédits bancaires à taux bonifié pour la rénovation hôtelière',
+    ],
+    caracteristiques: [
+      'Investissements immobiliers et aménagement très lourds (Classe 213/218)',
+      'Forte saisonnalité (période estivale / Saharienne)',
+      'Stocks denrées alimentaires à écoulement très rapide',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.10, faible: 0.18, bon: 0.28, excellent: 0.40, norme: '18–38%'},
+      margeNette:          { critique: 0,    faible: 0.03, bon: 0.07, excellent: 0.15, norme: '3–12%' },
+      tauxVA:              { critique: 0.40, faible: 0.55, bon: 0.70, excellent: 0.85, norme: '55–80%'},
+      liquiditeGenerale:   { critique: 0.6,  faible: 0.9,  bon: 1.1,  excellent: 1.6,  norme: '0.8–1.4'},
+      autonomieFinanciere: { critique: 0.20, faible: 0.35, bon: 0.50, excellent: 0.65, norme: '35–60%'},
+      dso:                 { excellent: 5,   bon: 15,   limite: 30,   critique: 60,   norme: '≤ 20 j'},
+      dpo:                 { min: 20,        bon: 40,   max: 60,      norme: '25–50 j'},
+      rotationStocks:      { excellent: 5,   bon: 15,   limite: 25,   critique: 45,   norme: '≤ 20 j'},
+      bfrJoursCA:          { excellent: 10,  bon: 25,   limite: 45,   critique: 70,   norme: '≤ 30 j'},
+      couvertureFin:       { critique: 2,    faible: 3.5, bon: 5,  excellent: 8,  norme: '≥ 4x'      },
+      productivite:        { critique: 1.5,  faible: 2.0, bon: 2.8, excellent: 4.0,  norme: '≥ 2.2x'},
+    },
+  },
+  {
+    id: 'sante',
+    label: 'Santé / Pharmacie / Para-médical',
+    icon: 'local_hospital',
+    couleur: '#06b6d4',
+    description: 'Pharmacies d\'officine, cliniques privées, labos d\'analyses',
+    tauxIBS: '26 % (Officines et cliniques)',
+    tvaStandard: 'Exonéré ou 9% selon médicaments et matériels médicaux',
+    specificitesAlgerie: [
+      'Marge réglementée par arrêté ministériel pour les pharmacies d\'officine',
+      'Tier-payant CNAS / CASNOS (créances spécifiques organisme social 443)',
+      'Homologation des produits par le Ministère de la Santé (PCH)',
+    ],
+    caracteristiques: [
+      'Encaissements sécurisés (Particuliers + Tier payant social)',
+      'Gestion rigoureuse des dates de péremption des stocks (Compte 30 pharma)',
+      'Structure financière stable avec faible taux d\'impayés',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.05, faible: 0.10, bon: 0.18, excellent: 0.30, norme: '10–25%'},
+      margeNette:          { critique: 0,    faible: 0.03, bon: 0.08, excellent: 0.15, norme: '3–12%' },
+      tauxVA:              { critique: 0.25, faible: 0.40, bon: 0.60, excellent: 0.80, norme: '40–75%'},
+      liquiditeGenerale:   { critique: 0.8,  faible: 1.0,  bon: 1.3,  excellent: 2.0,  norme: '1.0–1.8'},
+      autonomieFinanciere: { critique: 0.25, faible: 0.40, bon: 0.55, excellent: 0.70, norme: '40–65%'},
+      dso:                 { excellent: 10,  bon: 25,   limite: 45,   critique: 75,   norme: '≤ 35 j'},
+      dpo:                 { min: 20,        bon: 45,   max: 75,      norme: '30–60 j'},
+      rotationStocks:      { excellent: 15,  bon: 35,   limite: 60,   critique: 90,   norme: '≤ 45 j'},
+      bfrJoursCA:          { excellent: 15,  bon: 35,   limite: 55,   critique: 80,   norme: '≤ 40 j'},
+      couvertureFin:       { critique: 2.5,  faible: 4,  bon: 6,  excellent: 10, norme: '≥ 4x'      },
+      productivite:        { critique: 2.0,  faible: 2.5, bon: 3.5, excellent: 5.0,  norme: '≥ 3.0x'},
+    },
+  },
+  {
+    id: 'tech',
+    label: 'Technologies / Informatique / Startups',
+    icon: 'devices',
+    couleur: '#6366f1',
+    description: 'Éditeurs logiciels, ESN, startups labellisées, télécoms',
+    tauxIBS: 'Exonération totale pour les Startups labellisées (Loi de Finances)',
+    tvaStandard: '19 % (Exonéré si label Startup / Projet Innovant)',
+    specificitesAlgerie: [
+      'Exonération totale d\'IBS, TAP et IRG pendant 4 ans pour les entreprises labellisées "Startup" (Comité National de Labellisation)',
+      'Financement via le Fonds Algérien des Startups (ASF - Algerian Startup Fund)',
+      'Régime fiscal des auto-entrepreneurs (Statut Auto-Entrepreneur Algérie)',
+    ],
+    caracteristiques: [
+      'Modèle à forte création de Valeur Ajoutée (Taux VA > 75%)',
+      'Actifs immatériels prépondérants (Logiciels, brevets - Compte 205)',
+      'Absence de stocks physiques',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.08, faible: 0.15, bon: 0.25, excellent: 0.40, norme: '15–35%'},
+      margeNette:          { critique: 0,    faible: 0.05, bon: 0.12, excellent: 0.25, norme: '5–20%' },
+      tauxVA:              { critique: 0.55, faible: 0.70, bon: 0.82, excellent: 0.95, norme: '70–92%'},
+      liquiditeGenerale:   { critique: 0.9,  faible: 1.2,  bon: 1.8,  excellent: 3.0,  norme: '1.2–3.0'},
+      autonomieFinanciere: { critique: 0.30, faible: 0.45, bon: 0.60, excellent: 0.80, norme: '45–75%'},
+      dso:                 { excellent: 20,  bon: 45,   limite: 70,   critique: 100,  norme: '≤ 60 j'},
+      dpo:                 { min: 15,        bon: 30,   max: 60,      norme: '20–45 j'},
+      rotationStocks:      { excellent: 0,   bon: 0,    limite: 20,   critique: 45,   norme: 'N/A'},
+      bfrJoursCA:          { excellent: 15,  bon: 35,   limite: 60,   critique: 90,   norme: '≤ 45 j'},
+      couvertureFin:       { critique: 3,    faible: 5,  bon: 8,  excellent: 15, norme: '≥ 5x'       },
+      productivite:        { critique: 2.5,  faible: 3.5, bon: 5.0, excellent: 8.0,  norme: '≥ 4.0x'},
+    },
+  },
+  {
+    id: 'energie',
+    label: 'Énergie / Hydrocarbures / Mines',
+    icon: 'bolt',
+    couleur: '#f59e0b',
+    description: 'Sous-traitants Sonatrach/Sonelgaz, forage, mines, énergies',
+    tauxIBS: '26 % (ou régimes d\'association loi sur les hydrocarbures 19-13)',
+    tvaStandard: '19 %',
+    specificitesAlgerie: [
+      'Régime de la Loi 19-13 régissant les activités d\'hydrocarbures en Algérie',
+      'Procédures de qualification strictes auprès des filiales Sonatrach (NAFTAL, ENTP, ENAFOR...)',
+      'Règlement des prestations en devises / Dinars selon la convention pétrolière',
+    ],
+    caracteristiques: [
+      'Investissements en équipements lourds de forage et maintenance',
+      'Marges confortables mais soumises à la conjoncture pétrolière',
+      'Excellente solvabilité des grands donneurs d\'ordre publics',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.15, faible: 0.25, bon: 0.40, excellent: 0.60, norme: '25–55%'},
+      margeNette:          { critique: 0.05, faible: 0.10, bon: 0.20, excellent: 0.35, norme: '10–30%'},
+      tauxVA:              { critique: 0.35, faible: 0.50, bon: 0.65, excellent: 0.82, norme: '50–80%'},
+      liquiditeGenerale:   { critique: 1.0,  faible: 1.3,  bon: 1.8,  excellent: 3.0,  norme: '1.3–2.5'},
+      autonomieFinanciere: { critique: 0.35, faible: 0.50, bon: 0.65, excellent: 0.80, norme: '50–75%'},
+      dso:                 { excellent: 30,  bon: 60,   limite: 90,   critique: 150,  norme: '≤ 80 j'},
+      dpo:                 { min: 30,        bon: 60,   max: 100,     norme: '45–90 j'},
+      rotationStocks:      { excellent: 30,  bon: 75,   limite: 130,  critique: 200,  norme: '≤ 100 j'},
+      bfrJoursCA:          { excellent: 30,  bon: 70,   limite: 110,  critique: 170,  norme: '≤ 90 j'},
+      couvertureFin:       { critique: 4,    faible: 6,  bon: 10, excellent: 20, norme: '≥ 8x'       },
+      productivite:        { critique: 2.0,  faible: 3.0, bon: 4.5, excellent: 7.0,  norme: '≥ 4.0x'},
+    },
+  },
+  {
+    id: 'immobilier',
+    label: 'Immobilier / Promotion Immobilière',
+    icon: 'apartment',
+    couleur: '#8b5cf6',
+    description: 'Promoteurs immobiliers agréés, aménagement foncier',
+    tauxIBS: '23 %',
+    tvaStandard: '19 % (9% pour le logement social et promotionnel aidé LPA)',
+    specificitesAlgerie: [
+      'Agrément du Ministère de l\'Habitat obligatoire pour exercer la promotion immobilière (Loi 11-04)',
+      'Garantie FGAR (Fonds de Garantie et de Caution Mutuelle de la Promotion Immobilière)',
+      'Paiement échelonné selon l\'avancement des travaux (Vente sur Plan - VEFA)',
+    ],
+    caracteristiques: [
+      'Biens immobiliers en cours de construction comptabilisés en Stocks (Compte 35)',
+      'BFR et stock très élevés pendant toute la durée du projet (2 à 4 ans)',
+      'Trésorerie dépendant des avances des acquéreurs',
+    ],
+    benchmarks: {
+      margeEBE:            { critique: 0.10, faible: 0.18, bon: 0.28, excellent: 0.45, norme: '18–40%'},
+      margeNette:          { critique: 0.03, faible: 0.08, bon: 0.15, excellent: 0.25, norme: '8–22%' },
+      tauxVA:              { critique: 0.25, faible: 0.40, bon: 0.55, excellent: 0.70, norme: '38–65%'},
+      liquiditeGenerale:   { critique: 0.8,  faible: 1.0,  bon: 1.2,  excellent: 1.8,  norme: '1.0–1.6'},
+      autonomieFinanciere: { critique: 0.25, faible: 0.40, bon: 0.55, excellent: 0.70, norme: '40–65%'},
+      dso:                 { excellent: 10,  bon: 30,   limite: 60,   critique: 120,  norme: '≤ 45 j'},
+      dpo:                 { min: 30,        bon: 60,   max: 120,     norme: '45–90 j'},
+      rotationStocks:      { excellent: 180, bon: 360,  limite: 720,  critique: 1080, norme: '360–720 j (chantiers)'},
+      bfrJoursCA:          { excellent: 60,  bon: 120,  limite: 200,  critique: 300,  norme: '≤ 180 j'},
+      couvertureFin:       { critique: 2,    faible: 3,  bon: 5,  excellent: 8,  norme: '≥ 4x'       },
+      productivite:        { critique: 1.5,  faible: 2.0, bon: 2.8, excellent: 4.0,  norme: '≥ 2.5x'},
+    },
+  },
+];
+
+export const SECTEUR_DEFAUT = SECTEURS[1]; // Commerce de Gros par défaut
+
+/** Récupère un secteur par ID */
+export const getSecteur = (id) =>
+  SECTEURS.find(s => s.id === id) || SECTEUR_DEFAUT;
+
+/** Score sectoriel : 0-100 selon les benchmarks du secteur */
+export function scorerIndicateur(valeur, benchmark, inverse = false) {
+  if (!benchmark) return 50;
+  const { critique, faible, bon, excellent } = benchmark;
+  if (inverse) {
+    // Plus c'est bas, mieux c'est (ex: DSO, rotation stocks)
+    if (valeur <= excellent) return 100;
+    if (valeur <= bon)       return 75;
+    if (valeur <= benchmark.limite) return 50;
+    return 20;
+  } else {
+    // Plus c'est haut, mieux c'est (ex: marges, liquidité)
+    if (valeur >= excellent) return 100;
+    if (valeur >= bon)       return 75;
+    if (valeur >= faible)    return 50;
+    if (valeur >= critique)  return 25;
+    return 10;
+  }
+}
