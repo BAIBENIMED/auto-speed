@@ -124,6 +124,18 @@ select option {
     color: var(--text-primary) !important;
 }
 
+.header-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.header-filters input.glass-input {
+    width: auto;
+    max-width: 140px;
+    padding: 8px 12px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -331,6 +343,26 @@ body:not([data-theme="light"]) .logo-text-wrapper .auto {
     filter: brightness(1.1);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.btn-secondary {
+    background: var(--bg-glass);
+    color: var(--text-primary);
+    border: 1px solid var(--border-glass);
+    padding: 8px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-secondary);
 }
 
 /* Sidebar Footer */
@@ -1913,7 +1945,9 @@ textarea.glass-input, textarea.code-input {
 .option-input-wrapper select {
     width: 100%;
     padding: 12px 12px 12px 35px;
-    border: 1px solid #e2e8f0;
+    background: var(--bg-glass);
+    color: var(--text-primary);
+    border: 1px solid var(--border-glass);
     border-radius: 8px;
     font-size: 0.9rem;
     outline: none;
@@ -2734,38 +2768,39 @@ textarea.glass-input, textarea.code-input {
 .data-table.bordered th, .data-table.bordered td { border: 1px solid var(--border-glass); }
 .data-table.bordered { border: 1px solid var(--border-glass); }
 
-***REMOVED***/***REMOVED*******REMOVED*** ***REMOVED***F***REMOVED***l***REMOVED***a***REMOVED***t***REMOVED***p***REMOVED***i***REMOVED***c***REMOVED***k***REMOVED***r***REMOVED*** ***REMOVED***C***REMOVED***u***REMOVED***s***REMOVED***t***REMOVED***o***REMOVED***m***REMOVED*** ***REMOVED***S***REMOVED***t***REMOVED***y***REMOVED***l***REMOVED***i***REMOVED***n***REMOVED***g***REMOVED*** ***REMOVED*******REMOVED***/***REMOVED***
-***REMOVED***.***REMOVED***f***REMOVED***l***REMOVED***a***REMOVED***t***REMOVED***p***REMOVED***i***REMOVED***c***REMOVED***k***REMOVED***r***REMOVED***-***REMOVED***i***REMOVED***n***REMOVED***p***REMOVED***u***REMOVED***t***REMOVED***[***REMOVED***r***REMOVED***e***REMOVED***a***REMOVED***d***REMOVED***o***REMOVED***n***REMOVED***l***REMOVED***y***REMOVED***]***REMOVED*** ***REMOVED***{***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***c***REMOVED***u***REMOVED***r***REMOVED***s***REMOVED***o***REMOVED***r***REMOVED***:***REMOVED*** ***REMOVED***p***REMOVED***o***REMOVED***i***REMOVED***n***REMOVED***t***REMOVED***e***REMOVED***r***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED***}***REMOVED***
-***REMOVED***
-***REMOVED***.***REMOVED***f***REMOVED***l***REMOVED***a***REMOVED***t***REMOVED***p***REMOVED***i***REMOVED***c***REMOVED***k***REMOVED***r***REMOVED***-***REMOVED***c***REMOVED***a***REMOVED***l***REMOVED***e***REMOVED***n***REMOVED***d***REMOVED***a***REMOVED***r***REMOVED*** ***REMOVED***{***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***b***REMOVED***a***REMOVED***c***REMOVED***k***REMOVED***g***REMOVED***r***REMOVED***o***REMOVED***u***REMOVED***n***REMOVED***d***REMOVED***:***REMOVED*** ***REMOVED***v***REMOVED***a***REMOVED***r***REMOVED***(***REMOVED***-***REMOVED***-***REMOVED***b***REMOVED***g***REMOVED***-***REMOVED***d***REMOVED***a***REMOVED***r***REMOVED***k***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***b***REMOVED***o***REMOVED***r***REMOVED***d***REMOVED***e***REMOVED***r***REMOVED***:***REMOVED*** ***REMOVED***1***REMOVED***p***REMOVED***x***REMOVED*** ***REMOVED***s***REMOVED***o***REMOVED***l***REMOVED***i***REMOVED***d***REMOVED*** ***REMOVED***v***REMOVED***a***REMOVED***r***REMOVED***(***REMOVED***-***REMOVED***-***REMOVED***b***REMOVED***o***REMOVED***r***REMOVED***d***REMOVED***e***REMOVED***r***REMOVED***-***REMOVED***g***REMOVED***l***REMOVED***a***REMOVED***s***REMOVED***s***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***b***REMOVED***o***REMOVED***x***REMOVED***-***REMOVED***s***REMOVED***h***REMOVED***a***REMOVED***d***REMOVED***o***REMOVED***w***REMOVED***:***REMOVED*** ***REMOVED***0***REMOVED*** ***REMOVED***1***REMOVED***0***REMOVED***p***REMOVED***x***REMOVED*** ***REMOVED***3***REMOVED***0***REMOVED***p***REMOVED***x***REMOVED*** ***REMOVED***r***REMOVED***g***REMOVED***b***REMOVED***a***REMOVED***(***REMOVED***0***REMOVED***,***REMOVED***0***REMOVED***,***REMOVED***0***REMOVED***,***REMOVED***0***REMOVED***.***REMOVED***5***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***b***REMOVED***a***REMOVED***c***REMOVED***k***REMOVED***d***REMOVED***r***REMOVED***o***REMOVED***p***REMOVED***-***REMOVED***f***REMOVED***i***REMOVED***l***REMOVED***t***REMOVED***e***REMOVED***r***REMOVED***:***REMOVED*** ***REMOVED***b***REMOVED***l***REMOVED***u***REMOVED***r***REMOVED***(***REMOVED***1***REMOVED***0***REMOVED***p***REMOVED***x***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED***}***REMOVED***
-***REMOVED***
-***REMOVED***.***REMOVED***f***REMOVED***l***REMOVED***a***REMOVED***t***REMOVED***p***REMOVED***i***REMOVED***c***REMOVED***k***REMOVED***r***REMOVED***-***REMOVED***d***REMOVED***a***REMOVED***y***REMOVED***.***REMOVED***s***REMOVED***e***REMOVED***l***REMOVED***e***REMOVED***c***REMOVED***t***REMOVED***e***REMOVED***d***REMOVED*** ***REMOVED***{***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***b***REMOVED***a***REMOVED***c***REMOVED***k***REMOVED***g***REMOVED***r***REMOVED***o***REMOVED***u***REMOVED***n***REMOVED***d***REMOVED***:***REMOVED*** ***REMOVED***v***REMOVED***a***REMOVED***r***REMOVED***(***REMOVED***-***REMOVED***-***REMOVED***p***REMOVED***r***REMOVED***i***REMOVED***m***REMOVED***a***REMOVED***r***REMOVED***y***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***b***REMOVED***o***REMOVED***r***REMOVED***d***REMOVED***e***REMOVED***r***REMOVED***-***REMOVED***c***REMOVED***o***REMOVED***l***REMOVED***o***REMOVED***r***REMOVED***:***REMOVED*** ***REMOVED***v***REMOVED***a***REMOVED***r***REMOVED***(***REMOVED***-***REMOVED***-***REMOVED***p***REMOVED***r***REMOVED***i***REMOVED***m***REMOVED***a***REMOVED***r***REMOVED***y***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED***}***REMOVED***
-***REMOVED***
-***REMOVED***.***REMOVED***f***REMOVED***l***REMOVED***a***REMOVED***t***REMOVED***p***REMOVED***i***REMOVED***c***REMOVED***k***REMOVED***r***REMOVED***-***REMOVED***d***REMOVED***a***REMOVED***y***REMOVED***:***REMOVED***h***REMOVED***o***REMOVED***v***REMOVED***e***REMOVED***r***REMOVED*** ***REMOVED***{***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***b***REMOVED***a***REMOVED***c***REMOVED***k***REMOVED***g***REMOVED***r***REMOVED***o***REMOVED***u***REMOVED***n***REMOVED***d***REMOVED***:***REMOVED*** ***REMOVED***r***REMOVED***g***REMOVED***b***REMOVED***a***REMOVED***(***REMOVED***2***REMOVED***5***REMOVED***5***REMOVED***,***REMOVED***2***REMOVED***5***REMOVED***5***REMOVED***,***REMOVED***2***REMOVED***5***REMOVED***5***REMOVED***,***REMOVED***0***REMOVED***.***REMOVED***1***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED***}***REMOVED***
-***REMOVED***
-***REMOVED***.***REMOVED***f***REMOVED***l***REMOVED***a***REMOVED***t***REMOVED***p***REMOVED***i***REMOVED***c***REMOVED***k***REMOVED***r***REMOVED***-***REMOVED***c***REMOVED***u***REMOVED***r***REMOVED***r***REMOVED***e***REMOVED***n***REMOVED***t***REMOVED***-***REMOVED***m***REMOVED***o***REMOVED***n***REMOVED***t***REMOVED***h***REMOVED***,***REMOVED*** ***REMOVED***.***REMOVED***f***REMOVED***l***REMOVED***a***REMOVED***t***REMOVED***p***REMOVED***i***REMOVED***c***REMOVED***k***REMOVED***r***REMOVED***-***REMOVED***m***REMOVED***o***REMOVED***n***REMOVED***t***REMOVED***h***REMOVED*** ***REMOVED***{***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***c***REMOVED***o***REMOVED***l***REMOVED***o***REMOVED***r***REMOVED***:***REMOVED*** ***REMOVED***v***REMOVED***a***REMOVED***r***REMOVED***(***REMOVED***-***REMOVED***-***REMOVED***t***REMOVED***e***REMOVED***x***REMOVED***t***REMOVED***-***REMOVED***p***REMOVED***r***REMOVED***i***REMOVED***m***REMOVED***a***REMOVED***r***REMOVED***y***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***f***REMOVED***i***REMOVED***l***REMOVED***l***REMOVED***:***REMOVED*** ***REMOVED***v***REMOVED***a***REMOVED***r***REMOVED***(***REMOVED***-***REMOVED***-***REMOVED***t***REMOVED***e***REMOVED***x***REMOVED***t***REMOVED***-***REMOVED***p***REMOVED***r***REMOVED***i***REMOVED***m***REMOVED***a***REMOVED***r***REMOVED***y***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED***}***REMOVED***
-***REMOVED***
-***REMOVED***.***REMOVED***f***REMOVED***l***REMOVED***a***REMOVED***t***REMOVED***p***REMOVED***i***REMOVED***c***REMOVED***k***REMOVED***r***REMOVED***-***REMOVED***w***REMOVED***e***REMOVED***e***REMOVED***k***REMOVED***d***REMOVED***a***REMOVED***y***REMOVED*** ***REMOVED***{***REMOVED***
-***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED*** ***REMOVED***c***REMOVED***o***REMOVED***l***REMOVED***o***REMOVED***r***REMOVED***:***REMOVED*** ***REMOVED***v***REMOVED***a***REMOVED***r***REMOVED***(***REMOVED***-***REMOVED***-***REMOVED***t***REMOVED***e***REMOVED***x***REMOVED***t***REMOVED***-***REMOVED***s***REMOVED***e***REMOVED***c***REMOVED***o***REMOVED***n***REMOVED***d***REMOVED***a***REMOVED***r***REMOVED***y***REMOVED***)***REMOVED*** ***REMOVED***!***REMOVED***i***REMOVED***m***REMOVED***p***REMOVED***o***REMOVED***r***REMOVED***t***REMOVED***a***REMOVED***n***REMOVED***t***REMOVED***;***REMOVED***
-***REMOVED***}***REMOVED***
-***REMOVED******REMOVED***
-***REMOVED***
+/* Flatpickr Custom Styling */
+.flatpickr-input[readonly] {
+    cursor: pointer !important;
+}
+
+.flatpickr-calendar {
+    background: var(--bg-dark) !important;
+    border: 1px solid var(--border-glass) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+.flatpickr-day.selected {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+.flatpickr-day:hover {
+    background: rgba(255,255,255,0.1) !important;
+}
+
+.flatpickr-current-month, .flatpickr-month {
+    color: var(--text-primary) !important;
+    fill: var(--text-primary) !important;
+}
+
+.flatpickr-weekday {
+    color: var(--text-secondary) !important;
+}
+
+
 /* FullCalendar Customizations */
+.fc-scrollgrid th, .fc-scrollgrid td, .fc table { background: transparent !important; }
 .fc-theme-standard td, .fc-theme-standard th, .fc-theme-standard .fc-scrollgrid { border-color: rgba(255, 255, 255, 0.1) !important; }
 .fc-theme-standard .fc-scrollgrid { border: 1px solid rgba(255, 255, 255, 0.1) !important; }
 .fc-col-header-cell-cushion, .fc-daygrid-day-number { color: var(--text-primary) !important; text-decoration: none !important; }
