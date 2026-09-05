@@ -7,6 +7,9 @@ const containerTrackingService = require('../services/containerTrackingService')
 // Helper to sync status (Imported from statusSynchronizer to ensure unified logic)
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 const { formatDate } = require('../utils/dateFormatter');
+const { authMiddleware } = require('../middleware/auth');
+
+router.use(authMiddleware);
 
 // Get tracking info for a Voyage (finds first valid BL or container in voyage)
 router.get('/voyage/:voyageName', async (req, res) => {

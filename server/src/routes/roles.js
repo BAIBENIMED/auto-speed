@@ -1,18 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const rolesController = require('../controllers/rolesController');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, isAdmin } = require('../middleware/auth');
 
-// List roles (authenticated users only)
+// List roles (any authenticated user)
 router.get('/', authMiddleware, rolesController.getAll);
 
-// Create role (authenticated users only)
-router.post('/', authMiddleware, rolesController.create);
-
-// Update role (authenticated users only)
-router.put('/:id', authMiddleware, rolesController.update);
-
-// Delete role (authenticated users only)
-router.delete('/:id', authMiddleware, rolesController.delete);
+// Create/update/delete roles & permissions (admins only)
+router.post('/', authMiddleware, isAdmin, rolesController.create);
+router.put('/:id', authMiddleware, isAdmin, rolesController.update);
+router.delete('/:id', authMiddleware, isAdmin, rolesController.delete);
 
 module.exports = router;

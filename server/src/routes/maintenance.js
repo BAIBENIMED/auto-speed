@@ -3,9 +3,10 @@ const router = express.Router();
 const { Shipment, Vehicle, Order } = require('../models');
 const { Op } = require('sequelize');
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
+const { authMiddleware, isAdmin } = require('../middleware/auth');
 
 // Global Status Healing
-router.post('/heal-statuses', async (req, res) => {
+router.post('/heal-statuses', authMiddleware, isAdmin, async (req, res) => {
     try {
         console.log('💊 Starting Global Status Healing...');
 

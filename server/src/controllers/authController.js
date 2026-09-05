@@ -32,18 +32,22 @@ exports.login = async (req, res) => {
             });
         }
 
-        console.log('✅ User found:', user.username);
-        console.log('🔒 Stored hash:', user.password);
-
         // Check password
         const isPasswordValid = await user.comparePassword(password);
-        console.log('🔐 Password valid:', isPasswordValid);
 
         if (!isPasswordValid) {
-            console.log('❌ Password mismatch');
+            console.log('❌ Password mismatch for user:', username);
             return res.status(401).json({
                 success: false,
                 message: 'Identifiants incorrects.'
+            });
+        }
+
+        if (!process.env.JWT_SECRET) {
+            console.error('❌ JWT_SECRET manquant dans la configuration serveur.');
+            return res.status(500).json({
+                success: false,
+                message: 'Erreur de configuration serveur.'
             });
         }
 
@@ -55,8 +59,8 @@ exports.login = async (req, res) => {
                 roleId: user.roleId,
                 clientId: user.clientId
             },
-            process.env.JWT_SECRET || 'gtm_auto_cloud_secret_2025',
-            { expiresIn: '24h' }
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
         );
 
         // Return user info and token
@@ -76,12 +80,7 @@ exports.login = async (req, res) => {
         console.error('Login error:', error);
         res.status(500).json({
             success: false,
-            message: `ERREUR SERVEUR: ${error.message}`,
-            debug_info: {
-                error: error.message,
-                name: error.name,
-                stack: error.stack
-            }
+            message: 'Erreur serveur lors de la connexion.'
         });
     }
 };

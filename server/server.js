@@ -8,6 +8,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const sequelize = require('./src/config/database');
 const models = require('./src/models');
+const { authMiddleware, isAdmin } = require('./src/middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -42,14 +43,30 @@ app.use(express.static(path.join(__dirname, '..'), {
     }
 }));
 
-// CORS - strictly allow the render domain in production, or '*' with credentials handled
+// CORS - the frontend is served from the same origin as the API, so cross-origin
+// requests are only expected from local dev ports and demo ngrok tunnels.
+const staticAllowedOrigins = [
+    'http://localhost:5000',
+    'http://127.0.0.1:5000'
+];
+const extraAllowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+const allowedOrigins = [...staticAllowedOrigins, ...extraAllowedOrigins];
+const allowedOriginPattern = /^https:\/\/[a-z0-9-]+\.(ngrok-free\.app|ngrok\.io|ngrok\.app)$/i;
+
 const corsOptions = {
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
+        // Allow requests with no origin (server-to-server, curl, mobile apps)
         if (!origin) return callback(null, true);
 
-        // In production, we'd ideally list the domain, but for now we'll allow all while debugging
-        return callback(null, true);
+        if (allowedOrigins.includes(origin) || allowedOriginPattern.test(origin)) {
+            return callback(null, true);
+        }
+
+        console.warn(`[CORS] Origine refusée: ${origin}`);
+        return callback(null, false);
     },
     credentials: true,
     optionsSuccessStatus: 200
@@ -112,8 +129,8 @@ app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'AUTO SPEED API is running (v2.7-ANTIGRAVITY)' });
 });
 
-// Diagnostic endpoint for Cloud deployment
-app.get('/api/diag', async (req, res) => {
+// Diagnostic endpoint for Cloud deployment (admin only)
+app.get('/api/diag', authMiddleware, isAdmin, async (req, res) => {
     // Show environment status immediately
     const diag = {
         timestamp: new Date().toISOString(),
@@ -134,8 +151,12 @@ app.get('/api/diag', async (req, res) => {
     try {
         // Test JWT
         const jwt = require('jsonwebtoken');
-        const testToken = jwt.sign({ test: true }, process.env.JWT_SECRET || 'test', { expiresIn: '1m' });
-        diag.jwt_test = "OK";
+        if (process.env.JWT_SECRET) {
+            jwt.sign({ test: true }, process.env.JWT_SECRET, { expiresIn: '1m' });
+            diag.jwt_test = "OK";
+        } else {
+            diag.jwt_test = "JWT_SECRET_MISSING";
+        }
 
         // Test Bcrypt
         const bcrypt = require('bcrypt');
@@ -157,8 +178,8 @@ app.get('/api/diag', async (req, res) => {
     }
 });
 
-// Diagnostic endpoint for Email
-app.get('/api/test-email', async (req, res) => {
+// Diagnostic endpoint for Email (admin only)
+app.get('/api/test-email', authMiddleware, isAdmin, async (req, res) => {
     try {
         const nodemailer = require('nodemailer');
         
@@ -224,8 +245,8 @@ app.get('/api/test-email', async (req, res) => {
     }
 });
 
-// Diagnostic endpoint for Database Schema and Files
-app.get('/api/db-verify', async (req, res) => {
+// Diagnostic endpoint for Database Schema and Files (admin only)
+app.get('/api/db-verify', authMiddleware, isAdmin, async (req, res) => {
     try {
         const [tables] = await sequelize.query("SHOW TABLES");
         const tableList = tables.map(t => Object.values(t)[0]);
@@ -254,116 +275,10 @@ app.get('/api/db-verify', async (req, res) => {
     }
 });
 
-// Diagnostic/Migration endpoint for Purchase Orders logic
-app.get('/api/migrate-po', async (req, res) => {
-    try {
-        let logs = [];
-        logs.push('🔧 Starting migration...');
-        const poColumns = [
-            { name: 'document_status', def: "VARCHAR(50) DEFAULT 'Rien'" },
-            { name: 'documents_received', def: "VARCHAR(10) DEFAULT 'Non'" },
-            { name: 'loading_port', def: 'VARCHAR(100) NULL' },
-            { name: 'loading_date', def: 'DATETIME NULL' },
-            { name: 'etd', def: 'DATETIME NULL' },
-            { name: 'eta', def: 'DATETIME NULL' },
-            { name: 'is_loaded', def: "VARCHAR(10) DEFAULT 'Non'" },
-            { name: 'supplierId', def: 'INT NULL' },
-            { name: 'supplierName', def: 'VARCHAR(100) NULL' },
-            { name: 'status', def: "VARCHAR(50) DEFAULT 'En cours'" },
-            { name: 'forwarder', def: 'VARCHAR(100) NULL' },
-            { name: 'carrier', def: 'VARCHAR(100) NULL' },
-            { name: 'unbundler', def: 'VARCHAR(100) NULL' },
-            { name: 'tasks', def: 'JSON NULL' }
-        ];
-
-        for (const col of poColumns) {
-            try {
-                await sequelize.query(`ALTER TABLE purchase_orders ADD COLUMN ${col.name} ${col.def}`);
-                logs.push(`✅ Added ${col.name} to purchase_orders`);
-            } catch (err) {
-                if (err.message.includes('Duplicate column') || err.original?.code === 'ER_DUP_FIELDNAME') {
-                    logs.push(`ℹ️ ${col.name} already exists in purchase_orders`);
-                } else {
-                    logs.push(`❌ Error adding ${col.name}: ${err.message}`);
-                }
-            }
-        }
-
-        // Add tasks to orders
-        try {
-            await sequelize.query(`ALTER TABLE orders ADD COLUMN tasks JSON NULL`);
-            logs.push('✅ Added tasks column to orders table');
-        } catch (err) {
-            if (err.message.includes('Duplicate column') || err.original?.code === 'ER_DUP_FIELDNAME') {
-                logs.push('ℹ️ tasks column already exists in orders table');
-            } else {
-                logs.push(`❌ Error adding tasks to orders: ${err.message}`);
-            }
-        }
-
-        // Add purchase_order_id to vehicles (Fail-safe)
-        try {
-            await sequelize.query(`ALTER TABLE vehicles ADD COLUMN purchase_order_id VARCHAR(50) NULL`);
-            logs.push('✅ Added purchase_order_id to vehicles table');
-        } catch (err) {
-            if (err.message.includes('Duplicate column')) {
-                logs.push('ℹ️ purchase_order_id already exists in vehicles table');
-            } else {
-                logs.push(`❌ Error adding purchase_order_id to vehicles: ${err.message}`);
-            }
-        }
-
-        // Add original owner columns
-        try {
-            await sequelize.query(`ALTER TABLE vehicles ADD COLUMN original_client_id VARCHAR(50) NULL AFTER bl_link`);
-            logs.push('✅ Added original_client_id to vehicles table');
-        } catch (err) {
-            if (!err.message.includes('Duplicate column')) logs.push(`❌ Error original_client_id: ${err.message}`);
-        }
-        
-        try {
-            await sequelize.query(`ALTER TABLE vehicles ADD COLUMN original_owner_name VARCHAR(200) NULL AFTER original_client_id`);
-            logs.push('✅ Added original_owner_name to vehicles table');
-        } catch (err) {
-            if (!err.message.includes('Duplicate column')) logs.push(`❌ Error original_owner_name: ${err.message}`);
-        }
-
-        logs.push('✅ Migration completed successfully!');
-        res.json({ success: true, logs });
-    } catch (error) {
-        console.error('Migration failed:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Endpoint temporaire pour renommer JOON/003 -> JOON/001 (Sans Shell)
-app.get('/api/rename-po-fix', async (req, res) => {
-    const oldId = 'CMD/2026/JOON/003';
-    const newId = 'CMD/2026/JOON/001';
-    
-    try {
-        const [pos] = await sequelize.query("SELECT id FROM purchase_orders WHERE id = ?", { replacements: [oldId] });
-        if (pos.length === 0) {
-            return res.json({ success: false, message: `Référence ${oldId} non trouvée.` });
-        }
-
-        await sequelize.transaction(async (t) => {
-            await sequelize.query("UPDATE vehicles SET purchase_order_id = ? WHERE purchase_order_id = ?", {
-                replacements: [newId, oldId],
-                transaction: t
-            });
-            await sequelize.query("UPDATE purchase_orders SET id = ? WHERE id = ?", {
-                replacements: [newId, oldId],
-                transaction: t
-            });
-        });
-
-        res.json({ success: true, message: `Succès ! ${oldId} a été renommé en ${newId}.` });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
+// Note: les anciens endpoints ponctuels /api/migrate-po (colonnes déjà
+// couvertes par columnsToEnsure ci-dessous) et /api/rename-po-fix (correctif
+// d'une référence PO déjà appliqué) ont été retirés : c'étaient des mutations
+// SQL déclenchables en GET sans authentification.
 
 // 404 handler
 app.use((req, res) => {

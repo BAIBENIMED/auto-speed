@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const brandController = require('../controllers/brandController');
+const { authMiddleware } = require('../middleware/auth');
+
+router.use(authMiddleware);
 
 router.get('/', brandController.getAll);
 router.post('/', brandController.create);
