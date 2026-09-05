@@ -5,6 +5,11 @@
 
 // DOMContentLoaded removed to allow global definition
 // document.addEventListener('DOMContentLoaded', async () => {
+function getAuthHeaders() {
+    const currentUser = JSON.parse(localStorage.getItem('gtm_current_user') || 'null');
+    return (currentUser && currentUser.token) ? { 'Authorization': `Bearer ${currentUser.token}` } : {};
+}
+
 const app = {
     viewContainer: document.getElementById('view-container'),
     navLinks: document.querySelectorAll('.nav-link'),
@@ -151,6 +156,7 @@ const app = {
             flatpickr(el, {
                 locale: 'fr',
                 altInput: true,
+                altInputClass: 'glass-input',
                 altFormat: 'd/m/Y',
                 dateFormat: 'Y-m-d',
                 allowInput: true
@@ -719,7 +725,7 @@ const app = {
                                         <label>Showroom</label>
                                         <select name="showroom" id="filter-showroom" required class="glass-select">
                                             <option value="">Sélectionner un showroom</option>
-                                            ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'TOUGGOURT' ? 'selected' : ''}>${s}</option>`).join('')}
+                                            ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'EULMA' ? 'selected' : ''}>${s}</option>`).join('')}
                                         </select>
                                     </div>
                                 </div>
@@ -2728,8 +2734,8 @@ const app = {
 
                 const vShowroom = (v.showroom || '').trim().toUpperCase();
 
-                // If vehicle is explicitly marked TIBOU → include
-                if (vShowroom === 'TIBOU' || vShowroom.includes('TIBOU')) return true;
+                // If vehicle is explicitly marked AUTOSPEED → include
+                if (vShowroom === 'AUTOSPEED' || vShowroom.includes('AUTOSPEED')) return true;
 
                 // If vehicle has another explicit showroom (e.g. "COTONOU", "PARIS") → exclude
                 if (vShowroom !== '') return false;
@@ -2754,8 +2760,8 @@ const app = {
                 }
 
                 // Exclude if order or client explicitly belongs to another showroom
-                const isTibouOrder = orderShowroom === '' || orderShowroom.includes('TIBOU');
-                const isTibouClient = clientShowroom === '' || clientShowroom.includes('TIBOU');
+                const isTibouOrder = orderShowroom === '' || orderShowroom.includes('AUTOSPEED');
+                const isTibouClient = clientShowroom === '' || clientShowroom.includes('AUTOSPEED');
                 return isTibouOrder && isTibouClient;
             });
             console.log(`📊 Tibou vehicles found: ${tibouVehicles.length}`);
@@ -2982,11 +2988,11 @@ const app = {
                         </div>
                         <div class="chart-section glass animate delay-3">
                             <div class="section-title">
-                                <h2><i class="fas fa-warehouse"></i> Stock Tibou</h2>
+                                <h2><i class="fas fa-warehouse"></i> Stock AUTOSPEED</h2>
                                 <span class="badge-pill" style="background: var(--success); color: #fff; font-size: 0.8rem; padding: 2px 10px; font-weight: bold;">${tibouVehicles.length}</span>
                             </div>
                             <div class="glass-scroll" style="max-height: 400px; padding: 15px; overflow-y: auto;">
-                                ${tibouVehicles.length === 0 ? '<div style="text-align: center; padding: 40px; color: var(--text-dim); opacity: 0.6;"><i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Aucun véhicule à Tibou</div>' : `
+                                ${tibouVehicles.length === 0 ? '<div style="text-align: center; padding: 40px; color: var(--text-dim); opacity: 0.6;"><i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i> Aucun véhicule à AUTOSPEED</div>' : `
                                     <ul style="list-style: none; padding: 0;">
                                         ${tibouVehicles.map(v => `
                                             <li style="margin-bottom: 10px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')">
@@ -4064,7 +4070,7 @@ const app = {
                                 <label>Showroom</label>
                                 <select name="showroom" class="glass-select">
                                     <option value="">Sélectionner un showroom</option>
-                                    ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'TOUGGOURT' ? 'selected' : ''}>${s}</option>`).join('')}
+                                    ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'EULMA' ? 'selected' : ''}>${s}</option>`).join('')}
                                 </select>
                             </div>
                             <div class="form-row">
@@ -4712,19 +4718,19 @@ const app = {
                         displayShowroom = 'VENDU CG';
                     } else {
                         const s = String(rawShowroom).toUpperCase();
-                        if (s.includes('TOUG')) displayShowroom = 'TOUGGOURT';
-                        else if (s.includes('ALGER')) displayShowroom = 'ALGER';
-                        else if (s.includes('ORAN')) displayShowroom = 'ORAN';
-                        else if (s.includes('TIBOU')) displayShowroom = 'TIBOU';
+                        if (s.includes('EULMA')) displayShowroom = 'EULMA';
+                        else if (s.includes('SETIF')) displayShowroom = 'SETIF';
+                        else if (s.includes('MSILA')) displayShowroom = 'MSILA';
+                        else if (s.includes('AUTOSPEED')) displayShowroom = 'AUTOSPEED';
                         else if (s.trim() !== '' && rawShowroom) displayShowroom = rawShowroom;
                         else displayShowroom = 'VIDE';
                     }
 
                     return targetShowrooms.some(target => {
-                        if (target === 'TIBOU_STOCK') {
+                        if (target === 'AUTOSPEED_STOCK') {
                             if (v.soldRegistration) return false;
                             const s = (v.showroom || '').trim().toUpperCase();
-                            return s === '' || s.includes('TIBOU');
+                            return s === '' || s.includes('AUTOSPEED');
                         }
                         return displayShowroom.toUpperCase() === target.toUpperCase();
                     });
@@ -4763,10 +4769,10 @@ const app = {
 
                 if (rawShowroom) {
                     const s = String(rawShowroom).toUpperCase();
-                    if (s.includes('TOUG')) remainingShowrooms.add('TOUGGOURT');
-                    else if (s.includes('ALGER')) remainingShowrooms.add('ALGER');
-                    else if (s.includes('ORAN')) remainingShowrooms.add('ORAN');
-                    else if (s.includes('TIBOU')) remainingShowrooms.add('TIBOU');
+                    if (s.includes('EULMA')) remainingShowrooms.add('EULMA');
+                    else if (s.includes('SETIF')) remainingShowrooms.add('SETIF');
+                    else if (s.includes('MSILA')) remainingShowrooms.add('MSILA');
+                    else if (s.includes('AUTOSPEED')) remainingShowrooms.add('AUTOSPEED');
                     else remainingShowrooms.add(rawShowroom);
                 } else {
                     remainingShowrooms.add('VIDE');
@@ -4789,7 +4795,7 @@ const app = {
         if (this.vehicleFilters?.showroom) {
             const shws = Array.isArray(this.vehicleFilters.showroom) ? this.vehicleFilters.showroom : [this.vehicleFilters.showroom];
             shws.forEach(s => {
-                if (s !== 'TIBOU_STOCK') remainingShowrooms.add(s);
+                if (s !== 'AUTOSPEED_STOCK') remainingShowrooms.add(s);
             });
         }
 
@@ -4830,8 +4836,8 @@ const app = {
                         <p>${vehicles.length} véhicules enregistrés</p>
                     </div>
                     <div class="header-actions">
-                        <button class="btn-secondary" style="background: ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'var(--primary)' : 'var(--bg-glass)'}; color: ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'white' : 'var(--text-primary)'}; border-color: ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'var(--primary)' : 'var(--border-glass)'};" onclick="app.vehicleFilters = {...app.vehicleFilters, showroom: app.vehicleFilters.showroom === 'TIBOU_STOCK' ? '' : 'TIBOU_STOCK', showArchived: false}; app.renderVehicles()">
-                            <i class="fas fa-store"></i> ${this.vehicleFilters.showroom === 'TIBOU_STOCK' ? 'Filtré: Stock Tibou' : 'Stock Tibou'}
+                        <button class="btn-secondary" style="background: ${this.vehicleFilters.showroom === 'AUTOSPEED_STOCK' ? 'var(--primary)' : 'var(--bg-glass)'}; color: ${this.vehicleFilters.showroom === 'AUTOSPEED_STOCK' ? 'white' : 'var(--text-primary)'}; border-color: ${this.vehicleFilters.showroom === 'AUTOSPEED_STOCK' ? 'var(--primary)' : 'var(--border-glass)'};" onclick="app.vehicleFilters = {...app.vehicleFilters, showroom: app.vehicleFilters.showroom === 'AUTOSPEED_STOCK' ? '' : 'AUTOSPEED_STOCK', showArchived: false}; app.renderVehicles()">
+                            <i class="fas fa-store"></i> ${this.vehicleFilters.showroom === 'AUTOSPEED_STOCK' ? 'Filtré: Stock AUTOSPEED' : 'Stock AUTOSPEED'}
                         </button>
                         ${canCreate ? `
                         <button class="btn-secondary" onclick="app.showBatchVehicleModal()" style="margin-right: 10px;"><i class="fas fa-file-csv"></i> Création par Lot</button>
@@ -4982,14 +4988,14 @@ const app = {
                                             showroomDisplay = '<span class="badge-pill" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; font-size: 0.75rem; font-weight: 800;">VENDUE CG</span>';
                                         } else {
                                             const s = String(rawShowroom).toUpperCase();
-                                            if (s.includes('TOUG')) {
-                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(168, 85, 247, 0.2); color: #a855f7; font-weight: bold;">TOUGGOURT</span>';
-                                            } else if (s.includes('ALGER')) {
-                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; font-weight: bold;">ALGER</span>';
-                                            } else if (s.includes('ORAN')) {
-                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: bold;">ORAN</span>';
-                                            } else if (s.includes('TIBOU')) {
-                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(99, 102, 241, 0.2); color: var(--primary); font-weight: bold;">TIBOU</span>';
+                                            if (s.includes('EULMA')) {
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(168, 85, 247, 0.2); color: #a855f7; font-weight: bold;">EULMA</span>';
+                                            } else if (s.includes('SETIF')) {
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; font-weight: bold;">SETIF</span>';
+                                            } else if (s.includes('MSILA')) {
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: bold;">MSILA</span>';
+                                            } else if (s.includes('AUTOSPEED')) {
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(99, 102, 241, 0.2); color: var(--primary); font-weight: bold;">AUTOSPEED</span>';
                                             } else if (rawShowroom && String(rawShowroom).trim() !== '') {
                                                 showroomDisplay = `<span class="badge-pill" style="background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.1);">${rawShowroom}</span>`;
                                             } else {
@@ -6269,7 +6275,7 @@ const app = {
         try {
             const response = await fetch('/api/maintenance/heal-statuses', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
             });
             const result = await response.json();
 
@@ -9915,7 +9921,7 @@ const app = {
     async trackShipment(shipmentId) {
         this.showToast(`Mise à jour du suivi pour l'expédition ${shipmentId}...`, "info");
         try {
-            const response = await fetch(`/api/tracking/${shipmentId}/refresh`, { method: 'POST' });
+            const response = await fetch(`/api/tracking/${shipmentId}/refresh`, { method: 'POST', headers: getAuthHeaders() });
             const res = await response.json();
 
             if (res.success) {
@@ -10198,7 +10204,7 @@ const app = {
                                             </div>
                                             <div id="client-select-container" class="form-group full-width" style="${orderId ? 'display: none;' : 'display: block;'}">
                                                 <label>Sélectionner le Client</label>
-                                                <select name="cashClientId" id="cash-client-select" onchange="app.handleClientSelectInCash(this.value)">
+                                                <select name="cashClientId" id="cash-client-select" class="glass-select" onchange="app.handleClientSelectInCash(this.value)">
                                                     <option value="">-- Choisir un client --</option>
                                                     ${StorageService.get(STORAGE_KEYS.CLIENTS).map(c => `
                                             <option value="${c.id}" ${preSelectedOrder && preSelectedOrder.clientId === c.id ? 'selected' : ''}>
@@ -10209,7 +10215,7 @@ const app = {
                                             </div>
                                             <div id="order-select-container" class="form-group full-width" style="${orderId ? 'display: block;' : 'display: none;'}">
                                                 <label>Commande en cours (Non Soldée)</label>
-                                                <select name="orderId" id="cash-order-select" onchange="app.handleOrderSelectInCash(this.value)">
+                                                <select name="orderId" id="cash-order-select" class="glass-select" onchange="app.handleOrderSelectInCash(this.value)">
                                                     <option value="">-- Choisir une commande --</option>
                                                     ${orderId ? `
                                             <option value="${preSelectedOrder.id}" selected>
@@ -10220,7 +10226,7 @@ const app = {
                                             </div>
                                             <div class="form-group">
                                                 <label id="label-client-motif">Client</label>
-                                                <input type="text" id="cash-client-name" name="clientName" value="${preSelectedOrder ? preSelectedOrder.clientName : ''}" ${preSelectedOrder ? 'readonly' : ''} required>
+                                                <input type="text" id="cash-client-name" name="clientName" class="glass-input" value="${preSelectedOrder ? preSelectedOrder.clientName : ''}" ${preSelectedOrder ? 'readonly' : ''} required>
                                             </div>
                                             <div class="form-group">
                                                 <label>Showroom <span style="color: var(--danger);">*</span></label>
@@ -10233,7 +10239,7 @@ const app = {
                                             </div>
                                             <div class="form-group">
                                                 <label>Montant</label>
-                                                <input type="number" name="amount" step="1" value="${orderId ? Math.max(0, preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) : ''}" required>
+                                                <input type="number" name="amount" class="glass-input" step="1" value="${orderId ? Math.max(0, preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) : ''}" required>
                                             </div>
                                             <div class="form-group">
                                                 <label>Date d'opération</label>
@@ -10306,7 +10312,7 @@ const app = {
                                                 </div>
                                                 <div id="client-select-container" class="form-group full-width" style="${transaction.type === 'Out' ? 'display: none;' : 'display: block;'}">
                                                     <label>Sélectionner le Client</label>
-                                                    <select name="cashClientId" id="cash-client-select" onchange="app.handleClientSelectInCash(this.value)">
+                                                    <select name="cashClientId" id="cash-client-select" class="glass-select" onchange="app.handleClientSelectInCash(this.value)">
                                                         <option value="">-- Choisir un client --</option>
                                                         ${StorageService.get(STORAGE_KEYS.CLIENTS).map(c => `
                                             <option value="${c.id}" ${transaction.cashClientId === c.id ? 'selected' : ''}>
@@ -10317,7 +10323,7 @@ const app = {
                                                 </div>
                                                 <div id="order-select-container" class="form-group full-width" style="${transaction.orderId ? 'display: block;' : 'display: none;'}">
                                                     <label>Commande associée</label>
-                                                    <select name="orderId" id="cash-order-select" onchange="app.handleOrderSelectInCash(this.value)">
+                                                    <select name="orderId" id="cash-order-select" class="glass-select" onchange="app.handleOrderSelectInCash(this.value)">
                                                         <option value="">-- Choisir une commande --</option>
                                                         ${transaction.orderId ? `
                                             <option value="${transaction.orderId}" selected>Commande #${transaction.orderId}</option>
@@ -10326,7 +10332,7 @@ const app = {
                                                 </div>
                                                 <div class="form-group">
                                                     <label id="label-client-motif">${transaction.type === 'Out' ? 'Motif / Bénéficiaire' : 'Client'}</label>
-                                                    <input type="text" id="cash-client-name" name="clientName" value="${transaction.clientName || ''}" required>
+                                                    <input type="text" id="cash-client-name" name="clientName" class="glass-input" value="${transaction.clientName || ''}" required>
                                                 </div>
                                                 <div class="form-group">
                                                     <label>Showroom <span style="color: var(--danger);">*</span></label>
@@ -10342,7 +10348,7 @@ const app = {
                                                 </div>
                                                 <div class="form-group">
                                                     <label>Montant</label>
-                                                    <input type="number" name="amount" step="1" value="${transaction.amount}" required>
+                                                    <input type="number" name="amount" class="glass-input" step="1" value="${transaction.amount}" required>
                                                 </div>
                                                 <div class="form-group">
                                                     <label>Date d'opération</label>
@@ -11241,7 +11247,7 @@ const app = {
                 showroomText = 'VENDU C.G';
             } else if (displayClient) {
                 let rawShowroom = displayClient.showroom || '-';
-                showroomText = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
+                showroomText = String(rawShowroom).toUpperCase() === 'EULMA' ? 'EULMA' : rawShowroom;
             }
 
             let deliveryStatusClass = 'available';
@@ -12584,11 +12590,11 @@ const app = {
                 <form id="template-form">
                     <div class="form-group">
                         <label>Nom de la Compagnie / Modèle</label>
-                        <input type="text" name="name" value="${template.name}" required placeholder="Ex: MSC, Maersk...">
+                        <input type="text" name="name" class="glass-input" value="${template.name}" required placeholder="Ex: MSC, Maersk...">
                     </div>
                     <div class="form-group">
                         <label>Mots-clés (séparés par des virgules)</label>
-                        <input type="text" name="keywords" value="${template.keywords.join(', ')}" placeholder="Ex: MSC, MEDITERRANEAN...">
+                        <input type="text" name="keywords" class="glass-input" value="${template.keywords.join(', ')}" placeholder="Ex: MSC, MEDITERRANEAN...">
                             <small style="color: var(--text-dim)">Utilisé pour la détection automatique du modèle.</small>
                     </div>
 
@@ -13327,7 +13333,7 @@ const app = {
     async showLiveVoyageTracking(voyageName) {
         this.showToast(`Recherche de la position du voyage ${voyageName}...`, "info");
         try {
-            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
+            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`, { headers: getAuthHeaders() });
             const result = await response.json();
             if (!result.success) throw new Error(result.message || "Impossible de localiser le voyage");
             app.showTrackingModal(result.data, `Suivi Voyage: ${voyageName}`);
@@ -13713,7 +13719,7 @@ const app = {
             this.showToast(`Mise à jour du tracking pour ${voyageName}...`, "info");
             const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}/toggle`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({ active })
             });
             const res = await response.json();
@@ -13983,7 +13989,7 @@ const app = {
     async trackVoyage(voyageName) {
         this.showToast(`Mise à jour du suivi satellite pour ${voyageName}...`, "info");
         try {
-            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`);
+            const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(voyageName)}`, { headers: getAuthHeaders() });
             const res = await response.json();
             if (res.success) {
                 this.showToast("Données satellite récupérées avec succès", "success");
@@ -14099,7 +14105,7 @@ const app = {
             this.showToast(`Mise à jour du voyage ${progress}: ${vName}...`, "info");
 
             try {
-                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(vName)}`);
+                const response = await fetch(`/api/tracking/voyage/${encodeURIComponent(vName)}`, { headers: getAuthHeaders() });
                 const res = await response.json();
                 if (res.success) {
                     successCount++;
@@ -14516,7 +14522,7 @@ const app = {
                 const rowClient = v.soldRegistration ? (ancienClient || client) : client;
 
                 const rawShowroom = rowClient ? (rowClient.showroom || "-") : "-";
-                const displayShowroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
+                const displayShowroom = String(rawShowroom).toUpperCase() === 'EULMA' ? 'EULMA' : rawShowroom;
 
                 const row = [
                     rowNum++,
@@ -14671,7 +14677,7 @@ const app = {
             }
 
             const rawShowroom = rowClient ? (rowClient.showroom || "-") : "-";
-            const displayShowroom = String(rawShowroom).toUpperCase() === 'TOUGGOURT' ? 'TOUG' : rawShowroom;
+            const displayShowroom = String(rawShowroom).toUpperCase() === 'EULMA' ? 'EULMA' : rawShowroom;
 
             const cleanPhone = (rowClient?.phone || "").replace(/\s/g, "");
             const formattedPhone = (cleanPhone.length === 10) 
