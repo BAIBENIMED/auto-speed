@@ -488,7 +488,11 @@
     background: var(--bg-card);
     border: 1px solid var(--border-glass);
     border-radius: var(--radius-premium);
-    overflow: hidden;
+    /* defilement horizontal indispensable : les tableaux depassent largement
+       la largeur d'un telephone (jusqu'a ~1450px) */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
     box-shadow: none;
 }
 
@@ -663,3 +667,167 @@
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+/* ============================================================
+   15. Telephone
+   La feuille de redesign surcharge des regles de style.css qui
+   n'existaient qu'en version bureau ; ce bloc retablit un rendu
+   utilisable sur petit ecran.
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* Les enfants de grille/flex doivent pouvoir retrecir, sinon le
+       contenu (graphiques, cartes) deborde du viewport */
+    .main-grid > *,
+    .kpi-grid > *,
+    .dashboard-grid > *,
+    .dashboard-content-grid > *,
+    .stat-card,
+    .stat-info,
+    .option-group,
+    .chart-section {
+        min-width: 0;
+    }
+
+    .chart-container canvas,
+    .chart-section canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    /* En-tete de vue : titre puis filtres, empiles */
+    .view-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .view-header h1,
+    .view-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .header-filters {
+        flex-wrap: wrap;
+    }
+
+    .header-filters select,
+    .header-filters input,
+    .header-filters .glass-select {
+        flex: 1 1 140px;
+        max-width: none;
+    }
+
+    /* Boutons d'action de l'en-tete : sur toute la largeur, empiles */
+    .header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .header-actions .btn-primary,
+    .header-actions .btn-secondary {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    /* Barre superieure plus compacte */
+    .top-bar {
+        padding: 10px 14px;
+        gap: 10px;
+    }
+
+    .btn-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    /* Tableaux : lignes plus denses, cibles tactiles suffisantes.
+       En-tetes remontes de 0.6rem (9.6px) a 11px : illisible sinon. */
+    .data-table th {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        padding: 10px 12px;
+    }
+
+    .data-table td {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+
+    .btn-action {
+        width: 34px;
+        height: 34px;
+    }
+
+    /* Champs assez hauts pour eviter le zoom automatique iOS (<16px) */
+    .glass-input,
+    .code-input,
+    .header-filters select,
+    .header-filters input {
+        font-size: 16px;
+    }
+
+    /* Lisibilite : pastilles et libelles ne descendent pas sous 11px.
+       !important necessaire car plusieurs pastilles portent une taille
+       en style inline dans app.js. */
+    .status-badge,
+    .badge-pill,
+    .badge-outline,
+    .model-tag,
+    .category-tag {
+        font-size: 11px !important;
+        padding: 3px 9px !important;
+    }
+
+    .kpi-label,
+    .hero-stat-label,
+    .item-time,
+    .form-group label,
+    .user-role,
+    small {
+        font-size: 11px;
+    }
+
+    /* Bandeau d'accueil : les deux statistiques s'empilent au lieu de se
+       serrer l'une contre l'autre */
+    .hero-stats {
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .hero-stat-value {
+        font-size: 1.4rem;
+        overflow-wrap: anywhere;
+    }
+
+    /* Cartes KPI en pleine largeur, valeurs moins imposantes */
+    .kpi-value,
+    .stat-value {
+        font-size: 1.4rem;
+        overflow-wrap: anywhere;
+    }
+
+    .kpi-card {
+        padding: 14px 16px;
+    }
+
+    /* Modales : occupent l'ecran plutot qu'une fenetre etroite */
+    .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92vh;
+        border-radius: 12px;
+    }
+
+    .modal-footer {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .modal-footer .btn-primary,
+    .modal-footer .btn-secondary {
+        flex: 1 1 140px;
+        justify-content: center;
+    }
+}

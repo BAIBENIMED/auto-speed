@@ -10891,7 +10891,7 @@ const app = {
                         </div>
                     </div>
 
-                    <div class="glass" style="padding: 0; overflow: hidden;">
+                    <div class="glass data-table-container" style="padding: 0;">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -11021,7 +11021,7 @@ const app = {
                         </div>
                     </div>
 
-        <div class="glass" style="padding: 0; overflow: hidden;">
+        <div class="glass data-table-container" style="padding: 0;">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -11168,7 +11168,7 @@ const app = {
                                 <button class="btn-close" onclick="app.closeModal()">&times;</button>
                             </div>
                             <div class="order-details-content" style="padding: 20px;">
-                                <div class="glass" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                                <div class="glass data-table-container" style="padding: 0; border: 1px solid rgba(255,255,255,0.05);">
                                     <table class="data-table">
                                         <thead>
                                             <tr>
