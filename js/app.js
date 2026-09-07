@@ -259,7 +259,37 @@ const app = {
         observer.observe(document.body, { childList: true, subtree: true });
     },
 
+    /**
+     * Garde globale contre le double-envoi de formulaire.
+     * Les handlers de soumission sont asynchrones : sans cela, un second clic
+     * pendant l'aller-retour serveur cree un doublon (constate sur les
+     * motorisations). Posee en phase de capture pour s'appliquer avant les
+     * handlers applicatifs, et couvrir aussi les formulaires crees plus tard
+     * dans les modales.
+     */
+    installerGardeDoubleEnvoi() {
+        if (this._gardeDoubleEnvoiPosee) return;
+        this._gardeDoubleEnvoiPosee = true;
+
+        document.addEventListener('submit', (e) => {
+            const form = e.target;
+            if (!(form instanceof HTMLFormElement)) return;
+
+            const bouton = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (!bouton || bouton.disabled) return;
+
+            bouton.disabled = true;
+
+            // Reactivation si l'utilisateur corrige une saisie refusee par la
+            // validation, sinon filet de securite au bout de quelques secondes.
+            const reactiver = () => { bouton.disabled = false; };
+            form.addEventListener('input', reactiver, { once: true });
+            setTimeout(reactiver, 4000);
+        }, true);
+    },
+
     async init() {
+        this.installerGardeDoubleEnvoi();
         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
 
         if (currentUser && currentUser.token) {
