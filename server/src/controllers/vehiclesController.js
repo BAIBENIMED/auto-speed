@@ -93,6 +93,19 @@ const vehiclesController = {
                 exists = await Vehicle.findByPk(finalId);
             }
 
+            // Le numero de chassis est unique par norme (ISO 3779). Controle ici
+            // plutot qu'en base : couvre le formulaire, l'import par lot et l'API.
+            const vin = (req.body.chassisNumber || '').trim();
+            if (vin) {
+                const doublon = await Vehicle.findOne({ where: { chassisNumber: vin } });
+                if (doublon) {
+                    return res.status(409).json({
+                        success: false,
+                        message: `Le numéro de châssis ${vin} est déjà enregistré sur le véhicule ${doublon.id}.`
+                    });
+                }
+            }
+
             const vehicle = await Vehicle.create({
                 ...req.body,
                 id: finalId
@@ -119,6 +132,21 @@ const vehiclesController = {
                 const order = await Order.findByPk(vehicle.orderId);
                 if (order && order.clientId !== req.user.clientId) {
                     return res.status(403).json({ success: false, message: 'Accès non autorisé' });
+                }
+            }
+
+            // Meme controle qu'a la creation, en excluant le vehicule courant
+            const nouveauVin = (req.body.chassisNumber || '').trim();
+            if (nouveauVin && nouveauVin !== (vehicle.chassisNumber || '').trim()) {
+                const { Op: OpMaj } = require('sequelize');
+                const doublon = await Vehicle.findOne({
+                    where: { chassisNumber: nouveauVin, id: { [OpMaj.ne]: vehicle.id } }
+                });
+                if (doublon) {
+                    return res.status(409).json({
+                        success: false,
+                        message: `Le numéro de châssis ${nouveauVin} est déjà enregistré sur le véhicule ${doublon.id}.`
+                    });
                 }
             }
 

@@ -68,8 +68,19 @@ const brandController = {
         try {
             const { name } = req.body;
             const brandId = req.params.brandId;
+
+            // Refus d'un modele deja present sous cette marque (insensible a la casse)
+            const nom = (name || '').trim();
+            if (!nom) {
+                return res.status(400).json({ success: false, message: 'Nom du modèle requis' });
+            }
+            const existants = await VehicleModel.findAll({ where: { brandId } });
+            if (existants.some(m => (m.name || '').trim().toUpperCase() === nom.toUpperCase())) {
+                return res.status(409).json({ success: false, message: `Le modèle ${nom} existe déjà pour cette marque.` });
+            }
+
             const id = `model_${brandId}_${Date.now()}`;
-            const model = await VehicleModel.create({ id, brandId, name });
+            const model = await VehicleModel.create({ id, brandId, name: nom });
             res.status(201).json({ success: true, data: model });
         } catch (error) {
             res.status(400).json({ success: false, message: 'Erreur lors de l\'ajout du modèle' });

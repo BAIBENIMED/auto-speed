@@ -52,6 +52,19 @@ const settingsController = {
     addAttribute: async (req, res) => {
         try {
             const data = req.body;
+
+            // Refus d'une valeur deja presente dans la meme categorie : c'est par
+            // cette voie que des motorisations en double ont ete creees.
+            const valeur = String(data.value || '').trim();
+            if (!valeur) {
+                return res.status(400).json({ success: false, message: 'Valeur requise' });
+            }
+            const memeCategorie = await DynamicAttribute.findAll({ where: { category: data.category } });
+            if (memeCategorie.some(a => String(a.value || '').trim().toUpperCase() === valeur.toUpperCase())) {
+                return res.status(409).json({ success: false, message: `${valeur} existe déjà dans cette catégorie.` });
+            }
+            data.value = valeur;
+
             if (!data.id) {
                 // Generate a simple ID if not provided
                 data.id = `${data.category}_${Date.now()}`;
