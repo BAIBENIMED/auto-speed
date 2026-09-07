@@ -7960,8 +7960,12 @@ const app = {
                 return `
                                                 <div class="vehicle-item" style="font-size: 0.85rem; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
                                                     <i class="fas fa-car" style="color: var(--primary); margin-right: 5px;"></i>
-                                                    <strong>${v.brand}</strong> 
-                                                    <span style="color: var(--text-dim);"> - ${client?.firstName} ${client?.lastName || 'N/A'}</span>
+                                                    <strong>${v.brand || 'Véhicule'}</strong>
+                                                    <span style="color: var(--text-dim);"> - ${(() => {
+                                                        if (!client) return 'Client non affecté';
+                                                        const nom = `${client.lastName || ''} ${client.firstName || ''}`.trim();
+                                                        return nom || 'Client sans nom';
+                                                    })()}</span>
                                                 </div>
                                             `;
             }).join('')}
