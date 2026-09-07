@@ -364,7 +364,7 @@ const app = {
                     <div class="login-box glass">
                         <div class="login-logo" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
                             <div class="logo-text-wrapper" style="font-size: 3.5rem; letter-spacing: -2px; flex-direction: row; gap: 15px; width: auto;">
-                                <span class="tibou" style="color: white;">AUTO</span>
+                                <span class="tibou">AUTO</span>
                                 <span class="auto" style="color: #D32F2F;">SPEED</span>
                             </div>
                             <div style="color: #D32F2F; font-size: 0.9rem; font-weight: 600; letter-spacing: 6px; margin-top: -10px; text-transform: uppercase; opacity: 0.9;">SHOWROOMS</div>
@@ -2097,16 +2097,16 @@ const app = {
                                 <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
                                     <h4 style="margin-bottom: 10px; font-size: 0.95rem; color: var(--primary);"><i class="fas fa-star"></i> Équipements de la Finition</h4>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; background: rgba(var(--primary-rgb), 0.05); padding: 12px; border-radius: 6px;">
-                                        <div>Moteur: <strong style="color: #fff;">${c.engine || 'N/A'}</strong></div>
-                                        <div>Boîte: <strong style="color: #fff;">${c.gearbox || 'N/A'}</strong></div>
-                                        <div>Turbo: <strong style="color: #fff;">${c.turbo || 'N/A'}</strong></div>
-                                        <div>Caméra: <strong style="color: #fff;">${c.camera || 'N/A'}</strong></div>
-                                        <div>Sièges élec.: <strong style="color: #fff;">${c.electricSeats || 'N/A'}</strong></div>
-                                        <div>Malle élec.: <strong style="color: #fff;">${c.electricTrunk || 'N/A'}</strong></div>
-                                        <div>Toit: <strong style="color: #fff;">${c.roof || 'N/A'}</strong></div>
-                                        <div>Roue secours: <strong style="color: #fff;">${c.spareWheel || 'N/A'}</strong></div>
-                                        <div>Keyless: <strong style="color: #fff;">${c.keyless || 'N/A'}</strong></div>
-                                        <div>Start & Stop: <strong style="color: #fff;">${c.startStop || 'N/A'}</strong></div>
+                                        <div>Moteur: <strong style="color: var(--text-primary);">${c.engine || 'N/A'}</strong></div>
+                                        <div>Boîte: <strong style="color: var(--text-primary);">${c.gearbox || 'N/A'}</strong></div>
+                                        <div>Turbo: <strong style="color: var(--text-primary);">${c.turbo || 'N/A'}</strong></div>
+                                        <div>Caméra: <strong style="color: var(--text-primary);">${c.camera || 'N/A'}</strong></div>
+                                        <div>Sièges élec.: <strong style="color: var(--text-primary);">${c.electricSeats || 'N/A'}</strong></div>
+                                        <div>Malle élec.: <strong style="color: var(--text-primary);">${c.electricTrunk || 'N/A'}</strong></div>
+                                        <div>Toit: <strong style="color: var(--text-primary);">${c.roof || 'N/A'}</strong></div>
+                                        <div>Roue secours: <strong style="color: var(--text-primary);">${c.spareWheel || 'N/A'}</strong></div>
+                                        <div>Keyless: <strong style="color: var(--text-primary);">${c.keyless || 'N/A'}</strong></div>
+                                        <div>Start & Stop: <strong style="color: var(--text-primary);">${c.startStop || 'N/A'}</strong></div>
                                     </div>
                                     ${c.remarks ? `<div style="margin-top: 10px; font-size: 0.85rem; font-style: italic; opacity: 0.8;"><i class="fas fa-comment-alt"></i> Remarques de finition: ${c.remarks}</div>` : ''}
                                 </div>
@@ -7765,15 +7765,15 @@ const app = {
                                     <div class="inline-vehicle-filters">
                                         <div class="option-input-wrapper">
                                             <i class="fas fa-user"></i>
-                                            <input type="text" id="inline-filter-client" placeholder="Filtre Client..." style="background: transparent; border: none; width: 100%; color: white; font-size: 0.8rem;">
+                                            <input type="text" id="inline-filter-client" placeholder="Filtre Client..." style="background: transparent; border: none; width: 100%; color: var(--text-primary); font-size: 0.8rem;">
                                         </div>
                                         <div class="option-input-wrapper">
                                             <i class="fas fa-car"></i>
-                                            <input type="text" id="inline-filter-vehicle" placeholder="Filtre Véhicule..." style="background: transparent; border: none; width: 100%; color: white; font-size: 0.8rem;">
+                                            <input type="text" id="inline-filter-vehicle" placeholder="Filtre Véhicule..." style="background: transparent; border: none; width: 100%; color: var(--text-primary); font-size: 0.8rem;">
                                         </div>
                                         <div class="option-input-wrapper">
                                             <i class="fas fa-fingerprint"></i>
-                                            <input type="text" id="inline-filter-vin" placeholder="Filtre VIN..." style="background: transparent; border: none; width: 100%; color: white; font-size: 0.8rem;">
+                                            <input type="text" id="inline-filter-vin" placeholder="Filtre VIN..." style="background: transparent; border: none; width: 100%; color: var(--text-primary); font-size: 0.8rem;">
                                         </div>
                                     </div>
                                     <div id="inline-vehicle-list" class="inline-vehicle-list-compact glass-scroll">
@@ -15122,7 +15122,7 @@ const app = {
                                 ${models.length > 0 ? models.map(m => `
                                     <div class="config-item glass" style="display: flex; flex-direction: column; padding: 0; background: rgba(255,255,255,0.02); overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
                                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                            <span style="font-weight: 700; color: white;">${m.name}</span>
+                                            <span style="font-weight: 700; color: var(--text-primary);">${m.name}</span>
                                             <div style="display: flex; gap: 8px;">
                                                 <button class="btn-icon-small" onclick="app.toggleTrimsList('${m.id}')" title="Gérer les finitions">
                                                     <i class="fas fa-list"></i>
