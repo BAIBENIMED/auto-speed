@@ -895,3 +895,76 @@
 [data-theme="light"] .alert-title.warning {
     color: var(--warning) !important;
 }
+
+/* ============================================================
+   16. Calendriers Flatpickr en theme clair
+   index.html charge themes/dark.css sans condition : les jours
+   restent en blanc alors que le fond du calendrier suit le theme.
+   En theme clair cela donnait un calendrier illisible.
+   ============================================================ */
+[data-theme="light"] .flatpickr-calendar {
+    background: var(--bg-panel) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+    border-color: var(--border-glass) !important;
+}
+
+[data-theme="light"] .flatpickr-months,
+[data-theme="light"] .flatpickr-month,
+[data-theme="light"] .flatpickr-current-month,
+[data-theme="light"] .flatpickr-monthDropdown-months {
+    background: var(--bg-panel) !important;
+    color: var(--text-primary) !important;
+    fill: var(--text-primary) !important;
+}
+
+[data-theme="light"] .flatpickr-current-month input.cur-year,
+[data-theme="light"] .flatpickr-current-month .numInputWrapper span {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .flatpickr-prev-month svg,
+[data-theme="light"] .flatpickr-next-month svg {
+    fill: var(--text-primary) !important;
+}
+
+[data-theme="light"] .flatpickr-weekday {
+    color: var(--text-muted) !important;
+}
+
+/* Le point central : les numeros de jours restaient blancs */
+[data-theme="light"] .flatpickr-day {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .flatpickr-day:hover,
+[data-theme="light"] .flatpickr-day.nextMonthDay:hover,
+[data-theme="light"] .flatpickr-day.prevMonthDay:hover {
+    background: var(--bg-raised) !important;
+    border-color: var(--bg-raised) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .flatpickr-day.prevMonthDay,
+[data-theme="light"] .flatpickr-day.nextMonthDay,
+[data-theme="light"] .flatpickr-day.flatpickr-disabled {
+    color: var(--text-muted) !important;
+    opacity: 0.6;
+}
+
+[data-theme="light"] .flatpickr-day.selected,
+[data-theme="light"] .flatpickr-day.selected:hover {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="light"] .flatpickr-day.today {
+    border-color: var(--primary) !important;
+}
+
+[data-theme="light"] .flatpickr-time input,
+[data-theme="light"] .flatpickr-time .flatpickr-time-separator,
+[data-theme="light"] .flatpickr-time .flatpickr-am-pm {
+    background: var(--bg-panel) !important;
+    color: var(--text-primary) !important;
+}

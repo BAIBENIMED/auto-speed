@@ -293,8 +293,55 @@ const app = {
         });
     },
 
+    /**
+     * Un vehicule neuf a forcement 0 km : le champ est mis a zero et verrouille
+     * tant que la categorie est "Neuf". Pose en delegation pour couvrir a la
+     * fois le formulaire de creation et celui de modification.
+     */
+    appliquerRegleKilometrageNeuf(select) {
+        const form = select && select.closest('form');
+        if (!form) return;
+        const km = form.querySelector('input[name="mileage"]');
+        if (!km) return;
+
+        const estNeuf = /neuf|new/i.test(select.value || '');
+        if (estNeuf) {
+            km.value = 0;
+            km.readOnly = true;
+            km.title = 'Un véhicule neuf est à 0 km';
+            km.style.opacity = '0.6';
+            km.style.cursor = 'not-allowed';
+        } else if (km.readOnly) {
+            km.readOnly = false;
+            km.title = '';
+            km.style.opacity = '';
+            km.style.cursor = '';
+        }
+    },
+
+    installerRegleKilometrageNeuf() {
+        if (this._regleKmNeufPosee) return;
+        this._regleKmNeufPosee = true;
+
+        document.addEventListener('change', (e) => {
+            const el = e.target;
+            if (el && el.tagName === 'SELECT' && el.name === 'category') {
+                this.appliquerRegleKilometrageNeuf(el);
+            }
+        });
+
+        // Etat initial a l'ouverture d'un formulaire deja renseigne (modification)
+        document.addEventListener('focusin', (e) => {
+            const form = e.target && e.target.closest && e.target.closest('form');
+            if (!form) return;
+            const select = form.querySelector('select[name="category"]');
+            if (select) this.appliquerRegleKilometrageNeuf(select);
+        });
+    },
+
     async init() {
         this.installerGardeDoubleEnvoi();
+        this.installerRegleKilometrageNeuf();
         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
 
         if (currentUser && currentUser.token) {
