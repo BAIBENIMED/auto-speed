@@ -6471,7 +6471,26 @@ const app = {
         if (!value) return;
 
         const key = STORAGE_KEYS[type];
-        await StorageService.add(key, value);
+
+        // Refus des doublons (insensible a la casse et aux espaces)
+        const existants = (StorageService.get(key) || []).map(v => String(v).trim().toUpperCase());
+        if (existants.includes(value.toUpperCase())) {
+            this.showToast(`${value} existe déjà`, 'warning');
+            input.value = '';
+            return;
+        }
+
+        // Vide le champ AVANT l'appel reseau : sinon un double-clic pendant
+        // l'aller-retour serveur creait deux fois la meme entree.
+        input.value = '';
+
+        try {
+            await StorageService.add(key, value);
+        } catch (e) {
+            input.value = value;
+            this.showToast(`Échec de l'ajout de ${value}`, 'error');
+            return;
+        }
 
         if (type === 'BRANDS') {
             const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS) || {};
