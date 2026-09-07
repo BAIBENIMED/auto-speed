@@ -263,9 +263,14 @@ const app = {
      * Garde globale contre le double-envoi de formulaire.
      * Les handlers de soumission sont asynchrones : sans cela, un second clic
      * pendant l'aller-retour serveur cree un doublon (constate sur les
-     * motorisations). Posee en phase de capture pour s'appliquer avant les
-     * handlers applicatifs, et couvrir aussi les formulaires crees plus tard
-     * dans les modales.
+     * motorisations). Couvre aussi les formulaires crees dans les modales.
+     *
+     * Volontairement en phase de bouillonnement, PAS en capture : certains
+     * formulaires gerent deja leur bouton et abandonnent s'ils le trouvent
+     * desactive (`if (submitBtn.disabled) return;` sur le formulaire d'achat).
+     * Desactiver le bouton avant eux empechait purement et simplement
+     * l'enregistrement. On passe donc apres, et on s'efface si le formulaire
+     * a deja pris la main.
      */
     installerGardeDoubleEnvoi() {
         if (this._gardeDoubleEnvoiPosee) return;
@@ -285,7 +290,7 @@ const app = {
             const reactiver = () => { bouton.disabled = false; };
             form.addEventListener('input', reactiver, { once: true });
             setTimeout(reactiver, 4000);
-        }, true);
+        });
     },
 
     async init() {
