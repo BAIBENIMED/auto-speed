@@ -22,7 +22,10 @@ class ContainerTrackingService {
             if (n.startsWith('GCNU') || n.startsWith('GRIU')) return { carrier: 'Grimaldi', type: 'container', trackingUrl: `https://www.grimaldi-lines.com/ro-ro-cargo/tracking/?query=${n}` };
             if (n.startsWith('COSU') || n.startsWith('CBHU')) return { carrier: 'COSCO', type: 'container', trackingUrl: `https://elines.coscoshipping.com/ebsentence/entire?e=${n}` };
             if (n.startsWith('HLCU')) return { carrier: 'Hapag-Lloyd', type: 'container', trackingUrl: `https://www.hapag-lloyd.com/en/online-business/tracing/tracing-by-container.html?container=${n}` };
-            if (n.startsWith('EISU')) return { carrier: 'Evergreen', type: 'container', trackingUrl: `https://ct.shipmentlink.com/servlet/TDB1_CargoTracking.do?type=C&no=${n}` };
+            if (n.startsWith('EISU') || n.startsWith('EGHU') || n.startsWith('EGSU')) return { carrier: 'Evergreen', type: 'container', trackingUrl: `https://ct.shipmentlink.com/servlet/TDB1_CargoTracking.do?type=C&no=${n}` };
+            if (n.startsWith('HMMU') || n.startsWith('HDMU')) return { carrier: 'HMM', type: 'container', trackingUrl: `https://www.hmm21.com/e-service/general/trackNTrace/TrackNTrace.do?number=${n}` };
+            if (n.startsWith('ONEU')) return { carrier: 'ONE', type: 'container', trackingUrl: `https://ecomm.one-line.com/one-ecom/manage-shipment/cargo-tracking?trakNoParam=${n}` };
+            if (n.startsWith('OOLU') || n.startsWith('OOCU')) return { carrier: 'OOCL', type: 'container', trackingUrl: `https://www.oocl.com/eng/ourservices/eservices/cargotracking/Pages/cargotracking.aspx?ctSearchType=CT&ctShipmentNumber=${n}` };
         }
 
         // Purely numeric BL (9 digits) => Grimaldi / Maersk most likely
@@ -134,14 +137,23 @@ class ContainerTrackingService {
         }
     }
 
+    /**
+     * Indice de transporteur envoye a Sinay : ce doit etre le code SCAC de la
+     * compagnie, pas le prefixe du conteneur (les deux coincident pour MSC,
+     * Maersk, CMA CGM, Hapag-Lloyd et COSCO, mais pas pour Evergreen).
+     * Renvoyer null est sans danger : Sinay detecte alors le transporteur seul.
+     */
     detectSealineCode(number) {
         const n = (number || '').trim().toUpperCase();
         if (n.startsWith('MSCU') || n.startsWith('MEDU')) return 'MEDU';
         if (n.startsWith('MRSU') || n.startsWith('MAEU') || n.startsWith('MSKU')) return 'MAEU';
         if (n.startsWith('CMAU') || n.startsWith('CGMU')) return 'CMDU';
         if (n.startsWith('HLCU')) return 'HLCU';
-        if (n.startsWith('EISU')) return 'EISU';
+        if (n.startsWith('EISU') || n.startsWith('EGHU') || n.startsWith('EGSU')) return 'EGLV';
         if (n.startsWith('COSU') || n.startsWith('CBHU')) return 'COSU';
+        if (n.startsWith('HMMU') || n.startsWith('HDMU')) return 'HDMU';
+        if (n.startsWith('ONEU')) return 'ONEY';
+        if (n.startsWith('OOLU') || n.startsWith('OOCU')) return 'OOLU';
         return null;
     }
 
