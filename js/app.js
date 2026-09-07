@@ -2590,6 +2590,21 @@ const app = {
         }
     },
 
+    // Le modele Order ne porte ni clientName ni vehicleName : on resout depuis clientId / Vehicle.orderId
+    getOrderClientLabel(order, clients = []) {
+        const c = clients.find(x => String(x.id) === String(order.clientId));
+        const label = c ? `${c.lastName || ''} ${c.firstName || ''}`.trim() : '';
+        return label || 'Client inconnu';
+    },
+
+    getOrderVehicleLabel(order, vehicles = []) {
+        const v = vehicles.find(x => String(x.orderId) === String(order.id));
+        const label = v ? `${v.brand || ''} ${v.model || ''}`.trim() : '';
+        if (label) return label;
+        const requested = `${order.requestedBrand || ''} ${order.requestedModel || ''}`.trim();
+        return requested || 'Véhicule non affecté';
+    },
+
     async renderDashboard() {
         try {
             let orders = StorageService.get(STORAGE_KEYS.ORDERS);
@@ -2923,7 +2938,7 @@ const app = {
                                                 <span class="item-title">Commande #${o.id}</span>
                                                 <span class="item-time">${this.formatDate(o.date)}</span>
                                             </div>
-                                            <div class="item-desc">${o.clientName} - ${o.vehicleName}</div>
+                                            <div class="item-desc">${this.getOrderClientLabel(o, clients)} - ${this.getOrderVehicleLabel(o, vehicles)}</div>
                                         </div>
                                     </div>
                                 `).join('')}
@@ -4021,9 +4036,9 @@ const app = {
                             <div class="client-info">
                                 <h3>${client.lastName} ${client.firstName}</h3>
                                 <div class="client-details">
-                                    <span><i class="fas fa-envelope"></i> <a href="mailto:${client.email}" style="color: inherit;">${client.email}</a></span>
-                                    <span><i class="fas fa-phone"></i> ${client.phone}</span>
-                                    <span><i class="fas fa-map-marker-alt"></i> ${client.address}</span>
+                                    <span><i class="fas fa-envelope"></i> ${client.email ? `<a href="mailto:${client.email}" style="color: inherit;">${client.email}</a>` : '-'}</span>
+                                    <span><i class="fas fa-phone"></i> ${client.phone || '-'}</span>
+                                    <span><i class="fas fa-map-marker-alt"></i> ${client.address || '-'}</span>
                                     <span><i class="fas fa-id-card"></i> Passeport: ${client.passportNumber || '-'} ${client.passportDriveLink ? `<a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</span>
                                     <span><i class="fas fa-fingerprint"></i> NIN: ${client.nin || '-'}</span>
                                     <span><i class="fas fa-hashtag"></i> Réf: ${client.reference || '-'}</span>
@@ -7411,9 +7426,10 @@ const app = {
         rates.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         // Filtering based on query (if needed in future)
+        const q = (query || '').toLowerCase();
         const filteredRates = rates.filter(r =>
-            r.fromCurrency.toLowerCase().includes(query.toLowerCase()) ||
-            r.toCurrency.toLowerCase().includes(query.toLowerCase())
+            (r.fromCurrency || '').toLowerCase().includes(q) ||
+            (r.toCurrency || '').toLowerCase().includes(q)
         );
 
         this.viewContainer.innerHTML = `
@@ -10649,6 +10665,11 @@ const app = {
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
         const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+        const alertClients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        const clientLabel = (clientId) => {
+            const c = alertClients.find(x => String(x.id) === String(clientId));
+            return c ? `${c.lastName || ''} ${c.firstName || ''}`.trim() : 'client inconnu';
+        };
         const now = new Date();
         const tenDaysFromNow = new Date();
         tenDaysFromNow.setDate(now.getDate() + 10);
@@ -10678,7 +10699,7 @@ const app = {
                     type: 'warning',
                     icon: 'fa-exclamation-triangle',
                     title: `Commande Validée sans Véhicule : #${o.id}`,
-                    message: `La commande de ${o.clientName} est validée mais aucun véhicule n'est encore affecté.`,
+                    message: `La commande de ${clientLabel(o.clientId)} est validée mais aucun véhicule n'est encore affecté.`,
                     date: o.date
                 });
             }
