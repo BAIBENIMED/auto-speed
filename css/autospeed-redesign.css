@@ -831,3 +831,67 @@
         justify-content: center;
     }
 }
+
+/* ============================================================
+   16. Textes blancs sur fond blanc (theme clair)
+   style.css impose "color: #fff" a des elements qui n'ont pas de
+   fond propre : en theme clair ils se retrouvent blanc sur blanc,
+   donc invisibles. On repasse par le jeton de texte, qui vaut
+   quasi-blanc en theme sombre et sombre en theme clair.
+   ============================================================ */
+.item-title,
+.alert-title,
+.section-title h2,
+.control-item:hover {
+    color: var(--text-primary);
+}
+
+/* .logistics-search-container garde un degrade sombre dans les DEUX themes :
+   son contenu doit rester en texte clair quel que soit le theme actif, sinon
+   le jeton de texte le rend sombre sur sombre en theme clair. */
+.logistics-search-container .search-title {
+    /* Couleur fixe et non un jeton : le fond de ce conteneur est sombre dans
+       les deux themes, le violet assombri du theme clair y passait mal. */
+    color: #a9b0ff;
+}
+
+.search-options-grid .option-group label,
+.logistics-search-container label {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* Classe utilisee dans app.js mais jamais definie : la pastille
+   heritait donc du blanc d'un parent. */
+.bg-success-soft {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success);
+}
+
+/* Ambre pur illisible sur fond clair (contraste 2.1) : on suit le jeton,
+   assombri en theme clair. */
+.bg-warning-soft {
+    color: var(--warning);
+}
+
+.bg-info-soft {
+    color: var(--accent-blue);
+}
+
+/* Pastilles de choix de theme : chacune affiche la couleur du theme qu'elle
+   represente en fond (inline). Cinq sur six sont sombres, le libelle heritait
+   du texte sombre du theme clair et devenait illisible. */
+.theme-card {
+    color: #f8fafc;
+}
+
+.theme-card:has(input[value="light"]) {
+    color: #1e293b;
+}
+
+/* .warning est declare avec !important dans style.css : l'ambre pur reste
+   donc illisible sur fond clair (contraste 2.1) malgre le jeton. */
+[data-theme="light"] .warning,
+[data-theme="light"] .status-badge.warning,
+[data-theme="light"] .alert-title.warning {
+    color: var(--warning) !important;
+}

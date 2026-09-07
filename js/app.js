@@ -5043,7 +5043,7 @@ const app = {
                                             } else if (s.includes('SETIF')) {
                                                 showroomDisplay = '<span class="badge-pill" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; font-weight: bold;">SETIF</span>';
                                             } else if (s.includes('MSILA')) {
-                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: bold;">MSILA</span>';
+                                                showroomDisplay = '<span class="badge-pill" style="background: rgba(245, 158, 11, 0.2); color: var(--warning); font-weight: bold;">MSILA</span>';
                                             } else if (s.includes('AUTOSPEED')) {
                                                 showroomDisplay = '<span class="badge-pill" style="background: rgba(99, 102, 241, 0.2); color: var(--primary); font-weight: bold;">AUTOSPEED</span>';
                                             } else if (rawShowroom && String(rawShowroom).trim() !== '') {
