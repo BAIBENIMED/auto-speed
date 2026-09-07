@@ -792,8 +792,7 @@ const app = {
                                         <label>Catégorie</label>
                                         <select id="filter-category" name="requestedCategory" class="glass-select">
                                             <option value="">Toutes</option>
-                                            <option value="Neuf">Neuf</option>
-                                            <option value="Recent">Moins de 3 ans</option>
+                                            ${(StorageService.get(STORAGE_KEYS.CATEGORIES) || []).map(cat => `<option value="${cat}">${cat}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div class="form-group">
@@ -1706,8 +1705,7 @@ const app = {
                                         <label style="font-size: 0.75rem; color: var(--text-dim);">Catégorie</label>
                                         <select id="edit-filter-category" class="glass-select" style="font-size: 0.85rem; padding: 6px 10px;">
                                             <option value="">Toutes</option>
-                                            <option value="Neuf">Neuf</option>
-                                            <option value="Recent">Moins de 3 ans</option>
+                                            ${(StorageService.get(STORAGE_KEYS.CATEGORIES) || []).map(cat => `<option value="${cat}">${cat}</option>`).join('')}
                                         </select>
                                     </div>
                                 </div>
@@ -1763,8 +1761,14 @@ const app = {
                                         <label style="font-size: 0.8rem;">Catégorie Souhaitée</label>
                                         <select name="requestedCategory" class="glass-select">
                                             <option value="">Toutes</option>
-                                            <option value="Neuf" ${order.requestedCategory === 'Neuf' ? 'selected' : ''}>Neuf</option>
-                                            <option value="Recent" ${order.requestedCategory === 'Recent' ? 'selected' : ''}>Moins de 3 ans</option>
+                                            ${(() => {
+                                                const cats = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
+                                                const actuelle = order.requestedCategory;
+                                                // conserve une valeur historique absente du parametrage
+                                                // (ex: l'ancien "Recent") pour ne pas la perdre a l'enregistrement
+                                                const liste = actuelle && !cats.includes(actuelle) ? [...cats, actuelle] : cats;
+                                                return liste.map(cat => `<option value="${cat}" ${actuelle === cat ? 'selected' : ''}>${cat}</option>`).join('');
+                                            })()}
                                         </select>
                                     </div>
                                 </div>
