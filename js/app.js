@@ -294,6 +294,36 @@ const app = {
     },
 
     /**
+     * Categorie d'un vehicule : reconnue par mot-cle et non par egalite stricte,
+     * pour rester valable quels que soient les libelles choisis dans les
+     * Parametres ("Neuf", "NEW", "Moins de 3 ans", "USED CAR"...).
+     */
+    estCategorieNeuve(categorie) {
+        return /\b(neuf|neuve|new)\b/i.test(String(categorie || ''));
+    },
+
+    estCategorieOccasion(categorie) {
+        return /(occasion|used|moins de \d+ ans|recent|récent)/i.test(String(categorie || ''));
+    },
+
+    /**
+     * Pastille d'etat affichant le libelle reel de la categorie, avec un code
+     * couleur deduit du mot-cle : vert pour du neuf, ambre pour de l'occasion,
+     * neutre sinon.
+     */
+    badgeCategorie(categorie, compact = false) {
+        if (!categorie) return compact ? '' : 'N/A';
+        const taille = compact ? 'font-size: 0.65rem; padding: 2px 6px;' : '';
+        let style = `background: rgba(255, 255, 255, 0.05); color: var(--text-dim); ${taille}`;
+        if (this.estCategorieNeuve(categorie)) {
+            style = `background: rgba(16, 185, 129, 0.15); color: var(--success); ${taille}`;
+        } else if (this.estCategorieOccasion(categorie)) {
+            style = `background: rgba(234, 179, 8, 0.15); color: #eab308; ${taille}`;
+        }
+        return `<span class="badge-pill" style="${style}">${categorie}</span>`;
+    },
+
+    /**
      * Un vehicule neuf a forcement 0 km : le champ est mis a zero et verrouille
      * tant que la categorie est "Neuf". Pose en delegation pour couvrir a la
      * fois le formulaire de creation et celui de modification.
@@ -304,7 +334,7 @@ const app = {
         const km = form.querySelector('input[name="mileage"]');
         if (!km) return;
 
-        const estNeuf = /neuf|new/i.test(select.value || '');
+        const estNeuf = this.estCategorieNeuve(select.value);
         if (estNeuf) {
             km.value = 0;
             km.readOnly = true;
@@ -931,10 +961,18 @@ const app = {
 
             if (showroom) filtered = filtered.filter(v => v.showroom === showroom);
             
-            if (category === 'Neuf') {
-                filtered = filtered.filter(v => v.condition === 'Neuf');
-            } else if (category === 'Recent') {
-                filtered = filtered.filter(v => v.year >= (currentYear - 3));
+            if (app.estCategorieNeuve(category)) {
+                filtered = filtered.filter(v => app.estCategorieNeuve(v.category || v.condition));
+            } else if (category) {
+                // Categorie d'occasion : correspondance sur le libelle, en gardant
+                // le critere d'anciennete pour les libelles qui l'expriment
+                // ("Moins de 3 ans"), sans l'imposer a un simple "USED CAR".
+                const critereAge = /moins de (\d+) ans|recent|récent/i.exec(category);
+                filtered = filtered.filter(v => {
+                    if (app.estCategorieOccasion(v.category || v.condition)) return true;
+                    if (critereAge) return v.year >= (currentYear - parseInt(critereAge[1] || '3', 10));
+                    return false;
+                });
             }
 
             if (searchText) {
@@ -1842,10 +1880,18 @@ const app = {
             );
 
             if (brand) filtered = filtered.filter(v => v.brand === brand);
-            if (category === 'Neuf') {
-                filtered = filtered.filter(v => v.condition === 'Neuf');
-            } else if (category === 'Recent') {
-                filtered = filtered.filter(v => v.year >= (currentYear - 3));
+            if (app.estCategorieNeuve(category)) {
+                filtered = filtered.filter(v => app.estCategorieNeuve(v.category || v.condition));
+            } else if (category) {
+                // Categorie d'occasion : correspondance sur le libelle, en gardant
+                // le critere d'anciennete pour les libelles qui l'expriment
+                // ("Moins de 3 ans"), sans l'imposer a un simple "USED CAR".
+                const critereAge = /moins de (\d+) ans|recent|récent/i.exec(category);
+                filtered = filtered.filter(v => {
+                    if (app.estCategorieOccasion(v.category || v.condition)) return true;
+                    if (critereAge) return v.year >= (currentYear - parseInt(critereAge[1] || '3', 10));
+                    return false;
+                });
             }
 
             if (searchText) {
@@ -2136,12 +2182,7 @@ const app = {
                                 <h3><i class="fas fa-cogs"></i> Spécifications</h3>
                                 <p><strong>Finition:</strong> ${vehicle.trim || 'N/A'}</p>
                                 <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
-                                <p><strong>État:</strong> ${(() => {
-                                    if (vehicle.category === 'Neuf') return '<span class="badge-pill" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">Neuf</span>';
-                                    if (vehicle.category === 'Recent' || vehicle.category === 'Moins de 3 ans') return '<span class="badge-pill" style="background: rgba(234, 179, 8, 0.15); color: #eab308;">Moins de 3 ans</span>';
-                                    if (vehicle.category) return `<span class="badge-pill" style="background: rgba(255, 255, 255, 0.05); color: var(--text-dim);">${vehicle.category}</span>`;
-                                    return 'N/A';
-                                })()}</p>
+                                <p><strong>État:</strong> ${app.badgeCategorie(vehicle.category)}</p>
                                 <p><strong>Kilométrage:</strong> ${vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : 'N/A'}</p>
                                 
                                 ${c ? `
@@ -5050,12 +5091,7 @@ const app = {
                                                         return amend ? `<span class="badge-pill" style="font-size: 0.65rem; background: ${amend.color}22; color: ${amend.color}; margin-left: 5px; border: 1px solid ${amend.color}44;">${amend.label}</span>` : '';
                                                     })()}
                                                 </div>
-                                                <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'} ${(() => {
-                                                    if (v.category === 'Neuf') return '| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 6px;">Neuf</span>';
-                                                    if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(234, 179, 8, 0.2); color: #eab308; padding: 2px 6px;">Moins de 3 ans</span>';
-                                                    if (v.category) return `| <span class="badge-pill" style="font-size: 0.65rem; background: rgba(255, 255, 255, 0.05); color: var(--text-dim); padding: 2px 6px;">${v.category}</span>`;
-                                                    return '';
-                                                })()}</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'} ${v.category ? '| ' + app.badgeCategorie(v.category, true) : ''}</div>
                                             </div>
                                         </div>
                                     </td>
@@ -5121,8 +5157,8 @@ const app = {
                                     </td>
                                     <td>
                                         ${(() => {
-                                            if (v.category === 'Neuf') return '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.2); color: #22c55e; font-weight: bold; font-size: 0.75rem;">NEUF</span>';
-                                            if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '<span class="badge-pill" style="background: rgba(234, 179, 8, 0.2); color: #eab308; font-weight: bold; font-size: 0.75rem;">-3 ANS</span>';
+                                            if (app.estCategorieNeuve(v.category)) return '<span class="badge-pill" style="background: rgba(34, 197, 94, 0.2); color: #22c55e; font-weight: bold; font-size: 0.75rem;">NEUF</span>';
+                                            if (app.estCategorieOccasion(v.category)) return '<span class="badge-pill" style="background: rgba(234, 179, 8, 0.2); color: #eab308; font-weight: bold; font-size: 0.75rem;">-3 ANS</span>';
                                             if (v.category) return `<span class="badge-pill" style="background: rgba(255, 255, 255, 0.05); color: var(--text-dim); font-size: 0.75rem;">${v.category.toUpperCase()}</span>`;
                                             return '<span style="color:var(--text-dim);">N/A</span>';
                                         })()}
@@ -11028,7 +11064,7 @@ const app = {
                                     const clientName = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || client.name : 'STOCK';
                                     return `<div style="margin-bottom: 2px; cursor: pointer;" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails du véhicule">
                                     • <strong>${clientName}</strong> : ${v.brand} ${v.model || ''} ${v.trim ? `[${v.trim}]` : ''} 
-                                     ${v.category === 'Neuf' ? `
+                                     ${app.estCategorieNeuve(v.category) ? `
                                      <span class="badge-pill" style="font-size: 0.65rem; background: rgba(var(--success-rgb), 0.15); color: var(--success); padding: 1px 5px; border: 1px solid rgba(var(--success-rgb), 0.3); border-radius: 4px; font-weight: 600; margin-left: 2px; margin-right: 2px;">NEW CAR</span>
                                      ` : (v.category && (v.category.includes('3 ans') || v.category.includes('Recent')) ? `
                                      <span class="badge-pill" style="font-size: 0.65rem; background: rgba(var(--warning-rgb), 0.15); color: var(--warning); padding: 1px 5px; border: 1px solid rgba(var(--warning-rgb), 0.3); border-radius: 4px; font-weight: 600; margin-left: 2px; margin-right: 2px;">USED CAR</span>
@@ -11394,8 +11430,8 @@ const app = {
                                                         <div style="font-weight: 600;">${v.brand} ${v.model || ''}</div>
                                                         <div style="font-size: 0.8rem; color: var(--text-dim);">${v.year || '-'} | ${v.color || '-'}</div>
                                                         ${(() => {
-                                                            if (v.category === 'Neuf') return '<div style="font-size: 0.75rem; font-weight: 800; color: #10b981; margin-top: 2px;">VEHICULE NEUF</div>';
-                                                            if (v.category === 'Recent' || v.category === 'Moins de 3 ans') return '<div style="font-size: 0.75rem; font-weight: 800; color: #eab308; margin-top: 2px;">MOINS DE TROIS ANS</div>';
+                                                            if (app.estCategorieNeuve(v.category)) return '<div style="font-size: 0.75rem; font-weight: 800; color: #10b981; margin-top: 2px;">VEHICULE NEUF</div>';
+                                                            if (app.estCategorieOccasion(v.category)) return '<div style="font-size: 0.75rem; font-weight: 800; color: #eab308; margin-top: 2px;">MOINS DE TROIS ANS</div>';
                                                             if (v.category) return `<div style="font-size: 0.75rem; font-weight: 800; color: var(--text-dim); margin-top: 2px;">${v.category.toUpperCase()}</div>`;
                                                             return '';
                                                         })()}
