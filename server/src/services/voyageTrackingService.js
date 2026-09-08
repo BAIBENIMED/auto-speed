@@ -1,6 +1,6 @@
 const { Shipment, Notification, Voyage, Order } = require('../models');
 const containerTrackingService = require('./containerTrackingService');
-const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
+const { syncShipmentStatusToOrders, syncShipmentToPurchaseOrders } = require('../utils/statusSynchronizer');
 const { Op } = require('sequelize');
 const { formatDate } = require('../utils/dateFormatter');
 
@@ -191,6 +191,18 @@ class VoyageTrackingService {
                 }
 
                 await s.update(shipmentUpdate);
+
+                
+
+
+                // Report des informations logistiques vers les commandes d'achat liees
+                await syncShipmentToPurchaseOrders(s.id, {
+                    etd: trackingInfo.etd,
+                    eta: trackingInfo.eta,
+                    loadingPort: trackingInfo.loadingPort,
+                    destinationPort: trackingInfo.unloadingPort,
+                    carrier: trackingInfo.carrierInfo && trackingInfo.carrierInfo.carrier
+                });
             }));
 
             // 8. Sync to Orders

@@ -5,7 +5,7 @@ const voyageTrackingService = require('../services/voyageTrackingService');
 const containerTrackingService = require('../services/containerTrackingService');
 
 // Helper to sync status (Imported from statusSynchronizer to ensure unified logic)
-const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
+const { syncShipmentStatusToOrders, syncShipmentToPurchaseOrders } = require('../utils/statusSynchronizer');
 const { formatDate } = require('../utils/dateFormatter');
 const { authMiddleware } = require('../middleware/auth');
 
@@ -118,6 +118,17 @@ router.post('/:id/refresh', async (req, res) => {
         }
 
         await shipment.update(updateData);
+
+        
+
+        // Report des informations logistiques vers les commandes d'achat liees
+        await syncShipmentToPurchaseOrders(shipment.id, {
+            etd: trackingData.etd,
+            eta: trackingData.eta,
+            loadingPort: trackingData.loadingPort,
+            destinationPort: trackingData.unloadingPort,
+            carrier: trackingData.carrierInfo && trackingData.carrierInfo.carrier
+        });
 
         if (trackingData.status) {
             await syncShipmentStatusToOrders(shipment.id, trackingData.status);

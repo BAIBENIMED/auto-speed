@@ -97,4 +97,49 @@ async function syncShipmentStatusToOrders(shipmentId, status) {
     }
 }
 
-module.exports = { syncShipmentStatusToOrders };
+/**
+ * Reporte les informations logistiques remontees par le suivi vers les
+ * commandes d'achat fournisseur liees a l'expedition.
+ *
+ * Le lien passe par les vehicules : Shipment -> Vehicle.purchaseOrderId -> PurchaseOrder.
+ * Seuls les champs effectivement fournis par le suivi sont ecrits ; les autres
+ * gardent leur valeur saisie a la main.
+ *
+ * @param {string} shipmentId
+ * @param {{etd?:string, eta?:string, loadingPort?:string, destinationPort?:string, carrier?:string}} infos
+ */
+async function syncShipmentToPurchaseOrders(shipmentId, infos = {}) {
+    if (!shipmentId) return;
+
+    try {
+        const { PurchaseOrder } = require('../models');
+
+        const vehicles = await Vehicle.findAll({
+            where: { shipmentId },
+            attributes: ['id', 'purchaseOrderId']
+        });
+
+        const idsAchat = [...new Set(vehicles.map(v => v.purchaseOrderId).filter(Boolean))];
+        if (idsAchat.length === 0) return;
+
+        // On n'ecrit que ce que le suivi a reellement fourni
+        const donnees = {};
+        if (infos.etd) donnees.etd = infos.etd;
+        if (infos.eta) donnees.eta = infos.eta;
+        if (infos.loadingPort) donnees.loadingPort = infos.loadingPort;
+        if (infos.destinationPort) donnees.destinationPort = infos.destinationPort;
+        if (infos.carrier) donnees.carrier = infos.carrier;
+        if (Object.keys(donnees).length === 0) return;
+
+        for (const idAchat of idsAchat) {
+            const achat = await PurchaseOrder.findByPk(idAchat);
+            if (!achat) continue;
+            await achat.update(donnees);
+            console.log(`[TrackingSync] Achat ${idAchat} mis a jour depuis l'expedition ${shipmentId} : ${Object.keys(donnees).join(', ')}`);
+        }
+    } catch (error) {
+        console.error('[TrackingSync] Echec de la propagation vers les commandes d\'achat :', error.message);
+    }
+}
+
+module.exports = { syncShipmentStatusToOrders, syncShipmentToPurchaseOrders };
