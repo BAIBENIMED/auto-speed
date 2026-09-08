@@ -976,7 +976,7 @@
    ========================================================================= */
 
 .leaflet-container {
-    background: #eef1f5;
+    background: #aad3df; /* teinte ocean du fond topographique */
 }
 
 /* Etiquette permanente du navire : le numero de BL */

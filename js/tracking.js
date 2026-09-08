@@ -251,28 +251,54 @@ document.addEventListener('DOMContentLoaded', () => {
         carteSuivi = L.map('tracking-map', { scrollWheelZoom: false }).setView([lat, lng], zoom);
 
         // CARTO exige desormais une cle d'API et tamponne ses tuiles gratuites du
-        // message « API KEY REQUIRED » : fond clair Esri (sans cle), avec repli OSM.
+        // message « API KEY REQUIRED » : on dessine le fond nous-memes avec Esri
+        // (sans cle). Deux etages : relief physique colore sur une vue large,
+        // topographique detaille en approche.
         // noWrap + maxBounds empechent la mappemonde de se repeter au dezoom.
         const MONDE = [[-85.06, -180], [85.06, 180]];
-        const fond = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap',
-            maxZoom: 16,
+        const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
+        const SEUIL = 7;
+
+        const physique = L.tileLayer(ESRI + 'World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri, US National Park Service',
+            maxZoom: 8,
             noWrap: true,
             bounds: MONDE
         });
+
+        const topo = L.tileLayer(ESRI + 'World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri, USGS, NOAA, &copy; OpenStreetMap',
+            maxZoom: 18,
+            noWrap: true,
+            bounds: MONDE
+        });
+
         let bascule = false;
-        fond.on('tileerror', () => {
+        const replier = () => {
             if (bascule) return;
             bascule = true;
-            carteSuivi.removeLayer(fond);
+            carteSuivi.off('zoomend', choisirFond);
+            [physique, topo].forEach(c => carteSuivi.hasLayer(c) && carteSuivi.removeLayer(c));
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap',
                 maxZoom: 19,
                 noWrap: true,
                 bounds: MONDE
             }).addTo(carteSuivi);
-        });
-        fond.addTo(carteSuivi);
+        };
+        physique.on('tileerror', replier);
+        topo.on('tileerror', replier);
+
+        const choisirFond = () => {
+            if (bascule) return;
+            const voulu = carteSuivi.getZoom() <= SEUIL ? physique : topo;
+            const autre = voulu === physique ? topo : physique;
+            if (!carteSuivi.hasLayer(voulu)) voulu.addTo(carteSuivi);
+            if (carteSuivi.hasLayer(autre)) carteSuivi.removeLayer(autre);
+        };
+
+        carteSuivi.on('zoomend', choisirFond);
+        choisirFond();
         carteSuivi.setMaxBounds(MONDE);
 
         if (aGps || repli) {
