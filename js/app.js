@@ -322,6 +322,8 @@ const app = {
      */
     infobulleNavire(expedition) {
         const vehicules = this.vehiculesDeExpedition(expedition);
+        const enErreur = ['erreur tracking', 'tracking error', 'no api key']
+            .includes(String(expedition.status || '').toLowerCase());
         const lignes = vehicules.slice(0, 6).map(v =>
             `<div style="margin-top:2px;">🚗 <b>${v.libelle}</b>${v.vin ? ` <span style="opacity:.65;">…${v.vin.slice(-6)}</span>` : ''}<br>
              <span style="opacity:.8; margin-left:14px;">👤 ${v.client}</span></div>`
@@ -335,6 +337,7 @@ const app = {
                 ${expedition.blNumber ? `<div style="opacity:.85;">BL : ${expedition.blNumber}</div>` : ''}
                 ${expedition.destination ? `<div style="opacity:.85;">Destination : ${expedition.destination}</div>` : ''}
                 ${expedition.eta ? `<div style="opacity:.85;">ETA : ${this.formatDate ? this.formatDate(expedition.eta) : new Date(expedition.eta).toLocaleDateString('fr-FR')}</div>` : ''}
+                ${enErreur ? '<div style="color:#ef4444; font-weight:700; margin-top:4px;">⚠️ Tracking indisponible</div>' : ''}
                 ${vehicules.length ? `<hr style="margin:6px 0; border:none; border-top:1px solid rgba(128,128,128,.35);">${lignes}${reste}`
                                    : '<div style="margin-top:5px; opacity:.7;">Aucun véhicule rattaché</div>'}
             </div>`;
@@ -3870,16 +3873,9 @@ const app = {
                 iconAnchor: [7, 7]
             });
 
-            L.marker([s.currentLat, s.currentLng], { icon: icon })
-                .addTo(map)
-                .bindTooltip(app.infobulleNavire(s), { direction: 'top', offset: [0, -10], opacity: 0.97 })
-                .bindPopup(`
-                    <div style="color: #333; font-size: 0.8rem; padding: 5px;">
-                        <strong>${s.vesselName || s.carrier || 'Navire'}</strong><br>
-                        <span style="color: #666;">${s.containerNumber || ''}</span>
-                        ${isError ? '<br><span style="color: #ef4444; font-weight: bold;">⚠️ Tracking Indisponible</span>' : ''}
-                    </div>
-                `);
+            app.decoreMarqueurNavire(
+                L.marker([s.currentLat, s.currentLng], { icon: icon }).addTo(map),
+                s, -10);
         });
 
         // Fit bounds if we have shipments
@@ -13618,8 +13614,15 @@ const app = {
                     iconAnchor: [12, 12]
                 });
 
-                L.marker([location.lat, location.lng], { icon: icon }).addTo(map)
-                    .bindPopup(`<b>${data.vesselName}</b><br>${location.name}`).openPopup();
+                const etiquette = data.blNumber || data.identifier || data.containerNumber;
+                const navire = L.marker([location.lat, location.lng], { icon: icon }).addTo(map)
+                    .bindPopup(`<b>${data.vesselName || 'Navire'}</b><br>${location.name}`);
+                if (etiquette) {
+                    navire.bindTooltip(etiquette, {
+                        permanent: true, direction: 'top', offset: [0, -14],
+                        className: 'etiquette-navire', opacity: 1
+                    });
+                }
             }, 100);
         }
     },
@@ -13864,22 +13867,14 @@ const app = {
                     const actionText = hasHistory ? 'Voir Historique' : 'Localiser (Sat)';
                     const actionColor = hasHistory ? '#10b981' : '#6366f1';
 
-                    L.marker([s.currentLat, s.currentLng], { icon: icon })
-                        .addTo(map)
-                        .bindTooltip(app.infobulleNavire(s), { direction: 'top', offset: [0, -10], opacity: 0.97 })
-                        .bindPopup(`
-                                <div style="color: #333; min-width: 150px;">
-                                    <div style="font-weight: bold; font-size: 1rem; margin-bottom: 5px;">${s.vesselName || s.carrier || 'Navire'}</div>
-                                    <div style="font-size: 0.85rem; margin-bottom: 3px;">Voyage: <b>${s.voyage || 'N/A'}</b></div>
-                                    <div style="font-size: 0.85rem; margin-bottom: 3px;">Statut: <span style="color: ${isError ? '#ef4444' : '#059669'}; font-weight: 600;">${s.status}</span></div>
-                                    <div style="font-size: 0.85rem;">Conteneur: ${s.containerNumber || 'N/A'}</div>
-                                    ${isError ? '<div style="color: #ef4444; font-size: 0.75rem; margin-top: 5px; font-weight: bold;">⚠️ Données non actualisées</div>' : ''}
-                                    <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;">
-                                    <button onclick="${action}" style="width: 100%; border: none; background: ${actionColor}; color: white; padding: 5px; border-radius: 4px; cursor: pointer;">
-                                        ${actionText}
-                                    </button>
-                                </div>
-                            `);
+                    app.decoreMarqueurNavire(
+                        L.marker([s.currentLat, s.currentLng], { icon: icon }).addTo(map),
+                        s, -10,
+                        `${app.infobulleNavire(s)}
+                            <div style="font-size: 0.78rem; margin-top: 4px;">Voyage : <b>${s.voyage || 'N/A'}</b></div>
+                            <button onclick="${action}" style="width: 100%; margin-top: 8px; border: none; background: ${actionColor}; color: white; padding: 5px; border-radius: 4px; cursor: pointer;">
+                                ${actionText}
+                            </button>`);
                 });
             }, 100);
         }
@@ -13892,9 +13887,15 @@ const app = {
     ajouterFondCarte(carte) {
         if (typeof L === 'undefined' || !carte) return null;
 
-        const fond = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        // noWrap + maxBounds : sans eux la mappemonde se repete a l'infini
+        // horizontalement des qu'on dezoome.
+        const MONDE = [[-85.06, -180], [85.06, 180]];
+
+        const fond = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
             attribution: '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap',
-            maxZoom: 16
+            maxZoom: 16,
+            noWrap: true,
+            bounds: MONDE
         });
 
         let bascule = false;
@@ -13904,12 +13905,42 @@ const app = {
             carte.removeLayer(fond);
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap',
-                maxZoom: 19
+                maxZoom: 19,
+                noWrap: true,
+                bounds: MONDE
             }).addTo(carte);
         });
 
         fond.addTo(carte);
+        carte.setMaxBounds(MONDE);
         return fond;
+    },
+
+    /**
+     * Etiquette permanente affichee a cote du navire : le numero de BL, qui est
+     * la reference utilisee au quotidien.
+     */
+    etiquetteNavire(expedition) {
+        return expedition.blNumber || expedition.containerNumber || expedition.vesselName || 'Navire';
+    },
+
+    /**
+     * Marqueur de navire commun aux cartes : etiquette BL toujours visible,
+     * details (vehicules et clients) au survol ou au clic.
+     */
+    decoreMarqueurNavire(marqueur, expedition, decalage, contenuBulle) {
+        marqueur
+            .bindTooltip(this.etiquetteNavire(expedition), {
+                permanent: true,
+                direction: 'top',
+                offset: [0, decalage || -12],
+                className: 'etiquette-navire',
+                opacity: 1
+            })
+            .bindPopup(contenuBulle || this.infobulleNavire(expedition));
+
+        marqueur.on('mouseover', () => marqueur.openPopup());
+        return marqueur;
     },
 
     showShipmentMap(id) {
@@ -15636,11 +15667,9 @@ const app = {
                     iconSize: [22, 22],
                     iconAnchor: [11, 11]
                 });
-                L.marker([lat, lng], { icon: icone })
-                    .addTo(carte)
-                    .bindTooltip(app.infobulleNavire(shipment), { direction: 'top', offset: [0, -12], opacity: 0.97 })
-                    .bindPopup(app.infobulleNavire(shipment))
-                    .openPopup();
+                app.decoreMarqueurNavire(
+                    L.marker([lat, lng], { icon: icone }).addTo(carte),
+                    shipment, -14).openPopup();
             }
 
             setTimeout(() => carte.invalidateSize(), 200);

@@ -968,3 +968,71 @@
     background: var(--bg-panel) !important;
     color: var(--text-primary) !important;
 }
+
+/* =========================================================================
+   17. CARTES DE SUIVI (Leaflet)
+   Fond de carte clair : les bulles et etiquettes doivent rester lisibles
+   quel que soit le theme de l'application.
+   ========================================================================= */
+
+.leaflet-container {
+    background: #eef1f5;
+}
+
+/* Etiquette permanente du navire : le numero de BL */
+.leaflet-tooltip.etiquette-navire {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid rgba(15, 23, 42, 0.18);
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+}
+
+.leaflet-tooltip.etiquette-navire::before {
+    border-top-color: #ffffff;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-tooltip:not(.etiquette-navire) {
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.22);
+}
+
+.leaflet-popup-content {
+    color: #0f172a;
+    margin: 12px 14px;
+}
+
+.leaflet-popup-tip {
+    background: #ffffff;
+}
+
+.leaflet-popup-close-button {
+    color: #64748b !important;
+}
+
+.leaflet-control-attribution {
+    background: rgba(255, 255, 255, 0.85) !important;
+    color: #475569 !important;
+}
+
+.leaflet-control-attribution a {
+    color: var(--primary, #6366f1) !important;
+}
+
+.leaflet-bar a {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+.leaflet-bar a:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}

@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const vehicule = [v.brand, v.model, v.year].filter(Boolean).join(' ');
         const lignes = [];
         const ajouter = (etiquette, valeur) => {
-            if (valeur) lignes.push(`<div style="display:flex;gap:8px;"><span style="color:#94a3b8;min-width:82px;">${etiquette}</span><strong>${echapper(valeur)}</strong></div>`);
+            if (valeur) lignes.push(`<div style="display:flex;gap:8px;"><span style="color:#64748b;min-width:82px;">${etiquette}</span><strong>${echapper(valeur)}</strong></div>`);
         };
         ajouter('Conteneur', shipment.containerNumber);
         ajouter('BL', shipment.blNumber);
@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ajouter('Commande', data.orderId);
         ajouter('Depart', shipment.loadingPort);
         ajouter('Arrivee', shipment.destination);
-        return `<div style="font-family:'Outfit',sans-serif;font-size:0.82rem;line-height:1.65;color:#f8fafc;min-width:210px;">${lignes.join('') || 'Expedition en cours'}</div>`;
+        return `<div style="font-family:'Outfit',sans-serif;font-size:0.82rem;line-height:1.65;color:#0f172a;min-width:210px;">${lignes.join('') || 'Expedition en cours'}</div>`;
     }
 
     let carteSuivi = null;
@@ -251,10 +251,14 @@ document.addEventListener('DOMContentLoaded', () => {
         carteSuivi = L.map('tracking-map', { scrollWheelZoom: false }).setView([lat, lng], zoom);
 
         // CARTO exige desormais une cle d'API et tamponne ses tuiles gratuites du
-        // message « API KEY REQUIRED » : fond sombre Esri (sans cle), avec repli OSM.
-        const fond = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        // message « API KEY REQUIRED » : fond clair Esri (sans cle), avec repli OSM.
+        // noWrap + maxBounds empechent la mappemonde de se repeter au dezoom.
+        const MONDE = [[-85.06, -180], [85.06, 180]];
+        const fond = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
             attribution: '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap',
-            maxZoom: 16
+            maxZoom: 16,
+            noWrap: true,
+            bounds: MONDE
         });
         let bascule = false;
         fond.on('tileerror', () => {
@@ -263,10 +267,13 @@ document.addEventListener('DOMContentLoaded', () => {
             carteSuivi.removeLayer(fond);
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap',
-                maxZoom: 19
+                maxZoom: 19,
+                noWrap: true,
+                bounds: MONDE
             }).addTo(carteSuivi);
         });
         fond.addTo(carteSuivi);
+        carteSuivi.setMaxBounds(MONDE);
 
         if (aGps || repli) {
             const icone = L.divIcon({
@@ -275,11 +282,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 iconSize: [22, 22],
                 iconAnchor: [11, 11]
             });
-            const infobulle = contenuInfobulle(shipment, data);
+            // Etiquette permanente : le numero de BL, la reference du client.
+            const etiquette = shipment.blNumber || shipment.containerNumber || 'Navire';
             const marqueur = L.marker([lat, lng], { icon: icone })
                 .addTo(carteSuivi)
-                .bindTooltip(infobulle, { direction: 'top', offset: [0, -14], opacity: 0.97 })
-                .bindPopup(infobulle, { maxWidth: 260 });
+                .bindTooltip(etiquette, {
+                    permanent: true, direction: 'top', offset: [0, -14],
+                    className: 'etiquette-navire', opacity: 1
+                })
+                .bindPopup(contenuInfobulle(shipment, data), { maxWidth: 260 });
+
+            marqueur.on('mouseover', () => marqueur.openPopup());
 
             // Sur telephone la bulle couvrirait toute la carte : on la laisse au clic.
             if (window.innerWidth >= 768) marqueur.openPopup();
