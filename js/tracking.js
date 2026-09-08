@@ -129,16 +129,13 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('map-section').style.display = 'block';
             document.getElementById('no-shipment-msg').style.display = 'none';
 
-            // Map update
+            // Carte : Leaflet remplace l'ancien embed Google (ferme par Google -> "API key required")
             if (shipment.currentLat && shipment.currentLng) {
-                const locationQuery = `${shipment.currentLat},${shipment.currentLng}`;
-                document.getElementById('tracking-iframe').src = `https://maps.google.com/maps?q=${encodeURIComponent(locationQuery)}&t=&z=6&ie=UTF8&iwloc=&output=embed`;
                 document.getElementById('display-current-location').textContent = `Lat: ${shipment.currentLat}, Lng: ${shipment.currentLng}`;
             } else {
-                const locationQuery = shipment.loadingPort || 'Dakar';
-                document.getElementById('tracking-iframe').src = `https://maps.google.com/maps?q=${encodeURIComponent(locationQuery)}&t=&z=4&ie=UTF8&iwloc=&output=embed`;
                 document.getElementById('display-current-location').textContent = shipment.status || 'En transit';
             }
+            afficherCarte(shipment, data);
         } else {
             document.getElementById('display-destination').textContent = 'En attente';
             document.getElementById('display-eta').textContent = 'En attente';
@@ -168,6 +165,128 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Stepper Logic
         updateStepper(data.orderStatus, shipment?.status);
+    }
+
+    // --- Carte de suivi (Leaflet) ---------------------------------------
+    // L'ancien embed <iframe src="maps.google.com/...output=embed"> a ete
+    // ferme par Google et affichait "API key required" : on dessine
+    // desormais la carte nous-memes avec les tuiles CARTO.
+
+    // Repli quand le suivi ne renvoie pas encore de coordonnees GPS :
+    // on centre sur le port connu le plus proche du libelle.
+    const PORTS_CONNUS = {
+        'shanghai': [31.23, 121.49], 'ningbo': [29.87, 121.55], 'nansha': [22.79, 113.61],
+        'guangzhou': [23.10, 113.42], 'shekou': [22.48, 113.90], 'shenzhen': [22.55, 114.05],
+        'yantian': [22.58, 114.27], 'qingdao': [36.07, 120.38], 'tianjin': [38.98, 117.75],
+        'xingang': [38.98, 117.75], 'dalian': [38.93, 121.63], 'lianyungang': [34.75, 119.45],
+        'yantai': [37.54, 121.39], 'xiamen': [24.48, 118.09], 'hong kong': [22.32, 114.17],
+        'busan': [35.10, 129.04], 'incheon': [37.46, 126.62], 'pyeongtaek': [36.97, 126.82],
+        'masan': [35.19, 128.58], 'singapore': [1.26, 103.83], 'port klang': [3.00, 101.39],
+        'jebel ali': [25.01, 55.06], 'dubai': [25.27, 55.30], 'jeddah': [21.48, 39.18],
+        'port said': [31.26, 32.30], 'damietta': [31.46, 31.81], 'suez': [29.97, 32.55],
+        'piraeus': [37.94, 23.64], 'valencia': [39.44, -0.32], 'barcelona': [41.35, 2.16],
+        'genoa': [44.40, 8.92], 'genes': [44.40, 8.92], 'marseille': [43.30, 5.37],
+        'malta': [35.89, 14.51], 'marsaxlokk': [35.83, 14.54], 'tanger': [35.88, -5.51],
+        'tanger med': [35.88, -5.51], 'casablanca': [33.60, -7.62], 'tunis': [36.82, 10.30],
+        'rades': [36.79, 10.28], 'alger': [36.77, 3.07], 'algiers': [36.77, 3.07],
+        'skikda': [36.89, 6.91], 'annaba': [36.90, 7.77], 'oran': [35.71, -0.64],
+        'bejaia': [36.76, 5.09], 'mostaganem': [35.94, 0.09], 'djen djen': [36.83, 5.88],
+        'jijel': [36.83, 5.88], 'ghazaouet': [35.10, -1.86], 'tenes': [36.52, 1.32],
+        'arzew': [35.85, -0.29], 'dakar': [14.72, -17.47]
+    };
+
+    function positionPort(libelle) {
+        if (!libelle) return null;
+        const cle = String(libelle).toLowerCase();
+        for (const nom in PORTS_CONNUS) {
+            if (cle.includes(nom)) return PORTS_CONNUS[nom];
+        }
+        return null;
+    }
+
+    function echapper(valeur) {
+        return String(valeur == null ? '' : valeur)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // Contenu de l'infobulle : conteneur + vehicule + client
+    function contenuInfobulle(shipment, data) {
+        const v = data.vehicle || {};
+        const vehicule = [v.brand, v.model, v.year].filter(Boolean).join(' ');
+        const lignes = [];
+        const ajouter = (etiquette, valeur) => {
+            if (valeur) lignes.push(`<div style="display:flex;gap:8px;"><span style="color:#94a3b8;min-width:82px;">${etiquette}</span><strong>${echapper(valeur)}</strong></div>`);
+        };
+        ajouter('Conteneur', shipment.containerNumber);
+        ajouter('BL', shipment.blNumber);
+        ajouter('Navire', shipment.shipStatus || shipment.vesselName);
+        ajouter('Vehicule', vehicule);
+        ajouter('Chassis', v.chassisNumber);
+        ajouter('Client', data.clientName);
+        ajouter('Commande', data.orderId);
+        ajouter('Depart', shipment.loadingPort);
+        ajouter('Arrivee', shipment.destination);
+        return `<div style="font-family:'Outfit',sans-serif;font-size:0.82rem;line-height:1.65;color:#f8fafc;min-width:210px;">${lignes.join('') || 'Expedition en cours'}</div>`;
+    }
+
+    let carteSuivi = null;
+
+    function afficherCarte(shipment, data) {
+        const conteneur = document.getElementById('tracking-map');
+        if (!conteneur || typeof L === 'undefined') return;
+
+        const aGps = shipment.currentLat && shipment.currentLng;
+        const repli = positionPort(shipment.loadingPort) || positionPort(shipment.destination);
+        const lat = aGps ? parseFloat(shipment.currentLat) : (repli ? repli[0] : 20);
+        const lng = aGps ? parseFloat(shipment.currentLng) : (repli ? repli[1] : 20);
+        const zoom = aGps ? 5 : (repli ? 4 : 2);
+
+        // La carte n'est creee qu'une fois : les recherches suivantes la repositionnent.
+        if (carteSuivi) {
+            carteSuivi.remove();
+            carteSuivi = null;
+        }
+
+        carteSuivi = L.map('tracking-map', { scrollWheelZoom: false }).setView([lat, lng], zoom);
+
+        // CARTO exige desormais une cle d'API et tamponne ses tuiles gratuites du
+        // message « API KEY REQUIRED » : fond sombre Esri (sans cle), avec repli OSM.
+        const fond = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap',
+            maxZoom: 16
+        });
+        let bascule = false;
+        fond.on('tileerror', () => {
+            if (bascule) return;
+            bascule = true;
+            carteSuivi.removeLayer(fond);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap',
+                maxZoom: 19
+            }).addTo(carteSuivi);
+        });
+        fond.addTo(carteSuivi);
+
+        if (aGps || repli) {
+            const icone = L.divIcon({
+                html: '<i class="fas fa-ship" style="font-size:22px;color:#4ade80;text-shadow:0 0 10px rgba(74,222,128,.6);"></i>',
+                className: 'marqueur-navire',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+            const infobulle = contenuInfobulle(shipment, data);
+            const marqueur = L.marker([lat, lng], { icon: icone })
+                .addTo(carteSuivi)
+                .bindTooltip(infobulle, { direction: 'top', offset: [0, -14], opacity: 0.97 })
+                .bindPopup(infobulle, { maxWidth: 260 });
+
+            // Sur telephone la bulle couvrirait toute la carte : on la laisse au clic.
+            if (window.innerWidth >= 768) marqueur.openPopup();
+        }
+
+        // Le conteneur vient d'etre affiche : Leaflet doit remesurer.
+        setTimeout(() => carteSuivi && carteSuivi.invalidateSize(), 200);
     }
 
     function updateStepper(orderStatus, shipmentStatus) {

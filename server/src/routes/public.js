@@ -84,6 +84,7 @@ router.get('/track', async (req, res) => {
                 status: shipment.status,
                 carrier: shipment.carrier,
                 containerNumber: shipment.containerNumber,
+                vesselName: shipment.shipStatus,
                 blNumber: shipment.blNumber,
                 forwarder: shipment.forwarder,
                 loadingPort: shipment.loadingPort,

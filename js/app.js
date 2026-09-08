@@ -3843,9 +3843,7 @@ const app = {
             attributionControl: false
         }).setView([20, 0], 2);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 18
-        }).addTo(map);
+        this.ajouterFondCarte(map);
 
         // Filter active shipments with coordinates
         const activeShipments = shipments.filter(s =>
@@ -13611,9 +13609,7 @@ const app = {
         if (window.L && location.lat && location.lng) {
             setTimeout(() => {
                 const map = L.map('modal-tracking-map', { zoomControl: false }).setView([location.lat, location.lng], 4);
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; CARTO'
-                }).addTo(map);
+                app.ajouterFondCarte(map);
 
                 const icon = L.divIcon({
                     html: '<i class="fas fa-ship" style="font-size: 24px; color: #4ade80;"></i>',
@@ -13847,9 +13843,7 @@ const app = {
                 const map = L.map('global-map', { zoomControl: false }).setView([20, 0], 2);
                 L.control.zoom({ position: 'topright' }).addTo(map);
 
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; CARTO'
-                }).addTo(map);
+                app.ajouterFondCarte(map);
 
                 shipments.forEach(s => {
                     const isError = s.status === 'Erreur Tracking' || s.status === 'Tracking Error' || s.status === 'No API Key';
@@ -13889,6 +13883,33 @@ const app = {
                 });
             }, 100);
         }
+    },
+
+    // Fond de carte commun a toutes les cartes de l'app.
+    // CARTO exige desormais une cle d'API et tamponne ses tuiles gratuites du
+    // message « API KEY REQUIRED » : on passe sur le fond sombre Esri (sans cle)
+    // et on retombe sur OpenStreetMap si ce service ne repond pas.
+    ajouterFondCarte(carte) {
+        if (typeof L === 'undefined' || !carte) return null;
+
+        const fond = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap',
+            maxZoom: 16
+        });
+
+        let bascule = false;
+        fond.on('tileerror', () => {
+            if (bascule) return;
+            bascule = true;
+            carte.removeLayer(fond);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap',
+                maxZoom: 19
+            }).addTo(carte);
+        });
+
+        fond.addTo(carte);
+        return fond;
     },
 
     showShipmentMap(id) {
@@ -15606,11 +15627,7 @@ const app = {
             const lng = hasCoords ? parseFloat(shipment.currentLng) : -17.4677;
             const carte = L.map('carte-expedition').setView([lat, lng], hasCoords ? 5 : 3);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap, &copy; CARTO',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(carte);
+            app.ajouterFondCarte(carte);
 
             if (hasCoords) {
                 const icone = L.divIcon({

@@ -8,6 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Leaflet : remplace l'ancien embed Google, ferme par Google ("API key required") -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
         :root {
             --primary: #6366f1;
@@ -278,11 +283,11 @@
             position: relative;
         }
 
-        iframe {
+        #tracking-map {
             width: 100%;
             height: 100%;
             border: 0;
-            filter: invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%);
+            z-index: 1;
         }
 
         .map-overlay {
@@ -295,7 +300,43 @@
             backdrop-filter: blur(5px);
             border: 1px solid var(--border-glass);
             pointer-events: none;
+            z-index: 2;
         }
+
+        /* Infobulles Leaflet : la page est sombre, les styles par defaut sont blancs */
+        .leaflet-popup-content-wrapper,
+        .leaflet-tooltip {
+            background: rgba(15, 23, 42, 0.95);
+            color: var(--text-main);
+            border: 1px solid var(--border-glass);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .leaflet-tooltip-top::before { border-top-color: rgba(15, 23, 42, 0.95); }
+        .leaflet-tooltip-bottom::before { border-bottom-color: rgba(15, 23, 42, 0.95); }
+        .leaflet-tooltip-left::before { border-left-color: rgba(15, 23, 42, 0.95); }
+        .leaflet-tooltip-right::before { border-right-color: rgba(15, 23, 42, 0.95); }
+
+        .leaflet-popup-close-button { color: var(--text-dim) !important; }
+
+        .leaflet-control-attribution {
+            background: rgba(15, 23, 42, 0.8) !important;
+            color: var(--text-dim) !important;
+        }
+
+        .leaflet-control-attribution a { color: var(--primary) !important; }
+
+        .leaflet-bar a {
+            background: rgba(15, 23, 42, 0.95);
+            color: var(--text-main);
+            border-bottom-color: var(--border-glass);
+        }
+
+        .leaflet-bar a:hover { background: rgba(30, 41, 59, 0.98); color: var(--text-main); }
 
         footer {
             margin-top: auto;
@@ -453,6 +494,10 @@
                             <span id="display-container-number">En attente</span>
                         </div>
                         <div class="info-item">
+                            <label>Transitaire</label>
+                            <span id="display-forwarder">En attente</span>
+                        </div>
+                        <div class="info-item">
                             <label>N° de BL</label>
                             <span id="display-bl-number">En attente</span>
                         </div>
@@ -471,7 +516,7 @@
                     <div id="map-section" style="display: none;">
                         <h4 style="margin-bottom: 15px; color: var(--text-dim); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px;">Localisation en temps réel</h4>
                         <div class="map-container">
-                            <iframe id="tracking-iframe" src=""></iframe>
+                            <div id="tracking-map" style="width: 100%; height: 100%;"></div>
                             <div class="map-overlay">
                                 <div style="font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
                                     <i class="fas fa-map-marker-alt" style="color: var(--secondary);"></i> Position du navire
