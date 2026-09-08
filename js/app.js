@@ -294,6 +294,53 @@ const app = {
     },
 
     /**
+     * Vehicules d'une expedition avec le client rattache a chacun, pour les
+     * infobulles et fenetres des cartes.
+     */
+    vehiculesDeExpedition(expedition) {
+        const vehicules = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        const commandes = StorageService.get(STORAGE_KEYS.ORDERS) || [];
+
+        return vehicules
+            .filter(v => String(v.shipmentId) === String(expedition.id))
+            .map(v => {
+                const idClient = v.clientId || (v.orderId ? (commandes.find(o => String(o.id) === String(v.orderId)) || {}).clientId : null);
+                const c = idClient ? clients.find(x => String(x.id) === String(idClient)) : null;
+                const nomClient = c ? `${c.lastName || ''} ${c.firstName || ''}`.trim() : '';
+                return {
+                    libelle: `${v.brand || 'Véhicule'} ${v.model || ''}`.trim(),
+                    vin: v.chassisNumber || '',
+                    client: nomClient || 'Client non affecté'
+                };
+            });
+    },
+
+    /**
+     * Contenu de l'infobulle affichee au survol d'un navire : identification du
+     * conteneur, puis les vehicules embarques et leur client.
+     */
+    infobulleNavire(expedition) {
+        const vehicules = this.vehiculesDeExpedition(expedition);
+        const lignes = vehicules.slice(0, 6).map(v =>
+            `<div style="margin-top:2px;">🚗 <b>${v.libelle}</b>${v.vin ? ` <span style="opacity:.65;">…${v.vin.slice(-6)}</span>` : ''}<br>
+             <span style="opacity:.8; margin-left:14px;">👤 ${v.client}</span></div>`
+        ).join('');
+        const reste = vehicules.length > 6 ? `<div style="margin-top:3px; opacity:.7;">+ ${vehicules.length - 6} autre(s)</div>` : '';
+
+        return `
+            <div style="font-size:0.78rem; line-height:1.35; max-width:250px;">
+                <div style="font-weight:700;">${expedition.vesselName || expedition.shipStatus || expedition.carrier || 'Navire'}</div>
+                <div style="opacity:.85;">Conteneur : <b>${expedition.containerNumber || 'N/A'}</b></div>
+                ${expedition.blNumber ? `<div style="opacity:.85;">BL : ${expedition.blNumber}</div>` : ''}
+                ${expedition.destination ? `<div style="opacity:.85;">Destination : ${expedition.destination}</div>` : ''}
+                ${expedition.eta ? `<div style="opacity:.85;">ETA : ${this.formatDate ? this.formatDate(expedition.eta) : new Date(expedition.eta).toLocaleDateString('fr-FR')}</div>` : ''}
+                ${vehicules.length ? `<hr style="margin:6px 0; border:none; border-top:1px solid rgba(128,128,128,.35);">${lignes}${reste}`
+                                   : '<div style="margin-top:5px; opacity:.7;">Aucun véhicule rattaché</div>'}
+            </div>`;
+    },
+
+    /**
      * Categorie d'un vehicule : reconnue par mot-cle et non par egalite stricte,
      * pour rester valable quels que soient les libelles choisis dans les
      * Parametres ("Neuf", "NEW", "Moins de 3 ans", "USED CAR"...).
@@ -3827,6 +3874,7 @@ const app = {
 
             L.marker([s.currentLat, s.currentLng], { icon: icon })
                 .addTo(map)
+                .bindTooltip(app.infobulleNavire(s), { direction: 'top', offset: [0, -10], opacity: 0.97 })
                 .bindPopup(`
                     <div style="color: #333; font-size: 0.8rem; padding: 5px;">
                         <strong>${s.vesselName || s.carrier || 'Navire'}</strong><br>
@@ -13824,6 +13872,7 @@ const app = {
 
                     L.marker([s.currentLat, s.currentLng], { icon: icon })
                         .addTo(map)
+                        .bindTooltip(app.infobulleNavire(s), { direction: 'top', offset: [0, -10], opacity: 0.97 })
                         .bindPopup(`
                                 <div style="color: #333; min-width: 150px;">
                                     <div style="font-weight: bold; font-size: 1rem; margin-bottom: 5px;">${s.vesselName || s.carrier || 'Navire'}</div>
@@ -15532,13 +15581,9 @@ const app = {
                         <button class="btn-close" onclick="app.closeModal()">&times;</button>
                     </div>
                     <div class="modal-body" style="flex: 1; position: relative; padding: 0; background: #f0f0f0;">
-                        <iframe 
-                            width="100%" 
-                            height="100%" 
-                            frameborder="0" 
-                            style="border:0"
-                            src="https://maps.google.com/maps?q=${encodeURIComponent(locationQuery)}&t=&z=6&ie=UTF8&iwloc=&output=embed">
-                        </iframe>
+                        <!-- Carte Leaflet : l'ancien embed Google (maps.google.com/...output=embed)
+                             a ete ferme par Google et renvoyait "API key required". -->
+                        <div id="carte-expedition" style="width: 100%; height: 100%;"></div>
                         <div style="position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px; color: white; pointer-events: none; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1);">
                             <div style="font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
                                 <i class="fas fa-map-marker-alt" style="color: #ef4444;"></i> Position Actuelle
@@ -15551,6 +15596,38 @@ const app = {
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Initialisation de la carte apres insertion dans le DOM
+        setTimeout(() => {
+            const conteneur = document.getElementById('carte-expedition');
+            if (!conteneur || typeof L === 'undefined') return;
+
+            const lat = hasCoords ? parseFloat(shipment.currentLat) : 14.7167;
+            const lng = hasCoords ? parseFloat(shipment.currentLng) : -17.4677;
+            const carte = L.map('carte-expedition').setView([lat, lng], hasCoords ? 5 : 3);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap, &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(carte);
+
+            if (hasCoords) {
+                const icone = L.divIcon({
+                    html: '<i class="fas fa-ship" style="font-size: 22px; color: #4ade80; text-shadow: 0 0 10px rgba(74,222,128,.6);"></i>',
+                    className: 'shipment-map-marker',
+                    iconSize: [22, 22],
+                    iconAnchor: [11, 11]
+                });
+                L.marker([lat, lng], { icon: icone })
+                    .addTo(carte)
+                    .bindTooltip(app.infobulleNavire(shipment), { direction: 'top', offset: [0, -12], opacity: 0.97 })
+                    .bindPopup(app.infobulleNavire(shipment))
+                    .openPopup();
+            }
+
+            setTimeout(() => carte.invalidateSize(), 200);
+        }, 120);
     },
 
     async renderVehiclePrices() {
