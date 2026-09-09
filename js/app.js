@@ -136,7 +136,17 @@ const app = {
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
+        return `${day}-${month}-${year}`;
+    },
+
+    /** Date et heure au meme format que le reste de l'app : JJ-MM-AAAA HH:MM. */
+    formatDateTime(dateStr) {
+        if (!dateStr) return '--';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return String(dateStr);
+        const heures = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${this.formatDate(date)} ${heures}:${minutes}`;
     },
 
     isOutdated(dateStr) {
@@ -157,7 +167,7 @@ const app = {
                 locale: 'fr',
                 altInput: true,
                 altInputClass: 'glass-input',
-                altFormat: 'd/m/Y',
+                altFormat: 'd-m-Y',
                 dateFormat: 'Y-m-d',
                 allowInput: true
             });
@@ -336,7 +346,7 @@ const app = {
                 <div style="opacity:.85;">Conteneur : <b>${expedition.containerNumber || 'N/A'}</b></div>
                 ${expedition.blNumber ? `<div style="opacity:.85;">BL : ${expedition.blNumber}</div>` : ''}
                 ${expedition.destination ? `<div style="opacity:.85;">Destination : ${expedition.destination}</div>` : ''}
-                ${expedition.eta ? `<div style="opacity:.85;">ETA : ${this.formatDate ? this.formatDate(expedition.eta) : new Date(expedition.eta).toLocaleDateString('fr-FR')}</div>` : ''}
+                ${expedition.eta ? `<div style="opacity:.85;">ETA : ${this.formatDate ? this.formatDate(expedition.eta) : new Date(expedition.eta).toLocaleDateString('fr-FR').replace(/\//g, '-')}</div>` : ''}
                 ${enErreur ? '<div style="color:#ef4444; font-weight:700; margin-top:4px;">⚠️ Tracking indisponible</div>' : ''}
                 ${vehicules.length ? `<hr style="margin:6px 0; border:none; border-top:1px solid rgba(128,128,128,.35);">${lignes}${reste}`
                                    : '<div style="margin-top:5px; opacity:.7;">Aucun véhicule rattaché</div>'}
@@ -419,8 +429,38 @@ const app = {
         });
     },
 
+    /**
+     * Un champ <input type="number"> qui a le focus change de valeur tout seul
+     * aux fleches haut/bas du clavier, et a la molette sur certains navigateurs.
+     * On saisit 1000, on navigue au clavier ou on fait defiler la page, et 997
+     * ou 1004 part a l'enregistrement sans que rien ne le signale.
+     * On neutralise donc ces deux gestes sur les champs numeriques ; la saisie
+     * au clavier et les fleches du champ lui-meme restent disponibles.
+     */
+    installerGardeSaisieNumerique() {
+        if (this._gardeSaisieNumeriquePosee) return;
+        this._gardeSaisieNumeriquePosee = true;
+
+        const estChampNombre = (el) =>
+            el instanceof HTMLInputElement && el.type === 'number';
+
+        // Molette : on retire le focus plutot que d'annuler l'evenement, pour
+        // que la page continue de defiler normalement.
+        document.addEventListener('wheel', (e) => {
+            if (estChampNombre(e.target) && e.target === document.activeElement) {
+                e.target.blur();
+            }
+        }, { passive: true });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            if (estChampNombre(e.target)) e.preventDefault();
+        });
+    },
+
     async init() {
         this.installerGardeDoubleEnvoi();
+        this.installerGardeSaisieNumerique();
         this.installerRegleKilometrageNeuf();
         const currentUser = StorageService.get(STORAGE_KEYS.CURRENT_USER);
 
@@ -910,7 +950,7 @@ const app = {
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div class="form-group">
                                     <label>Prix de Vente (Total)</label>
-                                    <input type="number" name="totalAmount" id="order-total-amount" class="glass-input" value="0" step="1">
+                                    <input type="number" name="totalAmount" id="order-total-amount" class="glass-input" value="0" step="any">
                                 </div>
                                 <div class="form-group">
                                     <label>Commentaires / Remarques</label>
@@ -1864,7 +1904,7 @@ const app = {
 
                             <div class="form-group">
                                 <label>Prix de Vente (Net)</label>
-                                <input type="number" name="totalAmount" id="edit-order-total" class="glass-input" value="${order.totalAmount || 0}" step="1">
+                                <input type="number" name="totalAmount" id="edit-order-total" class="glass-input" value="${order.totalAmount || 0}" step="any">
                             </div>
 
                             <div class="form-group">
@@ -5346,7 +5386,7 @@ const app = {
                                     <div class="form-group">
                                         <label>Prix d'Achat</label>
                                         <div class="input-group" style="display: flex; gap: 5px;">
-                                            <input type="number" name="purchasePrice" required class="glass-input" placeholder="0.00">
+                                            <input type="number" step="any" name="purchasePrice" required class="glass-input" placeholder="0.00">
                                             <select name="purchaseCurrency" class="glass-select" style="width: 80px;">
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || []).map(c => `<option value="${c}" ${c === (StorageService.get(STORAGE_KEYS.SETTINGS)?.purchaseCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
@@ -5355,7 +5395,7 @@ const app = {
                                     <div class="form-group">
                                         <label>Prix de Vente (Indicatif)</label>
                                         <div class="input-group" style="display: flex; gap: 5px;">
-                                            <input type="number" name="sellingPrice" class="glass-input" placeholder="0.00">
+                                            <input type="number" step="any" name="sellingPrice" class="glass-input" placeholder="0.00">
                                             <select name="sellingCurrency" class="glass-select" style="width: 80px;">
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || []).map(c => `<option value="${c}" ${c === (StorageService.get(STORAGE_KEYS.SETTINGS)?.sellingCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
@@ -5364,7 +5404,7 @@ const app = {
                                     <div class="form-group">
                                         <label>Estimation DD</label>
                                         <div class="input-group" style="display: flex; gap: 5px;">
-                                            <input type="number" name="estimatedCustomsDuty" class="glass-input" placeholder="0">
+                                            <input type="number" step="any" name="estimatedCustomsDuty" class="glass-input" placeholder="0">
                                             <input type="text" value="${StorageService.get(STORAGE_KEYS.SETTINGS)?.customsCurrency || 'XAF'}" readonly class="glass-input" style="width: 60px; text-align: center; background: rgba(255,255,255,0.05);">
                                         </div>
                                     </div>
@@ -5957,7 +5997,7 @@ const app = {
                                             <div class="form-group">
                                                 <label>Prix d'Achat</label>
                                                 <div class="input-group" style="display: flex; gap: 5px;">
-                                                    <input type="number" name="purchasePrice" value="${vehicle.purchasePrice || vehicle.price || 0}" required class="glass-input">
+                                                    <input type="number" step="any" name="purchasePrice" value="${vehicle.purchasePrice || vehicle.price || 0}" required class="glass-input">
                                                     <select name="purchaseCurrency" class="glass-select" style="width: 80px;">
                                                         ${StorageService.get(STORAGE_KEYS.CURRENCIES).map(c => `<option value="${c}" ${c === (vehicle.purchaseCurrency || StorageService.get(STORAGE_KEYS.SETTINGS)?.purchaseCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
                                                     </select>
@@ -5966,7 +6006,7 @@ const app = {
                                             <div class="form-group">
                                                 <label>Prix de Vente (Indicatif)</label>
                                                 <div class="input-group" style="display: flex; gap: 5px;">
-                                                    <input type="number" name="sellingPrice" value="${vehicle.sellingPrice || ''}" class="glass-input" placeholder="0.00">
+                                                    <input type="number" step="any" name="sellingPrice" value="${vehicle.sellingPrice || ''}" class="glass-input" placeholder="0.00">
                                                     <select name="sellingCurrency" class="glass-select" style="width: 80px;">
                                                         ${StorageService.get(STORAGE_KEYS.CURRENCIES).map(c => `<option value="${c}" ${c === (vehicle.sellingCurrency || StorageService.get(STORAGE_KEYS.SETTINGS)?.sellingCurrency || 'EUR') ? 'selected' : ''}>${c}</option>`).join('')}
                                                     </select>
@@ -5975,7 +6015,7 @@ const app = {
                                             <div class="form-group">
                                                 <label>Estimation DD</label>
                                                 <div class="input-group" style="display: flex; gap: 5px;">
-                                                    <input type="number" name="estimatedCustomsDuty" value="${vehicle.estimatedCustomsDuty || 0}" class="glass-input">
+                                                    <input type="number" step="any" name="estimatedCustomsDuty" value="${vehicle.estimatedCustomsDuty || 0}" class="glass-input">
                                                     <input type="text" value="${StorageService.get(STORAGE_KEYS.SETTINGS)?.customsCurrency || 'XAF'}" readonly class="glass-input" style="width: 60px; text-align: center; background: rgba(255,255,255,0.05);">
                                                 </div>
                                             </div>
@@ -7431,7 +7471,7 @@ const app = {
                 <div style="flex: 1; padding-bottom: 4px;">
                     <div style="font-weight: ${i === 0 ? '700' : '500'}; color: ${i === 0 ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-size: 0.85rem;">${e.description || e.eventCode || 'Événement'}</div>
                     ${e.location ? `<div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;"><i class="fas fa-map-marker-alt" style="margin-right: 4px; color: var(--danger);"></i>${e.location}</div>` : ''}
-                    ${e.date ? `<div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;"><i class="fas fa-clock" style="margin-right: 4px;"></i>${new Date(e.date).toLocaleString('fr-FR')}</div>` : ''}
+                    ${e.date ? `<div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;"><i class="fas fa-clock" style="margin-right: 4px;"></i>${app.formatDateTime(e.date)}</div>` : ''}
                     ${e.isActual === false ? '<span style="font-size: 0.65rem; background: rgba(245,158,11,0.15); color: var(--warning); padding: 1px 5px; border-radius: 3px; display: inline-block; margin-top: 2px;">Prévu</span>' : ''}
                 </div>
             </div>
@@ -7989,7 +8029,7 @@ const app = {
                                     ` : ''}
                                     ${s.lastUpdate ? `
                                         <div style="font-size: 0.65rem; color: ${this.isOutdated(s.lastUpdate) ? 'var(--danger)' : 'var(--text-dim)'}; margin-top: 4px; font-weight: ${this.isOutdated(s.lastUpdate) ? '600' : '400'}">
-                                            <i class="fas fa-clock"></i> MàJ: ${new Date(s.lastUpdate).toLocaleString()}
+                                            <i class="fas fa-clock"></i> MàJ: ${app.formatDateTime(s.lastUpdate)}
                                             ${this.isOutdated(s.lastUpdate) ? ' <span class="badge-pill" style="background: var(--danger); font-size: 0.55rem;">Alerte +24h</span>' : ''}
                                         </div>
                                     ` : '<div style="font-size: 0.65rem; color: var(--danger); margin-top: 4px; font-weight: 600;"><i class="fas fa-exclamation-circle"></i> Jamais synchronisé</div>'}
@@ -8034,7 +8074,7 @@ const app = {
                                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                                                     <i class="fas ${sc.icon}" style="color: ${sc.color}; font-size: 1rem;"></i>
                                                     <span style="font-weight: 700; color: ${sc.color}; font-size: 0.82rem;">${sc.label}</span>
-                                                    <span style="margin-left: auto; font-size: 0.65rem; color: var(--text-dim);">MàJ: ${new Date(s.lastUpdate).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                    <span style="margin-left: auto; font-size: 0.65rem; color: var(--text-dim);">MàJ: ${app.formatDateTime(s.lastUpdate)}</span>
                                                 </div>
                                                 ${s.shipStatus ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;"><i class="fas fa-ship" style="margin-right: 4px; color: var(--text-dim);"></i><strong>Navire:</strong> ${s.shipStatus}</div>` : ''}
                                                 ${s.loadingPort ? `<div style="font-size: 0.75rem; color: var(--text-dim);"><i class="fas fa-anchor" style="margin-right: 4px;"></i>Départ: <strong>${s.loadingPort}</strong></div>` : ''}
@@ -8523,7 +8563,7 @@ const app = {
                                         <td>
                                              <div style="margin-bottom: 5px;"><span class="status-badge ${(v.status || 'Planifié').toLowerCase().replace(' ', '-')}">${v.status || 'Planifié'}</span></div>
                                             <div style="font-size: 0.7rem; color: var(--text-dim)">
-                                                <i class="fas fa-history"></i> ${v.lastUpdate ? new Date(v.lastUpdate).toLocaleString() : 'Jamais'}
+                                                <i class="fas fa-history"></i> ${v.lastUpdate ? app.formatDateTime(v.lastUpdate) : 'Jamais'}
                                             </div>
                                         </td>
                                         <td>
@@ -9183,7 +9223,7 @@ const app = {
 
             doc.setFontSize(10);
             doc.setTextColor(100);
-            doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 28);
+            doc.text(`Généré le: ${app.formatDateTime()}`, 14, 28);
 
             // Define Columns
             const tableColumn = ["N° BC", "Date", "Client", "Véhicule", "Statut", "Total Net", "Payé", "Reste"];
@@ -9337,7 +9377,7 @@ const app = {
 
             doc.setFontSize(10);
             doc.setTextColor(100);
-            doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 28);
+            doc.text(`Généré le: ${app.formatDateTime()}`, 14, 28);
             doc.text(`Total véhicules à commander: ${grandTotal}`, 14, 34);
 
             doc.autoTable({
@@ -10328,7 +10368,7 @@ const app = {
 
         doc.setFontSize(11);
         doc.setTextColor(100);
-        doc.text(`Document généré le: ${new Date().toLocaleString()}`, 14, 30);
+        doc.text(`Document généré le: ${app.formatDateTime()}`, 14, 30);
         if (showroomFilter) {
             doc.text(`Showroom: ${showroomFilter}`, 14, 36);
         }
@@ -10442,7 +10482,7 @@ const app = {
                                             </div>
                                             <div class="form-group">
                                                 <label>Montant</label>
-                                                <input type="number" name="amount" class="glass-input" step="1" value="${orderId ? Math.max(0, preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) : ''}" required>
+                                                <input type="number" name="amount" class="glass-input" step="any" value="${orderId ? Math.max(0, preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) : ''}" required>
                                             </div>
                                             <div class="form-group">
                                                 <label>Date d'opération</label>
@@ -10551,7 +10591,7 @@ const app = {
                                                 </div>
                                                 <div class="form-group">
                                                     <label>Montant</label>
-                                                    <input type="number" name="amount" class="glass-input" step="1" value="${transaction.amount}" required>
+                                                    <input type="number" name="amount" class="glass-input" step="any" value="${transaction.amount}" required>
                                                 </div>
                                                 <div class="form-group">
                                                     <label>Date d'opération</label>
@@ -11691,7 +11731,7 @@ const app = {
                                         </td>
                                         <td><input type="number" class="glass-input mileage-input" placeholder="0" value="0" style="width: 70px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
-                                            <input type="number" class="glass-input price-input" placeholder="Prix" style="width: 90px; padding: 4px; font-size: 0.8rem;">
+                                            <input type="number" step="any" class="glass-input price-input" placeholder="Prix" style="width: 90px; padding: 4px; font-size: 0.8rem;">
                                             <select class="glass-select currency-select" style="padding: 2px; font-size: 0.8rem; margin-top: 2px; width: 90px;">
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${c === 'EUR' ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
@@ -11746,7 +11786,7 @@ const app = {
                                         </td>
                                         <td><input type="number" class="glass-input mileage-input" value="${v.mileage || 0}" style="width: 70px; padding: 4px; font-size: 0.8rem;"></td>
                                         <td>
-                                            <input type="number" class="glass-input price-input" value="${v.purchasePrice || 0}" style="width: 90px; padding: 4px; font-size: 0.8rem;">
+                                            <input type="number" step="any" class="glass-input price-input" value="${v.purchasePrice || 0}" style="width: 90px; padding: 4px; font-size: 0.8rem;">
                                             <select class="glass-select currency-select" style="padding: 2px; font-size: 0.8rem; margin-top: 2px; width: 90px;">
                                                 ${(StorageService.get(STORAGE_KEYS.CURRENCIES) || ['EUR', 'USD', 'DZD']).map(c => `<option value="${c}" ${v.purchaseCurrency === c ? 'selected' : ''}>${c}</option>`).join('')}
                                             </select>
@@ -12104,7 +12144,7 @@ const app = {
             </td>
             <td><input type="number" class="glass-input mileage-input" placeholder="0" value="0" style="width: 70px; padding: 4px; font-size: 0.8rem;"></td>
             <td>
-                <input type="number" class="glass-input price-input" placeholder="Prix" style="width: 90px; padding: 4px; font-size: 0.8rem;">
+                <input type="number" step="any" class="glass-input price-input" placeholder="Prix" style="width: 90px; padding: 4px; font-size: 0.8rem;">
                 <br>
                 <select class="glass-select currency-select" style="padding: 2px; font-size: 0.8rem; margin-top: 2px; width: 90px;">
                     ${currencies.map(c => `<option value="${c}">${c}</option>`).join('')}
@@ -13664,7 +13704,7 @@ const app = {
                             <div class="audit-details" style="flex: 1;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                                     <strong style="color: var(--primary);">${log.userName || 'Système'}</strong>
-                                    <span style="font-size: 0.75rem; color: var(--text-secondary);">${date.toLocaleString()}</span>
+                                    <span style="font-size: 0.75rem; color: var(--text-secondary);">${app.formatDateTime(date)}</span>
                                 </div>
                                 <div style="font-size: 0.9rem;">
                                     <span class="status-badge ${actionClass}" style="margin-right: 8px;">${log.action}</span>
@@ -14140,7 +14180,7 @@ const app = {
                                              <div style="font-weight: 700; color: ${i === 0 ? 'var(--primary)' : 'var(--text-primary)'}; font-size: 0.95rem;">${e.description || e.status || e.event || 'Événement'}</div>
                                              <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; margin-top: 2px;">${e.location || 'N/A'}</div>
                                              <div style="font-size: 0.75rem; color: var(--text-secondary); opacity: 0.7; margin-top: 6px; display: flex; align-items: center; gap: 5px;">
-                                                 <i class="far fa-clock"></i> ${new Date(e.date || e.timestamp).toLocaleString('fr-FR')}
+                                                 <i class="far fa-clock"></i> ${app.formatDateTime(e.date || e.timestamp)}
                                              </div>
                                              ${e.details ? `<div style="font-size: 0.8rem; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; font-style: italic; border-left: 3px solid var(--border-glass);">${e.details}</div>` : ''}
                                          </div>
@@ -14829,7 +14869,7 @@ const app = {
 
         doc.setFontSize(10);
         doc.setTextColor(100);
-        doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 28);
+        doc.text(`Généré le: ${app.formatDateTime()}`, 14, 28);
 
         doc.autoTable({
             head: [columns],
@@ -15013,7 +15053,7 @@ const app = {
         // Client Info Block (Top Right)
         doc.setFontSize(9);
         doc.setTextColor(100);
-        doc.text(`Généré le: ${new Date().toLocaleString()}`, 14, 44);
+        doc.text(`Généré le: ${app.formatDateTime()}`, 14, 44);
 
         doc.autoTable({
             head: [columns],
@@ -15653,7 +15693,7 @@ const app = {
                                 <i class="fas fa-map-marker-alt" style="color: #ef4444;"></i> Position Actuelle
                             </div>
                             <div style="font-size: 0.95rem;">${displayLocation}</div>
-                            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">Dernière mise à jour: ${shipment.lastUpdate ? new Date(shipment.lastUpdate).toLocaleString() : 'Non disponible'}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">Dernière mise à jour: ${shipment.lastUpdate ? app.formatDateTime(shipment.lastUpdate) : 'Non disponible'}</div>
                         </div>
                     </div>
                 </div>
@@ -16063,7 +16103,7 @@ const app = {
                         </div>
                         <div class="form-group">
                             <label>Prix d'Achat (USD)</label>
-                            <input type="number" name="priceUSD" class="glass-input" step="0.01" value="${price?.priceUSD || ''}" required>
+                            <input type="number" name="priceUSD" class="glass-input" step="any" value="${price?.priceUSD || ''}" required>
                         </div>
                         <div class="form-group">
                             <label>Date de l'offre / achat</label>
@@ -16161,12 +16201,12 @@ const app = {
                     <form id="trim-price-form">
                         <div class="form-group">
                             <label>Prix DZD (Neuf)</label>
-                            <input type="number" name="priceDzdNeuf" class="glass-input" step="0.01" value="${currentNeuf || ''}">
+                            <input type="number" name="priceDzdNeuf" class="glass-input" step="any" value="${currentNeuf || ''}">
                             <small style="color: var(--text-dim);">Laissez vide si non applicable</small>
                         </div>
                         <div class="form-group">
                             <label>Prix DZD (-3 Ans)</label>
-                            <input type="number" name="priceDzd3Ans" class="glass-input" step="0.01" value="${current3Ans || ''}">
+                            <input type="number" name="priceDzd3Ans" class="glass-input" step="any" value="${current3Ans || ''}">
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn-secondary" onclick="app.closeModal()">Annuler</button>
