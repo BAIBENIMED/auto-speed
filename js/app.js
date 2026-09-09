@@ -13867,6 +13867,24 @@ const app = {
             .bindPopup(contenuBulle || this.infobulleNavire(expedition));
 
         marqueur.on('mouseover', () => marqueur.openPopup());
+
+        // L'etiquette ne recoit pas les clics par defaut : on les reactive
+        // pour qu'elle ouvre la fiche, comme le navire lui-meme.
+        const poserClic = () => {
+            const infobulle = marqueur.getTooltip && marqueur.getTooltip();
+            const el = infobulle && infobulle.getElement();
+            if (!el || el.dataset.clicPose) return;
+            el.dataset.clicPose = '1';
+            el.style.pointerEvents = 'auto';
+            el.style.cursor = 'pointer';
+            L.DomEvent.on(el, 'click', (e) => {
+                L.DomEvent.stop(e);
+                marqueur.openPopup();
+            });
+        };
+        marqueur.on('tooltipopen', poserClic);
+        poserClic();
+
         return marqueur;
     },
 
@@ -15596,7 +15614,7 @@ const app = {
                 });
                 app.decoreMarqueurNavire(
                     L.marker([lat, lng], { icon: icone }).addTo(carte),
-                    shipment, -14).openPopup();
+                    shipment, -14);
             }
 
             setTimeout(() => carte.invalidateSize(), 200);

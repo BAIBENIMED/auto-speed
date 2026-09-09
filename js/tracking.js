@@ -230,6 +230,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<div class="bulle-navire">${lignes.join('') || 'Expedition en cours'}</div>`;
     }
 
+    // Une etiquette Leaflet ne recoit pas les clics par defaut : on les
+    // reactive pour qu'elle ouvre la fiche de l'expedition.
+    function rendreEtiquetteCliquable(marqueur) {
+        const poser = () => {
+            const infobulle = marqueur.getTooltip && marqueur.getTooltip();
+            const el = infobulle && infobulle.getElement();
+            if (!el || el.dataset.clicPose) return;
+            el.dataset.clicPose = '1';
+            el.style.pointerEvents = 'auto';
+            el.style.cursor = 'pointer';
+            el.setAttribute('title', 'Voir le detail de l\'expedition');
+            L.DomEvent.on(el, 'click', (e) => {
+                L.DomEvent.stop(e);
+                marqueur.openPopup();
+            });
+        };
+        marqueur.on('tooltipopen', poser);
+        poser();
+    }
+
     let carteSuivi = null;
 
     function afficherCarte(shipment, data) {
@@ -305,10 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 .bindPopup(contenuInfobulle(shipment, data), { maxWidth: 300, minWidth: 220 });
 
-            marqueur.on('mouseover', () => marqueur.openPopup());
-
-            // Sur telephone la bulle couvrirait toute la carte : on la laisse au clic.
-            if (window.innerWidth >= 768) marqueur.openPopup();
+            // La fiche ne s'ouvre pas d'elle-meme, elle couvrirait la carte :
+            // elle attend un clic sur l'etiquette ou sur le navire.
+            rendreEtiquetteCliquable(marqueur);
         }
 
         // Le conteneur vient d'etre affiche : Leaflet doit remesurer.
