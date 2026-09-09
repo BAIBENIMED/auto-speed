@@ -341,7 +341,7 @@ const app = {
         const reste = vehicules.length > 6 ? `<div style="margin-top:3px; opacity:.7;">+ ${vehicules.length - 6} autre(s)</div>` : '';
 
         return `
-            <div style="font-size:0.78rem; line-height:1.35; max-width:250px;">
+            <div style="font-size:0.78rem; line-height:1.35; max-width:250px; overflow-wrap:anywhere;">
                 <div style="font-weight:700;">${expedition.vesselName || expedition.shipStatus || expedition.carrier || 'Navire'}</div>
                 <div style="opacity:.85;">Conteneur : <b>${expedition.containerNumber || 'N/A'}</b></div>
                 ${expedition.blNumber ? `<div style="opacity:.85;">BL : ${expedition.blNumber}</div>` : ''}

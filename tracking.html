@@ -519,6 +519,38 @@
         }
 
         .leaflet-popup-content { color: #0f172a; margin: 12px 14px; }
+
+        /* Contenu de la bulle du navire : deux colonnes, la valeur se replie
+           au lieu de deborder du cadre (VIN, nom de client long...). */
+        .bulle-navire {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: #0f172a;
+        }
+
+        .bulle-navire .ligne-bulle {
+            display: grid;
+            grid-template-columns: 72px minmax(0, 1fr);
+            gap: 10px;
+            padding: 3px 0;
+        }
+
+        .bulle-navire .ligne-bulle + .ligne-bulle { border-top: 1px solid rgba(15, 23, 42, .07); }
+
+        .bulle-navire .cle {
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            padding-top: 2px;
+        }
+
+        .bulle-navire .val {
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
         .leaflet-popup-tip { background: #fff; }
         .leaflet-popup-close-button { color: #64748b !important; }
 

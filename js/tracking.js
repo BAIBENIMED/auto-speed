@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const vehicule = [v.brand, v.model, v.year].filter(Boolean).join(' ');
         const lignes = [];
         const ajouter = (etiquette, valeur) => {
-            if (valeur) lignes.push(`<div style="display:flex;gap:8px;"><span style="color:#64748b;min-width:82px;">${etiquette}</span><strong>${echapper(valeur)}</strong></div>`);
+            if (valeur) lignes.push(`<div class="ligne-bulle"><span class="cle">${etiquette}</span><span class="val">${echapper(valeur)}</span></div>`);
         };
         ajouter('Conteneur', shipment.containerNumber);
         ajouter('BL', shipment.blNumber);
@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ajouter('Commande', data.orderId);
         ajouter('Depart', shipment.loadingPort);
         ajouter('Arrivee', shipment.destination);
-        return `<div style="font-family:'Outfit',sans-serif;font-size:0.82rem;line-height:1.65;color:#0f172a;min-width:210px;">${lignes.join('') || 'Expedition en cours'}</div>`;
+        return `<div class="bulle-navire">${lignes.join('') || 'Expedition en cours'}</div>`;
     }
 
     let carteSuivi = null;
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     permanent: true, direction: 'top', offset: [0, -14],
                     className: 'etiquette-navire', opacity: 1
                 })
-                .bindPopup(contenuInfobulle(shipment, data), { maxWidth: 260 });
+                .bindPopup(contenuInfobulle(shipment, data), { maxWidth: 300, minWidth: 220 });
 
             marqueur.on('mouseover', () => marqueur.openPopup());
 
