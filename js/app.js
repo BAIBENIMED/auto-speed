@@ -3990,9 +3990,6 @@ const app = {
                         <button class="btn-primary" onclick="app.showOrderModal()">
                             <i class="fas fa-plus"></i> Nouvelle Commande
                         </button>` : ''}
-                        <button class="btn-secondary" onclick="app.exportPendingOrdersMatrixToPDF()" style="background: rgba(79, 70, 229, 0.1); color: #4f46e5; border-color: rgba(79, 70, 229, 0.2);" title="État des commandes à passer">
-                            <i class="fas fa-clipboard-list"></i> A COMMANDER
-                        </button>
                         <button class="btn-secondary" onclick="app.exportOrdersToPDF()" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
                             <i class="fas fa-file-pdf"></i> PDF
                         </button>
@@ -9223,7 +9220,7 @@ const app = {
 
             doc.setFontSize(10);
             doc.setTextColor(100);
-            doc.text(`Généré le: ${app.formatDateTime()}`, 14, 28);
+            doc.text(`Généré le: ${app.formatDateTime(new Date())}`, 14, 28);
 
             // Define Columns
             const tableColumn = ["N° BC", "Date", "Client", "Véhicule", "Statut", "Total Net", "Payé", "Reste"];
@@ -9293,128 +9290,6 @@ const app = {
         } catch (e) {
             console.error('PDF Export Error:', e);
             alert('Une erreur est survenue lors de la génération du PDF.');
-        }
-    },
-
-    exportPendingOrdersMatrixToPDF() {
-        try {
-            if (!window.jspdf || !window.jspdf.jsPDF) {
-                alert("Erreur: La bibliothèque PDF n'est pas chargée.");
-                return;
-            }
-
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('l', 'mm', 'a4');
-            const orders = StorageService.get(STORAGE_KEYS.ORDERS);
-
-            // 1. Filter Pending Orders (Strictly "ATTENTE AFFECTATION VÉHICULE")
-            const pendingOrders = orders.filter(o =>
-                o.status === 'ATTENTE AFFECTATION VÉHICULE' && o.requestedBrand && o.requestedModel
-            );
-
-            if (pendingOrders.length === 0) {
-                alert('Aucune commande en attente d\'affectation avec marque/modèle spécifiés.');
-                return;
-            }
-
-            // 2. Extract Unique Colors (Columns)
-            const colors = [...new Set(pendingOrders.map(o => this.translateColorToEnglish(o.requestedColor) || 'Non spécifié'))].sort();
-            // Ensure 'Non spécifié' is last
-            const nsIndex = colors.indexOf('Non spécifié');
-            if (nsIndex > -1) {
-                colors.push(colors.splice(nsIndex, 1)[0]);
-            }
-
-            // 3. Aggregate Data [Brand - Model] -> { Color: Count }
-            const matrix = {};
-
-            pendingOrders.forEach(o => {
-                const key = `${o.requestedBrand} - ${o.requestedModel}`;
-                const color = this.translateColorToEnglish(o.requestedColor) || 'Non spécifié';
-
-                if (!matrix[key]) matrix[key] = { total: 0 };
-                if (!matrix[key][color]) matrix[key][color] = 0;
-
-                matrix[key][color]++;
-                matrix[key].total++;
-            });
-
-            // 4. Build Table Rows
-            // Columns: [Marque - Modèle, ...Colors, TOTAL]
-            const tableColumns = ['Marque - Modèle', ...colors.map(c => c === 'Non spécifié' ? 'Autres' : c), 'TOTAL'];
-            const tableRows = Object.keys(matrix).sort().map(key => {
-                const row = [key];
-                let rowTotal = 0;
-
-                colors.forEach(col => {
-                    const count = matrix[key][col] || 0;
-                    row.push(count > 0 ? count : '-');
-                    rowTotal += count;
-                });
-
-                row.push(rowTotal);
-                return row;
-            });
-
-            // Footer Row (Totals per Color)
-            const footerRow = ['TOTAL GÉNÉRAL'];
-            let grandTotal = 0;
-            colors.forEach(col => {
-                let colTotal = 0;
-                Object.values(matrix).forEach(rowObj => {
-                    colTotal += (rowObj[col] || 0);
-                });
-                footerRow.push(colTotal > 0 ? colTotal : '-');
-                grandTotal += colTotal;
-            });
-            footerRow.push(grandTotal);
-            tableRows.push(footerRow);
-
-            // 5. Generate PDF
-            doc.setFontSize(18);
-            doc.setTextColor(40, 40, 40);
-            doc.text('État des Commandes en Attente d\'Affectation', 14, 20);
-
-            doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text(`Généré le: ${app.formatDateTime()}`, 14, 28);
-            doc.text(`Total véhicules à commander: ${grandTotal}`, 14, 34);
-
-            doc.autoTable({
-                head: [tableColumns],
-                body: tableRows,
-                startY: 40,
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [79, 70, 229], // Indigo
-                    halign: 'center',
-                    fontStyle: 'bold',
-                    fontSize: 9
-                },
-                columnStyles: {
-                    0: { fontStyle: 'bold', cellWidth: 60 }, // Brand - Model column
-                    [tableColumns.length - 1]: { fontStyle: 'bold', fillColor: [243, 244, 246], halign: 'center' } // Row Total column
-                },
-                styles: {
-                    halign: 'center',
-                    valign: 'middle',
-                    fontSize: 9
-                },
-                didParseCell: function (data) {
-                    // Style the footer row
-                    if (data.row.index === tableRows.length - 1) {
-                        data.cell.styles.fontStyle = 'bold';
-                        data.cell.styles.fillColor = [229, 231, 235]; // Gray
-                    }
-                }
-            });
-
-            doc.save(`matrice_commandes_attente_${new Date().toISOString().split('T')[0]}.pdf`);
-            this.showToast('Matrice des commandes téléchargée', 'success');
-
-        } catch (e) {
-            console.error('PDF Matrix Error:', e);
-            alert('Erreur lors de la génération de la matrice PDF.');
         }
     },
 
@@ -10368,7 +10243,7 @@ const app = {
 
         doc.setFontSize(11);
         doc.setTextColor(100);
-        doc.text(`Document généré le: ${app.formatDateTime()}`, 14, 30);
+        doc.text(`Document généré le: ${app.formatDateTime(new Date())}`, 14, 30);
         if (showroomFilter) {
             doc.text(`Showroom: ${showroomFilter}`, 14, 36);
         }
@@ -14869,7 +14744,7 @@ const app = {
 
         doc.setFontSize(10);
         doc.setTextColor(100);
-        doc.text(`Généré le: ${app.formatDateTime()}`, 14, 28);
+        doc.text(`Généré le: ${app.formatDateTime(new Date())}`, 14, 28);
 
         doc.autoTable({
             head: [columns],
@@ -15053,7 +14928,7 @@ const app = {
         // Client Info Block (Top Right)
         doc.setFontSize(9);
         doc.setTextColor(100);
-        doc.text(`Généré le: ${app.formatDateTime()}`, 14, 44);
+        doc.text(`Généré le: ${app.formatDateTime(new Date())}`, 14, 44);
 
         doc.autoTable({
             head: [columns],
