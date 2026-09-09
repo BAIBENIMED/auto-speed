@@ -252,22 +252,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // CARTO exige desormais une cle d'API et tamponne ses tuiles gratuites du
         // message « API KEY REQUIRED » : on dessine le fond nous-memes avec Esri
-        // (sans cle). Deux etages : relief physique colore sur une vue large,
-        // topographique detaille en approche.
+        // (sans cle). Vue satellite + couche des noms de pays et de villes.
         // noWrap + maxBounds empechent la mappemonde de se repeter au dezoom.
         const MONDE = [[-85.06, -180], [85.06, 180]];
         const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
-        const SEUIL = 7;
 
-        const physique = L.tileLayer(ESRI + 'World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '&copy; Esri, US National Park Service',
-            maxZoom: 8,
+        const satellite = L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+            maxZoom: 18,
             noWrap: true,
             bounds: MONDE
         });
 
-        const topo = L.tileLayer(ESRI + 'World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '&copy; Esri, USGS, NOAA, &copy; OpenStreetMap',
+        const noms = L.tileLayer(ESRI + 'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 18,
             noWrap: true,
             bounds: MONDE
@@ -277,8 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const replier = () => {
             if (bascule) return;
             bascule = true;
-            carteSuivi.off('zoomend', choisirFond);
-            [physique, topo].forEach(c => carteSuivi.hasLayer(c) && carteSuivi.removeLayer(c));
+            [satellite, noms].forEach(c => carteSuivi.hasLayer(c) && carteSuivi.removeLayer(c));
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap',
                 maxZoom: 19,
@@ -286,19 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 bounds: MONDE
             }).addTo(carteSuivi);
         };
-        physique.on('tileerror', replier);
-        topo.on('tileerror', replier);
+        satellite.on('tileerror', replier);
 
-        const choisirFond = () => {
-            if (bascule) return;
-            const voulu = carteSuivi.getZoom() <= SEUIL ? physique : topo;
-            const autre = voulu === physique ? topo : physique;
-            if (!carteSuivi.hasLayer(voulu)) voulu.addTo(carteSuivi);
-            if (carteSuivi.hasLayer(autre)) carteSuivi.removeLayer(autre);
-        };
-
-        carteSuivi.on('zoomend', choisirFond);
-        choisirFond();
+        satellite.addTo(carteSuivi);
+        noms.addTo(carteSuivi);
         carteSuivi.setMaxBounds(MONDE);
 
         if (aGps || repli) {

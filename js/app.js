@@ -13892,20 +13892,16 @@ const app = {
         const MONDE = [[-85.06, -180], [85.06, 180]];
         const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
 
-        // Deux etages : le fond physique (relief colore, vegetation, deserts)
-        // est le plus parlant sur une vue large mais s'arrete au zoom 8 ; le
-        // fond topographique prend le relais en approche avec villes et ports.
-        const SEUIL = 7;
-
-        const physique = L.tileLayer(ESRI + 'World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '&copy; Esri, US National Park Service',
-            maxZoom: 8,
+        // Vue satellite, surmontee de la couche des noms (pays, villes,
+        // frontieres) : sans elle l'image seule ne porte aucune etiquette.
+        const satellite = L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+            maxZoom: 18,
             noWrap: true,
             bounds: MONDE
         });
 
-        const topo = L.tileLayer(ESRI + 'World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '&copy; Esri, USGS, NOAA, &copy; OpenStreetMap',
+        const noms = L.tileLayer(ESRI + 'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 18,
             noWrap: true,
             bounds: MONDE
@@ -13916,8 +13912,7 @@ const app = {
         const replier = () => {
             if (bascule) return;
             bascule = true;
-            carte.off('zoomend', choisirFond);
-            [physique, topo].forEach(c => carte.hasLayer(c) && carte.removeLayer(c));
+            [satellite, noms].forEach(c => carte.hasLayer(c) && carte.removeLayer(c));
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap',
                 maxZoom: 19,
@@ -13925,21 +13920,12 @@ const app = {
                 bounds: MONDE
             }).addTo(carte);
         };
-        physique.on('tileerror', replier);
-        topo.on('tileerror', replier);
+        satellite.on('tileerror', replier);
 
-        const choisirFond = () => {
-            if (bascule) return;
-            const voulu = carte.getZoom() <= SEUIL ? physique : topo;
-            const autre = voulu === physique ? topo : physique;
-            if (!carte.hasLayer(voulu)) voulu.addTo(carte);
-            if (carte.hasLayer(autre)) carte.removeLayer(autre);
-        };
-
-        carte.on('zoomend', choisirFond);
-        choisirFond();
+        satellite.addTo(carte);
+        noms.addTo(carte);
         carte.setMaxBounds(MONDE);
-        return carte.hasLayer(physique) ? physique : topo;
+        return satellite;
     },
 
     /**
