@@ -136,11 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('display-current-location').textContent = shipment.status || 'En transit';
             }
             afficherCarte(shipment, data);
+            afficherHistorique(shipment.trackingHistory);
         } else {
             document.getElementById('display-destination').textContent = 'En attente';
             document.getElementById('display-eta').textContent = 'En attente';
             document.getElementById('map-section').style.display = 'none';
             document.getElementById('no-shipment-msg').style.display = 'block';
+            afficherHistorique(null);
         }
 
         // Documents section (BL)
@@ -166,6 +168,64 @@ document.addEventListener('DOMContentLoaded', () => {
         // Stepper Logic
         updateStepper(data.orderStatus, shipment?.status);
     }
+
+    // --- Historique du transport ----------------------------------------
+    // Les etapes remontees par l'API de suivi sont deja transmises par
+    // /api/public/track ; on les presente en chronologie repliable.
+
+    function formatDateHeure(valeur) {
+        if (!valeur) return '--';
+        const d = new Date(valeur);
+        if (isNaN(d.getTime())) return String(valeur);
+        const heures = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${formatDate(d)} ${heures}:${minutes}`;
+    }
+
+    function afficherHistorique(evenements) {
+        const section = document.getElementById('history-section');
+        const liste = document.getElementById('history-list');
+        const bouton = document.getElementById('history-toggle');
+        const compteur = document.getElementById('history-count');
+        if (!section || !liste || !bouton) return;
+
+        const etapes = Array.isArray(evenements)
+            ? evenements.filter(e => e && (e.date || e.description))
+            : [];
+
+        if (etapes.length === 0) {
+            section.style.display = 'none';
+            liste.innerHTML = '';
+            return;
+        }
+
+        section.style.display = 'block';
+        compteur.textContent = etapes.length;
+
+        liste.innerHTML = etapes.map(e => {
+            // isActual absent : l'evenement vient d'un suivi deja realise
+            const confirme = e.isActual !== false;
+            return `<li class="evenement ${confirme ? 'confirme' : 'prevu'}">
+                    <div class="date">${formatDateHeure(e.date)}</div>
+                    <div class="detail">
+                        <div class="description">${echapper(e.description || 'Etape de transport')}</div>
+                        ${e.location ? `<div class="lieu"><i class="fas fa-map-marker-alt"></i>${echapper(e.location)}</div>` : ''}
+                    </div>
+                </li>`;
+        }).join('');
+
+        // On repart replie a chaque recherche
+        liste.hidden = true;
+        bouton.setAttribute('aria-expanded', 'false');
+    }
+
+    document.getElementById('history-toggle').addEventListener('click', () => {
+        const liste = document.getElementById('history-list');
+        const bouton = document.getElementById('history-toggle');
+        const ouvert = liste.hidden;
+        liste.hidden = !ouvert;
+        bouton.setAttribute('aria-expanded', String(ouvert));
+    });
 
     // --- Carte de suivi (Leaflet) ---------------------------------------
     // L'ancien embed <iframe src="maps.google.com/...output=embed"> a ete
