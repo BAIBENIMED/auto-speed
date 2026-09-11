@@ -2274,6 +2274,7 @@ const app = {
                                 <p><strong>Couleur:</strong> ${vehicle.color || 'N/A'}</p>
                                 <p><strong>État:</strong> ${app.badgeCategorie(vehicle.category)}</p>
                                 <p><strong>Kilométrage:</strong> ${vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : 'N/A'}</p>
+                                <p><strong>Lieu de livraison:</strong> ${vehicle.deliveryLocation || 'Non précisé'}</p>
                                 
                                 ${c ? `
                                 <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -4526,6 +4527,140 @@ const app = {
     },
 
 
+    /**
+     * Suivi complet d'un client : une carte par commande, avec le vehicule,
+     * l'expedition, les dates, la derniere position et les etapes remontees
+     * par le transporteur. Le lien public de suivi est propose a la copie.
+     */
+    showClientTracking(clientId) {
+        const client = (StorageService.get(STORAGE_KEYS.CLIENTS) || []).find(c => c.id === clientId);
+        if (!client) return;
+
+        const commandes = (StorageService.get(STORAGE_KEYS.ORDERS) || []).filter(o => o.clientId === clientId);
+        const vehicules = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const expeditions = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
+
+        const ligne = (etiquette, valeur) => valeur
+            ? `<div style="display:flex; gap:10px; font-size:0.85rem; padding:3px 0;">
+                   <span style="color:var(--text-dim); min-width:120px;">${etiquette}</span>
+                   <strong style="overflow-wrap:anywhere;">${valeur}</strong>
+               </div>`
+            : '';
+
+        const cartes = commandes.map(commande => {
+            const vehicule = vehicules.find(v => v.orderId === commande.id)
+                || vehicules.find(v => v.clientId === clientId && !v.orderId);
+            const expedition = vehicule && vehicule.shipmentId
+                ? expeditions.find(e => String(e.id) === String(vehicule.shipmentId))
+                : null;
+
+            let etapes = [];
+            if (expedition && expedition.trackingHistory) {
+                try {
+                    etapes = typeof expedition.trackingHistory === 'string'
+                        ? JSON.parse(expedition.trackingHistory)
+                        : expedition.trackingHistory;
+                } catch (e) {
+                    etapes = [];
+                }
+            }
+            if (!Array.isArray(etapes)) etapes = [];
+
+            const lienSuivi = commande.trackingCode
+                ? `${window.location.origin}/tracking.html?code=${commande.trackingCode}`
+                : '';
+
+            return `
+                <div class="glass-card" style="padding:18px; border-radius:14px; border:1px solid var(--border-glass); background:rgba(255,255,255,0.02); margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+                        <div>
+                            <strong style="font-size:1rem;">${commande.id}</strong>
+                            <div style="font-size:0.78rem; color:var(--text-dim);">Commande du ${this.formatDate(commande.date)}</div>
+                        </div>
+                        <span class="badge-pill" style="background:${this.getStatusColor(commande.status)}22; color:${this.getStatusColor(commande.status)}; border:none;">${commande.status}</span>
+                    </div>
+
+                    ${ligne('Véhicule', vehicule ? `${vehicule.brand} ${vehicule.model || ''} ${vehicule.year || ''}` : (commande.requestedBrand ? `${commande.requestedBrand} ${commande.requestedModel || ''} (souhaité)` : ''))}
+                    ${ligne('Châssis', vehicule && vehicule.chassisNumber)}
+                    ${ligne('Lieu de livraison', vehicule && vehicule.deliveryLocation)}
+                    ${ligne('Conteneur', expedition && expedition.containerNumber)}
+                    ${ligne('BL', expedition && expedition.blNumber)}
+                    ${ligne('Navire', expedition && (expedition.shipStatus || expedition.vesselName))}
+                    ${ligne('Départ', expedition && expedition.loadingPort)}
+                    ${ligne('Destination', expedition && expedition.destination)}
+                    ${ligne('ETD', expedition && expedition.etd && this.formatDate(expedition.etd))}
+                    ${ligne('ETA', expedition && expedition.eta && this.formatDate(expedition.eta))}
+                    ${ligne('Position', expedition && expedition.currentLat && expedition.currentLng ? `Lat ${expedition.currentLat}, Lng ${expedition.currentLng}` : '')}
+                    ${ligne('Dernière mise à jour', expedition && expedition.lastUpdate && this.formatDateTime(expedition.lastUpdate))}
+
+                    ${!expedition ? '<div style="font-size:0.82rem; color:var(--text-dim); margin-top:8px;">Aucune expédition rattachée pour le moment.</div>' : ''}
+
+                    ${etapes.length ? `
+                        <details style="margin-top:12px;">
+                            <summary style="cursor:pointer; font-size:0.85rem; color:var(--primary); font-weight:600;">
+                                Historique du transport (${etapes.length} étape${etapes.length > 1 ? 's' : ''})
+                            </summary>
+                            <div style="margin-top:10px; border-left:2px solid var(--border-glass); padding-left:14px;">
+                                ${etapes.map(e => `
+                                    <div style="padding:6px 0; font-size:0.82rem;">
+                                        <span style="font-family:'IBM Plex Mono',monospace; color:var(--text-dim);">${this.formatDateTime(e.date)}</span>
+                                        <div style="font-weight:600;">${e.description || 'Étape de transport'}</div>
+                                        ${e.location ? `<div style="color:var(--text-dim); font-size:0.78rem;">${e.location}</div>` : ''}
+                                    </div>`).join('')}
+                            </div>
+                        </details>` : ''}
+
+                    ${lienSuivi ? `
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+                            <a class="btn-secondary" style="font-size:0.8rem; padding:7px 12px; text-decoration:none;" href="${lienSuivi}" target="_blank" rel="noopener noreferrer">
+                                <i class="fas fa-external-link-alt"></i> Ouvrir la page client
+                            </a>
+                            <button class="btn-secondary" style="font-size:0.8rem; padding:7px 12px;" onclick="app.copierLienSuivi('${lienSuivi}', this)">
+                                <i class="fas fa-copy"></i> Copier le lien
+                            </button>
+                            <span style="font-size:0.75rem; color:var(--text-dim); align-self:center; font-family:'IBM Plex Mono',monospace;">${commande.trackingCode}</span>
+                        </div>` : ''}
+                </div>`;
+        }).join('');
+
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 90vw; max-width: 760px; max-height: 85vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <div>
+                            <h2 style="margin:0;"><i class="fas fa-route"></i> Suivi de ${client.lastName} ${client.firstName}</h2>
+                            <span style="font-size:0.82rem; color:var(--text-dim);">${commandes.length} commande${commandes.length > 1 ? 's' : ''}</span>
+                        </div>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        ${commandes.length ? cartes : '<div style="text-align:center; padding:40px; color:var(--text-dim);">Aucune commande pour ce client.</div>'}
+                    </div>
+                </div>
+            </div>`;
+
+        this.closeModal();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    /** Copie le lien de suivi client dans le presse-papiers. */
+    copierLienSuivi(lien, bouton) {
+        const reussite = () => {
+            if (!bouton) return;
+            const avant = bouton.innerHTML;
+            bouton.innerHTML = '<i class="fas fa-check"></i> Lien copié';
+            setTimeout(() => { bouton.innerHTML = avant; }, 2000);
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(lien).then(reussite).catch(() => this.showToast(lien, 'info'));
+            return;
+        }
+
+        // Navigateurs sans presse-papiers : on montre le lien a copier a la main
+        this.showToast(lien, 'info');
+    },
+
     showClientDetails(id) {
         const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === id);
         if (!client) return;
@@ -4562,6 +4697,9 @@ const app = {
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 15px;">
+                            <button class="btn-primary" style="font-size: 0.85rem; padding: 6px 14px;" onclick="app.showClientTracking('${client.id}')">
+                                <i class="fas fa-route"></i> Suivi
+                            </button>
                             ${validationHtml}
                             <button class="btn-close" onclick="app.closeModal()">&times;</button>
                         </div>
@@ -5410,6 +5548,13 @@ const app = {
 
                             <div class="form-row">
                                 <div class="form-group">
+                                    <label>Lieu de livraison</label>
+                                    <input type="text" name="deliveryLocation" class="glass-input" placeholder="Adresse, ville ou point de retrait convenu">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
                                     <label>Options du véhicule</label>
                                     <textarea name="options" class="glass-input" rows="3" placeholder="Saisir les options (ex: Toit ouvrant, Cuir, Navigation...)"></textarea>
                                 </div>
@@ -5652,6 +5797,7 @@ const app = {
                 estimatedCustomsDuty: Number(formData.get('estimatedCustomsDuty')) || 0,
                 remarks: formData.get('remarks'),
                 options: formData.get('options'),
+                deliveryLocation: formData.get('deliveryLocation') || null,
                 videoLink: formData.get('videoLink'),
                 blLink: formData.get('blLink'),
                 category: formData.get('category'),
@@ -6018,6 +6164,13 @@ const app = {
                                             </div>
                                         </div>
                                     </fieldset>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Lieu de livraison</label>
+                                            <input type="text" name="deliveryLocation" value="${vehicle.deliveryLocation || ''}" class="glass-input" placeholder="Adresse, ville ou point de retrait convenu">
+                                        </div>
+                                    </div>
 
                                     <div class="form-row">
                                         <div class="form-group">

@@ -129,6 +129,11 @@ const Vehicle = sequelize.define('Vehicle', {
     originalOwnerName: {
         type: DataTypes.STRING(200),
         field: 'original_owner_name'
+    },
+    // Saisie libre : adresse, ville, showroom ou point de retrait convenu
+    deliveryLocation: {
+        type: DataTypes.STRING(200),
+        field: 'delivery_location'
     }
 }, {
     tableName: 'vehicles',
