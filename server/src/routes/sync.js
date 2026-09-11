@@ -55,35 +55,26 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
                 }] 
             }).catch(async (err) => {
                 console.warn('⚠️ Could not fetch trims for sync, falling back to brands/models only:', err.message);
-                return models.Brand.findAll({ include: [{ model: models.VehicleModel, as: 'models' }] });
+                return sansCasser('marques', models.Brand.findAll({ include: [{ model: models.VehicleModel, as: 'models' }] }));
             }),
             sansCasser('showrooms', models.Showroom.findAll()),
             sansCasser('parametres', models.Settings.findOne()),
             sansCasser('taux de change', models.ExchangeRate.findAll({ order: [['date', 'DESC']] })),
             sansCasser('caisse', models.CashTransaction.findAll()),
             sansCasser('listes', models.DynamicAttribute.findAll({ order: [['sortOrder', 'ASC']] })),
-            models.PurchaseOrder.findAll({
+            sansCasser('achats fournisseurs', models.PurchaseOrder.findAll({
                 include: [{
                     model: models.Vehicle,
                     as: 'vehicles',
                     include: [{ model: models.Order, as: 'order' }]
                 }]
-            }).catch(err => {
-                console.warn('⚠️ Could not fetch purchase orders for sync:', err.message);
-                return [];
-            }),
+            })),
             sansCasser('fournisseurs', models.Supplier.findAll()),
-            models.Notification.findAll({ order: [['createdAt', 'DESC']], limit: 100 }).catch(err => {
-                console.warn('⚠️ Could not fetch notifications (Table missing?):', err.message);
-                return []; // Return empty array on failure
-            }),
-            models.Voyage.findAll({
+            sansCasser('notifications', models.Notification.findAll({ order: [['createdAt', 'DESC']], limit: 100 })),
+            sansCasser('voyages', models.Voyage.findAll({
                 include: [{ model: models.Shipment, as: 'shipments' }],
                 order: [['createdAt', 'DESC']]
-            }).catch(err => {
-                console.warn('⚠️ Could not fetch voyages (Table missing?):', err.message);
-                return [];
-            }),
+            })),
             sansCasser('transferts', models.VehicleTransfer.findAll({
                 include: [
                     { model: models.Client, as: 'fromClient', attributes: ['id', 'firstName', 'lastName'] },
