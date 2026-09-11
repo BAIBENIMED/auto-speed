@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Stepper Logic
-        updateStepper(data.orderStatus, shipment?.status);
+        updateStepper(data.orderStatus, shipment);
     }
 
     // --- Historique du transport ----------------------------------------
@@ -394,7 +394,51 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => carteSuivi && carteSuivi.invalidateSize(), 200);
     }
 
-    function updateStepper(orderStatus, shipmentStatus) {
+    /**
+     * Etape atteinte par l'expedition.
+     *
+     * Les etapes se deduisaient de mots contenus dans le statut, et
+     * « Arrivee Port » s'activait des que le statut contenait « port » :
+     * « transport » suffisait donc a annoncer une arrivee alors que le navire
+     * n'avait pas quitte le quai. On s'appuie desormais sur les dates
+     * reellement renseignees, et le statut ne sert que de complement.
+     */
+    function etapeExpedition(expedition, orderStatus) {
+        const statut = String((expedition && expedition.status) || '').toLowerCase();
+        const commande = String(orderStatus || '').toLowerCase();
+        const maintenant = new Date();
+
+        const date = (valeur) => {
+            if (!valeur) return null;
+            const d = new Date(valeur);
+            return isNaN(d.getTime()) ? null : d;
+        };
+
+        // 5. Livree : la commande fait foi
+        if (['delivered', 'livré', 'livree', 'livrée', 'enlevée', 'enlevee', 'conclue'].includes(commande)) return 5;
+
+        // 4. Arrivee : une date d'arrivee, ou un statut sans ambiguite.
+        //    « port » seul est trop courant pour servir d'indice.
+        const arrivee = date(expedition && expedition.arrivalDate);
+        const statutArrive = /arriv|discharg|unload|dechargement|déchargement/.test(statut);
+        if ((arrivee && arrivee <= maintenant) || statutArrive) return 4;
+
+        // 3. En mer : le navire est parti, ou le suivi le signale en transit
+        const depart = date(expedition && expedition.etd);
+        const enMer = /en mer|transit|sailing|shipped|depart|départ|at sea/.test(statut);
+        const positionConnue = expedition && expedition.currentLat && expedition.currentLng;
+        if ((depart && depart <= maintenant) || enMer || positionConnue) return 3;
+
+        // 2. Chargement : l'expedition existe, le depart n'a pas eu lieu
+        if (expedition) return 2;
+
+        // 1. Commande validee, rien d'embarque
+        if (['validated', 'paid', 'validée', 'validee'].includes(commande) || orderStatus) return 1;
+
+        return 0;
+    }
+
+    function updateStepper(orderStatus, expedition) {
         const steps = [
             document.getElementById('step-1'),
             document.getElementById('step-2'),
@@ -403,56 +447,21 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('step-5')
         ];
         const progressBar = document.getElementById('step-progress-bar');
-        
-        // Reset
-        steps.forEach(s => {
-            s.classList.remove('active', 'completed');
+
+        steps.forEach(s => s.classList.remove('active', 'completed'));
+
+        const atteinte = etapeExpedition(expedition, orderStatus);
+
+        // Les etapes precedentes sont franchies, celle en cours est mise en avant
+        steps.forEach((element, index) => {
+            const rang = index + 1;
+            if (rang < atteinte) element.classList.add('completed');
+            else if (rang === atteinte) element.classList.add(atteinte === 5 ? 'completed' : 'active');
         });
 
-        let currentStep = 0;
+        if (atteinte === 5) steps.forEach(s => s.classList.add('completed'));
 
-        // Logic based on status strings
-        if (orderStatus === 'Validated' || orderStatus === 'Paid') {
-            currentStep = 1;
-            steps[0].classList.add('completed');
-            steps[1].classList.add('active');
-        }
-
-        if (shipmentStatus) {
-            const s = shipmentStatus.toLowerCase();
-            
-            // Step 2: Chargement
-            currentStep = 2;
-            steps[0].classList.add('completed');
-            steps[1].classList.add('completed');
-            steps[2].classList.add('active');
-
-            // Step 3: En mer
-            if (s.includes('mer') || s.includes('transit') || s.includes('shipped')) {
-                currentStep = 3;
-                steps[0].classList.add('completed');
-                steps[1].classList.add('completed');
-                steps[2].classList.add('completed');
-                steps[3].classList.add('active');
-            }
-            // Step 4: Arrivée Port
-            if (s.includes('arriv') || s.includes('port')) {
-                currentStep = 4;
-                steps[0].classList.add('completed');
-                steps[1].classList.add('completed');
-                steps[2].classList.add('completed');
-                steps[3].classList.add('completed');
-                steps[4].classList.add('active');
-            }
-        }
-
-        if (orderStatus === 'Delivered') {
-            currentStep = 5;
-            steps.forEach(s => s.classList.add('completed'));
-        }
-
-        // Progress bar width
         const widths = ['0%', '12.5%', '37.5%', '62.5%', '87.5%', '100%'];
-        progressBar.style.width = widths[currentStep];
+        progressBar.style.width = widths[atteinte];
     }
 });
