@@ -5010,6 +5010,31 @@ const app = {
         }
     },
 
+    /**
+     * Options de la liste des transporteurs.
+     *
+     * Une valeur enregistree qui ne figure pas dans la liste des compagnies
+     * n'etait selectionnee nulle part : le navigateur retenait alors la
+     * premiere option, et le premier enregistrement remplacait silencieusement
+     * le transporteur (un Hapag-Lloyd devenait CMA CGM). On ajoute donc la
+     * valeur courante a la liste quand elle en est absente.
+     */
+    optionsTransporteur(valeurActuelle) {
+        const compagnies = StorageService.get(STORAGE_KEYS.CARRIERS) || [];
+        const actuelle = (valeurActuelle || '').trim();
+        const connues = compagnies.map(c => String(c));
+
+        const horsListe = actuelle && !connues.some(c => c.toLowerCase() === actuelle.toLowerCase());
+        const liste = horsListe ? [actuelle].concat(connues) : connues;
+
+        return `<option value="">-- Non renseigné --</option>`
+            + liste.map(c => {
+                const choisie = actuelle && String(c).toLowerCase() === actuelle.toLowerCase();
+                const mention = horsListe && c === actuelle ? ' (hors liste)' : '';
+                return `<option value="${c}" ${choisie ? 'selected' : ''}>${c}${mention}</option>`;
+            }).join('');
+    },
+
     numeroWhatsApp(telephone, indicatifParDefaut = '213') {
         if (!telephone) return null;
 
@@ -10515,7 +10540,7 @@ const app = {
                                         <div class="form-group">
                                             <label>Transporteur</label>
                                             <select name="carrier" class="glass-select">
-                                                ${StorageService.get(STORAGE_KEYS.CARRIERS).map(c => `<option value="${c}">${c}</option>`).join('')}
+                                                ${this.optionsTransporteur('')}
                                             </select>
                                         </div>
                                         <div class="form-group">
@@ -10734,9 +10759,7 @@ const app = {
                                         <div class="form-group">
                                             <label>Transporteur</label>
                                             <select name="carrier" class="glass-select">
-                                                ${StorageService.get(STORAGE_KEYS.CARRIERS).map(c => `
-                                                    <option value="${c}" ${shipment.carrier === c ? 'selected' : ''}>${c}</option>
-                                                `).join('')}
+                                                ${this.optionsTransporteur(shipment.carrier)}
                                             </select>
                                         </div>
                                         <div class="form-group">
@@ -11053,10 +11076,7 @@ const app = {
                             <div class="form-group">
                                 <label>Compagnie / Transporteur</label>
                                 <select name="carrier" class="glass-select">
-                                    <option value="">-- Sélectionner --</option>
-                                    ${StorageService.get(STORAGE_KEYS.CARRIERS).map(c => `
-                                        <option value="${c}" ${voyage?.carrier === c ? 'selected' : ''}>${c}</option>
-                                    `).join('')}
+                                    ${this.optionsTransporteur(voyage?.carrier)}
                                 </select>
                             </div>
                             <div class="form-group">

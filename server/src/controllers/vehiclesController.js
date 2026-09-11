@@ -156,7 +156,20 @@ const vehiclesController = {
             });
             res.json({ success: true, data: vehicle });
         } catch (error) {
-            res.status(400).json({ success: false, message: 'Erreur lors de la mise à jour du véhicule' });
+            console.error(`[Vehicules] Echec de mise a jour de ${req.params.id} :`, error);
+
+            // Sequelize sait dire quel champ pose probleme : autant le
+            // transmettre plutot qu'un message generique inexploitable.
+            const details = (error.errors || [])
+                .map(e => `${e.path} : ${e.message}`)
+                .join(' ; ');
+
+            res.status(400).json({
+                success: false,
+                message: details
+                    ? `Mise à jour du véhicule refusée — ${details}`
+                    : `Erreur lors de la mise à jour du véhicule : ${error.message}`
+            });
         }
     },
 
