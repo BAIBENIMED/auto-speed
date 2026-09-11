@@ -1,4 +1,4 @@
-const { Vehicle, Order } = require('../models');
+const { Vehicle, Order, PurchaseOrder } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -112,8 +112,6 @@ async function syncShipmentToPurchaseOrders(shipmentId, infos = {}) {
     if (!shipmentId) return;
 
     try {
-        const { PurchaseOrder } = require('../models');
-
         const vehicles = await Vehicle.findAll({
             where: { shipmentId },
             attributes: ['id', 'purchaseOrderId']

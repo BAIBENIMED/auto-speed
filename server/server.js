@@ -544,7 +544,16 @@ const startServer = async () => {
             });
         });
 
-        console.log('⏰ Tâches automatisées (Cron) activées : Actualisation (1h) + Alerte retards (3h)');
+        // Sauvegarde quotidienne de la base, a 3h du matin
+        const backupService = require('./src/services/backupService');
+        cron.schedule('0 3 * * *', () => {
+            console.log('[CRON] Sauvegarde quotidienne de la base...');
+            backupService.sauvegardeQuotidienne().catch(err => {
+                console.error('[CRON] Echec de la sauvegarde :', err.message);
+            });
+        });
+
+        console.log('⏰ Tâches automatisées (Cron) activées : Actualisation (1h) + Alerte retards (3h) + Sauvegarde (3h du matin)');
 
     } catch (err) {
         console.error('❌ ERREUR INITIALISATION BACKGROUND:');

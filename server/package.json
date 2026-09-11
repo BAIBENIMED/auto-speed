@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "migrate": "node src/utils/migrate.js"
+    "migrate": "node src/utils/migrate.js",
+    "test": "node --test \"tests/*.test.js\""
   },
   "keywords": [
     "automobile",
@@ -34,5 +35,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }

@@ -52,5 +52,56 @@ router.post('/heal-statuses', authMiddleware, isAdmin, async (req, res) => {
     }
 });
 
+// --- Sauvegardes de la base -------------------------------------------------
+// Reservees a l'administrateur : l'export contient toutes les donnees clients.
+const backupService = require('../services/backupService');
+
+router.get('/backups', authMiddleware, isAdmin, async (req, res) => {
+    try {
+        const sauvegardes = await backupService.listerSauvegardes();
+        res.json({
+            success: true,
+            data: sauvegardes,
+            retention: backupService.RETENTION,
+            envoiCourriel: !!process.env.BACKUP_EMAIL
+        });
+    } catch (error) {
+        console.error('Liste des sauvegardes :', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+router.post('/backups', authMiddleware, isAdmin, async (req, res) => {
+    try {
+        const resume = await backupService.creerSauvegarde();
+        await backupService.purger();
+        res.json({ success: true, data: resume });
+    } catch (error) {
+        console.error('Creation de sauvegarde :', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+router.get('/backups/:fichier', authMiddleware, isAdmin, (req, res) => {
+    const chemin = backupService.cheminSauvegarde(req.params.fichier);
+    if (!chemin) {
+        return res.status(404).json({ success: false, message: 'Sauvegarde introuvable' });
+    }
+    res.download(chemin);
+});
+
+router.delete('/backups/:fichier', authMiddleware, isAdmin, async (req, res) => {
+    try {
+        const supprimee = await backupService.supprimerSauvegarde(req.params.fichier);
+        if (!supprimee) {
+            return res.status(404).json({ success: false, message: 'Sauvegarde introuvable' });
+        }
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;
+
 

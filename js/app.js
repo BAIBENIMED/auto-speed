@@ -6393,6 +6393,108 @@ const app = {
         });
     },
 
+    /** Liste les sauvegardes disponibles sur le serveur. */
+    async chargerSauvegardes() {
+        const zone = document.getElementById('liste-sauvegardes');
+        if (!zone) return;
+
+        try {
+            const reponse = await ApiService.request('/maintenance/backups');
+            const sauvegardes = (reponse && reponse.data) || [];
+
+            if (sauvegardes.length === 0) {
+                zone.innerHTML = '<span style="color: var(--text-dim);">Aucune sauvegarde pour le moment. La première sera créée cette nuit.</span>';
+                return;
+            }
+
+            const poids = (o) => o > 1048576 ? (o / 1048576).toFixed(1) + ' Mo' : Math.max(1, Math.round(o / 1024)) + ' Ko';
+
+            zone.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--text-dim); font-size: 0.8rem;">
+                    <span>${sauvegardes.length} sauvegarde(s) conservée(s)</span>
+                    <span>${reponse.envoiCourriel ? '<i class="fas fa-envelope"></i> envoi par courriel activé' : 'envoi par courriel non configuré'}</span>
+                </div>
+                <div class="glass-scroll" style="max-height: 260px; overflow-y: auto; border: 1px solid var(--border-glass); border-radius: 10px;">
+                    <table class="data-table mini" style="font-size: 0.82rem; margin: 0;">
+                        <tbody>
+                            ${sauvegardes.map(s => `
+                                <tr>
+                                    <td style="font-family: 'IBM Plex Mono', monospace;">${s.fichier}</td>
+                                    <td style="white-space: nowrap;">${this.formatDateTime(s.creeLe)}</td>
+                                    <td style="white-space: nowrap;">${poids(s.taille)}</td>
+                                    <td style="text-align: right; white-space: nowrap;">
+                                        <button type="button" class="btn-action info" title="Télécharger" onclick="app.telechargerSauvegarde('${s.fichier}')"><i class="fas fa-download"></i></button>
+                                        <button type="button" class="btn-action danger" title="Supprimer" onclick="app.supprimerSauvegarde('${s.fichier}')"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+        } catch (e) {
+            zone.innerHTML = `<span style="color: var(--danger);">Impossible de lire les sauvegardes : ${e.message}</span>`;
+        }
+    },
+
+    /** Declenche une sauvegarde immediate. */
+    async lancerSauvegarde(bouton) {
+        const avant = bouton ? bouton.innerHTML : null;
+        if (bouton) {
+            bouton.disabled = true;
+            bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde en cours...';
+        }
+
+        try {
+            const reponse = await ApiService.request('/maintenance/backups', { method: 'POST' });
+            const r = reponse && reponse.data;
+            this.showToast(r ? `Sauvegarde créée : ${r.tables} tables, ${r.lignes} lignes` : 'Sauvegarde créée', 'success');
+            await this.chargerSauvegardes();
+        } catch (e) {
+            this.showToast('Échec de la sauvegarde : ' + e.message, 'error');
+        } finally {
+            if (bouton) {
+                bouton.disabled = false;
+                bouton.innerHTML = avant;
+            }
+        }
+    },
+
+    /**
+     * Telechargement : la route est protegee par le jeton, on passe donc par
+     * fetch plutot que par un lien direct.
+     */
+    async telechargerSauvegarde(fichier) {
+        try {
+            const reponse = await fetch(`${API_BASE_URL}/api/maintenance/backups/${encodeURIComponent(fichier)}`, {
+                headers: this.getAuthHeaders()
+            });
+            if (!reponse.ok) throw new Error('Téléchargement refusé');
+
+            const blob = await reponse.blob();
+            const url = URL.createObjectURL(blob);
+            const lien = document.createElement('a');
+            lien.href = url;
+            lien.download = fichier;
+            document.body.appendChild(lien);
+            lien.click();
+            lien.remove();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            this.showToast('Téléchargement impossible : ' + e.message, 'error');
+        }
+    },
+
+    async supprimerSauvegarde(fichier) {
+        if (!confirm(`Supprimer définitivement la sauvegarde ${fichier} ?`)) return;
+
+        try {
+            await ApiService.request(`/maintenance/backups/${encodeURIComponent(fichier)}`, { method: 'DELETE' });
+            this.showToast('Sauvegarde supprimée', 'success');
+            await this.chargerSauvegardes();
+        } catch (e) {
+            this.showToast('Suppression impossible : ' + e.message, 'error');
+        }
+    },
+
     renderSettings() {
         // DEBUG: Verify entry
         // alert('Debug: Entering renderSettings'); 
@@ -6595,12 +6697,34 @@ const app = {
 
 
 
+                                ${this.isAdmin() ? `
+                                <div class="settings-section">
+                                    <h3><i class="fas fa-database"></i> Sauvegardes de la base</h3>
+                                    <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 15px;">
+                                        Une sauvegarde complète est créée automatiquement chaque nuit à 3h.
+                                        <strong>Téléchargez-la régulièrement</strong> : l'hébergement peut effacer les fichiers du serveur lors d'une mise à jour.
+                                    </p>
+                                    <div class="form-row" style="gap: 15px; margin-bottom: 15px;">
+                                        <button type="button" class="btn-secondary" onclick="app.lancerSauvegarde(this)" style="display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;">
+                                            <i class="fas fa-download" style="color: var(--success);"></i> Sauvegarder maintenant
+                                        </button>
+                                        <button type="button" class="btn-secondary" onclick="app.chargerSauvegardes()" style="display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;">
+                                            <i class="fas fa-rotate" style="color: var(--primary);"></i> Actualiser la liste
+                                        </button>
+                                    </div>
+                                    <div id="liste-sauvegardes" style="font-size: 0.88rem;">
+                                        <span style="color: var(--text-dim);">Chargement des sauvegardes...</span>
+                                    </div>
+                                </div>` : ''}
+
                                 <div class="settings-footer">
                                     <button type="submit" class="btn-primary">Enregistrer les modifications</button>
                                 </div>
                             </form >
                         </div >
     `;
+
+            if (this.isAdmin()) this.chargerSauvegardes();
 
             document.querySelectorAll('input[name="theme"]').forEach(input => {
                 input.addEventListener('change', (e) => {
