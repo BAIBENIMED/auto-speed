@@ -1463,6 +1463,279 @@ const app = {
         }
     },
 
+    /**
+     * Coordonnees de l'entreprise telles que saisies dans les parametres,
+     * utilisees en en-tete des documents remis au client.
+     */
+    enteteSociete() {
+        const p = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
+        return {
+            nom: p.companyName || 'AUTO SPEED',
+            adresse: p.companyAddress || '',
+            telephone: p.companyPhone || '',
+            email: p.companyEmail || '',
+            rc: p.companyRC || '',
+            nif: p.companyNIF || ''
+        };
+    },
+
+    /** Bandeau commun aux documents imprimes. Renvoie l'ordonnee de reprise. */
+    dessinerEnteteDocument(doc, titre, sousTitre) {
+        const societe = this.enteteSociete();
+
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 0, 210, 28, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont(undefined, 'bold');
+        doc.text(societe.nom.toUpperCase(), 14, 13);
+
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'normal');
+        const coordonnees = [societe.adresse, societe.telephone, societe.email].filter(Boolean).join('  •  ');
+        if (coordonnees) doc.text(coordonnees, 14, 19);
+        const legal = [societe.rc ? 'RC : ' + societe.rc : '', societe.nif ? 'NIF : ' + societe.nif : ''].filter(Boolean).join('  •  ');
+        if (legal) doc.text(legal, 14, 24);
+
+        doc.setTextColor(40, 40, 40);
+        doc.setFontSize(15);
+        doc.setFont(undefined, 'bold');
+        doc.text(titre, 14, 39);
+
+        if (sousTitre) {
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(110, 110, 110);
+            doc.text(sousTitre, 14, 45);
+        }
+
+        doc.setTextColor(40, 40, 40);
+        return 51;
+    },
+
+    /**
+     * Bon de commande / contrat de vente a signer par le client.
+     * Reprend l'identite des deux parties, le vehicule, le detail financier,
+     * les conditions de livraison et les emplacements de signature.
+     */
+    imprimerContratCommande(idCommande) {
+        try {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                alert("La bibliothèque PDF n'est pas chargée.");
+                return;
+            }
+
+            const commande = (StorageService.get(STORAGE_KEYS.ORDERS) || []).find(o => o.id === idCommande);
+            if (!commande) return;
+
+            const client = (StorageService.get(STORAGE_KEYS.CLIENTS) || []).find(c => c.id === commande.clientId);
+            const vehicules = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+            const vehicule = vehicules.find(v => v.id === commande.vehicleId) || vehicules.find(v => v.orderId === commande.id);
+            const expedition = vehicule && vehicule.shipmentId
+                ? (StorageService.get(STORAGE_KEYS.SHIPMENTS) || []).find(e => String(e.id) === String(vehicule.shipmentId))
+                : null;
+
+            const reglements = (StorageService.get(STORAGE_KEYS.CASH) || []).filter(t => t.orderId === idCommande);
+            const paye = reglements.reduce((somme, t) => somme + Number(t.amount || 0), 0);
+            const net = Number(commande.totalAmount || 0) - Number(commande.discount || 0);
+            const devise = commande.currency || 'DZD';
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            let y = this.dessinerEnteteDocument(
+                doc,
+                'BON DE COMMANDE / CONTRAT DE VENTE',
+                `N° ${commande.id}  •  Établi le ${this.formatDate(commande.date)}${commande.trackingCode ? '  •  Code de suivi : ' + commande.trackingCode : ''}`
+            );
+
+            // --- Les parties
+            doc.autoTable({
+                startY: y,
+                theme: 'grid',
+                styles: { fontSize: 8.5, cellPadding: 2.2 },
+                headStyles: { fillColor: [99, 102, 241], halign: 'left' },
+                head: [['LE VENDEUR', "L'ACQUÉREUR"]],
+                body: [[
+                    [this.enteteSociete().nom, this.enteteSociete().adresse, this.enteteSociete().telephone].filter(Boolean).join('\n'),
+                    client ? [
+                        `${client.lastName || ''} ${client.firstName || ''}`.trim(),
+                        client.address || '',
+                        client.phone || '',
+                        client.nin ? 'NIN : ' + client.nin : '',
+                        client.passportNumber ? 'Passeport : ' + client.passportNumber : ''
+                    ].filter(Boolean).join('\n') : 'Client non renseigné'
+                ]]
+            });
+
+            // --- Le vehicule
+            const designation = vehicule
+                ? [
+                    ['Marque et modèle', `${vehicule.brand || ''} ${vehicule.model || ''}`.trim()],
+                    ['Finition', vehicule.trim || '-'],
+                    ['Année', String(vehicule.year || '-')],
+                    ['Couleur', vehicule.color || '-'],
+                    ['État', this.estCategorieNeuve(vehicule.category) ? 'Neuf' : (vehicule.category || '-')],
+                    ['Kilométrage', vehicule.mileage ? Number(vehicule.mileage).toLocaleString('fr-FR') + ' km' : '0 km'],
+                    ['N° de châssis (VIN)', vehicule.chassisNumber || 'Communiqué à l\'affectation']
+                ]
+                : [
+                    ['Marque et modèle', `${commande.requestedBrand || ''} ${commande.requestedModel || ''}`.trim() || 'À définir'],
+                    ['Couleur souhaitée', commande.requestedColor || '-'],
+                    ['Finition souhaitée', commande.requestedTrim || '-'],
+                    ['N° de châssis (VIN)', 'Communiqué à l\'affectation']
+                ];
+
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 4,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 1.4 },
+                headStyles: { fillColor: [99, 102, 241] },
+                columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } },
+                head: [['DÉSIGNATION DU VÉHICULE', '']],
+                body: designation
+            });
+
+            // --- Conditions financieres
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 4,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 1.4 },
+                headStyles: { fillColor: [16, 185, 129] },
+                columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' }, 1: { halign: 'right' } },
+                head: [['CONDITIONS FINANCIÈRES', '']],
+                body: [
+                    ['Prix de vente', this.formatCurrency(commande.totalAmount || 0, devise)],
+                    ['Remise accordée', this.formatCurrency(commande.discount || 0, devise)],
+                    ['Net à payer', this.formatCurrency(net, devise)],
+                    ['Déjà réglé', this.formatCurrency(paye, devise)],
+                    ['Reste à payer', this.formatCurrency(Math.max(0, net - paye), devise)]
+                ]
+            });
+
+            // --- Livraison
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 4,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 1.4 },
+                headStyles: { fillColor: [148, 163, 184] },
+                columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } },
+                head: [['LIVRAISON', '']],
+                body: [
+                    ['Lieu de livraison', (vehicule && vehicule.deliveryLocation) || 'À convenir'],
+                    ['Port de chargement', (expedition && expedition.loadingPort) || '-'],
+                    ['Port de destination', (expedition && expedition.destination) || '-'],
+                    ['Départ navire (ETD)', expedition && expedition.etd ? this.formatDate(expedition.etd) : '-'],
+                    ['Arrivée estimée (ETA)', expedition && expedition.eta ? this.formatDate(expedition.eta) : '-']
+                ]
+            });
+
+            // --- Conditions et signatures
+            y = doc.lastAutoTable.finalY + 6;
+            if (y > 238) { doc.addPage(); y = 20; }
+
+            doc.setFontSize(7.5);
+            doc.setTextColor(110, 110, 110);
+            const conditions = doc.splitTextToSize(
+                "Les dates de départ et d'arrivée sont communiquées par la compagnie maritime et restent indicatives : "
+                + "elles peuvent varier selon les conditions de navigation et les opérations portuaires. Les frais de dédouanement, "
+                + "taxes et redevances portuaires restent à la charge de l'acquéreur, sauf mention contraire écrite. "
+                + "Le véhicule est réputé conforme à la désignation ci-dessus ; toute réserve doit être formulée au moment de la remise. "
+                + "La livraison intervient après règlement intégral du solde.",
+                182
+            );
+            doc.text(conditions, 14, y);
+            y += conditions.length * 3.6 + 10;
+
+            doc.setTextColor(40, 40, 40);
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            doc.text('Le vendeur', 20, y);
+            doc.text("L'acquéreur (lu et approuvé)", 118, y);
+            doc.setFont(undefined, 'normal');
+            doc.line(20, y + 22, 85, y + 22);
+            doc.line(118, y + 22, 190, y + 22);
+
+            doc.setFontSize(7.5);
+            doc.setTextColor(130, 130, 130);
+            doc.text(`Document établi le ${this.formatDateTime(new Date())}`, 14, 288);
+
+            doc.save(`bon-commande-${String(commande.id).replace(/[^A-Za-z0-9]/g, '-')}.pdf`);
+            this.showToast('Bon de commande généré', 'success');
+        } catch (e) {
+            console.error('Bon de commande :', e);
+            alert('Erreur lors de la génération du bon de commande : ' + e.message);
+        }
+    },
+
+    /** Recu remis au client apres un encaissement. */
+    imprimerRecuPaiement(idTransaction) {
+        try {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                alert("La bibliothèque PDF n'est pas chargée.");
+                return;
+            }
+
+            const transaction = (StorageService.get(STORAGE_KEYS.CASH) || []).find(t => String(t.id) === String(idTransaction));
+            if (!transaction) return;
+
+            const commande = (StorageService.get(STORAGE_KEYS.ORDERS) || []).find(o => o.id === transaction.orderId);
+            const client = commande
+                ? (StorageService.get(STORAGE_KEYS.CLIENTS) || []).find(c => c.id === commande.clientId)
+                : null;
+
+            const reglements = (StorageService.get(STORAGE_KEYS.CASH) || []).filter(t => t.orderId === transaction.orderId);
+            const paye = reglements.reduce((somme, t) => somme + Number(t.amount || 0), 0);
+            const net = commande ? Number(commande.totalAmount || 0) - Number(commande.discount || 0) : 0;
+            const devise = transaction.currency || (commande && commande.currency) || 'DZD';
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            const y = this.dessinerEnteteDocument(
+                doc,
+                'REÇU DE PAIEMENT',
+                `Reçu n° ${transaction.id}  •  ${this.formatDate(transaction.date)}`
+            );
+
+            doc.autoTable({
+                startY: y,
+                theme: 'grid',
+                styles: { fontSize: 9.5, cellPadding: 3 },
+                headStyles: { fillColor: [16, 185, 129] },
+                columnStyles: { 0: { cellWidth: 60, fontStyle: 'bold' }, 1: { halign: 'right' } },
+                head: [['DÉTAIL DU RÈGLEMENT', '']],
+                body: [
+                    ['Reçu de', client ? `${client.lastName || ''} ${client.firstName || ''}`.trim() : (transaction.clientName || '-')],
+                    ['Commande', transaction.orderId || '-'],
+                    ['Mode de règlement', transaction.paymentMethod || '-'],
+                    ['Motif', transaction.description || 'Règlement sur commande'],
+                    ['Montant reçu', this.formatCurrency(transaction.amount || 0, devise)],
+                    ['Total réglé à ce jour', this.formatCurrency(paye, devise)],
+                    ['Reste à payer', commande ? this.formatCurrency(Math.max(0, net - paye), devise) : '-']
+                ]
+            });
+
+            let position = doc.lastAutoTable.finalY + 18;
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            doc.text('Cachet et signature', 130, position);
+            doc.line(130, position + 22, 190, position + 22);
+
+            doc.setFontSize(7.5);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(130, 130, 130);
+            doc.text(`Document établi le ${this.formatDateTime(new Date())}`, 14, 288);
+
+            doc.save(`recu-${String(transaction.id).replace(/[^A-Za-z0-9]/g, '-')}.pdf`);
+            this.showToast('Reçu généré', 'success');
+        } catch (e) {
+            console.error('Recu de paiement :', e);
+            alert('Erreur lors de la génération du reçu : ' + e.message);
+        }
+    },
+
     showOrderDetails(id) {
         const order = StorageService.get(STORAGE_KEYS.ORDERS).find(o => o.id === id);
         const client = StorageService.get(STORAGE_KEYS.CLIENTS).find(c => c.id === order.clientId);
@@ -1652,6 +1925,7 @@ const app = {
                                                     <th>Méthode</th>
                                                     <th>Note</th>
                                                     <th>Montant</th>
+                                                    <th></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1661,6 +1935,9 @@ const app = {
                                                         <td>${t.paymentMethod}</td>
                                                         <td>${t.description || '-'}</td>
                                                         <td class="success" style="font-weight: 600;">${this.formatCurrency(t.amount, t.currency)}</td>
+                                                        <td style="text-align: right;">
+                                                            <button class="btn-action info" title="Imprimer le reçu" onclick="app.imprimerRecuPaiement('${t.id}')"><i class="fas fa-receipt"></i></button>
+                                                        </td>
                                                     </tr>
                                                 `).join('')}
                                             </tbody>
@@ -1701,6 +1978,9 @@ const app = {
                             <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
                             <button class="btn-action warning-alt" style="margin-right: auto;" onclick="app.showOrderAmendmentModal('${order.id}')">
                                 <i class="fas fa-edit"></i> Amendement (Changer Client)
+                            </button>
+                            <button class="btn-secondary" onclick="app.imprimerContratCommande('${order.id}')">
+                                <i class="fas fa-file-signature"></i> Bon de commande
                             </button>
                             <button class="btn-primary" onclick="app.showCashModal('${order.id}')">
                                 <i class="fas fa-cash-register"></i> Nouveau Règlement
