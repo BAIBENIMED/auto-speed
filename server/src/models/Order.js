@@ -81,13 +81,6 @@ const Order = sequelize.define('Order', {
         defaultValue: [],
         allowNull: true
     },
-    // Echeances convenues avec le client : [{ id, libelle, montant, date }]
-    paymentSchedule: {
-        type: DataTypes.JSON,
-        defaultValue: [],
-        allowNull: true,
-        field: 'payment_schedule'
-    },
     referenceDrive: {
         type: DataTypes.STRING(100),
         field: 'reference_drive'

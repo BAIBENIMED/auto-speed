@@ -1474,184 +1474,6 @@ const app = {
      * Coordonnees de l'entreprise telles que saisies dans les parametres,
      * utilisees en en-tete des documents remis au client.
      */
-    /** Echeances d'une commande, lues sans planter si le champ est vide. */
-    echeancesCommande(commande) {
-        const brut = commande && commande.paymentSchedule;
-        if (!brut) return [];
-        try {
-            const liste = typeof brut === 'string' ? JSON.parse(brut) : brut;
-            return Array.isArray(liste) ? liste : [];
-        } catch (e) {
-            return [];
-        }
-    },
-
-    /**
-     * Situation de reglement d'une commande : net a payer, deja regle,
-     * solde, et etat de chaque echeance (reglee, a venir, en retard).
-     */
-    situationReglement(commande) {
-        const reglements = (StorageService.get(STORAGE_KEYS.CASH) || []).filter(t => t.orderId === commande.id);
-        const paye = reglements.reduce((somme, t) => somme + Number(t.amount || 0), 0);
-        const net = Number(commande.totalAmount || 0) - Number(commande.discount || 0);
-        const solde = Math.max(0, net - paye);
-
-        const aujourdhui = new Date();
-        aujourdhui.setHours(0, 0, 0, 0);
-
-        // Les reglements couvrent les echeances dans l'ordre chronologique
-        let reste = paye;
-        const echeances = this.echeancesCommande(commande)
-            .slice()
-            .sort((a, b) => new Date(a.date) - new Date(b.date))
-            .map(e => {
-                const montant = Number(e.montant || 0);
-                const couvert = Math.min(reste, montant);
-                reste = Math.max(0, reste - montant);
-
-                const echue = new Date(e.date);
-                echue.setHours(0, 0, 0, 0);
-                const jours = Math.round((echue - aujourdhui) / 86400000);
-                const reglee = couvert >= montant - 0.01;
-
-                return {
-                    ...e,
-                    montant,
-                    couvert,
-                    restant: Math.max(0, montant - couvert),
-                    reglee,
-                    enRetard: !reglee && jours < 0,
-                    jours
-                };
-            });
-
-        const enRetard = echeances.filter(e => e.enRetard);
-
-        return {
-            net,
-            paye,
-            solde,
-            devise: commande.currency || 'DZD',
-            echeances,
-            enRetard,
-            montantEnRetard: enRetard.reduce((t, e) => t + e.restant, 0),
-            prochaine: echeances.find(e => !e.reglee) || null
-        };
-    },
-
-    /** Ajoute une echeance a la commande. */
-    async ajouterEcheance(idCommande) {
-        const commande = (StorageService.get(STORAGE_KEYS.ORDERS) || []).find(o => o.id === idCommande);
-        if (!commande) return;
-
-        const situation = this.situationReglement(commande);
-        const libelle = prompt('Libellé de l\'échéance (ex : Acompte, 2e versement, Solde) :', situation.echeances.length === 0 ? 'Acompte' : 'Versement');
-        if (libelle === null) return;
-
-        const montantSaisi = prompt(`Montant en ${situation.devise} (restant à planifier : ${this.formatCurrency(Math.max(0, situation.net - situation.echeances.reduce((t, e) => t + e.montant, 0)), situation.devise)}) :`, '');
-        if (montantSaisi === null) return;
-        const montant = Number(String(montantSaisi).replace(/[^0-9.,-]/g, '').replace(',', '.'));
-        if (!montant || montant <= 0) {
-            this.showToast('Montant invalide', 'error');
-            return;
-        }
-
-        const dateSaisie = prompt('Date d\'échéance (JJ-MM-AAAA) :', '');
-        if (dateSaisie === null) return;
-        const morceaux = String(dateSaisie).split(/[-\/]/);
-        if (morceaux.length !== 3) {
-            this.showToast('Date invalide, format attendu JJ-MM-AAAA', 'error');
-            return;
-        }
-        const date = `${morceaux[2]}-${String(morceaux[1]).padStart(2, '0')}-${String(morceaux[0]).padStart(2, '0')}`;
-        if (isNaN(new Date(date).getTime())) {
-            this.showToast('Date invalide', 'error');
-            return;
-        }
-
-        const echeances = this.echeancesCommande(commande).concat([{
-            id: 'ECH-' + Date.now(),
-            libelle: libelle.trim() || 'Échéance',
-            montant,
-            date
-        }]);
-
-        await this.enregistrerEcheances(commande, echeances);
-    },
-
-    async supprimerEcheance(idCommande, idEcheance) {
-        const commande = (StorageService.get(STORAGE_KEYS.ORDERS) || []).find(o => o.id === idCommande);
-        if (!commande) return;
-        await this.enregistrerEcheances(commande, this.echeancesCommande(commande).filter(e => e.id !== idEcheance));
-    },
-
-    async enregistrerEcheances(commande, echeances) {
-        try {
-            await ApiService.request(`/orders/${encodeURIComponent(commande.id)}`, {
-                method: 'PUT',
-                body: { paymentSchedule: echeances }
-            });
-
-            // Mise a jour du cache local pour un affichage immediat
-            const commandes = StorageService.get(STORAGE_KEYS.ORDERS) || [];
-            const index = commandes.findIndex(o => o.id === commande.id);
-            if (index > -1) {
-                commandes[index] = { ...commandes[index], paymentSchedule: echeances };
-                await StorageService.save(STORAGE_KEYS.ORDERS, commandes);
-            }
-
-            this.showToast('Échéancier mis à jour', 'success');
-            this.closeModal();
-            this.showOrderDetails(commande.id);
-        } catch (e) {
-            this.showToast('Enregistrement impossible : ' + e.message, 'error');
-        }
-    },
-
-    /** Bloc « Échéancier » affiche dans la fiche commande. */
-    blocEcheancier(commande) {
-        const s = this.situationReglement(commande);
-        const planifie = s.echeances.reduce((t, e) => t + e.montant, 0);
-
-        const etat = (e) => {
-            if (e.reglee) return '<span class="badge-pill" style="background: rgba(16,185,129,.12); color: var(--success); border: none;">Réglée</span>';
-            if (e.enRetard) return `<span class="badge-pill" style="background: rgba(239,68,68,.12); color: var(--danger); border: none;">En retard de ${Math.abs(e.jours)} j</span>`;
-            if (e.jours <= 7) return `<span class="badge-pill" style="background: rgba(245,158,11,.12); color: var(--warning); border: none;">Dans ${e.jours} j</span>`;
-            return `<span class="badge-pill" style="background: rgba(148,163,184,.12); color: var(--text-dim); border: none;">Dans ${e.jours} j</span>`;
-        };
-
-        return `
-            <div class="details-section">
-                <h3 style="display: flex; justify-content: space-between; align-items: center;">
-                    <span><i class="fas fa-calendar-check"></i> Échéancier de paiement</span>
-                    <button class="btn-action info" title="Ajouter une échéance" onclick="app.ajouterEcheance('${commande.id}')"><i class="fas fa-plus"></i></button>
-                </h3>
-
-                ${s.echeances.length === 0 ? `
-                    <p style="color: var(--text-dim); font-size: 0.88rem;">
-                        Aucune échéance planifiée. Sans échéance, aucun retard de paiement ne peut être signalé.
-                    </p>` : `
-                    <table class="data-table mini" style="font-size: 0.85rem;">
-                        <tbody>
-                            ${s.echeances.map(e => `
-                                <tr>
-                                    <td style="font-weight: 600;">${e.libelle}</td>
-                                    <td>${this.formatDate(e.date)}</td>
-                                    <td>${this.formatCurrency(e.montant, s.devise)}</td>
-                                    <td>${etat(e)}</td>
-                                    <td style="text-align: right;">
-                                        <button class="btn-action danger" title="Supprimer" onclick="app.supprimerEcheance('${commande.id}', '${e.id}')"><i class="fas fa-trash"></i></button>
-                                    </td>
-                                </tr>`).join('')}
-                        </tbody>
-                    </table>
-
-                    <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-dim); margin-top: 8px;">
-                        <span>Planifié : ${this.formatCurrency(planifie, s.devise)} sur ${this.formatCurrency(s.net, s.devise)}</span>
-                        ${s.montantEnRetard > 0 ? `<span style="color: var(--danger); font-weight: 700;">Impayé : ${this.formatCurrency(s.montantEnRetard, s.devise)}</span>` : ''}
-                    </div>`}
-            </div>`;
-    },
 
     enteteSociete() {
         const p = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
@@ -2160,8 +1982,6 @@ const app = {
                                 </div>
                             </div>
                         </div>
-                        ${this.blocEcheancier(order)}
-
                         <div class="details-section">
                             <h3><i class="fas fa-clock-rotate-left"></i> Historique des modifications</h3>
                             <div id="historique-commande">
@@ -3261,9 +3081,6 @@ const app = {
                 break;
             case 'exchange-rates':
                 this.renderExchangeRates(this.searchQuery);
-                break;
-            case 'profitability':
-                this.renderProfitability();
                 break;
             case 'performance':
                 this.renderPerformance();
@@ -5279,27 +5096,25 @@ const app = {
             });
         }
 
-        if (commande) {
-            const situation = this.situationReglement(commande);
 
-            if (situation.montantEnRetard > 0) {
-                const retard = situation.enRetard[0];
+        if (commande) {
+            // Relance fondee sur le solde restant du, sans planification
+            const reglements = (StorageService.get(STORAGE_KEYS.CASH) || []).filter(t => t.orderId === commande.id);
+            const paye = reglements.reduce((somme, t) => somme + Number(t.amount || 0), 0);
+            const net = Number(commande.totalAmount || 0) - Number(commande.discount || 0);
+            const solde = Math.max(0, net - paye);
+            const devise = commande.currency || 'DZD';
+
+            if (solde > 0) {
                 modeles.push({
                     cle: 'relance',
                     titre: 'Relance de paiement',
                     icone: 'fa-file-invoice-dollar',
                     texte: `${bonjour}\n\nNous revenons vers vous au sujet de la commande ${commande.id}.`
-                        + `\nL'échéance « ${retard.libelle} » de ${this.formatCurrency(retard.restant, situation.devise)} était prévue le ${this.formatDate(retard.date)}.`
-                        + `\nReste à régler à ce jour : ${this.formatCurrency(situation.solde, situation.devise)}.`
+                        + `\nMontant total : ${this.formatCurrency(net, devise)}`
+                        + `\nDéjà réglé : ${this.formatCurrency(paye, devise)}`
+                        + `\nReste à régler : ${this.formatCurrency(solde, devise)}`
                         + `\n\nMerci de nous indiquer la date de règlement prévue.` + signature
-                });
-            } else if (situation.prochaine) {
-                modeles.push({
-                    cle: 'rappel',
-                    titre: 'Rappel d\'échéance',
-                    icone: 'fa-calendar-check',
-                    texte: `${bonjour}\n\nPetit rappel concernant la commande ${commande.id} : l'échéance « ${situation.prochaine.libelle} » `
-                        + `de ${this.formatCurrency(situation.prochaine.restant, situation.devise)} est prévue le ${this.formatDate(situation.prochaine.date)}.` + signature
                 });
             }
 
@@ -8795,58 +8610,6 @@ const app = {
 
 
     /**
-     * Marge d'un vehicule, ramenee a une devise unique.
-     * Prix de vente net (commande) moins le prix d'achat et les frais connus
-     * (droits de douane estimes). Tous les montants sont convertis au taux
-     * enregistre dans l'application.
-     */
-    margeVehicule(vehicule, commande, deviseRapport) {
-        const devise = deviseRapport || this.deviseRapport();
-
-        const brut = commande ? Number(commande.totalAmount || 0) : Number(vehicule.sellingPrice || 0);
-        const remise = commande ? Number(commande.discount || 0) : 0;
-        const deviseVente = (commande && commande.currency) || vehicule.sellingCurrency || devise;
-        const vente = this.convertCurrency(brut - remise, deviseVente, devise);
-
-        const achat = this.convertCurrency(
-            Number(vehicule.purchasePrice || 0),
-            vehicule.purchaseCurrency || 'EUR',
-            devise
-        );
-
-        const parametres = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
-        const frais = this.convertCurrency(
-            Number(vehicule.estimatedCustomsDuty || 0),
-            parametres.customsCurrency || 'EUR',
-            devise
-        );
-
-        const cout = achat + frais;
-        const marge = vente - cout;
-
-        return {
-            devise,
-            vente,
-            achat,
-            frais,
-            cout,
-            marge,
-            taux: vente > 0 ? (marge / vente) * 100 : 0,
-            complet: vente > 0 && achat > 0
-        };
-    },
-
-    /** Devise dans laquelle les analyses financieres sont presentees. */
-    deviseRapport() {
-        const parametres = StorageService.get(STORAGE_KEYS.SETTINGS) || {};
-        return parametres.reportingCurrency || parametres.sellingCurrency || 'DZD';
-    },
-
-    /**
-     * Rentabilite : une ligne par vehicule vendu, avec le detail du cout et
-     * de la marge, plus une synthese par mois, showroom et marque.
-     */
-    /**
      * Performance logistique et commerciale : combien de temps met vraiment
      * un vehicule pour arriver, quels transporteurs tiennent leurs dates,
      * depuis combien de temps le stock dort, et ce qui se vend.
@@ -8988,232 +8751,6 @@ const app = {
                         </div>`).join('')}
                 </div>
             </div>`;
-    },
-
-    renderProfitability() {
-        if (!this.canAccess('orders.financials') && !this.isAdmin()) {
-            this.viewContainer.innerHTML = '<div class="glass-card" style="padding:40px; text-align:center; color:var(--text-dim);">Vous n\'avez pas accès aux données financières.</div>';
-            return;
-        }
-
-        const devise = this.deviseRapport();
-        const commandes = (StorageService.get(STORAGE_KEYS.ORDERS) || []).filter(o => !o.isArchived);
-        const vehicules = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
-        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
-        const filtres = this.filtresRentabilite || (this.filtresRentabilite = { showroom: '', annee: '', marque: '' });
-
-        // Une ligne par commande ayant un vehicule : c'est la vente reelle
-        let lignes = commandes.map(commande => {
-            const vehicule = vehicules.find(v => v.id === commande.vehicleId)
-                || vehicules.find(v => v.orderId === commande.id);
-            if (!vehicule) return null;
-
-            const client = clients.find(c => c.id === commande.clientId);
-            const m = this.margeVehicule(vehicule, commande, devise);
-
-            return {
-                commande,
-                vehicule,
-                client,
-                showroom: commande.showroom || vehicule.showroom || '-',
-                marque: vehicule.brand || '-',
-                date: commande.date,
-                ...m
-            };
-        }).filter(Boolean);
-
-        if (filtres.showroom) lignes = lignes.filter(l => l.showroom === filtres.showroom);
-        if (filtres.marque) lignes = lignes.filter(l => l.marque === filtres.marque);
-        if (filtres.annee) lignes = lignes.filter(l => String(new Date(l.date).getFullYear()) === filtres.annee);
-
-        lignes.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        const somme = (cle) => lignes.reduce((t, l) => t + (l[cle] || 0), 0);
-        const totalVente = somme('vente');
-        const totalCout = somme('cout');
-        const totalMarge = somme('marge');
-        const tauxMoyen = totalVente > 0 ? (totalMarge / totalVente) * 100 : 0;
-        const incomplets = lignes.filter(l => !l.complet).length;
-
-        const couleurMarge = (taux) => taux >= 15 ? 'var(--success)' : (taux >= 5 ? 'var(--warning)' : 'var(--danger)');
-
-        // Syntheses
-        const grouper = (cle) => {
-            const groupes = {};
-            lignes.forEach(l => {
-                const k = cle === 'mois'
-                    ? `${String(new Date(l.date).getMonth() + 1).padStart(2, '0')}-${new Date(l.date).getFullYear()}`
-                    : (l[cle] || '-');
-                if (!groupes[k]) groupes[k] = { ventes: 0, marge: 0, nombre: 0 };
-                groupes[k].ventes += l.vente;
-                groupes[k].marge += l.marge;
-                groupes[k].nombre += 1;
-            });
-            return Object.entries(groupes).sort((a, b) => b[1].marge - a[1].marge);
-        };
-
-        const showrooms = [...new Set(commandes.map(o => o.showroom).filter(Boolean))];
-        const marques = [...new Set(vehicules.map(v => v.brand).filter(Boolean))].sort();
-        const annees = [...new Set(commandes.map(o => new Date(o.date).getFullYear()).filter(a => !isNaN(a)))].sort((a, b) => b - a);
-
-        const tableauSynthese = (titre, entrees) => `
-            <div class="glass-card" style="padding: 18px; border-radius: 14px;">
-                <h3 style="font-size: 0.9rem; margin-bottom: 12px;">${titre}</h3>
-                ${entrees.length === 0 ? '<p style="color: var(--text-dim); font-size: 0.85rem;">Aucune donnée.</p>' : `
-                <table class="data-table mini" style="font-size: 0.82rem;">
-                    <tbody>
-                        ${entrees.slice(0, 6).map(([nom, v]) => `
-                            <tr>
-                                <td style="font-weight: 600;">${nom}</td>
-                                <td style="color: var(--text-dim);">${v.nombre} vte</td>
-                                <td style="text-align: right; font-weight: 700; color: ${couleurMarge(v.ventes > 0 ? (v.marge / v.ventes) * 100 : 0)};">
-                                    ${this.formatCurrency(v.marge, devise)}
-                                </td>
-                            </tr>`).join('')}
-                    </tbody>
-                </table>`}
-            </div>`;
-
-        this.viewContainer.innerHTML = `
-            <div class="view-header">
-                <div>
-                    <h1><i class="fas fa-chart-line"></i> Rentabilité</h1>
-                    <p>Marge réelle par véhicule vendu, en ${devise}</p>
-                </div>
-                <div class="header-actions">
-                    <button class="btn-secondary" onclick="app.exporterRentabiliteCSV()">
-                        <i class="fas fa-file-csv"></i> Export CSV
-                    </button>
-                </div>
-            </div>
-
-            <div class="filters-container glass-card" style="margin-top: 20px; padding: 15px; display: flex; gap: 12px; flex-wrap: wrap;">
-                <select class="glass-select" style="flex: 1; min-width: 160px;" onchange="app.filtrerRentabilite('showroom', this.value)">
-                    <option value="">Tous les showrooms</option>
-                    ${showrooms.map(sh => `<option value="${sh}" ${filtres.showroom === sh ? 'selected' : ''}>${sh}</option>`).join('')}
-                </select>
-                <select class="glass-select" style="flex: 1; min-width: 160px;" onchange="app.filtrerRentabilite('marque', this.value)">
-                    <option value="">Toutes les marques</option>
-                    ${marques.map(m => `<option value="${m}" ${filtres.marque === m ? 'selected' : ''}>${m}</option>`).join('')}
-                </select>
-                <select class="glass-select" style="flex: 1; min-width: 140px;" onchange="app.filtrerRentabilite('annee', this.value)">
-                    <option value="">Toutes les années</option>
-                    ${annees.map(a => `<option value="${a}" ${filtres.annee === String(a) ? 'selected' : ''}>${a}</option>`).join('')}
-                </select>
-            </div>
-
-            <div class="stats-grid" style="margin-top: 20px;">
-                <div class="stat-card glass-card">
-                    <div class="stat-label">Chiffre d'affaires</div>
-                    <div class="stat-value">${this.formatCurrency(totalVente, devise)}</div>
-                    <div class="stat-sub">${lignes.length} véhicule(s) vendu(s)</div>
-                </div>
-                <div class="stat-card glass-card">
-                    <div class="stat-label">Coût de revient</div>
-                    <div class="stat-value">${this.formatCurrency(totalCout, devise)}</div>
-                    <div class="stat-sub">achat + droits estimés</div>
-                </div>
-                <div class="stat-card glass-card">
-                    <div class="stat-label">Marge nette</div>
-                    <div class="stat-value" style="color: ${couleurMarge(tauxMoyen)};">${this.formatCurrency(totalMarge, devise)}</div>
-                    <div class="stat-sub">taux moyen : ${tauxMoyen.toFixed(1)} %</div>
-                </div>
-                <div class="stat-card glass-card">
-                    <div class="stat-label">Marge moyenne</div>
-                    <div class="stat-value">${this.formatCurrency(lignes.length ? totalMarge / lignes.length : 0, devise)}</div>
-                    <div class="stat-sub">par véhicule</div>
-                </div>
-            </div>
-
-            ${incomplets > 0 ? `
-            <div class="glass-card" style="margin-top: 16px; padding: 14px 18px; border-left: 3px solid var(--warning); font-size: 0.88rem;">
-                <i class="fas fa-triangle-exclamation" style="color: var(--warning);"></i>
-                ${incomplets} véhicule(s) sans prix d'achat ou sans prix de vente : leur marge est incomplète.
-            </div>` : ''}
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 20px;">
-                ${tableauSynthese('Par mois', grouper('mois'))}
-                ${tableauSynthese('Par showroom', grouper('showroom'))}
-                ${tableauSynthese('Par marque', grouper('marque'))}
-            </div>
-
-            <div class="data-table-container glass-card" style="margin-top: 20px;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Commande</th>
-                            <th>Véhicule</th>
-                            <th>Client</th>
-                            <th style="text-align: right;">Vente</th>
-                            <th style="text-align: right;">Achat</th>
-                            <th style="text-align: right;">Frais</th>
-                            <th style="text-align: right;">Marge</th>
-                            <th style="text-align: right;">Taux</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${lignes.length === 0 ? `
-                            <tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-dim);">Aucune vente à analyser.</td></tr>
-                        ` : lignes.map(l => `
-                            <tr style="cursor: pointer;" onclick="app.showOrderDetails('${l.commande.id}')">
-                                <td>
-                                    <div style="font-weight: 600;">${l.commande.id}</div>
-                                    <div style="font-size: 0.75rem; color: var(--text-dim);">${this.formatDate(l.date)}</div>
-                                </td>
-                                <td>
-                                    <div>${l.vehicule.brand} ${l.vehicule.model || ''}</div>
-                                    <div style="font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace; color: var(--text-dim);">${l.vehicule.chassisNumber || '-'}</div>
-                                </td>
-                                <td>${l.client ? `${l.client.lastName} ${l.client.firstName}` : '-'}</td>
-                                <td style="text-align: right;">${this.formatCurrency(l.vente, devise)}</td>
-                                <td style="text-align: right; color: var(--text-dim);">${this.formatCurrency(l.achat, devise)}</td>
-                                <td style="text-align: right; color: var(--text-dim);">${this.formatCurrency(l.frais, devise)}</td>
-                                <td style="text-align: right; font-weight: 700; color: ${couleurMarge(l.taux)};">${this.formatCurrency(l.marge, devise)}</td>
-                                <td style="text-align: right; color: ${couleurMarge(l.taux)};">${l.taux.toFixed(1)} %</td>
-                            </tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>`;
-
-        this.lignesRentabilite = lignes;
-    },
-
-    filtrerRentabilite(cle, valeur) {
-        this.filtresRentabilite = { ...(this.filtresRentabilite || {}), [cle]: valeur };
-        this.renderProfitability();
-    },
-
-    exporterRentabiliteCSV() {
-        const lignes = this.lignesRentabilite || [];
-        if (lignes.length === 0) {
-            this.showToast('Aucune donnée à exporter', 'warning');
-            return;
-        }
-
-        const devise = this.deviseRapport();
-        const entetes = ['Commande', 'Date', 'Showroom', 'Marque', 'Modele', 'Chassis', 'Client', `Vente (${devise})`, `Achat (${devise})`, `Frais (${devise})`, `Marge (${devise})`, 'Taux %'];
-
-        const contenu = [entetes.join(';')].concat(lignes.map(l => [
-            l.commande.id,
-            this.formatDate(l.date),
-            l.showroom,
-            l.marque,
-            l.vehicule.model || '',
-            l.vehicule.chassisNumber || '',
-            l.client ? `${l.client.lastName} ${l.client.firstName}` : '',
-            Math.round(l.vente),
-            Math.round(l.achat),
-            Math.round(l.frais),
-            Math.round(l.marge),
-            l.taux.toFixed(1)
-        ].join(';'))).join('\n');
-
-        const blob = new Blob(['\ufeff' + contenu], { type: 'text/csv;charset=utf-8;' });
-        const lien = document.createElement('a');
-        lien.href = URL.createObjectURL(blob);
-        lien.download = `rentabilite-${new Date().toISOString().split('T')[0]}.csv`;
-        lien.click();
-        URL.revokeObjectURL(lien.href);
     },
 
     renderExchangeRates(query = '') {
@@ -12409,39 +11946,8 @@ const app = {
             }
         });
 
-        // 5. Echeances de paiement depassees
-        orders.forEach(o => {
-            if (o.isArchived) return;
-            const situation = this.situationReglement(o);
-            if (situation.montantEnRetard <= 0) return;
 
-            const plusAncienne = situation.enRetard[0];
-            alerts.push({
-                type: 'danger',
-                icon: 'fa-file-invoice-dollar',
-                title: `Impayé : ${this.formatCurrency(situation.montantEnRetard, situation.devise)} — #${o.id}`,
-                message: `${clientLabel(o.clientId)} : « ${plusAncienne.libelle} » était dû le ${this.formatDate(plusAncienne.date)} (retard de ${Math.abs(plusAncienne.jours)} jours).`,
-                date: plusAncienne.date
-            });
-        });
-
-        // 6. Echeances a regler dans les 7 jours
-        orders.forEach(o => {
-            if (o.isArchived) return;
-            const situation = this.situationReglement(o);
-            const prochaine = situation.prochaine;
-            if (!prochaine || prochaine.enRetard || prochaine.jours > 7) return;
-
-            alerts.push({
-                type: 'warning',
-                icon: 'fa-hourglass-half',
-                title: `Échéance proche : #${o.id}`,
-                message: `${clientLabel(o.clientId)} doit régler « ${prochaine.libelle} » (${this.formatCurrency(prochaine.restant, situation.devise)}) sous ${prochaine.jours} jour(s).`,
-                date: prochaine.date
-            });
-        });
-
-        // 7. Documents de transport non recus alors que le navire approche
+        // 5. Documents de transport non recus alors que le navire approche
         shipments.forEach(s => {
             if (s.isArchived || s.docReceptionDate || !s.eta) return;
             const eta = new Date(s.eta);
@@ -12461,7 +11967,7 @@ const app = {
             });
         });
 
-        // 8. Vehicules arrives depuis plus de 15 jours, toujours pas enleves
+        // 6. Vehicules arrives depuis plus de 15 jours, toujours pas enleves
         shipments.forEach(s => {
             if (s.isArchived || !s.arrivalDate || s.pickupDate) return;
             const jours = Math.round((now - new Date(s.arrivalDate)) / 86400000);
@@ -12477,7 +11983,7 @@ const app = {
             });
         });
 
-        // 9. Dedouanement non fait un mois apres l'arrivee
+        // 7. Dedouanement non fait un mois apres l'arrivee
         shipments.forEach(s => {
             if (s.isArchived || !s.arrivalDate || s.customsClearanceDate) return;
             const jours = Math.round((now - new Date(s.arrivalDate)) / 86400000);
@@ -12492,7 +11998,7 @@ const app = {
             });
         });
 
-        // 10. System Notifications (Backend Persistent)
+        // 8. System Notifications (Backend Persistent)
         const notifications = StorageService.get(STORAGE_KEYS.NOTIFICATIONS) || [];
         notifications.forEach(n => {
             if (!n.isRead) {
