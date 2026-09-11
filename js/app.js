@@ -10584,6 +10584,10 @@ const app = {
                                                     <option value="${v.id}">${v.name}</option>
                                                 `).join('')}
                                             </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Nom du voyage (libre)</label>
+                                            <input type="text" name="voyage" class="glass-input" placeholder="ex : VOY-2026-03">
                                         </div>
                                         <div class="form-group">
                                             <label>Date d'expédition</label>
@@ -10798,11 +10802,15 @@ const app = {
                                         <div class="form-group">
                                             <label>Voyage (Officiel)</label>
                                             <select name="voyageId" class="glass-select" id="shipment-voyage-select">
-                                                <option value="">-- Aucun / Legacy (${shipment.voyage || 'SANS NOM'}) --</option>
+                                                <option value="">-- Aucun voyage enregistré --</option>
                                                 ${(StorageService.get(STORAGE_KEYS.VOYAGES) || []).map(v => `
                                                     <option value="${v.id}" ${shipment.voyageId === v.id ? 'selected' : ''}>${v.name}</option>
                                                 `).join('')}
                                             </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Nom du voyage (libre)</label>
+                                            <input type="text" name="voyage" value="${shipment.voyage || ''}" class="glass-input" placeholder="ex : VOY-2026-03">
                                         </div>
                                         <div class="form-group">
                                             <label>Date d'expédition</label>
@@ -10959,12 +10967,21 @@ const app = {
 
             const sanitizeDate = (val) => (val && val.trim() !== '' ? val : null);
             const voyageId = formData.get('voyageId') ? parseInt(formData.get('voyageId')) : null;
-            let voyageName = '';
+
+            // Le formulaire ne portait pas le champ « voyage » : formData.get
+            // renvoyait null et le nom du voyage etait efface a chaque
+            // enregistrement, ce qui rassemblait toutes les expeditions dans
+            // un unique groupe « SANS VOYAGE ». On ne l'ecrase donc que si le
+            // champ est reellement present dans le formulaire.
+            const expeditionExistante = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+                .find(e => String(e.id) === String(formData.get('shipmentId')));
+
+            let voyageName = expeditionExistante ? (expeditionExistante.voyage || '') : '';
             if (voyageId) {
                 const voyage = (StorageService.get(STORAGE_KEYS.VOYAGES) || []).find(v => v.id === voyageId);
                 if (voyage) voyageName = voyage.name;
-            } else {
-                voyageName = formData.get('voyage') || '';
+            } else if (formData.has('voyage')) {
+                voyageName = (formData.get('voyage') || '').trim();
             }
 
             let arrivalDate = sanitizeDate(formData.get('arrivalDate'));
