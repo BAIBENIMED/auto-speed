@@ -403,6 +403,23 @@ document.addEventListener('DOMContentLoaded', () => {
      * n'avait pas quitte le quai. On s'appuie desormais sur les dates
      * reellement renseignees, et le statut ne sert que de complement.
      */
+    /** Premier evenement de l'historique correspondant au motif, avec sa date. */
+    function evenementDate(expedition, motif) {
+        if (!expedition) return null;
+
+        let etapes = expedition.trackingHistory;
+        if (typeof etapes === 'string') {
+            try { etapes = JSON.parse(etapes); } catch (e) { etapes = []; }
+        }
+        if (!Array.isArray(etapes)) return null;
+
+        const trouve = etapes.find(e => e && motif.test(`${e.description || ''} ${e.location || ''}`));
+        if (!trouve) return null;
+
+        const quand = trouve.date ? new Date(trouve.date) : null;
+        return { evenement: trouve, quand: quand && !isNaN(quand.getTime()) ? quand : null };
+    }
+
     /** Un transbordement a-t-il ete annonce par le transporteur ? */
     function transbordementDetecte(expedition) {
         if (!expedition) return null;
@@ -439,15 +456,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((arrivee && arrivee <= maintenant) || statutArrive) return 6;
 
         // Le navire a-t-il quitte le port de chargement ?
+        //
+        // La position GPS ne prouve rien : un navire a quai en a une aussi,
+        // et le suivi la remonte des que le conteneur est enregistre. Seuls
+        // comptent une date de depart passee ou un evenement de depart.
         const depart = date(expedition && expedition.etd);
-        const statutParti = /depart|départ|sailed|shipped|on board|a bord|à bord/.test(statut);
-        const enMer = /en mer|transit|sailing|at sea/.test(statut);
-        const positionConnue = !!(expedition && expedition.currentLat && expedition.currentLng);
-        const parti = (depart && depart <= maintenant) || statutParti || enMer || positionConnue;
+        const departPasse = !!(depart && depart <= maintenant);
+        const departAnnonceFutur = !!(depart && depart > maintenant);
 
-        // 5. Transbordement : annonce par le transporteur, et seulement une
-        //    fois le navire parti — un evenement date ne fait pas avancer le
-        //    parcours d'une expedition encore a quai.
+        const evenementDepart = evenementDate(expedition, /depart|départ|sailed|vessel departure|left port/i);
+        const departConstate = !!(evenementDepart && (!evenementDepart.quand || evenementDepart.quand <= maintenant));
+
+        const statutParti = /depart|départ|sailed|shipped|on board|a bord|à bord/.test(statut);
+        const statutEnMer = /en mer|transit|sailing|at sea/.test(statut);
+
+        // Tant que la date de depart annoncee n'est pas atteinte, l'expedition
+        // reste a quai : un statut saisi a la main ne doit pas la faire
+        // avancer. Seul un depart constate par le transporteur peut primer.
+        if (departAnnonceFutur && !departConstate) return 2;
+
+        const parti = departPasse || departConstate || statutParti || statutEnMer;
+
+        // 5. Transbordement : annonce par le transporteur, une fois parti
         if (parti) {
             const transbordement = transbordementDetecte(expedition);
             if (transbordement) {
@@ -456,10 +486,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 4. En mer : transit annonce ou position connue
-        if (enMer || positionConnue) return 4;
+        // 4. En mer : le transporteur signale la traversee
+        if (statutEnMer || (parti && expedition && expedition.currentLat && expedition.currentLng)) return 4;
 
-        // 3. Depart : la date de depart est passee
+        // 3. Depart effectue
         if (parti) return 3;
 
         // 2. Chargement : l'expedition existe, le depart n'a pas eu lieu
