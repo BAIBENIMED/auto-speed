@@ -5,6 +5,19 @@ const models = require('../models');
 
 // Endpoint to get all data at once for synchronization
 router.get('/sync-all', authMiddleware, async (req, res) => {
+    const echecs = [];
+
+    /**
+     * Une table en echec ne doit pas emporter toute la synchronisation :
+     * on renvoie null pour cette entite, ce que le client interprete comme
+     * « garde ce que tu as » au lieu d'ecraser son cache avec du vide.
+     */
+    const sansCasser = (nom, promesse) => promesse.catch((err) => {
+        console.error(`[Sync] Lecture de ${nom} impossible :`, err.message);
+        echecs.push({ entite: nom, message: err.message });
+        return null;
+    });
+
     try {
         console.log('📥 Sync request from:', req.user?.username);
 
@@ -28,12 +41,12 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             voyages,
             transfers
         ] = await Promise.all([
-            models.Role.findAll(),
-            models.User.findAll({ include: [{ model: models.Role, as: 'role' }] }),
-            models.Client.findAll(),
-            models.Order.findAll(),
-            models.Vehicle.findAll(),
-            models.Shipment.findAll(),
+            sansCasser('roles', models.Role.findAll()),
+            sansCasser('utilisateurs', models.User.findAll({ include: [{ model: models.Role, as: 'role' }] })),
+            sansCasser('clients', models.Client.findAll()),
+            sansCasser('commandes', models.Order.findAll()),
+            sansCasser('vehicules', models.Vehicle.findAll()),
+            sansCasser('expeditions', models.Shipment.findAll()),
             models.Brand.findAll({ 
                 include: [{ 
                     model: models.VehicleModel, 
@@ -44,11 +57,11 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
                 console.warn('⚠️ Could not fetch trims for sync, falling back to brands/models only:', err.message);
                 return models.Brand.findAll({ include: [{ model: models.VehicleModel, as: 'models' }] });
             }),
-            models.Showroom.findAll(),
-            models.Settings.findOne(),
-            models.ExchangeRate.findAll({ order: [['date', 'DESC']] }),
-            models.CashTransaction.findAll(),
-            models.DynamicAttribute.findAll({ order: [['sortOrder', 'ASC']] }),
+            sansCasser('showrooms', models.Showroom.findAll()),
+            sansCasser('parametres', models.Settings.findOne()),
+            sansCasser('taux de change', models.ExchangeRate.findAll({ order: [['date', 'DESC']] })),
+            sansCasser('caisse', models.CashTransaction.findAll()),
+            sansCasser('listes', models.DynamicAttribute.findAll({ order: [['sortOrder', 'ASC']] })),
             models.PurchaseOrder.findAll({
                 include: [{
                     model: models.Vehicle,
@@ -59,7 +72,7 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
                 console.warn('⚠️ Could not fetch purchase orders for sync:', err.message);
                 return [];
             }),
-            models.Supplier.findAll(),
+            sansCasser('fournisseurs', models.Supplier.findAll()),
             models.Notification.findAll({ order: [['createdAt', 'DESC']], limit: 100 }).catch(err => {
                 console.warn('⚠️ Could not fetch notifications (Table missing?):', err.message);
                 return []; // Return empty array on failure
@@ -71,26 +84,26 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
                 console.warn('⚠️ Could not fetch voyages (Table missing?):', err.message);
                 return [];
             }),
-            models.VehicleTransfer.findAll({
+            sansCasser('transferts', models.VehicleTransfer.findAll({
                 include: [
                     { model: models.Client, as: 'fromClient', attributes: ['id', 'firstName', 'lastName'] },
                     { model: models.Client, as: 'toClient', attributes: ['id', 'firstName', 'lastName'] },
                     { model: models.Vehicle, as: 'vehicle', attributes: ['id', 'brand', 'model', 'chassisNumber'] }
                 ],
                 order: [['transferDate', 'DESC']]
-            })
+            }))
         ]);
 
         const syncData = {
             roles,
-            users: users.map(u => ({
+            users: users ? users.map(u => ({
                 id: u.id,
                 username: u.username,
                 name: u.name,
                 roleId: u.roleId,
                 clientId: u.clientId,
                 role: u.role
-            })),
+            })) : null,
             clients,
             orders,
             vehicles,
@@ -98,6 +111,9 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             brands,
             showrooms,
             settings: settings || {},
+            // Les entites absentes ci-dessus valent null : le client conserve
+            // alors ses donnees locales au lieu de les effacer.
+            echecs: echecs.length ? echecs : undefined,
             exchangeRates,
             cashTransactions,
             attributes,

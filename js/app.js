@@ -471,6 +471,10 @@ const app = {
                 if (!synced) {
                     console.warn("Initial sync failed, using local data.");
                 }
+                if (Array.isArray(this.echecsSynchronisation) && this.echecsSynchronisation.length) {
+                    const entites = this.echecsSynchronisation.map(e => e.entite).join(', ');
+                    this.showToast(`Synchronisation partielle : ${entites} n'a pas pu être lu sur le serveur.`, "warning", 9000);
+                }
             } catch (error) {
                 console.error("❌ Critical sync error during initialization:", error);
 
@@ -489,7 +493,12 @@ const app = {
                 }
 
                 console.warn("⚠️ Sync failed, running in OFFLINE mode with local data.", error);
-                this.showToast("Mode Hors-Ligne : Impossible de synchroniser avec le serveur.", "warning");
+
+                // Sans la cause, « impossible de synchroniser » n'aide personne
+                const cause = error.status
+                    ? `erreur ${error.status} — ${error.message}`
+                    : (error.message || 'cause inconnue');
+                this.showToast(`Mode Hors-Ligne : ${cause}`, "warning", 9000);
             }
         }
 

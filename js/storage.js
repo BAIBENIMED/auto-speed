@@ -384,6 +384,10 @@ const StorageService = {
             if (response.success && response.data) {
                 const data = response.data;
 
+                // Le serveur signale les tables qu'il n'a pas pu lire : elles
+                // valent null ci-dessous, donc les donnees locales sont gardees.
+                if (typeof app !== 'undefined') app.echecsSynchronisation = data.echecs || [];
+
                 // Simple mappings
                 if (data.vehicles) localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(data.vehicles));
                 if (data.orders) localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(data.orders));
