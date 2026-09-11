@@ -278,6 +278,109 @@ class ContainerTrackingService {
             }
         };
     }
+
+    /**
+     * Diagnostic du suivi maritime : repond a la question « pourquoi le
+     * tracking ne marche pas ? » sans avoir a lire les journaux du serveur.
+     * La cle n'est jamais renvoyee en clair.
+     */
+    async diagnostiquer(numero) {
+        const rapport = {
+            cleConfiguree: false,
+            cleApercu: null,
+            numeroTeste: null,
+            transporteurDetecte: null,
+            codeCompagnie: null,
+            apiJoignable: null,
+            dureeMs: null,
+            statutHttp: null,
+            resultat: null,
+            erreur: null,
+            conclusion: ''
+        };
+
+        const cle = (this.apiKey || '').trim();
+        rapport.cleConfiguree = !!cle && cle !== 'your_safecube_key_here';
+        if (rapport.cleConfiguree) {
+            rapport.cleApercu = `${cle.length} caracteres, finit par ${cle.slice(-4)}`;
+        }
+
+        if (!rapport.cleConfiguree) {
+            rapport.conclusion = "Aucune cle d'API n'est configuree sur le serveur (variable SAFECUBE_API_KEY). "
+                + 'Le suivi automatique est donc desactive : seuls les liens vers les sites des transporteurs sont proposes.';
+            return rapport;
+        }
+
+        const identifiant = (numero || '').trim().toUpperCase();
+        if (!identifiant) {
+            rapport.conclusion = "Cle presente. Indiquez un numero de conteneur ou de BL pour tester l'appel reel.";
+            return rapport;
+        }
+
+        rapport.numeroTeste = identifiant;
+        const transporteur = this.detectCarrier(identifiant);
+        rapport.transporteurDetecte = transporteur ? transporteur.carrier : 'non reconnu';
+        rapport.codeCompagnie = this.detectSealineCode(identifiant) || 'detection automatique par Sinay';
+
+        const depart = Date.now();
+        try {
+            const reponse = await axios.get(`${this.baseUrl}/shipment`, {
+                params: {
+                    shipmentNumber: identifiant,
+                    sealine: this.detectSealineCode(identifiant),
+                    shipmentType: /^[A-Z]{4}\d{7}$/.test(identifiant) ? 'CT' : 'BL',
+                    route: true,
+                    ais: true
+                },
+                headers: { 'API_KEY': cle, 'X-API-KEY': cle, 'Accept': 'application/json' },
+                timeout: 30000
+            });
+
+            rapport.dureeMs = Date.now() - depart;
+            rapport.apiJoignable = true;
+            rapport.statutHttp = reponse.status;
+
+            const donnees = this.mapSinayV2Response(reponse.data, identifiant, false);
+            rapport.resultat = {
+                statut: donnees.status,
+                navire: donnees.vesselName,
+                position: donnees.location || null,
+                etd: donnees.etd,
+                eta: donnees.eta,
+                evenements: (donnees.events || []).length
+            };
+
+            rapport.conclusion = donnees.status === 'ERREUR'
+                ? `L'API repond mais ne suit pas ce numero : ${donnees.message || 'aucune donnee'}.`
+                : `Le suivi fonctionne pour ${identifiant} : ${donnees.status}, navire ${donnees.vesselName || 'inconnu'}, ${(donnees.events || []).length} evenement(s).`;
+            return rapport;
+
+        } catch (erreur) {
+            rapport.dureeMs = Date.now() - depart;
+            rapport.apiJoignable = !!erreur.response;
+            rapport.statutHttp = erreur.response ? erreur.response.status : null;
+            rapport.erreur = erreur.response
+                ? (erreur.response.data && (erreur.response.data.message || erreur.response.data.error)) || erreur.message
+                : erreur.message;
+
+            if (erreur.code === 'ECONNABORTED') {
+                rapport.conclusion = "L'API Sinay n'a pas repondu en 30 secondes. Reessayez plus tard.";
+            } else if (rapport.statutHttp === 401 || rapport.statutHttp === 403) {
+                rapport.conclusion = "La cle d'API est refusee (droits insuffisants, cle expiree ou quota epuise). "
+                    + 'Verifiez votre abonnement Sinay et la valeur de SAFECUBE_API_KEY.';
+            } else if (rapport.statutHttp === 404) {
+                rapport.conclusion = `Sinay ne connait pas le numero ${identifiant} : verifiez le numero, ou le transporteur ne publie pas encore ce conteneur.`;
+            } else if (rapport.statutHttp === 429) {
+                rapport.conclusion = 'Quota de requetes depasse chez Sinay. Le suivi repartira apres renouvellement du quota.';
+            } else if (!erreur.response) {
+                rapport.conclusion = "Le serveur n'arrive pas a joindre l'API Sinay (reseau ou pare-feu).";
+            } else {
+                rapport.conclusion = `L'API Sinay renvoie une erreur ${rapport.statutHttp} : ${rapport.erreur}`;
+            }
+
+            return rapport;
+        }
+    }
 }
 
 module.exports = new ContainerTrackingService();

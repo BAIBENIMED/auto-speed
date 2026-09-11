@@ -7086,6 +7086,58 @@ const app = {
     },
 
     /** Liste les sauvegardes disponibles sur le serveur. */
+    /** Interroge le serveur pour savoir pourquoi le suivi ne remonte rien. */
+    async diagnostiquerSuivi(bouton) {
+        const zone = document.getElementById('resultat-diagnostic');
+        const numero = (document.getElementById('numero-diagnostic') || {}).value || '';
+        if (!zone) return;
+
+        const avant = bouton ? bouton.innerHTML : null;
+        if (bouton) {
+            bouton.disabled = true;
+            bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Test en cours...';
+        }
+        zone.innerHTML = '<span style="color: var(--text-dim);">Interrogation de l\'API de suivi...</span>';
+
+        try {
+            const reponse = await ApiService.request(`/tracking/diagnostic?numero=${encodeURIComponent(numero.trim())}`);
+            const r = (reponse && reponse.data) || {};
+            const ok = !r.erreur && r.cleConfiguree && (!r.numeroTeste || r.apiJoignable);
+
+            const ligne = (etiquette, valeur) => valeur === null || valeur === undefined || valeur === ''
+                ? ''
+                : `<div style="display: flex; gap: 10px; padding: 3px 0;">
+                       <span style="color: var(--text-dim); min-width: 170px;">${etiquette}</span>
+                       <strong style="overflow-wrap: anywhere;">${valeur}</strong>
+                   </div>`;
+
+            zone.innerHTML = `
+                <div style="padding: 14px 16px; border-radius: 12px; border-left: 3px solid ${ok ? 'var(--success)' : 'var(--danger)'}; background: rgba(255,255,255,0.03);">
+                    <div style="font-weight: 700; margin-bottom: 10px; color: ${ok ? 'var(--success)' : 'var(--danger)'};">
+                        <i class="fas ${ok ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${r.conclusion || 'Diagnostic terminé'}
+                    </div>
+                    ${ligne('Clé d\'API', r.cleConfiguree ? 'configurée (' + r.cleApercu + ')' : 'absente')}
+                    ${ligne('Numéro testé', r.numeroTeste)}
+                    ${ligne('Transporteur reconnu', r.transporteurDetecte)}
+                    ${ligne('Code compagnie envoyé', r.codeCompagnie)}
+                    ${ligne('Réponse HTTP', r.statutHttp)}
+                    ${ligne('Temps de réponse', r.dureeMs ? r.dureeMs + ' ms' : null)}
+                    ${ligne('Message de l\'API', r.erreur)}
+                    ${r.resultat ? ligne('Statut remonté', r.resultat.statut) + ligne('Navire', r.resultat.navire)
+                        + ligne('ETD', r.resultat.etd ? this.formatDate(r.resultat.etd) : null)
+                        + ligne('ETA', r.resultat.eta ? this.formatDate(r.resultat.eta) : null)
+                        + ligne('Événements reçus', r.resultat.evenements) : ''}
+                </div>`;
+        } catch (e) {
+            zone.innerHTML = `<span style="color: var(--danger);">Diagnostic impossible : ${e.message}</span>`;
+        } finally {
+            if (bouton) {
+                bouton.disabled = false;
+                bouton.innerHTML = avant;
+            }
+        }
+    },
+
     async chargerSauvegardes() {
         const zone = document.getElementById('liste-sauvegardes');
         if (!zone) return;
@@ -7390,6 +7442,22 @@ const app = {
 
 
                                 ${this.isAdmin() ? `
+                                <div class="settings-section">
+                                    <h3><i class="fas fa-satellite-dish"></i> Suivi maritime</h3>
+                                    <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 15px;">
+                                        Le suivi automatique ne remonte rien ? Ce test interroge l'API de suivi et indique la cause exacte :
+                                        clé absente, clé refusée, quota épuisé, numéro inconnu ou service injoignable.
+                                    </p>
+                                    <div class="form-row" style="gap: 12px; margin-bottom: 12px;">
+                                        <input type="text" id="numero-diagnostic" class="glass-input" style="flex: 2;"
+                                               placeholder="N° de conteneur ou de BL à tester (ex : MSCU1234567)">
+                                        <button type="button" class="btn-secondary" style="flex: 1; justify-content: center;" onclick="app.diagnostiquerSuivi(this)">
+                                            <i class="fas fa-stethoscope" style="color: var(--primary);"></i> Diagnostiquer
+                                        </button>
+                                    </div>
+                                    <div id="resultat-diagnostic" style="font-size: 0.86rem;"></div>
+                                </div>
+
                                 <div class="settings-section">
                                     <h3><i class="fas fa-database"></i> Sauvegardes de la base</h3>
                                     <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 15px;">

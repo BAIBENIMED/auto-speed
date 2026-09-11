@@ -7,7 +7,7 @@ const containerTrackingService = require('../services/containerTrackingService')
 // Helper to sync status (Imported from statusSynchronizer to ensure unified logic)
 const { syncShipmentStatusToOrders, syncShipmentToPurchaseOrders } = require('../utils/statusSynchronizer');
 const { formatDate } = require('../utils/dateFormatter');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, isAdmin } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
@@ -157,6 +157,18 @@ router.post('/voyage/:voyageName/toggle', async (req, res) => {
     } catch (error) {
         console.error('Voyage toggle error:', error);
         res.status(500).json({ success: false, message: 'Erreur lors de la modification du statut de suivi' });
+    }
+});
+
+// Diagnostic du suivi maritime : dit pourquoi le tracking ne remonte rien
+// (cle absente, cle refusee, quota, numero inconnu, API injoignable).
+router.get('/diagnostic', isAdmin, async (req, res) => {
+    try {
+        const rapport = await containerTrackingService.diagnostiquer(req.query.numero);
+        res.json({ success: true, data: rapport });
+    } catch (error) {
+        console.error('Diagnostic du suivi :', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
