@@ -53,7 +53,14 @@ const ApiService = {
                 }
 
                 console.error(`API Error Response (${endpoint}):`, result);
-                throw new Error(result.message || `API request failed with status ${response.status}`);
+
+                // Le code HTTP accompagne l'erreur : sans lui, l'appelant doit
+                // deviner la cause a partir du texte du message, qui varie
+                // (« Token invalide », « Utilisateur non trouve »...).
+                const erreur = new Error(result.message || `API request failed with status ${response.status}`);
+                erreur.status = response.status;
+                erreur.endpoint = endpoint;
+                throw erreur;
             }
 
             return result;

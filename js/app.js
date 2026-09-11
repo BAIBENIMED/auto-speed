@@ -473,12 +473,21 @@ const app = {
                 }
             } catch (error) {
                 console.error("❌ Critical sync error during initialization:", error);
-                // If it's a 401/Auth error, checkSession will handle redirect
-                if (error.message.includes('Token expiré') || error.message.includes('Accès refusé')) {
+
+                // Une session morte n'est pas une panne reseau. On se fiait au
+                // texte du message, qui ne couvrait ni « Token invalide » ni
+                // « Utilisateur non trouve » : l'application annoncait alors un
+                // mode hors ligne au lieu de redemander la connexion.
+                const sessionMorte = error.status === 401
+                    || error.status === 403
+                    || /token|session|acc[èe]s refus|utilisateur non trouv/i.test(error.message || '');
+
+                if (sessionMorte) {
+                    this.showToast("Session expirée : reconnectez-vous.", "warning");
                     this.checkSession();
                     return; // Stop initialization
                 }
-                // For other errors, just warn and proceed with local data
+
                 console.warn("⚠️ Sync failed, running in OFFLINE mode with local data.", error);
                 this.showToast("Mode Hors-Ligne : Impossible de synchroniser avec le serveur.", "warning");
             }
@@ -7112,6 +7121,39 @@ const app = {
 
     /** Liste les sauvegardes disponibles sur le serveur. */
     /** Interroge le serveur pour savoir pourquoi le suivi ne remonte rien. */
+    /**
+     * Desinstalle le service worker et vide les caches du navigateur.
+     * Sortie de secours quand l'application sert une version ancienne ou se
+     * comporte comme si elle etait hors ligne.
+     */
+    async viderCacheApplication(bouton) {
+        const avant = bouton ? bouton.innerHTML : null;
+        if (bouton) {
+            bouton.disabled = true;
+            bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Nettoyage...';
+        }
+
+        try {
+            if ('serviceWorker' in navigator) {
+                const inscriptions = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(inscriptions.map(i => i.unregister()));
+            }
+            if (window.caches) {
+                const noms = await caches.keys();
+                await Promise.all(noms.map(n => caches.delete(n)));
+            }
+
+            this.showToast('Cache vidé. La page va se recharger.', 'success');
+            setTimeout(() => window.location.reload(true), 1200);
+        } catch (e) {
+            this.showToast('Nettoyage impossible : ' + e.message, 'error');
+            if (bouton) {
+                bouton.disabled = false;
+                bouton.innerHTML = avant;
+            }
+        }
+    },
+
     async diagnostiquerSuivi(bouton) {
         const zone = document.getElementById('resultat-diagnostic');
         const numero = (document.getElementById('numero-diagnostic') || {}).value || '';
@@ -7455,6 +7497,9 @@ const app = {
                                     <div class="form-row" style="gap: 15px;">
                                         <button type="button" class="btn-secondary" onclick="app.handleGlobalStatusHeal()" style="display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;">
                                             <i class="fas fa-magic" style="color: var(--primary);"></i> Réparer les statuts & liens
+                                        </button>
+                                        <button type="button" class="btn-secondary" onclick="app.viderCacheApplication(this)" style="display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;">
+                                            <i class="fas fa-broom" style="color: var(--warning);"></i> Vider le cache de l'application
                                         </button>
                                         <button type="button" class="btn-secondary" onclick="app.handleResetData()" style="display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center; border-color: rgba(239, 68, 68, 0.3);">
                                             <i class="fas fa-sync" style="color: var(--danger);"></i> Réinitialiser le cache

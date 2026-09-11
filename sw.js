@@ -11,7 +11,9 @@
  * - les appels a l'API ne sont jamais mis en cache : l'application a deja
  *   son propre cache de donnees dans le navigateur.
  */
-const CACHE = 'auto-speed-v1';
+// Le numero change a chaque evolution : l'activation purge alors l'ancien
+// cache, y compris celui laisse par une version precedente du fichier.
+const CACHE = 'auto-speed-v2';
 
 const COQUILLE = [
     '/index.html',
@@ -43,20 +45,35 @@ self.addEventListener('message', (evenement) => {
     }
 });
 
+// Seuls ces fichiers sont geres : tout le reste, a commencer par les appels
+// de donnees, passe directement au reseau. Une liste de ce qu'on accepte est
+// plus sure qu'une liste de ce qu'on exclut : un nouveau type d'appel ne
+// peut pas se retrouver intercepte par megarde.
+const EXTENSIONS_GEREES = ['.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico', '.woff', '.woff2'];
+
+function estRessourceStatique(url) {
+    const chemin = url.pathname.toLowerCase();
+    if (chemin.startsWith('/api/') || chemin.startsWith('/uploads/')) return false;
+    return EXTENSIONS_GEREES.some((e) => chemin.endsWith(e)) || chemin === '/manifest.json';
+}
+
 self.addEventListener('fetch', (evenement) => {
     const requete = evenement.request;
     if (requete.method !== 'GET') return;
+
+    // Une requete qui porte un jeton ne doit jamais passer par le cache
+    if (requete.headers.has('Authorization')) return;
 
     const url = new URL(requete.url);
 
     // Seules les ressources de l'application sont gerees
     if (url.origin !== self.location.origin) return;
 
-    // Donnees : toujours le reseau, jamais de copie
-    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) return;
+    const navigation = requete.mode === 'navigate';
+    if (!navigation && !estRessourceStatique(url)) return;
 
     // Ressource versionnee : son adresse change des qu'elle est modifiee
-    if (url.searchParams.has('v')) {
+    if (!navigation && url.searchParams.has('v')) {
         evenement.respondWith(
             caches.match(requete).then((enCache) => enCache || fetch(requete).then((reponse) => {
                 if (reponse.ok) {
@@ -69,20 +86,18 @@ self.addEventListener('fetch', (evenement) => {
         return;
     }
 
-    // Pages et autres fichiers : reseau d'abord, cache en secours
+    // Pages et fichiers sans empreinte : reseau d'abord, cache en secours.
+    // Le cache ne sert que si la requete echoue vraiment, jamais autrement.
     evenement.respondWith(
         fetch(requete)
             .then((reponse) => {
-                if (reponse.ok && requete.destination !== 'document') {
-                    const copie = reponse.clone();
-                    caches.open(CACHE).then((cache) => cache.put(requete, copie));
-                }
-                if (reponse.ok && requete.mode === 'navigate') {
-                    const copie = reponse.clone();
-                    caches.open(CACHE).then((cache) => cache.put('/index.html', copie));
-                }
+                if (!reponse.ok) return reponse;
+
+                const copie = reponse.clone();
+                caches.open(CACHE).then((cache) => cache.put(navigation ? '/index.html' : requete, copie));
                 return reponse;
             })
-            .catch(() => caches.match(requete).then((enCache) => enCache || caches.match('/index.html')))
+            .catch(() => caches.match(requete)
+                .then((enCache) => enCache || (navigation ? caches.match('/index.html') : Response.error())))
     );
 });
