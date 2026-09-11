@@ -243,6 +243,79 @@ class VoyageTrackingService {
     /**
      * Refreshes all active voyages (Status NOT Arrived/Completed)
      */
+    /**
+     * Rafraichit une expedition prise isolement, a partir de son conteneur
+     * ou de son BL. Utilise par le bouton d'actualisation et par la tache
+     * automatique pour les expeditions qui ne dependent d'aucun voyage.
+     */
+    async refreshShipment(shipment) {
+        const identifiant = shipment.blNumber || shipment.containerNumber;
+        if (!identifiant) {
+            return { success: false, message: 'Aucun BL ni numéro de conteneur' };
+        }
+
+        const estBL = !!shipment.blNumber;
+        const suivi = await containerTrackingService.trackContainer(identifiant, estBL);
+
+        if (!suivi || suivi.status === 'Tracking Non Disponible' || suivi.status === 'ERREUR') {
+            return {
+                success: false,
+                message: (suivi && suivi.message) || 'Suivi indisponible',
+                carrierInfo: suivi && suivi.carrierInfo,
+                identifier: identifiant
+            };
+        }
+
+        // Retard : on previent seulement si la nouvelle arrivee recule
+        if (suivi.eta && shipment.eta) {
+            const ancienne = new Date(shipment.eta);
+            const nouvelle = new Date(suivi.eta);
+            if (nouvelle - ancienne > 86400000) {
+                await Notification.create({
+                    type: 'WARNING',
+                    title: 'Retard d\'arrivée',
+                    message: `L'expédition ${shipment.containerNumber || shipment.id} est retardée. `
+                        + `Nouvelle arrivée: ${formatDate(nouvelle)} (au lieu de ${formatDate(ancienne)}).`,
+                    entityType: 'Shipment',
+                    entityId: shipment.id
+                });
+            }
+        }
+
+        const misAJour = {
+            status: suivi.status || shipment.status,
+            etd: suivi.etd || shipment.etd,
+            eta: suivi.eta || shipment.eta,
+            loadingPort: suivi.loadingPort || shipment.loadingPort,
+            destination: suivi.unloadingPort || shipment.destination,
+            currentLat: (suivi.location && suivi.location.lat) || shipment.currentLat,
+            currentLng: (suivi.location && suivi.location.lng) || shipment.currentLng,
+            shipStatus: suivi.vesselName || shipment.shipStatus,
+            trackingHistory: suivi.events ? JSON.stringify(suivi.events) : shipment.trackingHistory,
+            lastUpdate: new Date()
+        };
+
+        if (suivi.status && suivi.status.toLowerCase().includes('arriv') && !shipment.arrivalDate) {
+            misAJour.arrivalDate = new Date();
+        }
+
+        await shipment.update(misAJour);
+
+        await syncShipmentToPurchaseOrders(shipment.id, {
+            etd: suivi.etd,
+            eta: suivi.eta,
+            loadingPort: suivi.loadingPort,
+            destinationPort: suivi.unloadingPort,
+            carrier: suivi.carrierInfo && suivi.carrierInfo.carrier
+        });
+
+        if (suivi.status) {
+            await syncShipmentStatusToOrders(shipment.id, suivi.status);
+        }
+
+        return { success: true, data: suivi, identifier: identifiant };
+    }
+
     async refreshAllActive() {
         console.log('[VoyageTrackingService] CRON: Refreshing all active voyages...');
         const activeVoyages = await Voyage.findAll({
@@ -258,6 +331,41 @@ class VoyageTrackingService {
                 await new Promise(r => setTimeout(r, 2000));
             } catch (err) {
                 console.error(`[VoyageTrackingService] CRON failed for ${v.name}:`, err.message);
+            }
+        }
+
+        // Les expeditions qui ne dependent d'aucun voyage n'etaient jamais
+        // actualisees : la tache ne parcourait que la table des voyages.
+        const isolees = await Shipment.findAll({
+            where: {
+                isArchived: false,
+                voyageId: null,
+                [Op.or]: [{ voyage: null }, { voyage: '' }],
+                [Op.and]: [{
+                    [Op.or]: [
+                        { containerNumber: { [Op.ne]: null } },
+                        { blNumber: { [Op.ne]: null } }
+                    ]
+                }]
+            }
+        });
+
+        const aSuivre = isolees.filter(e => e.isTrackingActive !== false
+            && !['Arrivé', 'Arrivée', 'Livré', 'Livrée', 'Enlevée'].includes(e.status));
+
+        if (aSuivre.length > 0) {
+            console.log(`[VoyageTrackingService] CRON: ${aSuivre.length} expédition(s) hors voyage à actualiser.`);
+        }
+
+        for (const expedition of aSuivre) {
+            try {
+                const resultat = await this.refreshShipment(expedition);
+                if (!resultat.success) {
+                    console.warn(`[VoyageTrackingService] CRON: ${expedition.containerNumber || expedition.id} — ${resultat.message}`);
+                }
+                await new Promise(r => setTimeout(r, 2000));
+            } catch (err) {
+                console.error(`[VoyageTrackingService] CRON failed for shipment ${expedition.id}:`, err.message);
             }
         }
     }

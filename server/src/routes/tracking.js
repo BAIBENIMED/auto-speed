@@ -1,12 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { Shipment, Notification, Order } = require('../models');
+const { Shipment } = require('../models');
 const voyageTrackingService = require('../services/voyageTrackingService');
 const containerTrackingService = require('../services/containerTrackingService');
 
-// Helper to sync status (Imported from statusSynchronizer to ensure unified logic)
-const { syncShipmentStatusToOrders, syncShipmentToPurchaseOrders } = require('../utils/statusSynchronizer');
-const { formatDate } = require('../utils/dateFormatter');
 const { authMiddleware, isAdmin } = require('../middleware/auth');
 
 router.use(authMiddleware);
@@ -67,74 +64,19 @@ router.post('/:id/refresh', async (req, res) => {
         }
         // ------------------------------------------------------------------------
 
-        const isBL = !!shipment.blNumber;
         console.log(`[Tracking] Syncing shipment ${id} via ${identifier} (Individual)`);
 
-        const trackingData = await containerTrackingService.trackContainer(identifier, isBL);
-
-        // If tracking unavailable, return carrierInfo for direct links
-        if (trackingData.status === 'Tracking Non Disponible') {
+        const resultat = await voyageTrackingService.refreshShipment(shipment);
+        if (!resultat.success) {
             return res.json({
                 success: false,
-                message: trackingData.message,
-                carrierInfo: trackingData.carrierInfo,
+                message: resultat.message,
+                carrierInfo: resultat.carrierInfo,
                 identifier
             });
         }
 
-        // Check for ETA change logic - only alert if DELAYED
-        if (trackingData.eta && shipment.eta) {
-            const oldDate = new Date(shipment.eta);
-            const newDate = new Date(trackingData.eta);
-            const diffTime = newDate - oldDate;
-
-            if (diffTime > (1000 * 60 * 60 * 24)) {
-                await Notification.create({
-                    type: 'WARNING',
-                    title: 'Retard d\'arrivée',
-                    message: `L'expédition ${shipment.containerNumber || shipment.id} est retardée. Nouvelle arrivée: ${formatDate(newDate)} (au lieu de ${formatDate(oldDate)}).`,
-                    entityType: 'Shipment',
-                    entityId: shipment.id
-                });
-            }
-        }
-
-        // Update Shipment in DB
-        const updateData = {
-            status: trackingData.status || shipment.status,
-            etd: trackingData.etd || shipment.etd,
-            eta: trackingData.eta || shipment.eta,
-            loadingPort: trackingData.loadingPort || shipment.loadingPort,
-            destination: trackingData.unloadingPort || shipment.destination,
-            currentLat: trackingData.location?.lat || shipment.currentLat,
-            currentLng: trackingData.location?.lng || shipment.currentLng,
-            shipStatus: trackingData.vesselName || shipment.shipStatus,
-            trackingHistory: trackingData.events ? JSON.stringify(trackingData.events) : shipment.trackingHistory,
-            lastUpdate: new Date()
-        };
-
-        if (trackingData.status && trackingData.status.toLowerCase().includes('arriv') && !shipment.arrivalDate) {
-            updateData.arrivalDate = new Date();
-        }
-
-        await shipment.update(updateData);
-
-        
-
-        // Report des informations logistiques vers les commandes d'achat liees
-        await syncShipmentToPurchaseOrders(shipment.id, {
-            etd: trackingData.etd,
-            eta: trackingData.eta,
-            loadingPort: trackingData.loadingPort,
-            destinationPort: trackingData.unloadingPort,
-            carrier: trackingData.carrierInfo && trackingData.carrierInfo.carrier
-        });
-
-        if (trackingData.status) {
-            await syncShipmentStatusToOrders(shipment.id, trackingData.status);
-        }
-
-        res.json({ success: true, data: trackingData });
+        res.json({ success: true, data: resultat.data });
     } catch (error) {
         console.error('Shipment refresh error:', error);
         res.status(500).json({ success: false, message: 'Erreur: ' + error.message });
