@@ -970,6 +970,62 @@
 }
 
 /* =========================================================================
+   18. RECHERCHE GLOBALE
+   ========================================================================= */
+
+.search-container { position: relative; }
+
+.resultats-recherche {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 900;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--bg-panel, #111827);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    padding: 6px;
+}
+
+.resultats-recherche .famille {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--text-secondary, #94a3b8);
+    padding: 10px 12px 6px;
+}
+
+.resultats-recherche .resultat {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+}
+
+.resultats-recherche .resultat:hover,
+.resultats-recherche .resultat:focus-visible {
+    background: rgba(99, 102, 241, 0.12);
+    outline: none;
+}
+
+.resultats-recherche .resultat i { color: var(--primary, #6366f1); width: 16px; }
+.resultats-recherche .titre { font-weight: 600; font-size: 0.88rem; }
+.resultats-recherche .detail { font-size: 0.76rem; color: var(--text-secondary, #94a3b8); }
+.resultats-recherche .vide { padding: 18px 12px; font-size: 0.86rem; color: var(--text-secondary, #94a3b8); }
+
+/* =========================================================================
    17. CARTES DE SUIVI (Leaflet)
    Fond de carte clair : les bulles et etiquettes doivent rester lisibles
    quel que soit le theme de l'application.

@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cron = require('node-cron');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const sequelize = require('./src/config/database');
@@ -32,12 +34,59 @@ app.use(helmet({
     contentSecurityPolicy: false // Disable CSP for easier integration of external fonts/icons
 }));
 
-// Servir les fichiers statiques (Cache désactivé pour développement/débogage)
+// Compression : app.js pese pres d'un megaoctet en clair, ce qui se paie
+// cher sur une connexion mobile. Gzip le ramene a moins d'un cinquieme.
+app.use(compression());
+
+/**
+ * Empreinte des fichiers servis en cache long. Elle change des qu'un fichier
+ * est modifie, ce qui invalide le cache des navigateurs au deploiement
+ * suivant sans avoir a incrementer un numero a la main.
+ */
+const empreinteAssets = (() => {
+    const crypto = require('crypto');
+    const suivis = ['js/app.js', 'js/apiService.js', 'js/storage.js', 'css/style.css', 'css/autospeed-redesign.css'];
+    const empreinte = crypto.createHash('sha1');
+
+    suivis.forEach((relatif) => {
+        try {
+            const infos = fs.statSync(path.join(__dirname, '..', relatif));
+            empreinte.update(`${relatif}:${infos.size}:${infos.mtimeMs}`);
+        } catch (e) {
+            // fichier absent : il ne participe pas a l'empreinte
+        }
+    });
+
+    return empreinte.digest('hex').slice(0, 10);
+})();
+
+// Les pages HTML sont reecrites a la volee pour porter l'empreinte courante
+app.use((req, res, next) => {
+    const chemin = req.path === '/' ? '/index.html' : req.path;
+    if (!chemin.toLowerCase().endsWith('.html')) return next();
+
+    const fichier = path.join(__dirname, '..', chemin);
+    fs.readFile(fichier, 'utf-8', (err, contenu) => {
+        if (err) return next();
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.send(contenu.replace(/\?v=[A-Za-z0-9_.-]+/g, '?v=' + empreinteAssets));
+    });
+});
+
+// Fichiers statiques : un asset demande avec son empreinte peut etre garde
+// longtemps par le navigateur, puisqu'une modification change son adresse.
 app.use(express.static(path.join(__dirname, '..'), {
     setHeaders: (res, filePath) => {
-        if (filePath.toLowerCase().endsWith('.html') ||
-            filePath.toLowerCase().endsWith('.js') ||
-            filePath.toLowerCase().endsWith('.css')) {
+        const chemin = filePath.toLowerCase();
+        const versionne = res.req && res.req.query && res.req.query.v;
+
+        if (chemin.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        } else if ((chemin.endsWith('.js') || chemin.endsWith('.css')) && versionne) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (chemin.endsWith('.js') || chemin.endsWith('.css')) {
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         }
     }

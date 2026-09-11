@@ -725,14 +725,21 @@ const app = {
             this.isMouseDownOnOverlay = false;
         });
 
-        // Search functionality
+        // Recherche : filtre la vue courante et propose des resultats globaux
         const searchInput = document.querySelector('.search-container input');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
                 this.searchQuery = e.target.value.toLowerCase();
-                // If on dashboard, maybe the user wants to jump to orders if searching?
-                // For now, just re-render the current view
                 this.renderView(this.currentView);
+                this.rechercheGlobale(this.searchQuery);
+            });
+
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') this.fermerRechercheGlobale();
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-container')) this.fermerRechercheGlobale();
             });
         }
     },
@@ -2155,6 +2162,13 @@ const app = {
                         </div>
                         ${this.blocEcheancier(order)}
 
+                        <div class="details-section">
+                            <h3><i class="fas fa-clock-rotate-left"></i> Historique des modifications</h3>
+                            <div id="historique-commande">
+                                <span style="color: var(--text-dim); font-size: 0.85rem;">Chargement...</span>
+                            </div>
+                        </div>
+
                         <div class="modal-footer">
                             <button class="btn-secondary" onclick="app.closeModal()">Fermer</button>
                             <button class="btn-action warning-alt" style="margin-right: auto;" onclick="app.showOrderAmendmentModal('${order.id}')">
@@ -2174,6 +2188,7 @@ const app = {
                 </div>
             `;
                 document.body.insertAdjacentHTML('beforeend', modalHtml);
+                setTimeout(() => this.chargerHistoriqueFiche('Order', order.id, 'historique-commande'), 80);
     },
 
     renderPurchaseOrderTasks(po) {
@@ -2693,6 +2708,7 @@ const app = {
         const brandObj = brandsRaw.find(b => b.name === vehicle.brand);
         const modelObj = brandObj?.models?.find(m => m.name === vehicle.model);
         const trimObj = modelObj?.trims?.find(t => t.id === vehicle.trimId);
+        setTimeout(() => this.chargerHistoriqueFiche('Vehicle', vehicle.id, 'historique-vehicule'), 80);
         const c = trimObj?.characteristics || null;
 
         const modalHtml = `
@@ -2725,6 +2741,13 @@ const app = {
                                 ${vehicle.blLink ? `<p><strong>BL (Drive):</strong> <a href="${vehicle.blLink}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: none;"><i class="fab fa-google-drive"></i> Consulter le BL</a></p>` : ''}
                             </div>
                             
+                            <div class="details-section">
+                                <h3><i class="fas fa-clock-rotate-left"></i> Historique des modifications</h3>
+                                <div id="historique-vehicule">
+                                    <span style="color: var(--text-dim); font-size: 0.85rem;">Chargement...</span>
+                                </div>
+                            </div>
+
                             <div class="details-section">
                                 <h3><i class="fas fa-list-ul"></i> Options Libre</h3>
                                 <div style="white-space: pre-line; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; font-size: 0.9rem; color: var(--text-secondary); max-height: 200px; overflow-y: auto;">
@@ -3241,6 +3264,9 @@ const app = {
                 break;
             case 'profitability':
                 this.renderProfitability();
+                break;
+            case 'performance':
+                this.renderPerformance();
                 break;
             case 'settings':
                 this.renderSettings();
@@ -5004,6 +5030,169 @@ const app = {
      * Les numeros algeriens sont saisis en 0X XX XX XX XX : on remplace le
      * zero initial par l'indicatif 213.
      */
+    /**
+     * Historique des modifications d'une fiche, lu dans le journal d'audit.
+     * Le journal complet reste reserve aux administrateurs ; ici on ne
+     * demande que les mouvements d'un enregistrement precis.
+     */
+    async chargerHistoriqueFiche(entite, identifiant, idZone) {
+        const zone = document.getElementById(idZone);
+        if (!zone) return;
+
+        try {
+            const reponse = await ApiService.request(
+                `/audit?entity=${encodeURIComponent(entite)}&entityId=${encodeURIComponent(identifiant)}&limit=15`
+            );
+            const mouvements = (reponse && reponse.data) || [];
+
+            if (mouvements.length === 0) {
+                zone.innerHTML = '<p style="color: var(--text-dim); font-size: 0.85rem;">Aucune modification enregistrée.</p>';
+                return;
+            }
+
+            const libelle = { CREATE: 'Création', UPDATE: 'Modification', DELETE: 'Suppression' };
+            const couleur = { CREATE: 'var(--success)', UPDATE: 'var(--primary)', DELETE: 'var(--danger)' };
+
+            // Ce qui a change : on compare les valeurs avant / apres
+            const changements = (m) => {
+                if (!m.newValues) return '';
+                let avant = m.oldValues || {};
+                let apres = m.newValues;
+                try {
+                    if (typeof avant === 'string') avant = JSON.parse(avant);
+                    if (typeof apres === 'string') apres = JSON.parse(apres);
+                } catch (e) {
+                    return '';
+                }
+
+                const champs = Object.keys(apres)
+                    .filter(c => !['updatedAt', 'createdAt'].includes(c) && String(avant[c]) !== String(apres[c]))
+                    .slice(0, 4);
+
+                if (champs.length === 0) return '';
+                return champs.map(c => `<span style="color: var(--text-dim);">${c}</span> : ${avant[c] === undefined || avant[c] === null || avant[c] === '' ? '—' : avant[c]} → <strong>${apres[c] === null || apres[c] === '' ? '—' : apres[c]}</strong>`).join('<br>');
+            };
+
+            zone.innerHTML = `
+                <div style="border-left: 2px solid var(--border-glass); padding-left: 14px;">
+                    ${mouvements.map(m => `
+                        <div style="padding: 7px 0; font-size: 0.82rem;">
+                            <div style="display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;">
+                                <span style="color: ${couleur[m.action] || 'var(--text-dim)'}; font-weight: 700;">${libelle[m.action] || m.action}</span>
+                                <span style="color: var(--text-dim);">par ${m.userName || (m.user && m.user.name) || 'système'}</span>
+                                <span style="color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem;">${this.formatDateTime(m.createdAt)}</span>
+                            </div>
+                            ${changements(m) ? `<div style="margin-top: 3px; font-size: 0.78rem;">${changements(m)}</div>` : ''}
+                        </div>`).join('')}
+                </div>`;
+        } catch (e) {
+            zone.innerHTML = `<p style="color: var(--text-dim); font-size: 0.85rem;">Historique indisponible (${e.message}).</p>`;
+        }
+    },
+
+    /**
+     * Recherche globale : un seul champ pour retrouver un client, une
+     * commande, un vehicule par son chassis, une expedition par son
+     * conteneur ou son BL, ou une commande d'achat.
+     */
+    rechercheGlobale(requete) {
+        const panneau = document.getElementById('resultats-recherche');
+        if (!panneau) return;
+
+        const q = String(requete || '').trim().toLowerCase();
+        if (q.length < 2) {
+            this.fermerRechercheGlobale();
+            return;
+        }
+
+        const contient = (...valeurs) => valeurs.some(v => v && String(v).toLowerCase().includes(q));
+        const limite = 5;
+
+        const clients = (StorageService.get(STORAGE_KEYS.CLIENTS) || [])
+            .filter(c => contient(c.lastName, c.firstName, c.phone, c.nin, c.passportNumber, c.reference, c.id))
+            .slice(0, limite)
+            .map(c => ({
+                icone: 'fa-user',
+                titre: `${c.lastName || ''} ${c.firstName || ''}`.trim() || c.id,
+                detail: [c.phone, c.nin ? 'NIN ' + c.nin : '', c.showroom].filter(Boolean).join(' • '),
+                action: `app.showClientDetails('${c.id}')`
+            }));
+
+        const commandes = (StorageService.get(STORAGE_KEYS.ORDERS) || [])
+            .filter(o => contient(o.id, o.trackingCode, o.requestedBrand, o.requestedModel, o.vehicleName))
+            .slice(0, limite)
+            .map(o => ({
+                icone: 'fa-file-invoice',
+                titre: o.id,
+                detail: [this.formatDate(o.date), o.status, o.trackingCode ? 'suivi ' + o.trackingCode : ''].filter(Boolean).join(' • '),
+                action: `app.showOrderDetails('${o.id}')`
+            }));
+
+        const vehicules = (StorageService.get(STORAGE_KEYS.VEHICLES) || [])
+            .filter(v => contient(v.id, v.chassisNumber, v.brand, v.model, v.trim, v.color))
+            .slice(0, limite)
+            .map(v => ({
+                icone: 'fa-car',
+                titre: `${v.brand || ''} ${v.model || ''}`.trim() || v.id,
+                detail: [v.chassisNumber, v.showroom, v.color].filter(Boolean).join(' • '),
+                action: `app.showVehicleDetails('${v.id}')`
+            }));
+
+        const expeditions = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+            .filter(e => contient(e.id, e.containerNumber, e.blNumber, e.voyage, e.carrier, e.destination))
+            .slice(0, limite)
+            .map(e => ({
+                icone: 'fa-ship',
+                titre: e.containerNumber || e.blNumber || e.id,
+                detail: [e.carrier, e.destination, e.status].filter(Boolean).join(' • '),
+                action: `app.showShipmentMap('${e.id}')`
+            }));
+
+        const achats = (StorageService.get(STORAGE_KEYS.PURCHASE_ORDERS) || [])
+            .filter(p => contient(p.id, p.supplierName, p.piNumber))
+            .slice(0, limite)
+            .map(p => ({
+                icone: 'fa-file-import',
+                titre: p.id,
+                detail: [p.supplierName, p.status].filter(Boolean).join(' • '),
+                action: `app.renderPurchases('${p.id}')`
+            }));
+
+        const familles = [
+            ['Clients', clients],
+            ['Commandes', commandes],
+            ['Véhicules', vehicules],
+            ['Expéditions', expeditions],
+            ['Achats fournisseurs', achats]
+        ].filter(([, liste]) => liste.length > 0);
+
+        panneau.hidden = false;
+
+        if (familles.length === 0) {
+            panneau.innerHTML = `<div class="vide">Aucun résultat pour « ${q} ».</div>`;
+            return;
+        }
+
+        panneau.innerHTML = familles.map(([nom, liste]) => `
+            <div class="famille">${nom}</div>
+            ${liste.map(r => `
+                <button type="button" class="resultat" onclick="app.fermerRechercheGlobale(); ${r.action}">
+                    <i class="fas ${r.icone}"></i>
+                    <span>
+                        <span class="titre">${r.titre}</span>
+                        ${r.detail ? `<br><span class="detail">${r.detail}</span>` : ''}
+                    </span>
+                </button>`).join('')}`).join('');
+    },
+
+    fermerRechercheGlobale() {
+        const panneau = document.getElementById('resultats-recherche');
+        if (panneau) {
+            panneau.hidden = true;
+            panneau.innerHTML = '';
+        }
+    },
+
     numeroWhatsApp(telephone, indicatifParDefaut = '213') {
         if (!telephone) return null;
 
@@ -8657,6 +8846,150 @@ const app = {
      * Rentabilite : une ligne par vehicule vendu, avec le detail du cout et
      * de la marge, plus une synthese par mois, showroom et marque.
      */
+    /**
+     * Performance logistique et commerciale : combien de temps met vraiment
+     * un vehicule pour arriver, quels transporteurs tiennent leurs dates,
+     * depuis combien de temps le stock dort, et ce qui se vend.
+     */
+    renderPerformance() {
+        const expeditions = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || []).filter(e => !e.isArchived);
+        const vehicules = (StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => !v.isArchived);
+        const commandes = (StorageService.get(STORAGE_KEYS.ORDERS) || []).filter(o => !o.isArchived);
+        const maintenant = new Date();
+        const jours = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000);
+
+        // --- Delais reels et respect des dates annoncees
+        const arrivees = expeditions.filter(e => e.arrivalDate && e.etd);
+        const delais = arrivees.map(e => jours(e.arrivalDate, e.etd)).filter(d => d > 0 && d < 400);
+        const delaiMoyen = delais.length ? Math.round(delais.reduce((t, d) => t + d, 0) / delais.length) : null;
+
+        const avecEta = expeditions.filter(e => e.arrivalDate && e.eta);
+        const ecarts = avecEta.map(e => jours(e.arrivalDate, e.eta));
+        const aLHeure = ecarts.filter(d => d <= 2).length;
+        const tauxPonctualite = ecarts.length ? Math.round((aLHeure / ecarts.length) * 100) : null;
+        const retardMoyen = ecarts.length ? Math.round(ecarts.reduce((t, d) => t + Math.max(0, d), 0) / ecarts.length) : null;
+
+        // --- Par transporteur
+        const parTransporteur = {};
+        avecEta.forEach(e => {
+            const nom = e.carrier || 'Non renseigné';
+            if (!parTransporteur[nom]) parTransporteur[nom] = { nombre: 0, ecart: 0, ponctuelles: 0, delai: 0, avecDelai: 0 };
+            const ecart = jours(e.arrivalDate, e.eta);
+            parTransporteur[nom].nombre += 1;
+            parTransporteur[nom].ecart += Math.max(0, ecart);
+            if (ecart <= 2) parTransporteur[nom].ponctuelles += 1;
+            if (e.etd) {
+                const d = jours(e.arrivalDate, e.etd);
+                if (d > 0 && d < 400) { parTransporteur[nom].delai += d; parTransporteur[nom].avecDelai += 1; }
+            }
+        });
+
+        // --- Age du stock : vehicules disponibles sans client
+        const enStock = vehicules.filter(v => !v.orderId && !v.clientId);
+        const ageStock = enStock.map(v => ({
+            vehicule: v,
+            age: jours(maintenant, v.createdAt || v.updatedAt || maintenant)
+        })).sort((a, b) => b.age - a.age);
+
+        const tranches = [
+            { libelle: 'Moins de 30 jours', min: 0, max: 30, couleur: 'var(--success)' },
+            { libelle: '30 à 60 jours', min: 30, max: 60, couleur: 'var(--warning)' },
+            { libelle: '60 à 90 jours', min: 60, max: 90, couleur: '#f97316' },
+            { libelle: 'Plus de 90 jours', min: 90, max: 99999, couleur: 'var(--danger)' }
+        ].map(t => ({ ...t, nombre: ageStock.filter(a => a.age >= t.min && a.age < t.max).length }));
+
+        // --- Ce qui se vend
+        const ventes = {};
+        commandes.forEach(o => {
+            const v = vehicules.find(x => x.id === o.vehicleId) || vehicules.find(x => x.orderId === o.id);
+            const cle = v ? `${v.brand} ${v.model || ''}`.trim() : `${o.requestedBrand || ''} ${o.requestedModel || ''}`.trim();
+            if (!cle) return;
+            ventes[cle] = (ventes[cle] || 0) + 1;
+        });
+        const meilleurs = Object.entries(ventes).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const maxVentes = meilleurs.length ? meilleurs[0][1] : 1;
+
+        const indicateur = (libelle, valeur, precision) => `
+            <div class="stat-card glass-card">
+                <div class="stat-label">${libelle}</div>
+                <div class="stat-value">${valeur}</div>
+                <div class="stat-sub">${precision}</div>
+            </div>`;
+
+        this.viewContainer.innerHTML = `
+            <div class="view-header">
+                <div>
+                    <h1><i class="fas fa-gauge-high"></i> Performance</h1>
+                    <p>Délais réels, respect des dates annoncées, rotation du stock</p>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="margin-top: 20px;">
+                ${indicateur('Délai moyen', delaiMoyen === null ? '—' : delaiMoyen + ' j', delaiMoyen === null ? 'aucune arrivée enregistrée' : `départ → arrivée, sur ${delais.length} expédition(s)`)}
+                ${indicateur('Dates tenues', tauxPonctualite === null ? '—' : tauxPonctualite + ' %', tauxPonctualite === null ? 'aucune ETA à comparer' : `arrivées à ±2 jours de l'ETA`)}
+                ${indicateur('Retard moyen', retardMoyen === null ? '—' : retardMoyen + ' j', 'par rapport à l\'arrivée annoncée')}
+                ${indicateur('Stock non vendu', enStock.length, ageStock.length ? `le plus ancien : ${ageStock[0].age} jours` : 'aucun véhicule libre')}
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
+                <div class="glass-card" style="padding: 18px;">
+                    <h3 style="font-size: 0.95rem; margin-bottom: 14px;"><i class="fas fa-ship"></i> Fiabilité par transporteur</h3>
+                    ${Object.keys(parTransporteur).length === 0 ? '<p style="color: var(--text-dim); font-size: 0.85rem;">Aucune expédition arrivée à comparer.</p>' : `
+                    <table class="data-table mini" style="font-size: 0.82rem;">
+                        <thead>
+                            <tr><th>Transporteur</th><th>Trajets</th><th>Délai</th><th>Dates tenues</th></tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(parTransporteur).sort((a, b) => b[1].nombre - a[1].nombre).map(([nom, t]) => {
+                                const taux = Math.round((t.ponctuelles / t.nombre) * 100);
+                                return `
+                                <tr>
+                                    <td style="font-weight: 600;">${nom}</td>
+                                    <td>${t.nombre}</td>
+                                    <td>${t.avecDelai ? Math.round(t.delai / t.avecDelai) + ' j' : '—'}</td>
+                                    <td style="color: ${taux >= 70 ? 'var(--success)' : (taux >= 40 ? 'var(--warning)' : 'var(--danger)')}; font-weight: 700;">${taux} %</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>`}
+                </div>
+
+                <div class="glass-card" style="padding: 18px;">
+                    <h3 style="font-size: 0.95rem; margin-bottom: 14px;"><i class="fas fa-warehouse"></i> Âge du stock disponible</h3>
+                    ${enStock.length === 0 ? '<p style="color: var(--text-dim); font-size: 0.85rem;">Aucun véhicule disponible sans client.</p>' : `
+                    ${tranches.map(t => `
+                        <div style="margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 4px;">
+                                <span>${t.libelle}</span>
+                                <strong>${t.nombre}</strong>
+                            </div>
+                            <div style="height: 7px; background: rgba(148,163,184,.15); border-radius: 4px; overflow: hidden;">
+                                <div style="height: 100%; width: ${enStock.length ? (t.nombre / enStock.length) * 100 : 0}%; background: ${t.couleur};"></div>
+                            </div>
+                        </div>`).join('')}
+
+                    <div style="margin-top: 14px; font-size: 0.8rem; color: var(--text-dim);">
+                        Les plus anciens :
+                        ${ageStock.slice(0, 3).map(a => `<div style="margin-top: 4px;">• ${a.vehicule.brand} ${a.vehicule.model || ''} — <strong>${a.age} j</strong></div>`).join('')}
+                    </div>`}
+                </div>
+
+                <div class="glass-card" style="padding: 18px;">
+                    <h3 style="font-size: 0.95rem; margin-bottom: 14px;"><i class="fas fa-trophy"></i> Modèles les plus commandés</h3>
+                    ${meilleurs.length === 0 ? '<p style="color: var(--text-dim); font-size: 0.85rem;">Aucune commande.</p>' : meilleurs.map(([nom, nombre]) => `
+                        <div style="margin-bottom: 9px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 4px;">
+                                <span>${nom}</span>
+                                <strong>${nombre}</strong>
+                            </div>
+                            <div style="height: 7px; background: rgba(148,163,184,.15); border-radius: 4px; overflow: hidden;">
+                                <div style="height: 100%; width: ${(nombre / maxVentes) * 100}%; background: var(--primary);"></div>
+                            </div>
+                        </div>`).join('')}
+                </div>
+            </div>`;
+    },
+
     renderProfitability() {
         if (!this.canAccess('orders.financials') && !this.isAdmin()) {
             this.viewContainer.innerHTML = '<div class="glass-card" style="padding:40px; text-align:center; color:var(--text-dim);">Vous n\'avez pas accès aux données financières.</div>';

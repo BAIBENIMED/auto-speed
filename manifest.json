@@ -1,0 +1,33 @@
+{
+  "name": "AUTO SPEED — Gestion",
+  "short_name": "AUTO SPEED",
+  "description": "Gestion des commandes, véhicules et expéditions AUTO SPEED",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "lang": "fr",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/assets/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

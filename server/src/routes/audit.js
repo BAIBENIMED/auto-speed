@@ -4,12 +4,22 @@ const { AuditLog, User } = require('../models');
 const { authMiddleware, isAdmin } = require('../middleware/auth');
 
 router.use(authMiddleware);
-router.use(isAdmin);
 
+// Le journal complet reste reserve aux administrateurs ; l'historique d'une
+// fiche precise (entity + entityId) est accessible a qui peut voir la fiche.
 router.get('/', async (req, res) => {
     try {
-        const { limit = 50, offset = 0 } = req.query;
+        const { limit = 50, offset = 0, entity, entityId } = req.query;
+
+        if (!entityId && !(req.user && req.user.roleId === 'admin')) {
+            return res.status(403).json({ success: false, message: 'Accès réservé aux administrateurs' });
+        }
+
+        const where = {};
+        if (entity) where.entity = entity;
+        if (entityId) where.entityId = String(entityId);
         const logs = await AuditLog.findAll({
+            where,
             limit: parseInt(limit),
             offset: parseInt(offset),
             order: [['createdAt', 'DESC']],

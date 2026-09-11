@@ -11,6 +11,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="apple-touch-icon" href="/assets/icone-192.png">
+
     <!-- Leaflet : charge avant les feuilles du projet pour que nos styles de
          carte (fond clair, bulles, etiquettes) puissent le surcharger. -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -148,6 +152,10 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Rentabilité</span>
                 </a>
+                <a href="#" class="nav-link" data-view="performance">
+                    <i class="fas fa-gauge-high"></i>
+                    <span>Performance</span>
+                </a>
 
                 <div class="nav-group-title">Système</div>
                 <a href="#" class="nav-link" data-view="verification" style="display:none;">
@@ -191,6 +199,7 @@
 
                     <i class="fas fa-search"></i>
                     <input type="text" placeholder="Rechercher un client, un VIN, une commande…" autocomplete="off">
+                    <div id="resultats-recherche" class="resultats-recherche" hidden></div>
                 </div>
                 <div class="top-bar-actions">
                     <button class="btn-icon" title="Rapports & Exports" onclick="app.showReportsModal()">
@@ -214,6 +223,15 @@
     <script src="js/storage.js"></script>
     <script src="js/sageService.js"></script>
     <script src="js/app.js?v=V9_9_AUTO_SPEED"></script>
+    <script>
+        // Mode hors ligne : l'application s'ouvre au port ou en showroom meme
+        // sans reseau, et peut s'installer sur telephone.
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => { /* sans consequence */ });
+            });
+        }
+    </script>
 </body>
 
 </html>
