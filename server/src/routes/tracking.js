@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Shipment } = require('../models');
+const { Op } = require('sequelize');
 const voyageTrackingService = require('../services/voyageTrackingService');
 const containerTrackingService = require('../services/containerTrackingService');
 
@@ -106,7 +107,31 @@ router.post('/voyage/:voyageName/toggle', async (req, res) => {
 // (cle absente, cle refusee, quota, numero inconnu, API injoignable).
 router.get('/diagnostic', isAdmin, async (req, res) => {
     try {
-        const rapport = await containerTrackingService.diagnostiquer(req.query.numero);
+        let numero = (req.query.numero || '').trim();
+        let choisiAutomatiquement = false;
+
+        // Sans numero fourni, on prend celui de l'expedition en cours la plus
+        // recente : un clic suffit alors pour obtenir un vrai diagnostic.
+        if (!numero) {
+            const expedition = await Shipment.findOne({
+                where: {
+                    isArchived: false,
+                    [Op.or]: [
+                        { containerNumber: { [Op.ne]: null } },
+                        { blNumber: { [Op.ne]: null } }
+                    ]
+                },
+                order: [['updatedAt', 'DESC']]
+            });
+
+            if (expedition) {
+                numero = expedition.containerNumber || expedition.blNumber;
+                choisiAutomatiquement = true;
+            }
+        }
+
+        const rapport = await containerTrackingService.diagnostiquer(numero);
+        rapport.numeroChoisiAutomatiquement = choisiAutomatiquement;
         res.json({ success: true, data: rapport });
     } catch (error) {
         console.error('Diagnostic du suivi :', error);

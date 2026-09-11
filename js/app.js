@@ -7117,7 +7117,7 @@ const app = {
                         <i class="fas ${ok ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${r.conclusion || 'Diagnostic terminé'}
                     </div>
                     ${ligne('Clé d\'API', r.cleConfiguree ? 'configurée (' + r.cleApercu + ')' : 'absente')}
-                    ${ligne('Numéro testé', r.numeroTeste)}
+                    ${ligne('Numéro testé', r.numeroTeste ? r.numeroTeste + (r.numeroChoisiAutomatiquement ? ' (dernière expédition en cours)' : '') : null)}
                     ${ligne('Transporteur reconnu', r.transporteurDetecte)}
                     ${ligne('Code compagnie envoyé', r.codeCompagnie)}
                     ${ligne('Réponse HTTP', r.statutHttp)}
@@ -7450,7 +7450,7 @@ const app = {
                                     </p>
                                     <div class="form-row" style="gap: 12px; margin-bottom: 12px;">
                                         <input type="text" id="numero-diagnostic" class="glass-input" style="flex: 2;"
-                                               placeholder="N° de conteneur ou de BL à tester (ex : MSCU1234567)">
+                                               placeholder="N° de conteneur ou de BL (laissez vide : la dernière expédition sera testée)">
                                         <button type="button" class="btn-secondary" style="flex: 1; justify-content: center;" onclick="app.diagnostiquerSuivi(this)">
                                             <i class="fas fa-stethoscope" style="color: var(--primary);"></i> Diagnostiquer
                                         </button>
