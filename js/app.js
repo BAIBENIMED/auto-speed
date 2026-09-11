@@ -2160,6 +2160,9 @@ const app = {
                             <button class="btn-action warning-alt" style="margin-right: auto;" onclick="app.showOrderAmendmentModal('${order.id}')">
                                 <i class="fas fa-edit"></i> Amendement (Changer Client)
                             </button>
+                            <button class="btn-secondary" style="color:#25d366; border-color:rgba(37,211,102,.4); background:rgba(37,211,102,.08);" onclick="app.ouvrirWhatsApp('${order.clientId}', '${order.id}')">
+                                <i class="fab fa-whatsapp"></i> WhatsApp
+                            </button>
                             <button class="btn-secondary" onclick="app.imprimerContratCommande('${order.id}')">
                                 <i class="fas fa-file-signature"></i> Bon de commande
                             </button>
@@ -4996,6 +4999,224 @@ const app = {
      * l'expedition, les dates, la derniere position et les etapes remontees
      * par le transporteur. Le lien public de suivi est propose a la copie.
      */
+    /**
+     * Numero au format international attendu par WhatsApp.
+     * Les numeros algeriens sont saisis en 0X XX XX XX XX : on remplace le
+     * zero initial par l'indicatif 213.
+     */
+    numeroWhatsApp(telephone, indicatifParDefaut = '213') {
+        if (!telephone) return null;
+
+        let n = String(telephone).replace(/[^0-9+]/g, '');
+        if (n.startsWith('+')) n = n.slice(1);
+        else if (n.startsWith('00')) n = n.slice(2);
+        else if (n.startsWith('0')) n = indicatifParDefaut + n.slice(1);
+        else if (n.length <= 9) n = indicatifParDefaut + n;
+
+        return n.length >= 10 ? n : null;
+    },
+
+    /** Lien de suivi public d'une commande. */
+    lienSuiviClient(commande) {
+        if (!commande || !commande.trackingCode) return '';
+        return `${window.location.origin}/tracking.html?code=${commande.trackingCode}`;
+    },
+
+    /**
+     * Messages types proposes a l'utilisateur. Chacun est rempli avec les
+     * donnees reelles de la commande : rien n'est envoye automatiquement,
+     * l'utilisateur relit et appuie sur envoyer dans WhatsApp.
+     */
+    modelesWhatsApp(client, commande) {
+        const societe = this.enteteSociete().nom;
+        const prenom = (client && client.firstName) || '';
+        const bonjour = `Bonjour ${prenom},`.trim();
+        const signature = `\n\n${societe}`;
+
+        const vehicules = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const vehicule = commande
+            ? (vehicules.find(v => v.id === commande.vehicleId) || vehicules.find(v => v.orderId === commande.id))
+            : null;
+        const designation = vehicule
+            ? `${vehicule.brand} ${vehicule.model || ''} ${vehicule.year || ''}`.trim()
+            : (commande ? `${commande.requestedBrand || ''} ${commande.requestedModel || ''}`.trim() : 'votre véhicule');
+
+        const expedition = vehicule && vehicule.shipmentId
+            ? (StorageService.get(STORAGE_KEYS.SHIPMENTS) || []).find(e => String(e.id) === String(vehicule.shipmentId))
+            : null;
+
+        const lien = this.lienSuiviClient(commande);
+        const blocSuivi = lien ? `\n\nSuivez votre véhicule ici :\n${lien}` : '';
+
+        const modeles = [];
+
+        if (commande) {
+            modeles.push({
+                cle: 'confirmation',
+                titre: 'Confirmation de commande',
+                icone: 'fa-file-signature',
+                texte: `${bonjour}\n\nNous confirmons l'enregistrement de votre commande ${commande.id} pour ${designation}.`
+                    + (commande.trackingCode ? `\nVotre code de suivi : ${commande.trackingCode}` : '')
+                    + blocSuivi + signature
+            });
+
+            modeles.push({
+                cle: 'suivi',
+                titre: 'Envoyer le lien de suivi',
+                icone: 'fa-location-dot',
+                texte: `${bonjour}\n\nVoici le lien pour suivre l'acheminement de ${designation} en temps réel :${blocSuivi || '\n(lien disponible une fois la commande validée)'}` + signature
+            });
+        }
+
+        if (expedition) {
+            modeles.push({
+                cle: 'depart',
+                titre: 'Départ du navire',
+                icone: 'fa-ship',
+                texte: `${bonjour}\n\nBonne nouvelle : ${designation} a quitté le port de ${expedition.loadingPort || 'chargement'}`
+                    + (expedition.etd ? ` le ${this.formatDate(expedition.etd)}` : '')
+                    + `.\nArrivée estimée à ${expedition.destination || 'destination'}`
+                    + (expedition.eta ? ` le ${this.formatDate(expedition.eta)}` : '')
+                    + '.' + blocSuivi + signature
+            });
+
+            modeles.push({
+                cle: 'arrivee',
+                titre: 'Arrivée au port',
+                icone: 'fa-anchor',
+                texte: `${bonjour}\n\n${designation} est arrivé à ${expedition.destination || 'destination'}`
+                    + (expedition.arrivalDate ? ` le ${this.formatDate(expedition.arrivalDate)}` : '')
+                    + `.\nNous vous tenons informé dès la fin des formalités de dédouanement.` + signature
+            });
+        }
+
+        if (commande) {
+            const situation = this.situationReglement(commande);
+
+            if (situation.montantEnRetard > 0) {
+                const retard = situation.enRetard[0];
+                modeles.push({
+                    cle: 'relance',
+                    titre: 'Relance de paiement',
+                    icone: 'fa-file-invoice-dollar',
+                    texte: `${bonjour}\n\nNous revenons vers vous au sujet de la commande ${commande.id}.`
+                        + `\nL'échéance « ${retard.libelle} » de ${this.formatCurrency(retard.restant, situation.devise)} était prévue le ${this.formatDate(retard.date)}.`
+                        + `\nReste à régler à ce jour : ${this.formatCurrency(situation.solde, situation.devise)}.`
+                        + `\n\nMerci de nous indiquer la date de règlement prévue.` + signature
+                });
+            } else if (situation.prochaine) {
+                modeles.push({
+                    cle: 'rappel',
+                    titre: 'Rappel d\'échéance',
+                    icone: 'fa-calendar-check',
+                    texte: `${bonjour}\n\nPetit rappel concernant la commande ${commande.id} : l'échéance « ${situation.prochaine.libelle} » `
+                        + `de ${this.formatCurrency(situation.prochaine.restant, situation.devise)} est prévue le ${this.formatDate(situation.prochaine.date)}.` + signature
+                });
+            }
+
+            if (vehicule && vehicule.deliveryLocation) {
+                modeles.push({
+                    cle: 'livraison',
+                    titre: 'Livraison',
+                    icone: 'fa-handshake',
+                    texte: `${bonjour}\n\n${designation} est prêt à être remis.`
+                        + `\nLieu de livraison convenu : ${vehicule.deliveryLocation}.`
+                        + `\n\nMerci de nous indiquer le jour et l'heure qui vous conviennent.` + signature
+                });
+            }
+        }
+
+        modeles.push({
+            cle: 'libre',
+            titre: 'Message libre',
+            icone: 'fa-pen',
+            texte: `${bonjour}\n\n` + signature
+        });
+
+        return modeles;
+    },
+
+    /**
+     * Fenetre de composition : on choisit un modele, on relit, on corrige,
+     * puis WhatsApp s'ouvre avec le message pret a envoyer.
+     */
+    ouvrirWhatsApp(clientId, idCommande) {
+        const client = (StorageService.get(STORAGE_KEYS.CLIENTS) || []).find(c => c.id === clientId);
+        if (!client) return;
+
+        const commandes = (StorageService.get(STORAGE_KEYS.ORDERS) || []).filter(o => o.clientId === clientId);
+        const commande = idCommande
+            ? commandes.find(o => o.id === idCommande)
+            : commandes.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+        const numero = this.numeroWhatsApp(client.phone);
+        const modeles = this.modelesWhatsApp(client, commande);
+
+        this.closeModal();
+        document.body.insertAdjacentHTML('beforeend', `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 90vw; max-width: 620px;">
+                    <div class="modal-header">
+                        <div>
+                            <h2 style="margin:0;"><i class="fab fa-whatsapp" style="color:#25d366;"></i> Message WhatsApp</h2>
+                            <span style="font-size:0.82rem; color:var(--text-dim);">
+                                ${client.lastName} ${client.firstName}
+                                ${numero ? ` • +${numero}` : ' • <span style="color:var(--danger);">numéro manquant ou invalide</span>'}
+                                ${commande ? ` • ${commande.id}` : ''}
+                            </span>
+                        </div>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+                            ${modeles.map((m, i) => `
+                                <button class="btn-secondary" style="font-size:0.8rem; padding:7px 12px;" onclick="app.choisirModeleWhatsApp(${i})">
+                                    <i class="fas ${m.icone}"></i> ${m.titre}
+                                </button>`).join('')}
+                        </div>
+
+                        <label style="font-size:0.78rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">Message</label>
+                        <textarea id="message-whatsapp" class="glass-input" rows="10" style="width:100%; margin-top:6px; font-size:0.9rem; line-height:1.5;">${modeles[0].texte}</textarea>
+
+                        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:10px;">
+                            <i class="fas fa-circle-info"></i> WhatsApp s'ouvre avec ce message pré-rempli : rien n'est envoyé tant que vous n'appuyez pas sur « Envoyer » dans WhatsApp.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="app.closeModal()">Annuler</button>
+                        <button class="btn-primary" style="background:#25d366; border-color:#25d366;" onclick="app.envoyerWhatsApp('${numero || ''}')">
+                            <i class="fab fa-whatsapp"></i> Ouvrir WhatsApp
+                        </button>
+                    </div>
+                </div>
+            </div>`);
+
+        this.modelesWhatsAppCourants = modeles;
+    },
+
+    choisirModeleWhatsApp(index) {
+        const zone = document.getElementById('message-whatsapp');
+        const modele = (this.modelesWhatsAppCourants || [])[index];
+        if (zone && modele) zone.value = modele.texte;
+    },
+
+    envoyerWhatsApp(numero) {
+        const zone = document.getElementById('message-whatsapp');
+        const texte = zone ? zone.value.trim() : '';
+
+        if (!numero) {
+            this.showToast('Numéro de téléphone manquant ou invalide sur la fiche client', 'error');
+            return;
+        }
+        if (!texte) {
+            this.showToast('Le message est vide', 'warning');
+            return;
+        }
+
+        window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texte)}`, '_blank', 'noopener');
+        this.closeModal();
+    },
+
     showClientTracking(clientId) {
         const client = (StorageService.get(STORAGE_KEYS.CLIENTS) || []).find(c => c.id === clientId);
         if (!client) return;
@@ -5161,6 +5382,9 @@ const app = {
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 15px;">
+                            <button class="btn-secondary" style="font-size: 0.85rem; padding: 6px 14px; color:#25d366; border-color:rgba(37,211,102,.4); background:rgba(37,211,102,.08);" onclick="app.ouvrirWhatsApp('${client.id}')">
+                                <i class="fab fa-whatsapp"></i> WhatsApp
+                            </button>
                             <button class="btn-primary" style="font-size: 0.85rem; padding: 6px 14px;" onclick="app.showClientTracking('${client.id}')">
                                 <i class="fas fa-route"></i> Suivi
                             </button>
