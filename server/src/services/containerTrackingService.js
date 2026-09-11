@@ -4,6 +4,8 @@ class ContainerTrackingService {
     constructor() {
         this.apiKey = process.env.SAFECUBE_API_KEY;
         this.baseUrl = 'https://api.sinay.ai/container-tracking/api/v2';
+        // Sinay peut mettre une minute quand il doit deviner le transporteur
+        this.timeout = parseInt(process.env.SINAY_TIMEOUT_MS || '75000', 10);
     }
 
     /**
@@ -63,7 +65,7 @@ class ContainerTrackingService {
         };
     }
 
-    async trackContainer(number, isBL = false) {
+    async trackContainer(number, isBL = false, nomTransporteur = null) {
         if (!number) return { status: 'Numéro manquant', identifier: 'N/A' };
 
         const carrierInfo = this.detectCarrier(number);
@@ -71,7 +73,7 @@ class ContainerTrackingService {
         // 1. Try Real API if Key is present
         if (this.apiKey && this.apiKey.trim() !== '' && this.apiKey !== 'your_safecube_key_here') {
             try {
-                const result = await this.fetchFromSinayV2(number, isBL);
+                const result = await this.fetchFromSinayV2(number, isBL, nomTransporteur);
                 // Attach carrier info for UI use
                 if (carrierInfo) result.carrierInfo = carrierInfo;
                 return result;
@@ -95,9 +97,9 @@ class ContainerTrackingService {
         };
     }
 
-    async fetchFromSinayV2(number, isBL = false) {
+    async fetchFromSinayV2(number, isBL = false, nomTransporteur = null) {
         const type = isBL ? 'bl' : 'container';
-        const sealine = this.detectSealineCode(number);
+        const sealine = this.codeCompagnie(number, nomTransporteur);
         console.log(`[SinayV2] Fetching for ${type} ${number} (Sealine: ${sealine || 'Auto'})...`);
 
         try {
@@ -114,7 +116,7 @@ class ContainerTrackingService {
                     'X-API-KEY': this.apiKey,
                     'Accept': 'application/json'
                 },
-                timeout: 30000
+                timeout: this.timeout
             });
 
             return this.mapSinayV2Response(response.data, number, isBL);
@@ -125,7 +127,8 @@ class ContainerTrackingService {
                 return await this.createAndTrackLegacy(number, isBL);
             }
             if (error.code === 'ECONNABORTED') {
-                throw new Error('Timeout: Le serveur Sinay/Safecube est trop lent à répondre (30s).');
+                throw new Error(`Timeout: l'API Sinay n'a pas répondu en ${Math.round(this.timeout / 1000)}s`
+                    + (sealine ? '.' : ". Aucun transporteur n'est renseigné sur l'expédition : Sinay doit alors interroger toutes les compagnies, ce qui est beaucoup plus lent."));
             }
             if (error.response) {
                 const status = error.response.status;
@@ -143,6 +146,40 @@ class ContainerTrackingService {
      * Maersk, CMA CGM, Hapag-Lloyd et COSCO, mais pas pour Evergreen).
      * Renvoyer null est sans danger : Sinay detecte alors le transporteur seul.
      */
+    codeCompagnieDepuisNom(nom) {
+        if (!nom) return null;
+        const n = String(nom).toUpperCase();
+
+        // OOCL avant COSCO : OOCL appartient au groupe mais a son propre code
+        if (n.includes('OOCL')) return 'OOLU';
+        if (n.includes('MSC') || n.includes('MEDITERRANEAN')) return 'MEDU';
+        if (n.includes('MAERSK') || n.includes('SEALAND') || n.includes('SEA LAND')) return 'MAEU';
+        if (n.includes('CMA') || n.includes('ANL') || n.includes('CNC')) return 'CMDU';
+        if (n.includes('HAPAG')) return 'HLCU';
+        if (n.includes('COSCO')) return 'COSU';
+        if (n.includes('EVERGREEN')) return 'EGLV';
+        if (n.includes('HMM') || n.includes('HYUNDAI')) return 'HDMU';
+        if (n.includes('ONE') || n.includes('OCEAN NETWORK')) return 'ONEY';
+        if (n.includes('YANG MING')) return 'YMLU';
+        if (n.includes('ZIM')) return 'ZIMU';
+        if (n.includes('PIL') || n.includes('PACIFIC INTERNATIONAL')) return 'PABV';
+        if (n.includes('ARKAS')) return 'ARKU';
+        if (n.includes('WAN HAI')) return 'WHLC';
+        return null;
+    }
+
+    /**
+     * Code compagnie a transmettre a Sinay. Le prefixe du conteneur est
+     * prioritaire, mais beaucoup de conteneurs appartiennent a des loueurs
+     * (TCKU pour Triton, TGHU pour Textainer...) et ne disent rien du
+     * transporteur : on se rabat alors sur celui saisi dans l'expedition.
+     * Sans indice, Sinay interroge toutes les compagnies et depasse souvent
+     * le delai d'attente.
+     */
+    codeCompagnie(numero, nomTransporteur) {
+        return this.detectSealineCode(numero) || this.codeCompagnieDepuisNom(nomTransporteur);
+    }
+
     detectSealineCode(number) {
         const n = (number || '').trim().toUpperCase();
         if (n.startsWith('MSCU') || n.startsWith('MEDU')) return 'MEDU';
@@ -284,7 +321,7 @@ class ContainerTrackingService {
      * tracking ne marche pas ? » sans avoir a lire les journaux du serveur.
      * La cle n'est jamais renvoyee en clair.
      */
-    async diagnostiquer(numero) {
+    async diagnostiquer(numero, nomTransporteur = null) {
         const rapport = {
             cleConfiguree: false,
             cleApercu: null,
@@ -320,20 +357,23 @@ class ContainerTrackingService {
         rapport.numeroTeste = identifiant;
         const transporteur = this.detectCarrier(identifiant);
         rapport.transporteurDetecte = transporteur ? transporteur.carrier : 'non reconnu';
-        rapport.codeCompagnie = this.detectSealineCode(identifiant) || 'detection automatique par Sinay';
+        const code = this.codeCompagnie(identifiant, nomTransporteur);
+        rapport.codeCompagnie = code
+            ? code + (this.detectSealineCode(identifiant) ? ' (prefixe du conteneur)' : ' (transporteur de la fiche)')
+            : 'aucun : Sinay doit chercher chez toutes les compagnies';
 
         const depart = Date.now();
         try {
             const reponse = await axios.get(`${this.baseUrl}/shipment`, {
                 params: {
                     shipmentNumber: identifiant,
-                    sealine: this.detectSealineCode(identifiant),
+                    sealine: code,
                     shipmentType: /^[A-Z]{4}\d{7}$/.test(identifiant) ? 'CT' : 'BL',
                     route: true,
                     ais: true
                 },
                 headers: { 'API_KEY': cle, 'X-API-KEY': cle, 'Accept': 'application/json' },
-                timeout: 30000
+                timeout: this.timeout
             });
 
             rapport.dureeMs = Date.now() - depart;
@@ -364,7 +404,10 @@ class ContainerTrackingService {
                 : erreur.message;
 
             if (erreur.code === 'ECONNABORTED') {
-                rapport.conclusion = "L'API Sinay n'a pas repondu en 30 secondes. Reessayez plus tard.";
+                rapport.conclusion = code
+                    ? `L'API Sinay n'a pas repondu en ${Math.round(this.timeout / 1000)} secondes malgre le code compagnie ${code}. Le service est surcharge : reessayez plus tard.`
+                    : `Aucun transporteur n'est renseigne sur cette expedition et le prefixe ${identifiant.slice(0, 4)} appartient a un loueur de conteneurs, pas a une compagnie. `
+                        + "Sinay doit donc interroger toutes les compagnies, ce qui depasse le delai. Renseignez le transporteur (MSC, CMA CGM, Maersk...) dans la fiche de l'expedition.";
             } else if (rapport.statutHttp === 401 || rapport.statutHttp === 403) {
                 rapport.conclusion = "La cle d'API est refusee (droits insuffisants, cle expiree ou quota epuise). "
                     + 'Verifiez votre abonnement Sinay et la valeur de SAFECUBE_API_KEY.';

@@ -68,7 +68,10 @@ class VoyageTrackingService {
         }
 
         // 4. Call Satellite API
-        const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL);
+        const transporteur = (voyageEntity && voyageEntity.carrier)
+            || (shipments.find(s => s.carrier) || {}).carrier
+            || null;
+        const trackingInfo = await containerTrackingService.trackContainer(identifier, isBL, transporteur);
 
         // HANDLE TRACKING ERRORS / NO DATA
         const isError = !trackingInfo ||
@@ -255,7 +258,7 @@ class VoyageTrackingService {
         }
 
         const estBL = !!shipment.blNumber;
-        const suivi = await containerTrackingService.trackContainer(identifiant, estBL);
+        const suivi = await containerTrackingService.trackContainer(identifiant, estBL, shipment.carrier);
 
         if (!suivi || suivi.status === 'Tracking Non Disponible' || suivi.status === 'ERREUR') {
             return {

@@ -108,6 +108,7 @@ router.post('/voyage/:voyageName/toggle', async (req, res) => {
 router.get('/diagnostic', isAdmin, async (req, res) => {
     try {
         let numero = (req.query.numero || '').trim();
+        let transporteur = (req.query.transporteur || '').trim() || null;
         let choisiAutomatiquement = false;
 
         // Sans numero fourni, on prend celui de l'expedition en cours la plus
@@ -126,12 +127,14 @@ router.get('/diagnostic', isAdmin, async (req, res) => {
 
             if (expedition) {
                 numero = expedition.containerNumber || expedition.blNumber;
+                transporteur = transporteur || expedition.carrier;
                 choisiAutomatiquement = true;
             }
         }
 
-        const rapport = await containerTrackingService.diagnostiquer(numero);
+        const rapport = await containerTrackingService.diagnostiquer(numero, transporteur);
         rapport.numeroChoisiAutomatiquement = choisiAutomatiquement;
+        rapport.transporteurFiche = transporteur || null;
         res.json({ success: true, data: rapport });
     } catch (error) {
         console.error('Diagnostic du suivi :', error);

@@ -234,7 +234,7 @@ const shipmentsController = {
                 // OR return error saying "Aucun voyage lié"
                 // Let's try to track individually using the container service directly if no voyage
                 const containerTrackingService = require('../services/containerTrackingService');
-                const result = await containerTrackingService.trackContainer(shipment.blNumber || shipment.containerNumber, !!shipment.blNumber);
+                const result = await containerTrackingService.trackContainer(shipment.blNumber || shipment.containerNumber, !!shipment.blNumber, shipment.carrier);
 
                 if (!result || result.status === 'Tracking Error' || result.status === 'No API Key') {
                     return res.status(400).json({ success: false, message: 'Tracking impossible (Pas de voyage ni de tracking direct réussi)' });
