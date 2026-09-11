@@ -403,6 +403,21 @@ document.addEventListener('DOMContentLoaded', () => {
      * n'avait pas quitte le quai. On s'appuie desormais sur les dates
      * reellement renseignees, et le statut ne sert que de complement.
      */
+    /** Un transbordement a-t-il ete annonce par le transporteur ? */
+    function transbordementDetecte(expedition) {
+        if (!expedition) return null;
+
+        let etapes = expedition.trackingHistory;
+        if (typeof etapes === 'string') {
+            try { etapes = JSON.parse(etapes); } catch (e) { etapes = []; }
+        }
+        if (!Array.isArray(etapes)) return null;
+
+        const motif = /transbord|transship|tranship|tranship|transfert|feeder/i;
+        const trouvee = etapes.find(e => e && motif.test(`${e.description || ''} ${e.location || ''}`));
+        return trouvee || null;
+    }
+
     function etapeExpedition(expedition, orderStatus) {
         const statut = String((expedition && expedition.status) || '').toLowerCase();
         const commande = String(orderStatus || '').toLowerCase();
@@ -414,20 +429,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return isNaN(d.getTime()) ? null : d;
         };
 
-        // 5. Livree : la commande fait foi
-        if (['delivered', 'livré', 'livree', 'livrée', 'enlevée', 'enlevee', 'conclue'].includes(commande)) return 5;
+        // 7. Livree : la commande fait foi
+        if (['delivered', 'livré', 'livree', 'livrée', 'enlevée', 'enlevee', 'conclue'].includes(commande)) return 7;
 
-        // 4. Arrivee : une date d'arrivee, ou un statut sans ambiguite.
+        // 6. Arrivee : une date d'arrivee passee, ou un statut sans ambiguite.
         //    « port » seul est trop courant pour servir d'indice.
         const arrivee = date(expedition && expedition.arrivalDate);
         const statutArrive = /arriv|discharg|unload|dechargement|déchargement/.test(statut);
-        if ((arrivee && arrivee <= maintenant) || statutArrive) return 4;
+        if ((arrivee && arrivee <= maintenant) || statutArrive) return 6;
 
-        // 3. En mer : le navire est parti, ou le suivi le signale en transit
+        // Le navire a-t-il quitte le port de chargement ?
         const depart = date(expedition && expedition.etd);
-        const enMer = /en mer|transit|sailing|shipped|depart|départ|at sea/.test(statut);
-        const positionConnue = expedition && expedition.currentLat && expedition.currentLng;
-        if ((depart && depart <= maintenant) || enMer || positionConnue) return 3;
+        const statutParti = /depart|départ|sailed|shipped|on board|a bord|à bord/.test(statut);
+        const enMer = /en mer|transit|sailing|at sea/.test(statut);
+        const positionConnue = !!(expedition && expedition.currentLat && expedition.currentLng);
+        const parti = (depart && depart <= maintenant) || statutParti || enMer || positionConnue;
+
+        // 5. Transbordement : annonce par le transporteur, et seulement une
+        //    fois le navire parti — un evenement date ne fait pas avancer le
+        //    parcours d'une expedition encore a quai.
+        if (parti) {
+            const transbordement = transbordementDetecte(expedition);
+            if (transbordement) {
+                const quand = date(transbordement.date);
+                if (!quand || quand <= maintenant) return 5;
+            }
+        }
+
+        // 4. En mer : transit annonce ou position connue
+        if (enMer || positionConnue) return 4;
+
+        // 3. Depart : la date de depart est passee
+        if (parti) return 3;
 
         // 2. Chargement : l'expedition existe, le depart n'a pas eu lieu
         if (expedition) return 2;
@@ -439,13 +472,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateStepper(orderStatus, expedition) {
-        const steps = [
-            document.getElementById('step-1'),
-            document.getElementById('step-2'),
-            document.getElementById('step-3'),
-            document.getElementById('step-4'),
-            document.getElementById('step-5')
-        ];
+        const steps = [1, 2, 3, 4, 5, 6, 7]
+            .map(n => document.getElementById(`step-${n}`))
+            .filter(Boolean);
         const progressBar = document.getElementById('step-progress-bar');
 
         steps.forEach(s => s.classList.remove('active', 'completed'));
@@ -459,9 +488,24 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (rang === atteinte) element.classList.add(atteinte === 5 ? 'completed' : 'active');
         });
 
-        if (atteinte === 5) steps.forEach(s => s.classList.add('completed'));
+        if (atteinte >= steps.length) steps.forEach(s => s.classList.add('completed'));
 
-        const widths = ['0%', '12.5%', '37.5%', '62.5%', '87.5%', '100%'];
-        progressBar.style.width = widths[atteinte];
+        // Un transbordement annonce est precise sous le parcours
+        const transbordement = atteinte >= 5 ? transbordementDetecte(expedition) : null;
+        const mention = document.getElementById('mention-transbordement');
+        if (mention) {
+            if (transbordement) {
+                mention.style.display = 'block';
+                mention.innerHTML = `<i class="fas fa-right-left"></i> Transbordement`
+                    + (transbordement.location ? ` à ${echapper(transbordement.location)}` : '')
+                    + (transbordement.date ? ` le ${formatDate(transbordement.date)}` : '');
+            } else {
+                mention.style.display = 'none';
+            }
+        }
+
+        // La barre relie le centre du premier jalon a celui du dernier
+        const proportion = steps.length > 1 ? Math.max(0, atteinte - 1) / (steps.length - 1) : 0;
+        progressBar.style.width = `${Math.min(100, proportion * 100)}%`;
     }
 });

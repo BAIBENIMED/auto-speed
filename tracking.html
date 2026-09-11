@@ -280,7 +280,7 @@
         .stepper::before {
             content: '';
             position: absolute;
-            top: 27px;
+            top: 25px;
             left: 50px;
             right: 50px;
             height: 3px;
@@ -291,7 +291,7 @@
 
         .step-progress {
             position: absolute;
-            top: 27px;
+            top: 25px;
             left: 50px;
             height: 3px;
             border-radius: 3px;
@@ -308,12 +308,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 100px;
+            width: 92px;
         }
 
         .step-icon {
-            width: 54px;
-            height: 54px;
+            width: 50px;
+            height: 50px;
             background: #121a2c;
             border: 2px solid rgba(255, 255, 255, 0.10);
             border-radius: 50%;
@@ -346,7 +346,7 @@
         }
 
         .step-label {
-            font-size: 0.78rem;
+            font-size: 0.73rem;
             font-weight: 600;
             text-align: center;
             color: var(--text-faible);
@@ -820,18 +820,28 @@
                             <div class="step-label">Chargement</div>
                         </div>
                         <div class="step" id="step-3">
+                            <div class="step-icon"><i class="fas fa-arrow-right-from-bracket"></i></div>
+                            <div class="step-label">Départ</div>
+                        </div>
+                        <div class="step" id="step-4">
                             <div class="step-icon"><i class="fas fa-ship"></i></div>
                             <div class="step-label">En mer</div>
                         </div>
-                        <div class="step" id="step-4">
+                        <div class="step" id="step-5">
+                            <div class="step-icon"><i class="fas fa-right-left"></i></div>
+                            <div class="step-label">Transbordement</div>
+                        </div>
+                        <div class="step" id="step-6">
                             <div class="step-icon"><i class="fas fa-anchor"></i></div>
                             <div class="step-label">Arrivée Port</div>
                         </div>
-                        <div class="step" id="step-5">
+                        <div class="step" id="step-7">
                             <div class="step-icon"><i class="fas fa-check-double"></i></div>
                             <div class="step-label">Livrée</div>
                         </div>
                     </div>
+
+                    <div id="mention-transbordement" style="display: none; margin: -24px 0 26px; text-align: center; font-size: 0.82rem; color: var(--text-dim);"></div>
 
                     <div class="groupe">
                         <div class="titre-groupe"><i class="fas fa-user"></i> Titulaire</div>
