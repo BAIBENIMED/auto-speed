@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Shipment, Vehicle, Order } = require('../models');
+const { Shipment, Vehicle, Order, CashTransaction, Client } = require('../models');
 const { Op } = require('sequelize');
 const { syncShipmentStatusToOrders } = require('../utils/statusSynchronizer');
 const { authMiddleware, isAdmin } = require('../middleware/auth');
@@ -45,7 +45,40 @@ router.post('/heal-statuses', authMiddleware, isAdmin, async (req, res) => {
             await syncShipmentStatusToOrders(shipment.id, shipment.status);
         }
 
-        res.json({ success: true, message: 'La guérison des statuts est terminée avec succès.' });
+        // 3. Nom de client corrompu en caisse : un encaissement enregistre depuis
+        //    une commande lisait un champ absent de l'objet Order, ce qui
+        //    inserait litteralement le texte « undefined » (pas une valeur
+        //    vide, un veritable mot) dans le champ. On le rebranche sur le
+        //    client reel de la commande liee quand c'est possible.
+        const transactionsACorriger = await CashTransaction.findAll({
+            where: {
+                [Op.or]: [
+                    { clientName: 'undefined' },
+                    { clientName: null },
+                    { clientName: '' }
+                ],
+                orderId: { [Op.ne]: null }
+            }
+        });
+
+        let nomsRepares = 0;
+        for (const transaction of transactionsACorriger) {
+            const commande = await Order.findByPk(transaction.orderId);
+            if (!commande || !commande.clientId) continue;
+
+            const client = await Client.findByPk(commande.clientId);
+            const nom = client ? `${client.lastName || ''} ${client.firstName || ''}`.trim() : '';
+            if (!nom) continue;
+
+            await transaction.update({ clientName: nom });
+            nomsRepares++;
+            console.log(`👤 Nom repare en caisse : ${transaction.id} -> ${nom}`);
+        }
+
+        res.json({
+            success: true,
+            message: `La guérison des statuts est terminée avec succès.${nomsRepares > 0 ? ` ${nomsRepares} nom(s) de client réparé(s) en caisse.` : ''}`
+        });
     } catch (error) {
         console.error('Failed to heal statuses:', error);
         res.status(500).json({ success: false, message: error.message });

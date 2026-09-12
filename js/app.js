@@ -11564,6 +11564,10 @@ const app = {
         const showrooms = StorageService.get(STORAGE_KEYS.SHOWROOMS) || [];
         let preSelectedOrder = null;
         let preSelectedShowroom = null;
+        // La commande ne porte pas de champ clientName : le lire directement
+        // dessus renvoyait « undefined » (litteral, pas vide) dans le champ
+        // en lecture seule, qui partait tel quel dans la caisse.
+        let nomClientPreSelectionne = '';
 
         if (orderId) {
             preSelectedOrder = orders.find(o => o.id === orderId);
@@ -11573,6 +11577,7 @@ const app = {
                 if (client && client.showroom) {
                     preSelectedShowroom = client.showroom;
                 }
+                nomClientPreSelectionne = this.getOrderClientLabel(preSelectedOrder, clients);
             }
         }
 
@@ -11616,7 +11621,7 @@ const app = {
                                             </div>
                                             <div class="form-group">
                                                 <label id="label-client-motif">Client</label>
-                                                <input type="text" id="cash-client-name" name="clientName" class="glass-input" value="${preSelectedOrder ? preSelectedOrder.clientName : ''}" ${preSelectedOrder ? 'readonly' : ''} required>
+                                                <input type="text" id="cash-client-name" name="clientName" class="glass-input" value="${preSelectedOrder ? nomClientPreSelectionne : ''}" ${preSelectedOrder ? 'readonly' : ''} required>
                                             </div>
                                             <div class="form-group">
                                                 <label>Showroom <span style="color: var(--danger);">*</span></label>
