@@ -527,6 +527,7 @@ const startServer = async () => {
                 { table: 'vehicle_prices', name: 'notes', def: 'TEXT' },
                 { table: 'vehicle_trims', name: 'price_dzd_neuf', def: 'DECIMAL(15,2)' },
                 { table: 'vehicle_trims', name: 'price_dzd_3ans', def: 'DECIMAL(15,2)' },
+                { table: 'settings', name: 'partners', def: 'JSON' },
                 { table: 'settings', name: 'coefficient_neuf', def: 'DECIMAL(8,4) DEFAULT 1.0' },
                 { table: 'settings', name: 'coefficient_3ans', def: 'DECIMAL(8,4) DEFAULT 1.0' }
             ];
@@ -542,6 +543,36 @@ const startServer = async () => {
                     } else {
                         console.error(`⚠️ Could not verify/add column ${col.name} to ${col.table}:`, colErr.message);
                     }
+                }
+            }
+            // Filet generique : sync({ alter: true }) echoue sur certaines tables
+            // (limite de cles MySQL sur vehicles), et la liste explicite
+            // ci-dessus doit etre tenue a jour a la main — c'est ce qui a
+            // laisse settings.partners absente. On compare donc chaque modele
+            // a sa table et on ajoute ce qui manque. On n'ajoute jamais rien
+            // d'autre : aucune colonne n'est modifiee ni supprimee.
+            for (const [nomModele, modele] of Object.entries(models)) {
+                if (!modele || typeof modele.getTableName !== 'function' || !modele.rawAttributes) continue;
+
+                try {
+                    const table = modele.getTableName();
+                    const [colonnes] = await sequelize.query(`SHOW COLUMNS FROM \`${table}\``);
+                    const presentes = new Set(colonnes.map(c => c.Field));
+
+                    for (const attribut of Object.values(modele.rawAttributes)) {
+                        const champ = attribut.field || attribut.fieldName;
+                        if (!champ || presentes.has(champ)) continue;
+
+                        const type = attribut.type && typeof attribut.type.toSql === 'function'
+                            ? attribut.type.toSql()
+                            : null;
+                        if (!type) continue;
+
+                        await sequelize.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${champ}\` ${type} NULL`);
+                        console.log(`🔧 Colonne manquante ajoutee : ${table}.${champ} (${type})`);
+                    }
+                } catch (tableErr) {
+                    console.error(`⚠️ Verification du schema impossible pour ${nomModele} :`, tableErr.message);
                 }
             }
         } catch (schemaErr) {
