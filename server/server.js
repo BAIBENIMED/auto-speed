@@ -133,6 +133,18 @@ app.get('/api/test-public', (req, res) => {
 
 
 
+// Porte d'initialisation : le serveur ecoute des la premiere seconde pour
+// satisfaire le controle de sante de Render, mais la verification du schema
+// prend quelques secondes de plus. Sans cette attente, une synchronisation
+// arrivee entre les deux lit une base incomplete — c'est l'origine de
+// l'erreur « Unknown column 'partners' ». Le controle de sante et les
+// fichiers statiques ne passent pas par ici.
+const { creerPorteInitialisation } = require('./src/middleware/initialisation');
+const porteInitialisation = creerPorteInitialisation({
+    attenteMaxMs: Number(process.env.INIT_WAIT_MS || 20000)
+});
+app.use('/api', porteInitialisation.milieu);
+
 // Routes
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/users', require('./src/routes/users'));
@@ -642,6 +654,11 @@ const startServer = async () => {
         console.error('❌ ERREUR INITIALISATION BACKGROUND:');
         console.error(err);
         // Note: We don't kill the process because Render might still serve static files/health
+    } finally {
+        // Meme en cas d'echec : mieux vaut servir une base imparfaite que
+        // laisser les requetes en attente jusqu'au delai de securite.
+        porteInitialisation.marquerPrete();
+        console.log('🚪 Requetes /api liberees.');
     }
 };
 
