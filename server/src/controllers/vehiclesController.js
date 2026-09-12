@@ -106,6 +106,15 @@ const vehiclesController = {
                 }
             }
 
+            // Un vehicule appartenant a un partenaire (chargement de conteneur
+            // partage) ne peut jamais etre affecte a une commande AUTO SPEED.
+            if (req.body.partner && req.body.orderId) {
+                return res.status(409).json({
+                    success: false,
+                    message: `Ce véhicule appartient au partenaire ${req.body.partner} : il ne peut pas être affecté à une commande AUTO SPEED.`
+                });
+            }
+
             const vehicle = await Vehicle.create({
                 ...req.body,
                 id: finalId
@@ -148,6 +157,15 @@ const vehiclesController = {
                         message: `Le numéro de châssis ${nouveauVin} est déjà enregistré sur le véhicule ${doublon.id}.`
                     });
                 }
+            }
+
+            const partenaireFinal = req.body.partner !== undefined ? req.body.partner : vehicle.partner;
+            const commandeFinale = req.body.orderId !== undefined ? req.body.orderId : vehicle.orderId;
+            if (partenaireFinal && commandeFinale) {
+                return res.status(409).json({
+                    success: false,
+                    message: `Ce véhicule appartient au partenaire ${partenaireFinal} : il ne peut pas être affecté à une commande AUTO SPEED.`
+                });
             }
 
             await vehicle.update(req.body, {

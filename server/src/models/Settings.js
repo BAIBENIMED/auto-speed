@@ -54,6 +54,10 @@ const Settings = sequelize.define('Settings', {
         type: DataTypes.JSON,
         defaultValue: []
     },
+    partners: {
+        type: DataTypes.JSON,
+        defaultValue: []
+    },
     customsCurrency: {
         type: DataTypes.STRING(10),
         field: 'customs_currency',

@@ -134,6 +134,13 @@ const Vehicle = sequelize.define('Vehicle', {
     deliveryLocation: {
         type: DataTypes.STRING(200),
         field: 'delivery_location'
+    },
+    // Partenaire avec qui le chargement du conteneur est partage (ex : CARVEX
+    // AUTO). Un vehicule qui appartient a un partenaire ne peut pas etre
+    // affecte a une commande AUTO SPEED : voir la garde dans vehiclesController.
+    partner: {
+        type: DataTypes.STRING(100),
+        allowNull: true
     }
 }, {
     tableName: 'vehicles',

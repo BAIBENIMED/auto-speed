@@ -126,7 +126,8 @@ const settingsController = {
                 categories: [],
                 showrooms: [],
                 currencies: [],
-                carriers: []
+                carriers: [],
+                partners: []
             };
 
             attributes.forEach(attr => {

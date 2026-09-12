@@ -19,6 +19,7 @@ const STORAGE_KEYS = {
     SHOWROOMS: 'gtm_showrooms',
     SHOWROOMS_RAW: 'gtm_showrooms_raw',
     CARRIERS: 'gtm_carriers',
+    PARTNERS: 'gtm_partners',
     EXCHANGE_RATES: 'gtm_exchange_rates',
     BRAND_MODELS: 'gtm_brand_models',
     BRANDS_RAW: 'gtm_brands_raw',
@@ -168,6 +169,9 @@ const StorageService = {
                 case STORAGE_KEYS.CARRIERS:
                     res = await ApiService.addAttribute({ category: 'carriers', value: item });
                     break;
+                case STORAGE_KEYS.PARTNERS:
+                    res = await ApiService.addAttribute({ category: 'partners', value: item });
+                    break;
                 case STORAGE_KEYS.CURRENCIES:
                     res = await ApiService.addAttribute({ category: 'currencies', value: item });
                     break;
@@ -287,7 +291,7 @@ const StorageService = {
         const isAttribute = [
             STORAGE_KEYS.BRANDS, STORAGE_KEYS.COLORS, STORAGE_KEYS.MOTORS,
             STORAGE_KEYS.SHOWROOMS, STORAGE_KEYS.CARRIERS, STORAGE_KEYS.CURRENCIES,
-            STORAGE_KEYS.CATEGORIES
+            STORAGE_KEYS.CATEGORIES, STORAGE_KEYS.PARTNERS
         ].includes(key);
 
         if (isAttribute) {
@@ -329,6 +333,10 @@ const StorageService = {
                     const showObj = showrooms.find(s => s.name === id || s.id === id);
                     if (showObj) await ApiService.deleteShowroom(showObj.id);
                     break;
+                case STORAGE_KEYS.COLORS:
+                case STORAGE_KEYS.MOTORS:
+                case STORAGE_KEYS.CARRIERS:
+                case STORAGE_KEYS.PARTNERS:
                 case STORAGE_KEYS.CURRENCIES:
                 case STORAGE_KEYS.CATEGORIES:
                     // Find the actual attribute ID from the cached raw data
@@ -336,6 +344,7 @@ const StorageService = {
                         [STORAGE_KEYS.COLORS]: 'colors',
                         [STORAGE_KEYS.MOTORS]: 'motors',
                         [STORAGE_KEYS.CARRIERS]: 'carriers',
+                        [STORAGE_KEYS.PARTNERS]: 'partners',
                         [STORAGE_KEYS.CURRENCIES]: 'currencies',
                         [STORAGE_KEYS.CATEGORIES]: 'categories'
                     };
@@ -422,7 +431,8 @@ const StorageService = {
                         'carriers': STORAGE_KEYS.CARRIERS,
                         'motors': STORAGE_KEYS.MOTORS,
                         'currencies': STORAGE_KEYS.CURRENCIES,
-                        'categories': STORAGE_KEYS.CATEGORIES
+                        'categories': STORAGE_KEYS.CATEGORIES,
+                        'partners': STORAGE_KEYS.PARTNERS
                     };
 
                     // Reset lists items

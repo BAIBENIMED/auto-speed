@@ -868,7 +868,9 @@ const app = {
     },
 
     showOrderModal(vehicleId = null) {
-        const allAvailableVehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => !v.orderId && !v.archived);
+        // Un vehicule de partenaire (chargement de conteneur partage) ne doit
+        // jamais apparaitre parmi les vehicules affectables a une commande AUTO SPEED.
+        const allAvailableVehicles = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => !v.orderId && !v.archived && !v.partner);
         const clients = StorageService.get(STORAGE_KEYS.CLIENTS);
         const brands = StorageService.get(STORAGE_KEYS.BRANDS);
         const brandModels = StorageService.get(STORAGE_KEYS.BRAND_MODELS);
@@ -1297,6 +1299,11 @@ const app = {
                 // Strict Validation: Vehicle must not be already ordered (unless by this order)
                 if (vehicle.orderId && vehicle.orderId !== orderId) {
                     this.showToast('Ce véhicule est déjà associé à une autre commande !', 'danger');
+                    return;
+                }
+                // Un vehicule de partenaire ne peut pas etre affecte a une commande AUTO SPEED
+                if (vehicle.partner) {
+                    this.showToast(`Ce véhicule appartient au partenaire ${vehicle.partner} : impossible de l'affecter à une commande AUTO SPEED.`, 'danger');
                     return;
                 }
             }
@@ -2282,8 +2289,10 @@ const app = {
 
             // Get fresh list of available vehicles
             // Include: vehicles with no orderId OR vehicles belonging to this specific order
+            // Les vehicules de partenaire sont exclus : ils ne peuvent pas etre
+            // affectes a une commande AUTO SPEED.
             let filtered = StorageService.get(STORAGE_KEYS.VEHICLES).filter(v => 
-                !v.archived && (!v.orderId || v.orderId === order.id)
+                !v.archived && !v.partner && (!v.orderId || v.orderId === order.id)
             );
 
             if (brand) filtered = filtered.filter(v => v.brand === brand);
@@ -2600,6 +2609,7 @@ const app = {
                                 <p><strong>État:</strong> ${app.badgeCategorie(vehicle.category)}</p>
                                 <p><strong>Kilométrage:</strong> ${vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : 'N/A'}</p>
                                 <p><strong>Lieu de livraison:</strong> ${vehicle.deliveryLocation || 'Non précisé'}</p>
+                                ${vehicle.partner ? `<p><strong>Partenaire :</strong> <span style="color: var(--warning);"><i class="fas fa-handshake"></i> ${vehicle.partner}</span> — ne peut pas être affecté à une commande AUTO SPEED</p>` : ''}
                                 
                                 ${c ? `
                                 <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -5785,6 +5795,11 @@ const app = {
                 const suppliers = Array.isArray(this.vehicleFilters.supplier) ? this.vehicleFilters.supplier : [this.vehicleFilters.supplier];
                 vehicles = vehicles.filter(v => suppliers.includes(v.supplier));
             }
+            if (this.vehicleFilters.partner && this.vehicleFilters.partner.length > 0) {
+                const partenaires = Array.isArray(this.vehicleFilters.partner) ? this.vehicleFilters.partner : [this.vehicleFilters.partner];
+                // « AUTO SPEED » designe les vehicules sans partenaire (valeur vide)
+                vehicles = vehicles.filter(v => partenaires.includes(v.partner || 'AUTO SPEED'));
+            }
             if (this.vehicleFilters.purchaseOrderId && this.vehicleFilters.purchaseOrderId.length > 0) {
                 const pos = Array.isArray(this.vehicleFilters.purchaseOrderId) ? this.vehicleFilters.purchaseOrderId : [this.vehicleFilters.purchaseOrderId];
                 vehicles = vehicles.filter(v => pos.includes(v.purchaseOrderId));
@@ -5841,6 +5856,7 @@ const app = {
         const remainingModels = new Set(vehicles.map(v => v.model));
         const remainingColors = new Set(vehicles.map(v => v.color));
         const remainingSuppliers = new Set(vehicles.map(v => v.supplier));
+        const remainingPartners = new Set(vehicles.map(v => v.partner || 'AUTO SPEED'));
         const remainingPOs = new Set(vehicles.map(v => v.purchaseOrderId));
         
         const remainingShowrooms = new Set();
@@ -5885,6 +5901,7 @@ const app = {
         ensureRemaining(this.vehicleFilters?.color, remainingColors);
         ensureRemaining(this.vehicleFilters?.supplier, remainingSuppliers);
         ensureRemaining(this.vehicleFilters?.purchaseOrderId, remainingPOs);
+        ensureRemaining(this.vehicleFilters?.partner, remainingPartners);
         
         if (this.vehicleFilters?.showroom) {
             const shws = Array.isArray(this.vehicleFilters.showroom) ? this.vehicleFilters.showroom : [this.vehicleFilters.showroom];
@@ -5920,6 +5937,7 @@ const app = {
         ];
         const colorOptions = (StorageService.get(STORAGE_KEYS.COLORS) || []).filter(c => remainingColors.has(c)).map(c => ({value: c, label: c}));
         const supplierOptions = (StorageService.get(STORAGE_KEYS.SUPPLIERS) || []).map(s => s.name).filter(s => remainingSuppliers.has(s)).map(s => ({value: s, label: s}));
+        const partnerOptions = ['AUTO SPEED', ...(StorageService.get(STORAGE_KEYS.PARTNERS) || [])].filter(p => remainingPartners.has(p)).map(p => ({value: p, label: p}));
         const showroomOpts = showroomOptions.filter(s => remainingShowrooms.has(s)).map(s => ({value: s, label: s}));
         const poOptions = [...new Set((StorageService.get(STORAGE_KEYS.VEHICLES) || []).filter(v => v.purchaseOrderId).map(v => v.purchaseOrderId))].filter(poId => remainingPOs.has(poId)).map(poId => ({value: poId, label: poId}));
 
@@ -5950,6 +5968,7 @@ const app = {
                         ${this.renderMultiSelect('vehicleFilters', 'status', 'Statut Stock', statusOptions, 'renderVehicles')}
                         ${this.renderMultiSelect('vehicleFilters', 'color', 'Couleur', colorOptions, 'renderVehicles')}
                         ${this.renderMultiSelect('vehicleFilters', 'supplier', 'Fournisseur', supplierOptions, 'renderVehicles')}
+                        ${this.renderMultiSelect('vehicleFilters', 'partner', 'Partenaire', partnerOptions, 'renderVehicles')}
                         ${this.renderMultiSelect('vehicleFilters', 'showroom', 'Showroom', showroomOpts, 'renderVehicles')}
                         ${this.renderMultiSelect('vehicleFilters', 'purchaseOrderId', "Commande d'Achat", poOptions, 'renderVehicles')}
                         <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; gap: 10px;">
@@ -6120,7 +6139,10 @@ const app = {
                                     </td>
                                     ${canViewPurchasePrice ? `<td style="font-weight: 500;">${this.formatCurrency(v.purchasePrice || 0, v.purchaseCurrency)}</td>` : ''}
                                     <td style="font-weight: 500; color: var(--text-secondary);">${this.formatCurrency(v.estimatedCustomsDuty || 0, (StorageService.get(STORAGE_KEYS.SETTINGS)?.customsCurrency || 'XAF'))}</td>
-                                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                                    <td>
+                                        <span class="status-badge ${statusClass}">${statusLabel}</span>
+                                        ${v.partner ? `<div style="margin-top:4px;"><span class="status-badge" style="background:rgba(245,158,11,0.12); color:var(--warning); font-size:0.68rem;" title="Ne peut pas être affecté à une commande AUTO SPEED"><i class="fas fa-handshake"></i> ${v.partner}</span></div>` : ''}
+                                    </td>
                                     <td>
                                         <div class="table-actions">
                                             <button class="btn-action" onclick="app.showVehicleDetails('${v.id}')" title="Voir détails">
@@ -6285,6 +6307,16 @@ const app = {
                                 <div class="form-group">
                                     <label>Lieu de livraison</label>
                                     <input type="text" name="deliveryLocation" class="glass-input" placeholder="Adresse, ville ou point de retrait convenu">
+                                </div>
+                                <div class="form-group">
+                                    <label>Partenaire de chargement</label>
+                                    <select name="partner" class="glass-select" onchange="app.avertirVehiculePartenaire(this)">
+                                        <option value="">-- Aucun (véhicule AUTO SPEED) --</option>
+                                        ${(StorageService.get(STORAGE_KEYS.PARTNERS) || []).map(p => `<option value="${p}">${p}</option>`).join('')}
+                                    </select>
+                                    <small id="avertissement-partenaire" style="display:none; color: var(--warning); font-size: 0.78rem; margin-top: 6px;">
+                                        <i class="fas fa-triangle-exclamation"></i> Ce véhicule appartient à un partenaire : il ne pourra pas être affecté à une commande AUTO SPEED.
+                                    </small>
                                 </div>
                             </div>
 
@@ -6507,6 +6539,12 @@ const app = {
         });
     },
 
+    /** Affiche/masque l'avertissement quand un partenaire est choisi sur le vehicule. */
+    avertirVehiculePartenaire(select) {
+        const avertissement = document.getElementById('avertissement-partenaire');
+        if (avertissement) avertissement.style.display = select.value ? 'block' : 'none';
+    },
+
     async handleVehicleSubmission(formData) {
         try {
             const vehicleId = formData.get('vehicleId');
@@ -6533,6 +6571,7 @@ const app = {
                 remarks: formData.get('remarks'),
                 options: formData.get('options'),
                 deliveryLocation: formData.get('deliveryLocation') || null,
+                partner: formData.get('partner') || null,
                 videoLink: formData.get('videoLink'),
                 blLink: formData.get('blLink'),
                 category: formData.get('category'),
@@ -6904,6 +6943,16 @@ const app = {
                                         <div class="form-group">
                                             <label>Lieu de livraison</label>
                                             <input type="text" name="deliveryLocation" value="${vehicle.deliveryLocation || ''}" class="glass-input" placeholder="Adresse, ville ou point de retrait convenu">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Partenaire de chargement</label>
+                                            <select name="partner" class="glass-select" onchange="app.avertirVehiculePartenaire(this)">
+                                                <option value="">-- Aucun (véhicule AUTO SPEED) --</option>
+                                                ${(StorageService.get(STORAGE_KEYS.PARTNERS) || []).map(p => `<option value="${p}" ${vehicle.partner === p ? 'selected' : ''}>${p}</option>`).join('')}
+                                            </select>
+                                            <small id="avertissement-partenaire" style="display:${vehicle.partner ? 'block' : 'none'}; color: var(--warning); font-size: 0.78rem; margin-top: 6px;">
+                                                <i class="fas fa-triangle-exclamation"></i> Ce véhicule appartient à un partenaire : il ne pourra pas être affecté à une commande AUTO SPEED.
+                                            </small>
                                         </div>
                                     </div>
 
@@ -7343,6 +7392,7 @@ const app = {
             const brandsRaw = StorageService.get(STORAGE_KEYS.BRANDS_RAW) || [];
             const categories = StorageService.get(STORAGE_KEYS.CATEGORIES) || [];
             const carriers = StorageService.get(STORAGE_KEYS.CARRIERS) || [];
+            const partners = StorageService.get(STORAGE_KEYS.PARTNERS) || [];
 
             // Helper to render a list config section
             const renderConfigSection = (title, icon, items, type) => `
@@ -7408,6 +7458,7 @@ const app = {
                                 ${this.renderShowroomSection(showroomsRaw)}
                                 ${renderConfigSection('Devises', 'fas fa-money-bill-wave', currencies, 'CURRENCIES')}
                                 ${renderConfigSection('Compagnies Maritimes', 'fas fa-ship', carriers, 'CARRIERS')}
+                                ${renderConfigSection('Partenaires (chargement partagé)', 'fas fa-handshake', partners, 'PARTNERS')}
 
                                 ${this.renderUserManagementSection()}
                                 ${this.renderRoleManagementSection()}
