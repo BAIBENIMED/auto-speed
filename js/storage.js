@@ -197,18 +197,28 @@ const StorageService = {
                     break;
                 case STORAGE_KEYS.VOYAGES:
                     res = await ApiService.createVoyage(item);
+                    // Sans cette recopie, le voyage local reste sans id : il est
+                    // alors impossible a modifier et repart en creation, que le
+                    // serveur refuse ensuite pour cause de nom deja pris.
                     if (res && res.success && res.data) {
                         const localVoyages = this.get(key);
-                        if (localVoyages.length > 0 && localVoyages[0].name === item.name) {
-                            localVoyages[0] = res.data;
+                        const position = localVoyages.findIndex(v => !v.id && v.name === item.name);
+                        if (position !== -1) {
+                            localVoyages[position] = res.data;
                             localStorage.setItem(key, JSON.stringify(localVoyages));
                         }
                     }
                     break;
             }
 
-            // Update raw attributes cache if an attribute was added
-            if (res && res.success && res.data) {
+            // Update raw attributes cache if an attribute was added.
+            // Reserve aux vraies listes dynamiques : y verser marques, voyages
+            // ou utilisateurs gonfle localStorage pour rien.
+            const CLES_ATTRIBUTS = [
+                STORAGE_KEYS.COLORS, STORAGE_KEYS.MOTORS, STORAGE_KEYS.CARRIERS,
+                STORAGE_KEYS.PARTNERS, STORAGE_KEYS.CURRENCIES, STORAGE_KEYS.CATEGORIES
+            ];
+            if (CLES_ATTRIBUTS.includes(key) && res && res.success && res.data) {
                 const raw = JSON.parse(localStorage.getItem('gtm_attributes_raw') || '[]');
                 raw.push(res.data);
                 localStorage.setItem('gtm_attributes_raw', JSON.stringify(raw));

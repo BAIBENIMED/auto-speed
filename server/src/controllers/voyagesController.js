@@ -6,10 +6,10 @@ exports.getAllVoyages = async (req, res) => {
             include: [{ model: Shipment, as: 'shipments' }],
             order: [['createdAt', 'DESC']]
         });
-        res.json(voyages);
+        res.json({ success: true, data: voyages });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la récupération des voyages' });
+        res.status(500).json({ success: false, message: 'Erreur lors de la récupération des voyages' });
     }
 };
 
@@ -25,17 +25,17 @@ exports.createVoyage = async (req, res) => {
         }
 
         const voyage = await Voyage.create(req.body);
-        res.status(201).json(voyage);
+        res.status(201).json({ success: true, data: voyage });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la création du voyage' });
+        res.status(500).json({ success: false, message: 'Erreur lors de la création du voyage' });
     }
 };
 
 exports.updateVoyage = async (req, res) => {
     try {
         const voyage = await Voyage.findByPk(req.params.id);
-        if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
+        if (!voyage) return res.status(404).json({ success: false, message: 'Voyage non trouvé' });
 
         await voyage.update(req.body);
 
@@ -67,25 +67,25 @@ exports.updateVoyage = async (req, res) => {
             }
         }
 
-        res.json(voyage);
+        res.json({ success: true, data: voyage });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la mise à jour du voyage' });
+        res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour du voyage' });
     }
 };
 
 exports.deleteVoyage = async (req, res) => {
     try {
         const voyage = await Voyage.findByPk(req.params.id);
-        if (!voyage) return res.status(404).json({ message: 'Voyage non trouvé' });
+        if (!voyage) return res.status(404).json({ success: false, message: 'Voyage non trouvé' });
 
         // Unlink shipments
         await Shipment.update({ voyageId: null }, { where: { voyageId: voyage.id } });
 
         await voyage.destroy();
-        res.json({ message: 'Voyage supprimé' });
+        res.json({ success: true, message: 'Voyage supprimé' });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la suppression du voyage' });
+        res.status(500).json({ success: false, message: 'Erreur lors de la suppression du voyage' });
     }
 };
