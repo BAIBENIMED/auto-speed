@@ -12,7 +12,7 @@ const RACINE = path.join(__dirname, '..');
  * @param {string} relatif chemin depuis server/ (ex: 'src/services/x.js')
  * @param {object} modeles objets exposant findAll / findByPk / update...
  */
-function chargerAvecModeles(relatif, modeles) {
+function chargerAvecModeles(relatif, modeles, remplacements) {
     const cible = path.join(RACINE, relatif);
     delete require.cache[require.resolve(cible)];
 
@@ -21,6 +21,10 @@ function chargerAvecModeles(relatif, modeles) {
         if (/models($|[\\/]index)/.test(demande) || demande.endsWith('/models')) return modeles;
         if (demande.includes('config/database')) {
             return { define: () => ({}), query: async () => [[]] };
+        }
+        // Stubs supplementaires (middlewares, services...) : cle = fragment du chemin
+        for (const [fragment, valeur] of Object.entries(remplacements || {})) {
+            if (demande.includes(fragment)) return valeur;
         }
         return origine.apply(this, arguments);
     };

@@ -115,17 +115,26 @@ router.get('/sync-all', authMiddleware, async (req, res) => {
             transfers
         };
 
+        // Une entite en echec vaut null : lire .length dessus ferait echouer
+        // toute la synchronisation pour une seule table indisponible.
+        const compte = (v) => (v === null || v === undefined ? 'ECHEC' : (Array.isArray(v) ? v.length : 1));
+
         console.log('✅ Sync data prepared:', {
-            roles: roles.length,
-            users: users.length,
-            clients: clients.length,
-            orders: orders.length,
-            vehicles: vehicles.length,
-            shipments: shipments.length,
-            brands: brands.length,
-            showrooms: showrooms.length,
-            purchaseOrders: purchaseOrders.length,
-            suppliers: suppliers.length
+            roles: compte(roles),
+            users: compte(users),
+            clients: compte(clients),
+            orders: compte(orders),
+            vehicles: compte(vehicles),
+            shipments: compte(shipments),
+            brands: compte(brands),
+            showrooms: compte(showrooms),
+            purchaseOrders: compte(purchaseOrders),
+            suppliers: compte(suppliers),
+            voyages: compte(voyages),
+            transfers: compte(transfers),
+            caisse: compte(cashTransactions),
+            listes: compte(attributes),
+            parametres: compte(settings)
         });
 
         res.json({
