@@ -4579,7 +4579,10 @@ const app = {
                                 <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(client.firstName + ' ' + client.lastName)}&background=6366f1&color=fff" alt="${client.firstName} ${client.lastName}">
                             </div>
                             <div class="client-info">
-                                <h3>${client.lastName} ${client.firstName}</h3>
+                                <h3>
+                                    ${client.lastName} ${client.firstName}
+                                    ${client.partner ? `<span class="status-badge" style="background:rgba(245,158,11,0.12); color:var(--warning); font-size:0.65rem; margin-left:8px; vertical-align:middle;"><i class="fas fa-handshake"></i> ${client.partner}</span>` : ''}
+                                </h3>
                                 <div class="client-details">
                                     <span><i class="fas fa-envelope"></i> ${client.email ? `<a href="mailto:${client.email}" style="color: inherit;">${client.email}</a>` : '-'}</span>
                                     <span><i class="fas fa-phone"></i> ${client.phone || '-'}</span>
@@ -4626,12 +4629,21 @@ const app = {
                                     <input type="text" name="firstName" required class="glass-input">
                                 </div>
                             </div>
-                             <div class="form-group">
-                                <label>Showroom</label>
-                                <select name="showroom" class="glass-select">
-                                    <option value="">Sélectionner un showroom</option>
-                                    ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'EULMA' ? 'selected' : ''}>${s}</option>`).join('')}
-                                </select>
+                             <div class="form-row">
+                                <div class="form-group">
+                                    <label>Showroom</label>
+                                    <select name="showroom" class="glass-select">
+                                        <option value="">Sélectionner un showroom</option>
+                                        ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'EULMA' ? 'selected' : ''}>${s}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Client d'un partenaire</label>
+                                    <select name="partner" class="glass-select">
+                                        <option value="">-- Client AUTO SPEED --</option>
+                                        ${(StorageService.get(STORAGE_KEYS.PARTNERS) || []).map(p => `<option value="${p}">${p}</option>`).join('')}
+                                    </select>
+                                </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
@@ -4701,6 +4713,13 @@ const app = {
                 reference: formData.get('reference') || this.generateClientReference(),
                 showroom: formData.get('showroom') || 'Showroom Principal'
             };
+
+            if (formData.has('partner')) {
+                newClient.partner = formData.get('partner') || null;
+            } else if (clientId) {
+                const existant = (StorageService.get(STORAGE_KEYS.CLIENTS) || []).find(c => c.id === clientId);
+                if (existant && existant.partner) newClient.partner = existant.partner;
+            }
 
             if (clientId) {
                 await StorageService.update(STORAGE_KEYS.CLIENTS, clientId, newClient);
@@ -5430,7 +5449,7 @@ const app = {
                                  style="width: 50px; height: 50px; border-radius: 12px; border: 2px solid var(--primary);">
                             <div>
                                 <h2 style="margin: 0;">${client.lastName} ${client.firstName}</h2>
-                                <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-hashtag"></i> ${client.reference || 'Sans réf'} | <i class="fas fa-store"></i> ${client.showroom || 'Showroom Principal'}</span>
+                                <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-hashtag"></i> ${client.reference || 'Sans réf'} | <i class="fas fa-store"></i> ${client.showroom || 'Showroom Principal'}${client.partner ? ` | <span style="color: var(--warning);"><i class="fas fa-handshake"></i> Client ${client.partner}</span>` : ''}</span>
                                 ${client.email ? `
                                 <div style="margin-top: 5px; display: flex; align-items: center; gap: 10px;">
                                     <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-envelope"></i> ${client.email}</span>
@@ -5596,12 +5615,21 @@ const app = {
                                     <input type="text" name="firstName" value="${client.firstName}" required class="glass-input">
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>Showroom</label>
-                                <select name="showroom" class="glass-select">
-                                    <option value="">Sélectionner un showroom</option>
-                                    ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${client.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
-                                </select>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Showroom</label>
+                                    <select name="showroom" class="glass-select">
+                                        <option value="">Sélectionner un showroom</option>
+                                        ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${client.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Client d'un partenaire</label>
+                                    <select name="partner" class="glass-select">
+                                        <option value="">-- Client AUTO SPEED --</option>
+                                        ${(StorageService.get(STORAGE_KEYS.PARTNERS) || []).map(p => `<option value="${p}" ${client.partner === p ? 'selected' : ''}>${p}</option>`).join('')}
+                                    </select>
+                                </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">

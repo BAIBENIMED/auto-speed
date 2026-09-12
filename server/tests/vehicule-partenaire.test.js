@@ -95,3 +95,18 @@ test('creation : refusee si partenaire et commande sont fournis ensemble', async
 
     assert.strictEqual(res.statusCode, 409);
 });
+
+test('un vehicule partenaire accepte un client : ses papiers restent necessaires', async () => {
+    // Le blocage porte sur la commande AUTO SPEED, pas sur le client : il faut
+    // pouvoir enregistrer le proprietaire (passeport, NIN) pour le dedouanement.
+    const vehicules = [{ id: 'V5', partner: 'CARVEX AUTO', orderId: null, clientId: null }];
+    const controleur = bancEssai(vehicules);
+
+    const req = { params: { id: 'V5' }, body: { clientId: 'C001' }, user: { id: 'u1', name: 'Admin', roleId: 'admin' } };
+    const res = reponseFactice();
+    await controleur.update(req, res);
+
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(vehicules[0].clientId, 'C001');
+    assert.strictEqual(vehicules[0].partner, 'CARVEX AUTO', 'le partenaire reste en place');
+});

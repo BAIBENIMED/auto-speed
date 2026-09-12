@@ -36,6 +36,12 @@ const Client = sequelize.define('Client', {
         type: DataTypes.STRING(100),
         field: 'nin'
     },
+    // Client d'un partenaire (ex : CARVEX AUTO). Ses papiers restent
+    // necessaires pour le dedouanement, meme si la vente n'est pas AUTO SPEED.
+    partner: {
+        type: DataTypes.STRING(100),
+        allowNull: true
+    },
     showroom: {
         type: DataTypes.STRING(100)
     },
