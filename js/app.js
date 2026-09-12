@@ -4590,7 +4590,7 @@ const app = {
                                     <span><i class="fas fa-id-card"></i> Passeport: ${client.passportNumber || '-'} ${client.passportDriveLink ? `<a href="${client.passportDriveLink}" target="_blank" style="color: var(--primary); margin-left: 8px;" title="Voir Passeport (Drive)"><i class="fab fa-google-drive"></i></a>` : ''}</span>
                                     <span><i class="fas fa-fingerprint"></i> NIN: ${client.nin || '-'}</span>
                                     <span><i class="fas fa-hashtag"></i> Réf: ${client.reference || '-'}</span>
-                                    <span><i class="fas fa-store"></i> ${client.showroom || 'Non assigné'}</span>
+                                    <span><i class="fas fa-store"></i> ${client.partner ? `Client ${client.partner} (hors showroom)` : (client.showroom || 'Non assigné')}</span>
                                 </div>
                             </div>
                             <div class="client-actions">
@@ -4632,17 +4632,20 @@ const app = {
                              <div class="form-row">
                                 <div class="form-group">
                                     <label>Showroom</label>
-                                    <select name="showroom" class="glass-select">
+                                    <select name="showroom" id="client-showroom-select" class="glass-select">
                                         <option value="">Sélectionner un showroom</option>
                                         ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${s.toUpperCase() === 'EULMA' ? 'selected' : ''}>${s}</option>`).join('')}
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label>Client d'un partenaire</label>
-                                    <select name="partner" class="glass-select">
+                                    <select name="partner" class="glass-select" onchange="app.appliquerRegleShowroomPartenaire(this)">
                                         <option value="">-- Client AUTO SPEED --</option>
                                         ${(StorageService.get(STORAGE_KEYS.PARTNERS) || []).map(p => `<option value="${p}">${p}</option>`).join('')}
                                     </select>
+                                    <small id="note-showroom-partenaire" style="display:none; color: var(--text-dim); font-size: 0.78rem; margin-top: 6px;">
+                                        <i class="fas fa-circle-info"></i> Le showroom ne s'applique qu'aux clients AUTO SPEED.
+                                    </small>
                                 </div>
                             </div>
                             <div class="form-row">
@@ -4696,6 +4699,22 @@ const app = {
     },
 
 
+    /**
+     * Un client de partenaire n'appartient a aucun de nos showrooms :
+     * le champ est grise et vide des qu'un partenaire est choisi.
+     */
+    appliquerRegleShowroomPartenaire(select) {
+        const showroom = document.getElementById('client-showroom-select');
+        const note = document.getElementById('note-showroom-partenaire');
+        const estPartenaire = !!select.value;
+
+        if (showroom) {
+            showroom.disabled = estPartenaire;
+            if (estPartenaire) showroom.value = '';
+        }
+        if (note) note.style.display = estPartenaire ? 'block' : 'none';
+    },
+
     async handleClientSubmission(formData) {
         try {
             const clientId = formData.get('clientId');
@@ -4720,6 +4739,9 @@ const app = {
                 const existant = (StorageService.get(STORAGE_KEYS.CLIENTS) || []).find(c => c.id === clientId);
                 if (existant && existant.partner) newClient.partner = existant.partner;
             }
+
+            // Le showroom ne concerne que les clients AUTO SPEED
+            if (newClient.partner) newClient.showroom = null;
 
             if (clientId) {
                 await StorageService.update(STORAGE_KEYS.CLIENTS, clientId, newClient);
@@ -5449,7 +5471,7 @@ const app = {
                                  style="width: 50px; height: 50px; border-radius: 12px; border: 2px solid var(--primary);">
                             <div>
                                 <h2 style="margin: 0;">${client.lastName} ${client.firstName}</h2>
-                                <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-hashtag"></i> ${client.reference || 'Sans réf'} | <i class="fas fa-store"></i> ${client.showroom || 'Showroom Principal'}${client.partner ? ` | <span style="color: var(--warning);"><i class="fas fa-handshake"></i> Client ${client.partner}</span>` : ''}</span>
+                                <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-hashtag"></i> ${client.reference || 'Sans réf'} | ${client.partner ? `<span style="color: var(--warning);"><i class="fas fa-handshake"></i> Client ${client.partner}</span>` : `<i class="fas fa-store"></i> ${client.showroom || 'Showroom Principal'}`}</span>
                                 ${client.email ? `
                                 <div style="margin-top: 5px; display: flex; align-items: center; gap: 10px;">
                                     <span style="font-size: 0.85rem; color: var(--text-dim);"><i class="fas fa-envelope"></i> ${client.email}</span>
@@ -5618,17 +5640,20 @@ const app = {
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Showroom</label>
-                                    <select name="showroom" class="glass-select">
+                                    <select name="showroom" id="client-showroom-select" class="glass-select" ${client.partner ? 'disabled' : ''}>
                                         <option value="">Sélectionner un showroom</option>
-                                        ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${client.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                        ${StorageService.get(STORAGE_KEYS.SHOWROOMS).map(s => `<option value="${s}" ${!client.partner && client.showroom === s ? 'selected' : ''}>${s}</option>`).join('')}
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label>Client d'un partenaire</label>
-                                    <select name="partner" class="glass-select">
+                                    <select name="partner" class="glass-select" onchange="app.appliquerRegleShowroomPartenaire(this)">
                                         <option value="">-- Client AUTO SPEED --</option>
                                         ${(StorageService.get(STORAGE_KEYS.PARTNERS) || []).map(p => `<option value="${p}" ${client.partner === p ? 'selected' : ''}>${p}</option>`).join('')}
                                     </select>
+                                    <small id="note-showroom-partenaire" style="display:${client.partner ? 'block' : 'none'}; color: var(--text-dim); font-size: 0.78rem; margin-top: 6px;">
+                                        <i class="fas fa-circle-info"></i> Le showroom ne s'applique qu'aux clients AUTO SPEED.
+                                    </small>
                                 </div>
                             </div>
                             <div class="form-row">

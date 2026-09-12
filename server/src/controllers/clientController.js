@@ -67,6 +67,10 @@ exports.create = async (req, res) => {
             }
         }
 
+        // Le showroom ne concerne que les clients AUTO SPEED : un client de
+        // partenaire n'est rattache a aucun de nos points de vente.
+        if (req.body.partner) req.body.showroom = null;
+
         const client = await Client.create(req.body);
         res.status(201).json({ success: true, data: client });
     } catch (error) {
@@ -110,6 +114,9 @@ exports.update = async (req, res) => {
                 });
             }
         }
+
+        const partenaireFinal = req.body.partner !== undefined ? req.body.partner : client.partner;
+        if (partenaireFinal) req.body.showroom = null;
 
         await client.update(req.body);
         res.json({ success: true, data: client });
