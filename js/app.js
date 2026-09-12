@@ -9892,9 +9892,10 @@ const app = {
                                     <tr>
                                         <td style="position: relative;">
                                             <div style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">${v.name}</div>
-                                            ${v.isEntity ?
-                    `<span style="position: absolute; top: 5px; right: 5px; background: var(--accent-blue); color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;">OFFICIEL</span>` :
-                    `<span style="position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid var(--border-glass); font-size: 0.55rem; padding: 1px 4px; border-radius: 3px; font-weight: 600;">LEGACY</span>`
+                                            ${v.isEntity ? (v.id ?
+                    `<div style="display: inline-block; margin-top: 4px; background: var(--accent-blue); color: white; font-size: 0.6rem; padding: 2px 7px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;">OFFICIEL</div>` :
+                    `<div title="Ce voyage n'existe que dans ce navigateur : il sera perdu si vous videz le cache." style="display: inline-block; margin-top: 4px; background: var(--warning); color: #1b1b1b; font-size: 0.6rem; padding: 2px 7px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px;"><i class="fas fa-triangle-exclamation"></i> NON SYNCHRONISÉ</div>`) :
+                    `<div style="display: inline-block; margin-top: 4px; background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid var(--border-glass); font-size: 0.55rem; padding: 1px 5px; border-radius: 3px; font-weight: 600;">LEGACY</div>`
                 }
                                             <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 5px;">
                                                 <i class="fas fa-ship"></i> ${Array.from(v.vessels).join(', ') || 'N/A'}
@@ -9929,11 +9930,15 @@ const app = {
                                         </td>
                                         <td>
                                             <div class="table-actions">
-                                                ${v.isEntity ? `
+                                                ${v.isEntity ? (v.id ? `
                                                     <button class="btn-action" onclick="app.showVoyageModal('${v.id}')" title="Modifier le Voyage">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
                                                 ` : `
+                                                    <button class="btn-action warning" onclick="app.renvoyerVoyage('${safeName}')" title="Enregistrer ce voyage sur le serveur">
+                                                        <i class="fas fa-cloud-arrow-up"></i>
+                                                    </button>
+                                                `) : `
                                                     <button class="btn-action" onclick="app.showLegacyVoyageModal('${safeName}')" title="Détails (Legacy)">
                                                         <i class="fas fa-users-cog"></i>
                                                     </button>
@@ -10688,7 +10693,7 @@ const app = {
                                                     <option value="${v.id}">${v.name}</option>
                                                 `).join('')}
                                             </select>
-                                        </div>
+                                        </div>
                                         <div class="form-group">
                                             <label>Nom du voyage (libre)</label>
                                             <input type="text" name="voyage" class="glass-input" placeholder="ex : VOY-2026-03">
@@ -11317,6 +11322,55 @@ const app = {
             e.preventDefault();
             this.handleVoyageSubmission(new FormData(e.target));
         });
+    },
+
+    /**
+     * Renvoie au serveur un voyage reste local (sans id). Si le serveur
+     * possede deja un voyage du meme nom, on adopte son identifiant au lieu
+     * d'en creer un doublon : c'est le cas quand la copie locale a perdu le
+     * lien mais que l'enregistrement, lui, avait bien eu lieu.
+     */
+    async renvoyerVoyage(nom) {
+        const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
+        const position = voyages.findIndex(v => !v.id && v.name === nom);
+        if (position === -1) {
+            this.showToast('Voyage introuvable ou déjà synchronisé', 'error');
+            return;
+        }
+
+        const { id, ...aEnvoyer } = voyages[position];
+
+        try {
+            const reponse = await ApiService.createVoyage(aEnvoyer);
+            if (!reponse || !reponse.success || !reponse.data) {
+                this.showToast('Réponse inattendue du serveur', 'error');
+                return;
+            }
+            voyages[position] = reponse.data;
+            localStorage.setItem(STORAGE_KEYS.VOYAGES, JSON.stringify(voyages));
+            this.showToast(`Voyage ${nom} enregistré sur le serveur`, 'success');
+        } catch (erreur) {
+            // 400 = un voyage de ce nom existe deja cote serveur : on le recupere
+            if (erreur.status === 400) {
+                try {
+                    const liste = await ApiService.getVoyages();
+                    const distant = (liste && liste.data ? liste.data : []).find(v => v.name === nom);
+                    if (distant) {
+                        voyages[position] = distant;
+                        localStorage.setItem(STORAGE_KEYS.VOYAGES, JSON.stringify(voyages));
+                        this.showToast(`Voyage ${nom} déjà présent sur le serveur : lien rétabli`, 'success');
+                        this.renderView(this.currentView);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('[Voyage] Récupération distante impossible :', e);
+                }
+            }
+            this.showToast(`Échec de l'envoi : ${erreur.message}`, 'error');
+            return;
+        }
+
+        this.renderView(this.currentView);
     },
 
     async handleVoyageSubmission(formData) {
