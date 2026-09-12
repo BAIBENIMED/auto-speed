@@ -368,9 +368,21 @@ const startServer = async () => {
         const departInitialisation = Date.now();
         console.log('⏳ Initialisation de la base de données...');
 
+        // L'initialisation a dure 37 s alors que la verification du schema
+        // n'en explique que 4 : on mesure chaque phase plutot que de deviner
+        // laquelle coute. Les requetes /api attendent pendant ce temps.
+        const chrono = async (nom, action) => {
+            const depart = Date.now();
+            try {
+                return await action();
+            } finally {
+                console.log(`   ⏱️  ${nom} : ${((Date.now() - depart) / 1000).toFixed(1)} s`);
+            }
+        };
+
         // Sync models
         try {
-            await sequelize.sync({ alter: true });
+            await chrono('sync({ alter }) global', () => sequelize.sync({ alter: true }));
             console.log('✅ Base de données synchronisée (MODE: ALTER)');
             
             // Migration fail-safe: Change companyName from TIBOU AUTO to AUTO SPEED in settings table
@@ -389,12 +401,16 @@ const startServer = async () => {
         }
 
         // Fail-safe: Ensure specific tables exist (in case global sync failed)
+        let departTablesBrutes = null;
         try {
-            await models.Notification.sync({ alter: true });
-            await models.VehicleTransfer.sync({ alter: true });
-            await models.VehicleTrim.sync({ alter: true });
-            await models.VehiclePrice.sync({ alter: true });
+            await chrono('sync des 4 tables fail-safe', async () => {
+                await models.Notification.sync({ alter: true });
+                await models.VehicleTransfer.sync({ alter: true });
+                await models.VehicleTrim.sync({ alter: true });
+                await models.VehiclePrice.sync({ alter: true });
+            });
             console.log('🔧 Tables Notification/VehicleTransfer/VehicleTrim/VehiclePrice vérifiées/créées (Fail-safe).');
+            departTablesBrutes = Date.now();
 
             // Raw SQL Fail-safe for Voyages (Sequelize sync might be ignored due to index warnings)
             await sequelize.query(`
@@ -467,6 +483,10 @@ const startServer = async () => {
         }
 
         // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
+        if (departTablesBrutes !== null) {
+            console.log(`   ⏱️  creation des tables en SQL brut : ${((Date.now() - departTablesBrutes) / 1000).toFixed(1)} s`);
+        }
+
         try {
             // Structure lue une fois par table puis reutilisee par les deux
             // filets : tenter les ALTER a l'aveugle coutait 75 allers-retours
@@ -551,11 +571,13 @@ const startServer = async () => {
                 { table: 'settings', name: 'coefficient_3ans', def: 'DECIMAL(8,4) DEFAULT 1.0' }
             ];
 
-            const liste = await appliquerListeExplicite(sequelize, colonnesDe, columnsToEnsure);
+            const liste = await chrono('liste explicite de colonnes',
+                () => appliquerListeExplicite(sequelize, colonnesDe, columnsToEnsure));
 
             // Filet generique : la liste ci-dessus doit etre tenue a jour a la
             // main, et c'est cet oubli qui a laisse settings.partners absente.
-            const modeles = await appliquerModeles(sequelize, colonnesDe, models);
+            const modeles = await chrono('comparaison modeles / tables',
+                () => appliquerModeles(sequelize, colonnesDe, models));
 
             const echecs = liste.echecs + modeles.echecs;
             if (echecs > 0) {
@@ -569,6 +591,7 @@ const startServer = async () => {
         }
 
         // Auto-seed Roles if empty
+        const departAmorcage = Date.now();
         const rolesCount = await models.Role.count();
         if (rolesCount === 0) {
             console.log('🌱 Seeding initial roles...');
@@ -594,6 +617,7 @@ const startServer = async () => {
             console.log('✅ Utilisateur admin créé (Login: admin / admin123)');
         }
 
+        console.log(`   ⏱️  amorcage roles / admin : ${((Date.now() - departAmorcage) / 1000).toFixed(1)} s`);
         console.log(`🏁 Initialisation terminée et prête (${Math.round((Date.now() - departInitialisation) / 1000)} s).`);
 
         // 3. Setup Automation (Cron Jobs)
