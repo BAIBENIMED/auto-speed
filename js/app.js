@@ -11634,7 +11634,7 @@ const app = {
                                             </div>
                                             <div class="form-group">
                                                 <label>Montant</label>
-                                                <input type="number" name="amount" class="glass-input" step="any" value="${orderId ? Math.max(0, preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) : ''}" required>
+                                                <input type="number" name="amount" class="glass-input" step="any" value="${orderId && (preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) > 0 ? (preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) : ''}" placeholder="${orderId && (preSelectedOrder.totalAmount - this.getPaidAmount(orderId)) <= 0 ? 'Commande déjà soldée : montant ?' : ''}" required>
                                             </div>
                                             <div class="form-group">
                                                 <label>Date d'opération</label>
@@ -11898,6 +11898,17 @@ const app = {
     async handleCashSubmission(data) {
         const form = document.getElementById('cash-form');
         const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+
+        // Un montant a 0 ou negatif ne represente aucun mouvement de caisse
+        // reel : rien n'empechait de l'enregistrer par erreur (le champ
+        // prefilli peut valoir 0 quand une commande est deja soldee).
+        const montant = Number(data.amount);
+        if (!montant || montant <= 0) {
+            if (!confirm(`Le montant saisi est ${isNaN(montant) ? 'invalide' : this.formatCurrency(montant, data.currency)}. Enregistrer quand même ce mouvement de caisse ?`)) {
+                return;
+            }
+        }
+
         if (submitBtn) submitBtn.disabled = true;
 
         try {
