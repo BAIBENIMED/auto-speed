@@ -140,6 +140,7 @@ app.get('/api/test-public', (req, res) => {
 // l'erreur « Unknown column 'partners' ». Le controle de sante et les
 // fichiers statiques ne passent pas par ici.
 const { creerPorteInitialisation } = require('./src/middleware/initialisation');
+const { creerLecteurStructure, appliquerListeExplicite, appliquerModeles } = require('./src/utils/verificationSchema');
 const porteInitialisation = creerPorteInitialisation({
     attenteMaxMs: Number(process.env.INIT_WAIT_MS || 20000)
 });
@@ -364,6 +365,7 @@ const startServer = async () => {
 
     // 2. Initialize Database in background (Non-blocking)
     try {
+        const departInitialisation = Date.now();
         console.log('⏳ Initialisation de la base de données...');
 
         // Sync models
@@ -466,6 +468,11 @@ const startServer = async () => {
 
         // Robust manual check for missing columns (Backwards compatibility/Fail-safe)
         try {
+            // Structure lue une fois par table puis reutilisee par les deux
+            // filets : tenter les ALTER a l'aveugle coutait 75 allers-retours
+            // vers une base distante, soit plus de 20 s de demarrage.
+            const colonnesDe = creerLecteurStructure(sequelize);
+
             const columnsToEnsure = [
                 { table: 'shipments', name: 'current_lat', def: 'DECIMAL(10, 8)' },
                 { table: 'shipments', name: 'current_lng', def: 'DECIMAL(11, 8)' },
@@ -544,48 +551,18 @@ const startServer = async () => {
                 { table: 'settings', name: 'coefficient_3ans', def: 'DECIMAL(8,4) DEFAULT 1.0' }
             ];
 
-            for (const col of columnsToEnsure) {
-                try {
-                    await sequelize.query(`ALTER TABLE ${col.table} ADD COLUMN ${col.name} ${col.def}`);
-                    console.log(`🔧 Column checked/added: ${col.table}.${col.name}`);
-                } catch (colErr) {
-                    // Ignore "Duplicate column name" error as it means column already exists
-                    if (colErr.message.includes('Duplicate column') || colErr.original?.code === 'ER_DUP_FIELDNAME') {
-                        // Column already exists, this is fine
-                    } else {
-                        console.error(`⚠️ Could not verify/add column ${col.name} to ${col.table}:`, colErr.message);
-                    }
-                }
-            }
-            // Filet generique : sync({ alter: true }) echoue sur certaines tables
-            // (limite de cles MySQL sur vehicles), et la liste explicite
-            // ci-dessus doit etre tenue a jour a la main — c'est ce qui a
-            // laisse settings.partners absente. On compare donc chaque modele
-            // a sa table et on ajoute ce qui manque. On n'ajoute jamais rien
-            // d'autre : aucune colonne n'est modifiee ni supprimee.
-            for (const [nomModele, modele] of Object.entries(models)) {
-                if (!modele || typeof modele.getTableName !== 'function' || !modele.rawAttributes) continue;
+            const liste = await appliquerListeExplicite(sequelize, colonnesDe, columnsToEnsure);
 
-                try {
-                    const table = modele.getTableName();
-                    const [colonnes] = await sequelize.query(`SHOW COLUMNS FROM \`${table}\``);
-                    const presentes = new Set(colonnes.map(c => c.Field));
+            // Filet generique : la liste ci-dessus doit etre tenue a jour a la
+            // main, et c'est cet oubli qui a laisse settings.partners absente.
+            const modeles = await appliquerModeles(sequelize, colonnesDe, models);
 
-                    for (const attribut of Object.values(modele.rawAttributes)) {
-                        const champ = attribut.field || attribut.fieldName;
-                        if (!champ || presentes.has(champ)) continue;
-
-                        const type = attribut.type && typeof attribut.type.toSql === 'function'
-                            ? attribut.type.toSql()
-                            : null;
-                        if (!type) continue;
-
-                        await sequelize.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${champ}\` ${type} NULL`);
-                        console.log(`🔧 Colonne manquante ajoutee : ${table}.${champ} (${type})`);
-                    }
-                } catch (tableErr) {
-                    console.error(`⚠️ Verification du schema impossible pour ${nomModele} :`, tableErr.message);
-                }
+            const echecs = liste.echecs + modeles.echecs;
+            if (echecs > 0) {
+                // Ne jamais annoncer un schema sain quand on n'a pas pu le lire.
+                console.warn(`⚠️ Schema verifie partiellement : ${echecs} table(s) ou colonne(s) inaccessibles.`);
+            } else if (liste.ajoutees + modeles.ajoutees === 0) {
+                console.log('✅ Schema a jour : aucune colonne a ajouter.');
             }
         } catch (schemaErr) {
             console.error('❌ Schema fix error:', schemaErr);
@@ -617,7 +594,7 @@ const startServer = async () => {
             console.log('✅ Utilisateur admin créé (Login: admin / admin123)');
         }
 
-        console.log('🏁 Initialisation terminée et prête.');
+        console.log(`🏁 Initialisation terminée et prête (${Math.round((Date.now() - departInitialisation) / 1000)} s).`);
 
         // 3. Setup Automation (Cron Jobs)
         const voyageTrackingService = require('./src/services/voyageTrackingService');
