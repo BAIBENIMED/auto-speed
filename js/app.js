@@ -10063,6 +10063,9 @@ const app = {
                                                     <button class="btn-action" onclick="app.showLegacyVoyageModal('${safeName}')" title="Détails (Legacy)">
                                                         <i class="fas fa-users-cog"></i>
                                                     </button>
+                                                    <button class="btn-action" onclick="app.rattacherGroupeAuVoyage('${safeName}')" title="Rattacher ces expéditions à un voyage">
+                                                        <i class="fas fa-link" style="color: var(--success);"></i>
+                                                    </button>
                                                 `}
                                                 <button class="btn-action" onclick="${satAction}" title="Démarrer/Rafraîchir Tracking Satellite">
                                                     <i class="fas fa-satellite-dish" style="color: var(--accent-blue);"></i>
@@ -10174,9 +10177,197 @@ const app = {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
+    /**
+     * Expeditions d'un groupe reconstitue. « SANS VOYAGE » n'est pas un nom
+     * stocke : c'est l'etiquette donnee aux expeditions dont le champ voyage
+     * est vide. Les chercher par ce nom ne ramenait donc jamais rien.
+     */
+    /**
+     * Rattache les expeditions d'un groupe reconstitue a un voyage, existant ou
+     * nouveau. Rien n'est supprime : on renseigne seulement voyageId, ce qui
+     * fait disparaitre la ligne reconstituee au profit du vrai voyage et permet
+     * un suivi Sinay unique pour tout le conteneur.
+     */
+    rattacherGroupeAuVoyage(nomGroupe) {
+        const expeditions = this.expeditionsDuGroupe(nomGroupe);
+        if (expeditions.length === 0) {
+            this.showToast('Aucune expédition à rattacher dans ce groupe', 'error');
+            return;
+        }
+
+        // Retenu ici plutot que transmis par l'attribut onclick, ou une
+        // apostrophe dans le nom casserait le HTML genere.
+        this.groupeARattacher = nomGroupe;
+
+        const voyages = (StorageService.get(STORAGE_KEYS.VOYAGES) || []).filter(v => v.id);
+        const vehicules = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
+        const modele = expeditions[0];
+        const nbVehicules = expeditions.reduce(
+            (t, e) => t + vehicules.filter(v => String(v.shipmentId) === String(e.id)).length, 0);
+
+        const nomPropose = (modele.vesselName || modele.shipStatus || 'VOYAGE')
+            .toString().toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'VOYAGE';
+
+        const modalHtml = `
+            <div class="modal-overlay">
+                <div class="modal-content glass" style="width: 620px; max-width: 95vw;">
+                    <div class="modal-header">
+                        <div>
+                            <h2><i class="fas fa-link"></i> Rattacher à un voyage</h2>
+                            <p style="font-size: 0.8rem; color: var(--text-dim);">
+                                ${expeditions.length} expédition(s), ${nbVehicules} véhicule(s) — groupe « ${nomGroupe} »
+                            </p>
+                        </div>
+                        <button class="btn-close" onclick="app.closeModal()">&times;</button>
+                    </div>
+
+                    <div style="padding: 0 20px 20px;">
+                        <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px; margin-bottom: 18px; font-size: 0.8rem; max-height: 160px; overflow-y: auto;">
+                            ${expeditions.map(e => `
+                                <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                    <span>${e.blNumber || e.containerNumber || e.id}</span>
+                                    <span style="color: var(--text-dim);">${e.status || ''}</span>
+                                </div>`).join('')}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Voyage de destination</label>
+                            <select id="cible-voyage" class="glass-select" onchange="document.getElementById('bloc-nouveau-voyage').style.display = this.value === '__nouveau__' ? 'block' : 'none'">
+                                ${voyages.map(v => `<option value="${v.id}">${v.name}${v.blNumber ? ' — BL ' + v.blNumber : ''}</option>`).join('')}
+                                <option value="__nouveau__" ${voyages.length ? '' : 'selected'}>➕ Créer un nouveau voyage</option>
+                            </select>
+                        </div>
+
+                        <div id="bloc-nouveau-voyage" style="display: ${voyages.length ? 'none' : 'block'};">
+                            <div class="form-group">
+                                <label>Nom du nouveau voyage</label>
+                                <input type="text" id="nom-nouveau-voyage" class="glass-input" value="${nomPropose}" placeholder="ex: TAHAT-001">
+                                <small style="color: var(--text-dim); font-size: 0.75rem;">
+                                    Navire, transporteur, ports et dates seront repris des expéditions.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                            <button class="btn-secondary" onclick="app.closeModal()">Annuler</button>
+                            <button class="btn-primary" id="btn-rattacher" onclick="app.confirmerRattachement()">
+                                <i class="fas fa-link"></i> Rattacher
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    async confirmerRattachement() {
+        const bouton = document.getElementById('btn-rattacher');
+        const choix = document.getElementById('cible-voyage').value;
+        const expeditions = this.expeditionsDuGroupe(this.groupeARattacher);
+        if (expeditions.length === 0) return;
+
+        const reactiver = () => {
+            if (!bouton) return;
+            bouton.disabled = false;
+            bouton.innerHTML = '<i class="fas fa-link"></i> Rattacher';
+        };
+
+        if (bouton) {
+            bouton.disabled = true;
+            bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rattachement...';
+        }
+
+        try {
+            let voyage;
+
+            if (choix === '__nouveau__') {
+                const nom = (document.getElementById('nom-nouveau-voyage').value || '').trim();
+                if (!nom) {
+                    this.showToast('Indiquez un nom de voyage', 'error');
+                    reactiver();
+                    return;
+                }
+
+                const modele = expeditions[0];
+                await StorageService.add(STORAGE_KEYS.VOYAGES, {
+                    name: nom,
+                    vesselName: modele.vesselName || null,
+                    carrier: modele.carrier || null,
+                    blNumber: modele.blNumber || null,
+                    loadingPort: modele.loadingPort || null,
+                    destination: modele.destination || null,
+                    etd: modele.etd || null,
+                    eta: modele.eta || null,
+                    status: 'En Route'
+                });
+
+                // L'identifiant vient du serveur. Sans lui, le rattachement
+                // pointerait dans le vide : mieux vaut s'arreter ici.
+                voyage = (StorageService.get(STORAGE_KEYS.VOYAGES) || []).find(v => v.name === nom && v.id);
+                if (!voyage) {
+                    this.showToast("Le voyage n'a pas pu être enregistré sur le serveur : rattachement annulé", 'error');
+                    reactiver();
+                    return;
+                }
+            } else {
+                voyage = (StorageService.get(STORAGE_KEYS.VOYAGES) || []).find(v => String(v.id) === String(choix));
+                if (!voyage) {
+                    this.showToast('Voyage introuvable', 'error');
+                    reactiver();
+                    return;
+                }
+            }
+
+            let rattachees = 0;
+            const echecs = [];
+
+            for (const expedition of expeditions) {
+                try {
+                    await StorageService.update(STORAGE_KEYS.SHIPMENTS, expedition.id, {
+                        ...expedition,
+                        voyageId: voyage.id,
+                        voyage: voyage.name
+                    });
+                    rattachees++;
+                } catch (erreur) {
+                    echecs.push(`${expedition.blNumber || expedition.containerNumber || expedition.id} : ${erreur.message}`);
+                }
+            }
+
+            this.closeModal();
+
+            if (echecs.length) {
+                this.showToast(`${rattachees} rattachée(s), ${echecs.length} en échec`, 'error');
+                console.error('[Rattachement] Echecs :', echecs);
+            } else {
+                this.showToast(`${rattachees} expédition(s) rattachée(s) au voyage ${voyage.name}`, 'success');
+            }
+
+            try {
+                await StorageService.syncAll();
+            } catch (e) {
+                console.error('[Rattachement] Resynchronisation impossible :', e);
+            }
+        } catch (erreur) {
+            this.showToast(`Échec du rattachement : ${erreur.message}`, 'error');
+            reactiver();
+            return;
+        }
+
+        this.renderView(this.currentView);
+    },
+
+    expeditionsDuGroupe(nomGroupe) {
+        const expeditions = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || []).filter(e => !e.voyageId);
+        const nom = (nomGroupe || '').trim();
+
+        if (nom === 'SANS VOYAGE') return expeditions.filter(e => !(e.voyage || '').trim());
+        return expeditions.filter(e => (e.voyage || '').trim() === nom);
+    },
+
     showLegacyVoyageModal(voyageName) {
-        const shipments = StorageService.get(STORAGE_KEYS.SHIPMENTS) || [];
-        const voyageShipments = shipments.filter(s => (s.voyage || '').trim() === voyageName.trim());
+        const voyageShipments = this.expeditionsDuGroupe(voyageName);
         const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES) || [];
         const orders = StorageService.get(STORAGE_KEYS.ORDERS) || [];
         const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
