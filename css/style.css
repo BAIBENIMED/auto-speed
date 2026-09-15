@@ -2807,3 +2807,11 @@ textarea.glass-input, textarea.code-input {
 .fc-button-primary { background-color: var(--primary) !important; border-color: var(--primary) !important; text-transform: capitalize; }
 .fc-event { border: none !important; padding: 2px 4px; border-radius: 4px; font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 .fc-day-today { background-color: rgba(255, 255, 255, 0.05) !important; }
+
+/* Jours passes : legerement grises pour que le present et l'avenir ressortent.
+   Le numero du jour s'attenue, les evenements restent lisibles. */
+.fc-daygrid-day.fc-day-past { background-color: rgba(0, 0, 0, 0.18) !important; }
+.fc-daygrid-day.fc-day-past .fc-daygrid-day-number { color: var(--text-dim) !important; opacity: 0.6; }
+.fc-daygrid-day.fc-day-past .fc-event { opacity: 0.7; }
+.fc-daygrid-day.fc-day-past.fc-day-today { background-color: rgba(255, 255, 255, 0.05) !important; }
+.fc-daygrid-day.fc-day-past.fc-day-today .fc-daygrid-day-number { color: var(--text-primary) !important; opacity: 1; }

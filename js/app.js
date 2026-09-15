@@ -6609,6 +6609,24 @@ const app = {
      * affichable, mais la divergence doit rester visible : c'est elle qui
      * impose un amendement du connaissement.
      */
+    /**
+     * Client d'un vehicule : celui de sa fiche d'abord, sinon celui de sa
+     * commande. C'est la regle choisie pour les reventes avant arrivee ; elle
+     * doit valoir sur tous les ecrans, pas seulement sur la fiche.
+     */
+    clientDuVehicule(v, orders, clients) {
+        if (!v) return null;
+        if (v.clientId) {
+            const direct = clients.find(c => String(c.id) === String(v.clientId));
+            if (direct) return direct;
+        }
+        if (v.orderId) {
+            const order = orders.find(o => String(o.id) === String(v.orderId));
+            if (order && order.clientId) return clients.find(c => String(c.id) === String(order.clientId)) || null;
+        }
+        return null;
+    },
+
     bandeauDivergenceClient(vehicle, order, client) {
         if (!vehicle || !order || !vehicle.clientId || !order.clientId) return '';
         if (String(vehicle.clientId) === String(order.clientId)) return '';
@@ -9519,12 +9537,11 @@ const app = {
                                 <td>
                                     <div class="shipment-vehicles-list" style="display: flex; flex-direction: column; gap: 8px;">
                                         ${shipmentVehicles.map(v => {
-                const order = orders.find(o => o.id === v.orderId);
-                const client = order ? clients.find(c => c.id === order.clientId) : null;
+                const client = this.clientDuVehicule(v, orders, clients);
                 return `
                                                 <div class="vehicle-item" style="font-size: 0.85rem; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
                                                     <i class="fas fa-car" style="color: var(--primary); margin-right: 5px;"></i>
-                                                    <strong>${v.brand || 'Véhicule'}</strong>
+                                                    <strong>${v.brand || 'Véhicule'}${v.model ? ' ' + v.model : ''}</strong>
                                                     <span style="color: var(--text-dim);"> - ${(() => {
                                                         if (!client) return 'Client non affecté';
                                                         const nom = `${client.lastName || ''} ${client.firstName || ''}`.trim();
@@ -9708,8 +9725,7 @@ const app = {
         const availableVehicles = vehicles.filter(v => !v.shipmentId && !v.isArchived);
 
         const filtered = availableVehicles.filter(v => {
-            const order = orders.find(o => o.id === v.orderId);
-            const client = order ? clients.find(c => c.id === order.clientId) : null;
+            const client = this.clientDuVehicule(v, orders, clients);
             const fullClientName = client ? `${client.firstName} ${client.lastName}`.toLowerCase() : '';
 
             const matchClient = fullClientName.includes(clientTerm);
@@ -9720,8 +9736,7 @@ const app = {
         });
 
         list.innerHTML = filtered.map(v => {
-            const order = orders.find(o => o.id === v.orderId);
-            const client = order ? clients.find(c => c.id === order.clientId) : null;
+            const client = this.clientDuVehicule(v, orders, clients);
             const clientName = client ? `${client.firstName} ${client.lastName}` : 'N/A';
 
             const draft = JSON.parse(localStorage.getItem('shipment_draft') || '{}');
@@ -10149,8 +10164,7 @@ const app = {
                                             </td>
                                             <td>
                                                 ${sVehicles.map(v => {
-                const order = orders.find(o => o.id === v.orderId);
-                const client = order ? clients.find(c => c.id === order.clientId) : null;
+                const client = this.clientDuVehicule(v, orders, clients);
                 return `
                                                         <div style="margin-bottom: 5px; font-size: 0.85rem;">
                                                             <i class="fas fa-car" style="color: var(--primary);"></i> ${v.brand} ${v.model || ''}
@@ -10492,8 +10506,7 @@ const app = {
                                                     </td>
                                                     <td>
                                                         ${sVehicles.map(v => {
-                const order = orders.find(o => o.id === v.orderId);
-                const client = order ? clients.find(c => c.id === order.clientId) : null;
+                const client = this.clientDuVehicule(v, orders, clients);
                 return `<div style="margin-bottom: 4px;">
                                                                 <i class="fas fa-car" style="color: var(--primary);"></i> ${v.brand} ${v.model || ''}
                                                                 <div style="font-size: 0.7rem; color: var(--text-dim);">
@@ -11011,6 +11024,7 @@ const app = {
             (v.id === preSelectedVehicleId || !v.shipmentId) && !v.isArchived
         );
         const orders = StorageService.get(STORAGE_KEYS.ORDERS);
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
 
         const modalHtml = `
                         <div class="modal-overlay">
@@ -11160,7 +11174,7 @@ const app = {
                 const searchString = `
                         ${v.brand} ${v.model || ''}
                         ${v.vin || ''}
-                        ${order?.clientName || ''}
+                        ${(() => { const c = this.clientDuVehicule(v, orders, clients); return c ? `${c.firstName || ''} ${c.lastName || ''}` : ''; })()}
                         ${order?.showroom || v.showroom || ''}
                         ${v.id}
                     `.toLowerCase();
@@ -11180,7 +11194,7 @@ const app = {
                                     <span style="font-weight: 500;">${v.brand} ${v.model || ''}</span>
                                     <span style="font-size: 0.75rem; color: var(--text-dim);">
                                         VIN: ${v.vin || 'N/A'} | Cmd: ${order?.id || 'N/A'} <br>
-                                        Client: ${order?.clientName || 'Stock'} | Showroom: ${order?.showroom || v.showroom || 'N/A'}
+                                        Client: ${(() => { const c = this.clientDuVehicule(v, orders, clients); return c ? `${c.lastName || ''} ${c.firstName || ''}`.trim() : 'Stock'; })()} | Showroom: ${order?.showroom || v.showroom || 'N/A'}
                                     </span>
                                 </div>
                             </label>
