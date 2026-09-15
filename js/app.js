@@ -10217,17 +10217,32 @@ const app = {
                             <p style="font-size: 0.8rem; color: var(--text-dim);">
                                 ${expeditions.length} expédition(s), ${nbVehicules} véhicule(s) — groupe « ${nomGroupe} »
                             </p>
+                            <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
+                                Cochez celles à rattacher. Les autres resteront dans le groupe pour un second rattachement.
+                            </p>
                         </div>
                         <button class="btn-close" onclick="app.closeModal()">&times;</button>
                     </div>
 
                     <div style="padding: 0 20px 20px;">
-                        <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px; margin-bottom: 18px; font-size: 0.8rem; max-height: 160px; overflow-y: auto;">
-                            ${expeditions.map(e => `
-                                <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                    <span>${e.blNumber || e.containerNumber || e.id}</span>
-                                    <span style="color: var(--text-dim);">${e.status || ''}</span>
-                                </div>`).join('')}
+                        <div style="display: flex; justify-content: flex-end; gap: 12px; font-size: 0.75rem; margin-bottom: 6px;">
+                            <a href="#" onclick="app.cocherExpeditions(true); return false;" style="color: var(--primary);">Tout cocher</a>
+                            <a href="#" onclick="app.cocherExpeditions(false); return false;" style="color: var(--text-dim);">Tout décocher</a>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px; margin-bottom: 18px; font-size: 0.8rem; max-height: 200px; overflow-y: auto;">
+                            ${expeditions.map(e => {
+                                const nbVeh = vehicules.filter(v => String(v.shipmentId) === String(e.id)).length;
+                                return `
+                                <label style="display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
+                                    <input type="checkbox" class="choix-expedition" value="${e.id}" checked>
+                                    <span style="flex: 1;">
+                                        <strong>${e.blNumber || e.containerNumber || e.id}</strong>
+                                        ${e.blNumber && e.containerNumber ? `<span style="color: var(--text-dim);"> · ${e.containerNumber}</span>` : ''}
+                                    </span>
+                                    <span style="color: var(--text-dim);"><i class="fas fa-car"></i> ${nbVeh}</span>
+                                    <span style="color: var(--text-dim); min-width: 80px; text-align: right;">${e.status || ''}</span>
+                                </label>`;
+                            }).join('')}
                         </div>
 
                         <div class="form-group">
@@ -10261,11 +10276,22 @@ const app = {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
+    cocherExpeditions(etat) {
+        document.querySelectorAll('.choix-expedition').forEach(c => { c.checked = etat; });
+    },
+
     async confirmerRattachement() {
         const bouton = document.getElementById('btn-rattacher');
         const choix = document.getElementById('cible-voyage').value;
-        const expeditions = this.expeditionsDuGroupe(this.groupeARattacher);
-        if (expeditions.length === 0) return;
+
+        const cochees = new Set(Array.from(document.querySelectorAll('.choix-expedition:checked')).map(c => c.value));
+        const expeditions = this.expeditionsDuGroupe(this.groupeARattacher)
+            .filter(e => cochees.has(String(e.id)));
+
+        if (expeditions.length === 0) {
+            this.showToast('Cochez au moins une expédition', 'error');
+            return;
+        }
 
         const reactiver = () => {
             if (!bouton) return;
