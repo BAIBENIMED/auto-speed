@@ -140,7 +140,12 @@ app.get('/api/test-public', (req, res) => {
 // l'erreur « Unknown column 'partners' ». Le controle de sante et les
 // fichiers statiques ne passent pas par ici.
 const { creerPorteInitialisation } = require('./src/middleware/initialisation');
-const { creerLecteurStructure, appliquerListeExplicite, appliquerModeles } = require('./src/utils/verificationSchema');
+const {
+    creerLecteurStructure,
+    creerTablesManquantes,
+    appliquerListeExplicite,
+    appliquerModeles
+} = require('./src/utils/verificationSchema');
 const porteInitialisation = creerPorteInitialisation({
     attenteMaxMs: Number(process.env.INIT_WAIT_MS || 20000)
 });
@@ -380,36 +385,37 @@ const startServer = async () => {
             }
         };
 
-        // Sync models
+        // Les tables absentes sont creees ; les colonnes manquantes sont
+        // traitees plus bas. sequelize.sync({ alter: true }) a ete retire :
+        // il coutait 18,7 s pour finir a chaque demarrage sur ER_TOO_MANY_KEYS
+        // (la table vehicles depasse la limite de 64 index de MySQL), donc
+        // sans jamais rien appliquer. C'est de surcroit « alter » repete a
+        // chaque demarrage qui fait grossir le nombre d'index.
         try {
-            await chrono('sync({ alter }) global', () => sequelize.sync({ alter: true }));
-            console.log('✅ Base de données synchronisée (MODE: ALTER)');
-            
-            // Migration fail-safe: Change companyName from TIBOU AUTO to AUTO SPEED in settings table
+            const tables = await chrono('creation des tables absentes',
+                () => creerTablesManquantes(sequelize, models));
+            if (tables.creees === 0 && tables.echecs === 0) {
+                console.log('✅ Toutes les tables sont presentes.');
+            }
+
+            // Migration historique : ne s'etait jamais executee, car elle
+            // suivait un sync qui echouait systematiquement.
             try {
                 await sequelize.query("UPDATE settings SET company_name = 'AUTO SPEED' WHERE company_name = 'TIBOU AUTO'");
-                console.log('✅ Base de données migrée : TIBOU AUTO renommé en AUTO SPEED dans les paramètres.');
             } catch (updateError) {
                 console.warn('⚠️ [DB Warning] Impossible de mettre à jour la table settings :', updateError.message);
             }
-        } catch (syncError) {
-            if (syncError.name === 'SequelizeDatabaseError' && syncError.parent && syncError.parent.code === 'ER_TOO_MANY_KEYS') {
-                console.warn('⚠️ [DB Warning] Trop d\'index détectés sur certaines tables. La synchronisation automatique a été ignorée pour éviter de bloquer le serveur.');
-            } else {
-                console.error('❌ [DB Error] Erreur de synchronisation schema:', syncError.message);
-            }
+        } catch (tablesError) {
+            console.error('❌ [DB Error] Erreur de verification des tables:', tablesError.message);
         }
 
         // Fail-safe: Ensure specific tables exist (in case global sync failed)
         let departTablesBrutes = null;
         try {
-            await chrono('sync des 4 tables fail-safe', async () => {
-                await models.Notification.sync({ alter: true });
-                await models.VehicleTransfer.sync({ alter: true });
-                await models.VehicleTrim.sync({ alter: true });
-                await models.VehiclePrice.sync({ alter: true });
-            });
-            console.log('🔧 Tables Notification/VehicleTransfer/VehicleTrim/VehiclePrice vérifiées/créées (Fail-safe).');
+            // Notification, VehicleTransfer, VehicleTrim et VehiclePrice
+            // passaient ici par sync({ alter: true }) a chaque demarrage :
+            // 12,1 s, et le meme risque d'accumulation d'index que celui qui a
+            // condamne vehicles. creerTablesManquantes les couvre desormais.
             departTablesBrutes = Date.now();
 
             // Raw SQL Fail-safe for Voyages (Sequelize sync might be ignored due to index warnings)

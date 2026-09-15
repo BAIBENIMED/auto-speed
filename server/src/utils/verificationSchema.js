@@ -103,4 +103,54 @@ async function appliquerModeles(sequelize, colonnesDe, models, journal = console
     return { ajoutees, echecs };
 }
 
-module.exports = { creerLecteurStructure, appliquerListeExplicite, appliquerModeles };
+
+/**
+ * Cree les tables absentes, et seulement celles-la.
+ *
+ * Remplace sequelize.sync({ alter: true }), qui coutait 18,7 s au demarrage
+ * pour se terminer systematiquement par ER_TOO_MANY_KEYS : la table vehicles
+ * depasse la limite de 64 index de MySQL, donc rien n'etait jamais applique.
+ * C'est d'ailleurs « alter » repete a chaque demarrage qui fait grossir le
+ * nombre d'index — le supprimer evite aux autres tables d'y venir a leur tour.
+ *
+ * Les colonnes manquantes restent traitees par appliquerListeExplicite et
+ * appliquerModeles ; ici on ne s'occupe que de l'existence des tables.
+ *
+ * @returns {{creees: number, echecs: number}}
+ */
+async function creerTablesManquantes(sequelize, models, journal = console) {
+    let creees = 0;
+    let echecs = 0;
+
+    let existantes;
+    try {
+        // Une seule requete, quel que soit le nombre de modeles
+        const [lignes] = await sequelize.query('SHOW TABLES');
+        existantes = new Set(lignes.map(l => String(Object.values(l)[0]).toLowerCase()));
+    } catch (erreur) {
+        journal.error('⚠️ Liste des tables illisible :', erreur.message);
+        return { creees: 0, echecs: 1 };
+    }
+
+    for (const [nomModele, modele] of Object.entries(models)) {
+        if (!modele || typeof modele.getTableName !== 'function' || typeof modele.sync !== 'function') continue;
+
+        const table = String(modele.getTableName());
+        if (existantes.has(table.toLowerCase())) continue;
+
+        try {
+            // sync() sans alter : CREATE TABLE IF NOT EXISTS, rien de plus
+            await modele.sync();
+            existantes.add(table.toLowerCase());
+            creees++;
+            journal.log(`🔧 Table creee : ${table}`);
+        } catch (erreur) {
+            echecs++;
+            journal.error(`⚠️ Creation impossible pour ${nomModele} (${table}) :`, erreur.message);
+        }
+    }
+
+    return { creees, echecs };
+}
+
+module.exports = { creerLecteurStructure, creerTablesManquantes, appliquerListeExplicite, appliquerModeles };

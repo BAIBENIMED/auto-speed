@@ -200,3 +200,79 @@ test('base injoignable : les echecs sont comptes, aucun succes annonce', async (
     assert.strictEqual(liste.ajoutees + modeles.ajoutees, 0);
     assert.ok(liste.echecs + modeles.echecs > 0, 'l impossibilite de lire doit etre signalee');
 });
+
+// --- Creation des tables absentes (remplace sync({ alter: true })) ---
+
+const { creerTablesManquantes } = require('../src/utils/verificationSchema');
+
+function baseAvecTables(tables, echouantes = []) {
+    const requetes = [];
+    const syncs = [];
+    return {
+        requetes, syncs,
+        query: async (sql) => {
+            requetes.push(sql);
+            if (sql === 'SHOW TABLES') return [tables.map(t => ({ Tables_in_base: t }))];
+            return [[]];
+        },
+        modele: (table) => ({
+            getTableName: () => table,
+            rawAttributes: {},
+            sync: async () => {
+                if (echouantes.includes(table)) throw new Error(`Cannot create ${table}`);
+                syncs.push(table);
+            }
+        })
+    };
+}
+
+test('tables toutes presentes : une seule requete, aucun sync', async () => {
+    const base = baseAvecTables(['clients', 'vehicles']);
+    const models = { Client: base.modele('clients'), Vehicle: base.modele('vehicles') };
+
+    const bilan = await creerTablesManquantes(base, models, silence);
+
+    assert.deepStrictEqual(bilan, { creees: 0, echecs: 0 });
+    assert.deepStrictEqual(base.requetes, ['SHOW TABLES'], 'une seule lecture, quel que soit le nombre de modeles');
+    assert.deepStrictEqual(base.syncs, [], 'aucune table existante ne doit etre touchee');
+});
+
+test('table absente : elle est creee sans alter', async () => {
+    const base = baseAvecTables(['clients']);
+    const models = { Client: base.modele('clients'), Notification: base.modele('notifications') };
+
+    const bilan = await creerTablesManquantes(base, models, silence);
+
+    assert.strictEqual(bilan.creees, 1);
+    assert.deepStrictEqual(base.syncs, ['notifications']);
+});
+
+test('la comparaison des noms de table ignore la casse', async () => {
+    const base = baseAvecTables(['Clients']);
+    const models = { Client: base.modele('clients') };
+
+    const bilan = await creerTablesManquantes(base, models, silence);
+
+    assert.strictEqual(bilan.creees, 0, 'Clients et clients designent la meme table');
+});
+
+test('une creation en echec n empeche pas les suivantes', async () => {
+    const base = baseAvecTables([], ['voyages']);
+    const models = { Voyage: base.modele('voyages'), Client: base.modele('clients') };
+
+    const bilan = await creerTablesManquantes(base, models, silence);
+
+    assert.strictEqual(bilan.echecs, 1);
+    assert.strictEqual(bilan.creees, 1);
+    assert.deepStrictEqual(base.syncs, ['clients']);
+});
+
+test('liste des tables illisible : signale sans rien creer', async () => {
+    const base = {
+        query: async () => { throw new Error('connexion perdue'); },
+        modele: () => ({ getTableName: () => 'x', sync: async () => {} })
+    };
+    const bilan = await creerTablesManquantes(base, { X: base.modele() }, silence);
+
+    assert.deepStrictEqual(bilan, { creees: 0, echecs: 1 });
+});
