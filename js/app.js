@@ -9949,6 +9949,10 @@ const app = {
                                                 <button class="btn-action" onclick="${histAction}" title="Voir l'Historique de Tracking">
                                                     <i class="fas fa-history" style="color: var(--primary);"></i>
                                                 </button>
+                                                ${v.isEntity ? `
+                                                <button class="btn-action danger" onclick="app.supprimerVoyage('${v.id || ''}', '${safeName}')" title="Supprimer le voyage">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>` : ''}
                                             </div>
                                         </td>
                                     </tr>
@@ -11330,6 +11334,65 @@ const app = {
      * d'en creer un doublon : c'est le cas quand la copie locale a perdu le
      * lien mais que l'enregistrement, lui, avait bien eu lieu.
      */
+    /**
+     * Supprime un voyage. Les expeditions rattachees ne sont jamais
+     * supprimees : le serveur les detache (voyageId a null) et elles
+     * reapparaissent dans la liste en tant que groupe reconstitue.
+     */
+    async supprimerVoyage(id, nom) {
+        const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
+        const voyage = id
+            ? voyages.find(v => String(v.id) === String(id))
+            : voyages.find(v => !v.id && v.name === nom);
+
+        if (!voyage) {
+            this.showToast('Voyage introuvable', 'error');
+            return;
+        }
+
+        // Un voyage jamais enregistre n'existe que dans ce navigateur
+        if (!voyage.id) {
+            if (!confirm(`Le voyage « ${nom} » n'a jamais été enregistré sur le serveur.
+
+Le retirer de ce navigateur ?`)) return;
+            localStorage.setItem(STORAGE_KEYS.VOYAGES, JSON.stringify(voyages.filter(v => v !== voyage)));
+            this.showToast(`Voyage ${nom} retiré`, 'success');
+            this.renderView(this.currentView);
+            return;
+        }
+
+        const expeditions = (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+            .filter(e => String(e.voyageId) === String(voyage.id));
+
+        const consequence = expeditions.length
+            ? `
+
+${expeditions.length} expédition(s) y sont rattachées. Elles ne seront PAS supprimées : elles seront détachées du voyage.`
+            : '';
+
+        if (!confirm(`Supprimer définitivement le voyage « ${nom} » ?${consequence}
+
+Cette action est irréversible.`)) return;
+
+        try {
+            await StorageService.delete(STORAGE_KEYS.VOYAGES, Number(voyage.id));
+            this.showToast(`Voyage ${nom} supprimé`, 'success');
+        } catch (erreur) {
+            this.showToast(`Échec de la suppression : ${erreur.message}`, 'error');
+        }
+
+        // Dans les deux cas on relit le serveur : en cas de succes pour que les
+        // expeditions detachees apparaissent comme telles, en cas d'echec pour
+        // remettre le voyage que la suppression locale avait deja retire.
+        try {
+            await StorageService.syncAll();
+        } catch (e) {
+            console.error('[Voyage] Resynchronisation impossible :', e);
+        }
+
+        this.renderView(this.currentView);
+    },
+
     async renvoyerVoyage(nom) {
         const voyages = StorageService.get(STORAGE_KEYS.VOYAGES) || [];
         const position = voyages.findIndex(v => !v.id && v.name === nom);

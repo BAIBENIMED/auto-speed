@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { chargerAvecModeles, RACINE } = require('./aide');
 
-function bancEssai(voyages) {
+function bancEssai(voyages, expeditions = []) {
     // La copie renvoyee doit refleter la mise a jour, comme une instance
     // Sequelize : sinon le test mesure le banc d'essai, pas le controleur.
     const enregistrement = (v) => {
@@ -37,7 +37,14 @@ function bancEssai(voyages) {
                 return cree;
             }
         },
-        Shipment: { update: async () => [0], findAll: async () => [] }
+        Shipment: {
+            update: async (donnees, options) => {
+                const cibles = expeditions.filter(e => e.voyageId === options.where.voyageId);
+                cibles.forEach(e => Object.assign(e, donnees));
+                return [cibles.length];
+            },
+            findAll: async () => []
+        }
     };
 
     return chargerAvecModeles('src/controllers/voyagesController.js', modeles);
@@ -111,4 +118,34 @@ test('aucun controleur ne renvoie un objet nu sur une creation', () => {
     }
 
     assert.deepStrictEqual(fautifs, [], 'reponses de creation sans { success, data }');
+});
+
+test('suppression : les expeditions sont detachees, jamais supprimees', async () => {
+    // C'est ce que la boite de dialogue promet a l'utilisateur.
+    const voyages = [{ id: 5, name: 'EV-SK-01' }];
+    const expeditions = [
+        { id: 'E1', voyageId: 5, containerNumber: 'TCKU7767567' },
+        { id: 'E2', voyageId: 5, blNumber: '149606601512' },
+        { id: 'E3', voyageId: 9, containerNumber: 'AUTRE' }
+    ];
+    const controleur = bancEssai(voyages, expeditions);
+
+    const res = reponseFactice();
+    await controleur.deleteVoyage({ params: { id: '5' } }, res);
+
+    assert.strictEqual(res.corps.success, true);
+    assert.strictEqual(voyages.length, 0, 'le voyage doit etre supprime');
+    assert.strictEqual(expeditions.length, 3, 'aucune expedition ne doit disparaitre');
+    assert.strictEqual(expeditions[0].voyageId, null, 'E1 doit etre detachee');
+    assert.strictEqual(expeditions[1].voyageId, null, 'E2 doit etre detachee');
+    assert.strictEqual(expeditions[2].voyageId, 9, 'une expedition d un autre voyage reste intacte');
+});
+
+test('suppression d un voyage inexistant : 404 sans enveloppe cassee', async () => {
+    const controleur = bancEssai([]);
+    const res = reponseFactice();
+    await controleur.deleteVoyage({ params: { id: '404' } }, res);
+
+    assert.strictEqual(res.statusCode, 404);
+    assert.strictEqual(res.corps.success, false);
 });
