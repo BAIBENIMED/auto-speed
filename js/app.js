@@ -2569,6 +2569,7 @@ const app = {
                             <div class="details-section">
                                 <h3><i class="fas fa-info-circle"></i> Identification</h3>
                                 <p><strong>Marque/Modèle:</strong> ${vehicle.brand} ${vehicle.model || ''}</p>
+                                ${this.bandeauDivergenceClient(vehicle, order, client)}
                                 ${client ? `
                                 <div class="details-section" style="background: rgba(var(--primary-rgb), 0.03); border-radius: 10px; padding: 15px; border: 1px solid rgba(var(--primary-rgb), 0.1);">
                                     <h3 style="margin-bottom: 12px; font-size: 1rem;"><i class="fas fa-user-check"></i> Client Affecté</h3>
@@ -6598,11 +6599,131 @@ const app = {
         if (avertissement) avertissement.style.display = select.value ? 'block' : 'none';
     },
 
+    /**
+     * Affecter un client reservait le vehicule — y compris un vehicule deja
+     * en mer, arrive ou vendu, dont le statut reculait a chaque enregistrement
+     * de la fiche. On ne reserve donc que ce qui est encore disponible.
+     */
+    /**
+     * Un vehicule dont le client differe de celui de sa commande reste
+     * affichable, mais la divergence doit rester visible : c'est elle qui
+     * impose un amendement du connaissement.
+     */
+    bandeauDivergenceClient(vehicle, order, client) {
+        if (!vehicle || !order || !vehicle.clientId || !order.clientId) return '';
+        if (String(vehicle.clientId) === String(order.clientId)) return '';
+
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        const clientCommande = clients.find(c => String(c.id) === String(order.clientId));
+        const nomCommande = clientCommande
+            ? `${clientCommande.lastName || ''} ${clientCommande.firstName || ''}`.trim()
+            : order.clientId;
+        const nomVehicule = client
+            ? `${client.lastName || ''} ${client.firstName || ''}`.trim()
+            : vehicle.clientId;
+
+        const expedition = vehicle.shipmentId
+            ? (StorageService.get(STORAGE_KEYS.SHIPMENTS) || []).find(e => String(e.id) === String(vehicle.shipmentId))
+            : null;
+        const bl = expedition && expedition.blNumber ? String(expedition.blNumber).trim() : '';
+
+        return `
+            <div style="background: rgba(255, 176, 32, 0.12); border: 1px solid var(--warning); border-radius: 10px; padding: 14px; margin-bottom: 15px;">
+                <h3 style="margin: 0 0 8px; font-size: 0.95rem; color: var(--warning);">
+                    <i class="fas fa-triangle-exclamation"></i> Client différent de celui de la commande
+                </h3>
+                <div style="font-size: 0.85rem; line-height: 1.6;">
+                    <div>Commande <strong>${order.id}</strong> : ${nomCommande}</div>
+                    <div>Véhicule : <strong>${nomVehicule}</strong></div>
+                    ${bl ? `
+                    <div style="margin-top: 8px; color: var(--warning); font-weight: 600;">
+                        BL n° ${bl} émis au nom du premier client — amendement requis avant l'arrivée.
+                    </div>` : `
+                    <div style="margin-top: 8px;">
+                        Aucun BL émis : veillez à ce qu'il le soit au nom du nouveau client.
+                    </div>`}
+                </div>
+            </div>
+        `;
+    },
+
+    statutApresAffectation(vehiculeExistant, clientId) {
+        const statutActuel = vehiculeExistant ? vehiculeExistant.status : null;
+
+        if (!clientId) return statutActuel || 'Available';
+        // Un vehicule engage dans la logistique garde son avancement
+        if (statutActuel && statutActuel !== 'Available') return statutActuel;
+        return 'Reserved';
+    },
+
+    /**
+     * Le client d'un vehicule peut differer de celui de sa commande : c'est un
+     * vrai cas de gestion (revente avant arrivee). Mais si le connaissement a
+     * ete emis au nom du premier client, il faut un amendement aupres de la
+     * compagnie — l'oubli se paie au dedouanement.
+     * @returns {string|null} le texte a confirmer, ou null si rien a signaler
+     */
+    avertissementChangementClient(vehiculeExistant, nouveauClientId) {
+        if (!vehiculeExistant || !vehiculeExistant.orderId || !nouveauClientId) return null;
+
+        const commande = (StorageService.get(STORAGE_KEYS.ORDERS) || [])
+            .find(o => String(o.id) === String(vehiculeExistant.orderId));
+        if (!commande || !commande.clientId) return null;
+        if (String(commande.clientId) === String(nouveauClientId)) return null;
+
+        const clients = StorageService.get(STORAGE_KEYS.CLIENTS) || [];
+        const nom = (id) => {
+            const c = clients.find(x => String(x.id) === String(id));
+            return c ? `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.id : id;
+        };
+
+        const expedition = vehiculeExistant.shipmentId
+            ? (StorageService.get(STORAGE_KEYS.SHIPMENTS) || [])
+                .find(e => String(e.id) === String(vehiculeExistant.shipmentId))
+            : null;
+        const bl = expedition && expedition.blNumber ? String(expedition.blNumber).trim() : '';
+
+        let texte = `⚠️ CHANGEMENT DE CLIENT
+
+`;
+        texte += `Véhicule : ${vehiculeExistant.brand || ''} ${vehiculeExistant.model || ''} (${vehiculeExistant.chassisNumber || vehiculeExistant.id})
+`;
+        texte += `Commande ${commande.id} — client : ${nom(commande.clientId)}
+`;
+        texte += `Nouveau client du véhicule : ${nom(nouveauClientId)}
+
+`;
+
+        if (bl) {
+            texte += `Le connaissement n° ${bl} a été émis au nom du premier client.
+`;
+            texte += `UN AMENDEMENT DU BL auprès de la compagnie sera nécessaire avant l'arrivée,
+`;
+            texte += `faute de quoi le dédouanement sera bloqué.
+
+`;
+        } else {
+            texte += `Aucun connaissement n'a encore été émis pour ce véhicule :
+`;
+            texte += `le changement peut être fait sans amendement, mais veillez à ce que
+`;
+            texte += `le BL soit émis au nom du nouveau client.
+
+`;
+        }
+
+        texte += `Confirmer ce changement ?`;
+        return texte;
+    },
+
     async handleVehicleSubmission(formData) {
         try {
             const vehicleId = formData.get('vehicleId');
             const vehicles = StorageService.get(STORAGE_KEYS.VEHICLES);
             const existingVehicle = vehicleId ? vehicles.find(v => v.id === vehicleId) : null;
+
+            const avertissement = this.avertissementChangementClient(existingVehicle, formData.get('clientId'));
+            if (avertissement && !confirm(avertissement)) return;
 
             const newVehicle = {
                 id: vehicleId || this.generateVehicleId(formData.get('brand')),
@@ -6637,7 +6758,7 @@ const app = {
                 originalClientId: existingVehicle ? existingVehicle.originalClientId : null,
                 originalOwnerName: existingVehicle ? existingVehicle.originalOwnerName : null,
                 showroom: formData.get('showroom') || null,
-                status: formData.get('clientId') ? 'Reserved' : (existingVehicle ? existingVehicle.status : 'Available')
+                status: this.statutApresAffectation(existingVehicle, formData.get('clientId'))
             };
 
             // ALWAYS re-capture the original owner from a full order scan
